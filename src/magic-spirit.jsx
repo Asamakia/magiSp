@@ -1135,7 +1135,7 @@ export default function MagicSpiritGame() {
   }, [currentPlayer, p1Field, p2Field, chargeUsedThisTurn, addLog]);
 
   // 技発動処理
-  const useSkill = useCallback((monsterIndex, skillType) => {
+  const executeSkill = useCallback((monsterIndex, skillType) => {
     const field = currentPlayer === 1 ? p1Field : p2Field;
     const monster = field[monsterIndex];
 
@@ -1840,7 +1840,7 @@ export default function MagicSpiritGame() {
                     </div>
                     {monster.basicSkill && (
                       <button
-                        onClick={() => useSkill(selectedFieldMonster, 'basic')}
+                        onClick={() => executeSkill(selectedFieldMonster, 'basic')}
                         style={{
                           ...styles.actionButton,
                           background: 'linear-gradient(135deg, #4caf50 0%, #66bb6a 100%)',
@@ -1854,7 +1854,7 @@ export default function MagicSpiritGame() {
                     )}
                     {monster.advancedSkill && (
                       <button
-                        onClick={() => useSkill(selectedFieldMonster, 'advanced')}
+                        onClick={() => executeSkill(selectedFieldMonster, 'advanced')}
                         style={{
                           ...styles.actionButton,
                           background: 'linear-gradient(135deg, #ff9800 0%, #ffa726 100%)',
@@ -1881,7 +1881,7 @@ export default function MagicSpiritGame() {
                     </div>
                     {monster.basicSkill && (
                       <button
-                        onClick={() => useSkill(selectedFieldMonster, 'basic')}
+                        onClick={() => executeSkill(selectedFieldMonster, 'basic')}
                         style={{
                           ...styles.actionButton,
                           background: 'linear-gradient(135deg, #4caf50 0%, #66bb6a 100%)',
@@ -1895,7 +1895,7 @@ export default function MagicSpiritGame() {
                     )}
                     {monster.advancedSkill && (
                       <button
-                        onClick={() => useSkill(selectedFieldMonster, 'advanced')}
+                        onClick={() => executeSkill(selectedFieldMonster, 'advanced')}
                         style={{
                           ...styles.actionButton,
                           background: 'linear-gradient(135deg, #ff9800 0%, #ffa726 100%)',
