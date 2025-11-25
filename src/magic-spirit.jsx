@@ -552,8 +552,55 @@ const Card = ({ card, onClick, selected, small, faceDown, inHand, disabled }) =>
         alignItems: 'center',
         justifyContent: 'center',
         fontSize: '24px',
+        position: 'relative',
       }}>
         {card.type === 'monster' ? '🐉' : card.type === 'magic' ? '📜' : '🏔️'}
+
+        {/* 技アイコン表示（モンスターのみ） */}
+        {card.type === 'monster' && (card.basicSkill || card.advancedSkill) && (
+          <div style={{
+            position: 'absolute',
+            bottom: '2px',
+            right: '2px',
+            display: 'flex',
+            gap: '2px',
+          }}>
+            {card.basicSkill && (
+              <div style={{
+                width: '16px',
+                height: '16px',
+                borderRadius: '50%',
+                background: 'linear-gradient(135deg, #4caf50 0%, #66bb6a 100%)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: '10px',
+                fontWeight: 'bold',
+                color: '#fff',
+                boxShadow: '0 1px 3px rgba(0,0,0,0.5)',
+              }} title={`基本技: ${card.basicSkill.text}`}>
+                1
+              </div>
+            )}
+            {card.advancedSkill && (
+              <div style={{
+                width: '16px',
+                height: '16px',
+                borderRadius: '50%',
+                background: 'linear-gradient(135deg, #ff9800 0%, #ffa726 100%)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: '10px',
+                fontWeight: 'bold',
+                color: '#fff',
+                boxShadow: '0 1px 3px rgba(0,0,0,0.5)',
+              }} title={`上級技: ${card.advancedSkill.text}`}>
+                2
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {/* ステータス（モンスターのみ） */}
@@ -661,8 +708,57 @@ const FieldMonster = ({ monster, onClick, selected, canAttack, isTarget, isValid
       <div style={{ fontSize: '9px', fontWeight: 'bold', color: colors.text, textAlign: 'center', marginBottom: '2px' }}>
         {monster.name}
       </div>
-      
-      <div style={{ fontSize: '24px', marginBottom: '4px' }}>🐉</div>
+
+      <div style={{ fontSize: '24px', marginBottom: '4px', position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        🐉
+        {/* 技アイコン */}
+        {(monster.basicSkill || monster.advancedSkill) && (
+          <div style={{
+            position: 'absolute',
+            bottom: '-2px',
+            right: '18px',
+            display: 'flex',
+            gap: '2px',
+          }}>
+            {monster.basicSkill && (
+              <div style={{
+                width: '14px',
+                height: '14px',
+                borderRadius: '50%',
+                background: 'linear-gradient(135deg, #4caf50 0%, #66bb6a 100%)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: '9px',
+                fontWeight: 'bold',
+                color: '#fff',
+                boxShadow: '0 1px 3px rgba(0,0,0,0.5)',
+                border: '1px solid rgba(255,255,255,0.3)',
+              }} title={`基本技: ${monster.basicSkill.text}`}>
+                1
+              </div>
+            )}
+            {monster.advancedSkill && (
+              <div style={{
+                width: '14px',
+                height: '14px',
+                borderRadius: '50%',
+                background: 'linear-gradient(135deg, #ff9800 0%, #ffa726 100%)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: '9px',
+                fontWeight: 'bold',
+                color: '#fff',
+                boxShadow: '0 1px 3px rgba(0,0,0,0.5)',
+                border: '1px solid rgba(255,255,255,0.3)',
+              }} title={`上級技: ${monster.advancedSkill.text}`}>
+                2
+              </div>
+            )}
+          </div>
+        )}
+      </div>
       
       {/* HPバー */}
       <div style={{
@@ -1635,9 +1731,9 @@ export default function MagicSpiritGame() {
                     ⚔️ {selectedHandCard.attack} | ❤️ {selectedHandCard.hp}
                   </div>
                 )}
-                <div style={{ 
-                  fontSize: '10px', 
-                  color: '#e0e0e0', 
+                <div style={{
+                  fontSize: '10px',
+                  color: '#e0e0e0',
                   background: 'rgba(0,0,0,0.3)',
                   padding: '6px',
                   borderRadius: '4px',
@@ -1647,6 +1743,34 @@ export default function MagicSpiritGame() {
                 }}>
                   {selectedHandCard.effect || 'なし'}
                 </div>
+                {/* 技情報 */}
+                {selectedHandCard.type === 'monster' && (selectedHandCard.basicSkill || selectedHandCard.advancedSkill) && (
+                  <div style={{ marginTop: '6px', fontSize: '10px', lineHeight: '1.4' }}>
+                    {selectedHandCard.basicSkill && (
+                      <div style={{
+                        marginBottom: '4px',
+                        padding: '4px',
+                        background: 'rgba(76,175,80,0.2)',
+                        borderRadius: '4px',
+                        border: '1px solid rgba(76,175,80,0.3)',
+                      }}>
+                        <span style={{ color: '#4caf50', fontWeight: 'bold' }}>基本技(1):</span>
+                        <span style={{ color: '#e0e0e0', marginLeft: '4px' }}>{selectedHandCard.basicSkill.text}</span>
+                      </div>
+                    )}
+                    {selectedHandCard.advancedSkill && (
+                      <div style={{
+                        padding: '4px',
+                        background: 'rgba(255,152,0,0.2)',
+                        borderRadius: '4px',
+                        border: '1px solid rgba(255,152,0,0.3)',
+                      }}>
+                        <span style={{ color: '#ff9800', fontWeight: 'bold' }}>上級技(2):</span>
+                        <span style={{ color: '#e0e0e0', marginLeft: '4px' }}>{selectedHandCard.advancedSkill.text}</span>
+                      </div>
+                    )}
+                  </div>
+                )}
                 <div style={{ 
                   fontSize: '10px', 
                   color: '#ff6b6b', 
@@ -1878,9 +2002,9 @@ export default function MagicSpiritGame() {
                     ⚔️ {selectedHandCard.attack} | ❤️ {selectedHandCard.hp}
                   </div>
                 )}
-                <div style={{ 
-                  fontSize: '10px', 
-                  color: '#e0e0e0', 
+                <div style={{
+                  fontSize: '10px',
+                  color: '#e0e0e0',
                   background: 'rgba(0,0,0,0.3)',
                   padding: '6px',
                   borderRadius: '4px',
@@ -1890,6 +2014,34 @@ export default function MagicSpiritGame() {
                 }}>
                   {selectedHandCard.effect || 'なし'}
                 </div>
+                {/* 技情報 */}
+                {selectedHandCard.type === 'monster' && (selectedHandCard.basicSkill || selectedHandCard.advancedSkill) && (
+                  <div style={{ marginTop: '6px', fontSize: '10px', lineHeight: '1.4' }}>
+                    {selectedHandCard.basicSkill && (
+                      <div style={{
+                        marginBottom: '4px',
+                        padding: '4px',
+                        background: 'rgba(76,175,80,0.2)',
+                        borderRadius: '4px',
+                        border: '1px solid rgba(76,175,80,0.3)',
+                      }}>
+                        <span style={{ color: '#4caf50', fontWeight: 'bold' }}>基本技(1):</span>
+                        <span style={{ color: '#e0e0e0', marginLeft: '4px' }}>{selectedHandCard.basicSkill.text}</span>
+                      </div>
+                    )}
+                    {selectedHandCard.advancedSkill && (
+                      <div style={{
+                        padding: '4px',
+                        background: 'rgba(255,152,0,0.2)',
+                        borderRadius: '4px',
+                        border: '1px solid rgba(255,152,0,0.3)',
+                      }}>
+                        <span style={{ color: '#ff9800', fontWeight: 'bold' }}>上級技(2):</span>
+                        <span style={{ color: '#e0e0e0', marginLeft: '4px' }}>{selectedHandCard.advancedSkill.text}</span>
+                      </div>
+                    )}
+                  </div>
+                )}
                 <div style={{ 
                   fontSize: '10px', 
                   color: '#6b4ce6', 
