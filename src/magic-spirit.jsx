@@ -1732,10 +1732,10 @@ export default function MagicSpiritGame() {
               <div style={{ ...styles.cardSlot, width: '80px', height: '100px' }}>なし</div>
             )}
             {selectedHandCard && currentPlayer === 2 && (
-              <div style={{ 
-                marginTop: '12px', 
-                padding: '10px', 
-                background: 'rgba(255,107,107,0.2)', 
+              <div style={{
+                marginTop: '12px',
+                padding: '10px',
+                background: 'rgba(255,107,107,0.2)',
                 borderRadius: '8px',
                 border: '1px solid rgba(255,107,107,0.5)',
               }}>
@@ -1745,6 +1745,11 @@ export default function MagicSpiritGame() {
                 <div style={{ fontSize: '11px', color: '#ccc', marginBottom: '4px' }}>
                   属性: {selectedHandCard.attribute} | コスト: {selectedHandCard.cost} SP
                 </div>
+                {selectedHandCard.categoryText && (
+                  <div style={{ fontSize: '11px', color: '#ffd700', marginBottom: '4px' }}>
+                    カテゴリ: {selectedHandCard.categoryText}
+                  </div>
+                )}
                 {selectedHandCard.type === 'monster' && (
                   <div style={{ fontSize: '11px', color: '#ccc', marginBottom: '6px' }}>
                     ⚔️ {selectedHandCard.attack} | ❤️ {selectedHandCard.hp}
@@ -1790,9 +1795,9 @@ export default function MagicSpiritGame() {
                     )}
                   </div>
                 )}
-                <div style={{ 
-                  fontSize: '10px', 
-                  color: '#ff6b6b', 
+                <div style={{
+                  fontSize: '10px',
+                  color: '#ff6b6b',
                   marginTop: '6px',
                   fontWeight: 'bold',
                 }}>
@@ -1802,6 +1807,79 @@ export default function MagicSpiritGame() {
                 </div>
               </div>
             )}
+            {!selectedHandCard && selectedFieldMonster !== null && currentPlayer === 2 && (() => {
+              const monster = p2Field[selectedFieldMonster];
+              if (!monster) return null;
+              return (
+                <div style={{
+                  marginTop: '12px',
+                  padding: '10px',
+                  background: 'rgba(255,107,107,0.2)',
+                  borderRadius: '8px',
+                  border: '1px solid rgba(255,107,107,0.5)',
+                }}>
+                  <div style={{ fontSize: '12px', fontWeight: 'bold', marginBottom: '6px', color: '#ff8a8a' }}>
+                    📋 フィールド: {monster.name}
+                  </div>
+                  <div style={{ fontSize: '11px', color: '#ccc', marginBottom: '4px' }}>
+                    属性: {monster.attribute} | コスト: {monster.cost} SP
+                  </div>
+                  {monster.categoryText && (
+                    <div style={{ fontSize: '11px', color: '#ffd700', marginBottom: '4px' }}>
+                      カテゴリ: {monster.categoryText}
+                    </div>
+                  )}
+                  <div style={{ fontSize: '11px', color: '#ccc', marginBottom: '6px' }}>
+                    ⚔️ {monster.attack} | ❤️ {monster.hp}
+                    {monster.charges && monster.charges.length > 0 && (
+                      <span style={{ marginLeft: '8px', color: '#4caf50' }}>
+                        ⚡ チャージ: {monster.charges.length}
+                      </span>
+                    )}
+                  </div>
+                  <div style={{
+                    fontSize: '10px',
+                    color: '#e0e0e0',
+                    background: 'rgba(0,0,0,0.3)',
+                    padding: '6px',
+                    borderRadius: '4px',
+                    lineHeight: '1.4',
+                    maxHeight: '80px',
+                    overflowY: 'auto',
+                  }}>
+                    {monster.effect || 'なし'}
+                  </div>
+                  {/* 技情報 */}
+                  {(monster.basicSkill || monster.advancedSkill) && (
+                    <div style={{ marginTop: '6px', fontSize: '10px', lineHeight: '1.4' }}>
+                      {monster.basicSkill && (
+                        <div style={{
+                          marginBottom: '4px',
+                          padding: '4px',
+                          background: 'rgba(76,175,80,0.2)',
+                          borderRadius: '4px',
+                          border: '1px solid rgba(76,175,80,0.3)',
+                        }}>
+                          <span style={{ color: '#4caf50', fontWeight: 'bold' }}>基本技(1):</span>
+                          <span style={{ color: '#e0e0e0', marginLeft: '4px' }}>{monster.basicSkill.text}</span>
+                        </div>
+                      )}
+                      {monster.advancedSkill && (
+                        <div style={{
+                          padding: '4px',
+                          background: 'rgba(255,152,0,0.2)',
+                          borderRadius: '4px',
+                          border: '1px solid rgba(255,152,0,0.3)',
+                        }}>
+                          <span style={{ color: '#ff9800', fontWeight: 'bold' }}>上級技(2):</span>
+                          <span style={{ color: '#e0e0e0', marginLeft: '4px' }}>{monster.advancedSkill.text}</span>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
           </div>
         </div>
 
@@ -2003,10 +2081,10 @@ export default function MagicSpiritGame() {
               <div style={{ ...styles.cardSlot, width: '80px', height: '100px' }}>なし</div>
             )}
             {selectedHandCard && currentPlayer === 1 && (
-              <div style={{ 
-                marginTop: '12px', 
-                padding: '10px', 
-                background: 'rgba(107,76,230,0.2)', 
+              <div style={{
+                marginTop: '12px',
+                padding: '10px',
+                background: 'rgba(107,76,230,0.2)',
                 borderRadius: '8px',
                 border: '1px solid rgba(107,76,230,0.5)',
               }}>
@@ -2016,6 +2094,11 @@ export default function MagicSpiritGame() {
                 <div style={{ fontSize: '11px', color: '#ccc', marginBottom: '4px' }}>
                   属性: {selectedHandCard.attribute} | コスト: {selectedHandCard.cost} SP
                 </div>
+                {selectedHandCard.categoryText && (
+                  <div style={{ fontSize: '11px', color: '#ffd700', marginBottom: '4px' }}>
+                    カテゴリ: {selectedHandCard.categoryText}
+                  </div>
+                )}
                 {selectedHandCard.type === 'monster' && (
                   <div style={{ fontSize: '11px', color: '#ccc', marginBottom: '6px' }}>
                     ⚔️ {selectedHandCard.attack} | ❤️ {selectedHandCard.hp}
@@ -2061,9 +2144,9 @@ export default function MagicSpiritGame() {
                     )}
                   </div>
                 )}
-                <div style={{ 
-                  fontSize: '10px', 
-                  color: '#6b4ce6', 
+                <div style={{
+                  fontSize: '10px',
+                  color: '#6b4ce6',
                   marginTop: '6px',
                   fontWeight: 'bold',
                 }}>
@@ -2073,6 +2156,79 @@ export default function MagicSpiritGame() {
                 </div>
               </div>
             )}
+            {!selectedHandCard && selectedFieldMonster !== null && currentPlayer === 1 && (() => {
+              const monster = p1Field[selectedFieldMonster];
+              if (!monster) return null;
+              return (
+                <div style={{
+                  marginTop: '12px',
+                  padding: '10px',
+                  background: 'rgba(107,76,230,0.2)',
+                  borderRadius: '8px',
+                  border: '1px solid rgba(107,76,230,0.5)',
+                }}>
+                  <div style={{ fontSize: '12px', fontWeight: 'bold', marginBottom: '6px', color: '#a78bfa' }}>
+                    📋 フィールド: {monster.name}
+                  </div>
+                  <div style={{ fontSize: '11px', color: '#ccc', marginBottom: '4px' }}>
+                    属性: {monster.attribute} | コスト: {monster.cost} SP
+                  </div>
+                  {monster.categoryText && (
+                    <div style={{ fontSize: '11px', color: '#ffd700', marginBottom: '4px' }}>
+                      カテゴリ: {monster.categoryText}
+                    </div>
+                  )}
+                  <div style={{ fontSize: '11px', color: '#ccc', marginBottom: '6px' }}>
+                    ⚔️ {monster.attack} | ❤️ {monster.hp}
+                    {monster.charges && monster.charges.length > 0 && (
+                      <span style={{ marginLeft: '8px', color: '#4caf50' }}>
+                        ⚡ チャージ: {monster.charges.length}
+                      </span>
+                    )}
+                  </div>
+                  <div style={{
+                    fontSize: '10px',
+                    color: '#e0e0e0',
+                    background: 'rgba(0,0,0,0.3)',
+                    padding: '6px',
+                    borderRadius: '4px',
+                    lineHeight: '1.4',
+                    maxHeight: '80px',
+                    overflowY: 'auto',
+                  }}>
+                    {monster.effect || 'なし'}
+                  </div>
+                  {/* 技情報 */}
+                  {(monster.basicSkill || monster.advancedSkill) && (
+                    <div style={{ marginTop: '6px', fontSize: '10px', lineHeight: '1.4' }}>
+                      {monster.basicSkill && (
+                        <div style={{
+                          marginBottom: '4px',
+                          padding: '4px',
+                          background: 'rgba(76,175,80,0.2)',
+                          borderRadius: '4px',
+                          border: '1px solid rgba(76,175,80,0.3)',
+                        }}>
+                          <span style={{ color: '#4caf50', fontWeight: 'bold' }}>基本技(1):</span>
+                          <span style={{ color: '#e0e0e0', marginLeft: '4px' }}>{monster.basicSkill.text}</span>
+                        </div>
+                      )}
+                      {monster.advancedSkill && (
+                        <div style={{
+                          padding: '4px',
+                          background: 'rgba(255,152,0,0.2)',
+                          borderRadius: '4px',
+                          border: '1px solid rgba(255,152,0,0.3)',
+                        }}>
+                          <span style={{ color: '#ff9800', fontWeight: 'bold' }}>上級技(2):</span>
+                          <span style={{ color: '#e0e0e0', marginLeft: '4px' }}>{monster.advancedSkill.text}</span>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
           </div>
         </div>
       </div>
