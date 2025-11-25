@@ -149,7 +149,6 @@ const MAX_SP = 10;
 const INITIAL_HAND_SIZE = 5;
 const DECK_SIZE = 40;
 const COUNTER_ATTACK_RATE = 0.3;
-const EXTRA_DRAW_COST = 1; // 追加ドローのSPコスト
 
 const PHASES = ['ターン開始', 'ドロー', 'メイン', 'バトル', 'エンド'];
 
@@ -732,7 +731,6 @@ export default function MagicSpiritGame() {
   const [selectedFieldMonster, setSelectedFieldMonster] = useState(null);
   const [attackingMonster, setAttackingMonster] = useState(null);
   const [chargeUsedThisTurn, setChargeUsedThisTurn] = useState(false);
-  const [drawPhaseComplete, setDrawPhaseComplete] = useState(false); // ドローフェイズで通常ドロー完了
 
   // ログ追加関数
   const addLog = useCallback((message, type = 'info') => {
@@ -801,8 +799,7 @@ export default function MagicSpiritGame() {
     setSelectedFieldMonster(null);
     setAttackingMonster(null);
     setChargeUsedThisTurn(false);
-    setDrawPhaseComplete(false);
-
+    
     setGameState('playing');
     addLog('ゲーム開始！先攻プレイヤー1のターン', 'info');
   }, [addLog, allCards]);
@@ -866,28 +863,23 @@ export default function MagicSpiritGame() {
         // レスト状態のSPをアクティブに
         player.setActiveSP(prev => prev + player.restedSP);
         player.setRestedSP(0);
-
+        
         // モンスターの攻撃可能フラグをリセット
         player.setField(prev => prev.map(m => m ? { ...m, canAttack: true } : null));
         setChargeUsedThisTurn(false);
-        setDrawPhaseComplete(false); // ドローフェイズリセット
         setPhase(1);
         break;
 
       case 1: // ドローフェイズ
-        // 通常ドローを1回だけ自動実行
-        if (!drawPhaseComplete) {
-          if (player.deck.length > 0) {
-            const drawnCard = player.deck[0];
-            player.setDeck(prev => prev.slice(1));
-            player.setHand(prev => [...prev, drawnCard]);
-            addLog(`プレイヤー${currentPlayer}: 1枚ドロー`, 'info');
-          } else {
-            addLog(`プレイヤー${currentPlayer}: デッキ切れ！`, 'damage');
-          }
-          setDrawPhaseComplete(true);
+        if (player.deck.length > 0) {
+          const drawnCard = player.deck[0];
+          player.setDeck(prev => prev.slice(1));
+          player.setHand(prev => [...prev, drawnCard]);
+          addLog(`プレイヤー${currentPlayer}: 1枚ドロー`, 'info');
+        } else {
+          addLog(`プレイヤー${currentPlayer}: デッキ切れ！`, 'damage');
         }
-        // プレイヤーが追加ドローするか選択するまで待機（メインフェイズへは手動で進む）
+        setPhase(2);
         break;
 
       case 2: // メインフェイズ
@@ -915,7 +907,7 @@ export default function MagicSpiritGame() {
         addLog(`プレイヤー${currentPlayer}のターン終了`, 'info');
         break;
     }
-  }, [currentPlayer, isFirstTurn, addLog, drawPhaseComplete, getCurrentPlayerData, getOpponentData]);
+  }, [currentPlayer, isFirstTurn, addLog]);
 
   // カード召喚
   const summonCard = useCallback((card, slotIndex) => {
@@ -1172,17 +1164,11 @@ export default function MagicSpiritGame() {
   // フェイズ自動進行
   useEffect(() => {
     if (gameState !== 'playing') return;
-    // ターン開始フェイズは自動進行
-    if (phase === 0) {
+    if (phase === 0 || phase === 1) {
       const timer = setTimeout(() => processPhase(phase), 500);
       return () => clearTimeout(timer);
     }
-    // ドローフェイズは通常ドローのみ自動実行（drawPhaseComplete === false の時のみ）
-    if (phase === 1 && !drawPhaseComplete) {
-      const timer = setTimeout(() => processPhase(phase), 500);
-      return () => clearTimeout(timer);
-    }
-  }, [phase, gameState, drawPhaseComplete, processPhase]);
+  }, [phase, gameState, processPhase]);
 
   // ハンドカードクリック
   const handleHandCardClick = (card) => {
@@ -1231,47 +1217,6 @@ export default function MagicSpiritGame() {
       attack(attackingMonster, -1);
     } else {
       addLog('相手の場にモンスターがいます。対象を選択してください。', 'info');
-    }
-  };
-
-  // 追加ドロー
-  const handleExtraDraw = () => {
-    if (phase !== 1) return;
-
-    // 先攻1ターン目は追加ドロー不可
-    if (isFirstTurn && currentPlayer === 1) {
-      addLog('先攻1ターン目は追加ドローできません', 'damage');
-      return;
-    }
-
-    const player = getCurrentPlayerData();
-
-    if (player.activeSP < EXTRA_DRAW_COST) {
-      addLog(`SPが足りません！（必要: ${EXTRA_DRAW_COST}, 現在: ${player.activeSP}）`, 'damage');
-      return;
-    }
-
-    if (player.deck.length === 0) {
-      addLog(`デッキにカードがありません！`, 'damage');
-      return;
-    }
-
-    // SPを消費
-    player.setActiveSP(prev => prev - EXTRA_DRAW_COST);
-    player.setRestedSP(prev => prev + EXTRA_DRAW_COST);
-
-    // 追加ドロー
-    const drawnCard = player.deck[0];
-    player.setDeck(prev => prev.slice(1));
-    player.setHand(prev => [...prev, drawnCard]);
-
-    addLog(`プレイヤー${currentPlayer}: ${EXTRA_DRAW_COST}SP消費して追加ドロー！`, 'info');
-  };
-
-  // ドローフェイズ終了（メインフェイズへ）
-  const endDrawPhase = () => {
-    if (phase === 1) {
-      setPhase(2);
     }
   };
 
@@ -1544,27 +1489,7 @@ export default function MagicSpiritGame() {
           </div>
 
           {/* アクションボタン */}
-          <div style={{ display: 'flex', gap: '12px', flexDirection: 'column', alignItems: 'center' }}>
-            {phase === 1 && drawPhaseComplete && (
-              <div style={{ display: 'flex', gap: '12px' }}>
-                <button
-                  onClick={handleExtraDraw}
-                  style={{
-                    ...styles.actionButton,
-                    background: (isFirstTurn && currentPlayer === 1) || (currentPlayer === 1 ? p1ActiveSP : p2ActiveSP) < EXTRA_DRAW_COST
-                      ? 'linear-gradient(135deg, #666 0%, #888 100%)'
-                      : 'linear-gradient(135deg, #ff9800 0%, #ffc107 100%)',
-                    cursor: (isFirstTurn && currentPlayer === 1) || (currentPlayer === 1 ? p1ActiveSP : p2ActiveSP) < EXTRA_DRAW_COST ? 'not-allowed' : 'pointer',
-                  }}
-                  disabled={(isFirstTurn && currentPlayer === 1) || (currentPlayer === 1 ? p1ActiveSP : p2ActiveSP) < EXTRA_DRAW_COST}
-                >
-                  追加ドロー ({EXTRA_DRAW_COST}SP)
-                </button>
-                <button onClick={endDrawPhase} style={styles.actionButton}>
-                  メインフェイズへ →
-                </button>
-              </div>
-            )}
+          <div style={{ display: 'flex', gap: '12px' }}>
             {phase === 2 && (
               <button onClick={nextPhase} style={styles.actionButton}>
                 バトルフェイズへ →
