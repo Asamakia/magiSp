@@ -1,16 +1,102 @@
 import React, { useState, useEffect, useCallback } from 'react';
 
 // ========================================
-// カードデータ（プロトタイプ用サンプル）
+// CSVパーサー関数
+// ========================================
+const parseCSV = (csvText) => {
+  const lines = csvText.split('\n');
+  const cards = [];
+  let i = 1; // ヘッダー行をスキップ
+
+  while (i < lines.length) {
+    const line = lines[i].trim();
+    if (!line) {
+      i++;
+      continue;
+    }
+
+    // CSVの各フィールドをパース（引用符で囲まれた複数行テキストに対応）
+    const fields = [];
+    let currentField = '';
+    let inQuotes = false;
+
+    for (let j = 0; j < line.length; j++) {
+      const char = line[j];
+
+      if (char === '"') {
+        inQuotes = !inQuotes;
+      } else if (char === ',' && !inQuotes) {
+        fields.push(currentField);
+        currentField = '';
+      } else {
+        currentField += char;
+      }
+    }
+    fields.push(currentField);
+
+    // 引用符内で改行がある場合、次の行も読み込む
+    while (inQuotes && i + 1 < lines.length) {
+      i++;
+      currentField += '\n' + lines[i];
+      for (let j = 0; j < lines[i].length; j++) {
+        const char = lines[i][j];
+        if (char === '"') {
+          inQuotes = !inQuotes;
+        }
+      }
+      if (!inQuotes) {
+        fields[fields.length - 1] = currentField;
+      }
+    }
+
+    // カードオブジェクトを作成
+    if (fields.length >= 11) {
+      const [id, name, attribute, cost, type, keyword, attack, hp, category, effect, flavor] = fields;
+
+      // カテゴリを配列に変換（【ドラゴン】【スライム】 → ['ドラゴン', 'スライム']）
+      const categoryArray = category ? category.match(/【([^】]+)】/g)?.map(c => c.replace(/【|】/g, '')) || [] : [];
+
+      // キーワード能力を配列に変換（【覚醒】【刹那詠唱】 → ['覚醒', '刹那詠唱']）
+      const keywordArray = keyword ? keyword.match(/【([^】]+)】/g)?.map(k => k.replace(/【|】/g, '')) || [] : [];
+
+      // 禁忌カードフラグのチェック
+      const isForbidden = keywordArray.includes('禁忌カード');
+
+      cards.push({
+        id: id.trim(),
+        name: name.trim(),
+        attribute: attribute.trim(),
+        cost: parseInt(cost) || 0,
+        type: type.trim(),
+        keyword: keywordArray, // 配列形式に変更
+        keywordText: keyword.trim(), // 表示用の元のテキスト
+        attack: attack ? parseInt(attack) : undefined,
+        hp: hp ? parseInt(hp) : undefined,
+        category: categoryArray,
+        categoryText: category.trim(), // 表示用の元のテキスト
+        effect: effect.trim(),
+        flavor: flavor?.trim() || '',
+        isForbidden: isForbidden, // 禁忌カードフラグ
+      });
+    }
+
+    i++;
+  }
+
+  return cards;
+};
+
+// ========================================
+// カードデータ（プロトタイプ用サンプル - CSVロード失敗時のフォールバック）
 // ========================================
 const SAMPLE_CARDS = [
   // 炎属性モンスター
-  { id: 'C0000021', name: 'フレア・ドラゴン', attribute: '炎', cost: 3, type: 'monster', attack: 1800, hp: 1500, category: '【ドラゴン】', effect: '召喚時、相手プレイヤーに300ダメージ。基本技：攻撃力の半分のダメージを相手モンスター1体に与える。', flavor: '炎の翼を広げ、灼熱の息吹で全てを焼き尽くす。' },
-  { id: 'C0000025', name: 'ブレイズ・ドラゴン', attribute: '炎', cost: 2, type: 'monster', attack: 1200, hp: 1200, category: '【ドラゴン】', effect: '破壊時、デッキから【ドラゴン】1体を手札に加える。', flavor: '炎の使者が現れ、敵に熱波を送り込む。' },
-  { id: 'C0000026', name: 'インフェルノ・ドラゴン', attribute: '炎', cost: 3, type: 'monster', attack: 1600, hp: 1800, category: '【ドラゴン】', effect: '攻撃時、相手モンスターの攻撃力を300下げる。', flavor: '地獄の炎を纏い、敵を焼き尽くす龍。' },
-  { id: 'C0000023', name: 'レッドバーストドラゴン', attribute: '炎', cost: 5, type: 'monster', attack: 2500, hp: 2700, category: '【ドラゴン】', effect: '【覚醒】バトルフェイズ開始時に300ダメージ。覚醒時攻撃力+1000。', flavor: '紅蓮の爆発と共に覚醒し、敵を焼き尽くす龍。', keyword: '【覚醒】' },
+  { id: 'C0000021', name: 'フレア・ドラゴン', attribute: '炎', cost: 3, type: 'monster', attack: 1800, hp: 1500, category: ['ドラゴン'], categoryText: '【ドラゴン】', keyword: [], keywordText: '', effect: '召喚時、相手プレイヤーに300ダメージ。基本技：攻撃力の半分のダメージを相手モンスター1体に与える。', flavor: '炎の翼を広げ、灼熱の息吹で全てを焼き尽くす。', isForbidden: false },
+  { id: 'C0000025', name: 'ブレイズ・ドラゴン', attribute: '炎', cost: 2, type: 'monster', attack: 1200, hp: 1200, category: ['ドラゴン'], categoryText: '【ドラゴン】', keyword: [], keywordText: '', effect: '破壊時、デッキから【ドラゴン】1体を手札に加える。', flavor: '炎の使者が現れ、敵に熱波を送り込む。', isForbidden: false },
+  { id: 'C0000026', name: 'インフェルノ・ドラゴン', attribute: '炎', cost: 3, type: 'monster', attack: 1600, hp: 1800, category: ['ドラゴン'], categoryText: '【ドラゴン】', keyword: [], keywordText: '', effect: '攻撃時、相手モンスターの攻撃力を300下げる。', flavor: '地獄の炎を纏い、敵を焼き尽くす龍。', isForbidden: false },
+  { id: 'C0000023', name: 'レッドバーストドラゴン', attribute: '炎', cost: 5, type: 'monster', attack: 2500, hp: 2700, category: ['ドラゴン'], categoryText: '【ドラゴン】', keyword: ['覚醒'], keywordText: '【覚醒】', effect: '【覚醒】バトルフェイズ開始時に300ダメージ。覚醒時攻撃力+1000。', flavor: '紅蓮の爆発と共に覚醒し、敵を焼き尽くす龍。', isForbidden: false },
   // 炎属性魔法
-  { id: 'C0000022', name: 'バーニング・ブレス', attribute: '炎', cost: 2, type: 'magic', effect: '【刹那詠唱】相手モンスター1体に1000ダメージ、相手プレイヤーに500ダメージ。', keyword: '【刹那詠唱】' },
+  { id: 'C0000022', name: 'バーニング・ブレス', attribute: '炎', cost: 2, type: 'magic', keyword: ['刹那詠唱'], keywordText: '【刹那詠唱】', effect: '【刹那詠唱】相手モンスター1体に1000ダメージ、相手プレイヤーに500ダメージ。', isForbidden: false },
   { id: 'C0000031', name: '炎の咆哮', attribute: '炎', cost: 2, type: 'magic', effect: 'ドラゴン1体の攻撃力+500、相手プレイヤーに300ダメージ。' },
   // 炎属性フィールド
   { id: 'C0000037', name: 'ドラゴンの火山', attribute: '炎', cost: 3, type: 'field', effect: 'ドラゴンの攻撃力+400。ターン終了時、相手モンスターに300ダメージ。' },
@@ -81,6 +167,7 @@ const TYPE_ICONS = {
   'magic': '✨',
   'field': '🏔️',
   'phase': '🔮',
+  'phasecard': '🔮', // フェイズカード
 };
 
 // ========================================
@@ -95,13 +182,26 @@ const shuffle = (array) => {
   return newArray;
 };
 
-const createDeck = () => {
-  // プロトタイプ用：サンプルカードからランダムに40枚生成
+const createDeck = (cardPool = SAMPLE_CARDS) => {
+  // カードプールからランダムに40枚生成
   let deck = [];
+  const availableCards = cardPool.filter(c =>
+    c.type === 'monster' || c.type === 'magic' || c.type === 'field' || c.type === 'phasecard'
+  );
+
+  if (availableCards.length === 0) {
+    console.error('利用可能なカードがありません');
+    return [];
+  }
+
   while (deck.length < DECK_SIZE) {
-    const randomCard = SAMPLE_CARDS[Math.floor(Math.random() * SAMPLE_CARDS.length)];
+    const randomCard = availableCards[Math.floor(Math.random() * availableCards.length)];
     const count = deck.filter(c => c.id === randomCard.id).length;
-    if (count < 3) {
+
+    // 禁忌カードは1枚まで
+    const maxCount = randomCard.isForbidden ? 1 : 3;
+
+    if (count < maxCount) {
       deck.push({ ...randomCard, uniqueId: `${randomCard.id}-${Date.now()}-${Math.random()}` });
     }
   }
@@ -352,6 +452,19 @@ const Card = ({ card, onClick, selected, small, faceDown, inHand, disabled }) =>
         {card.cost}
       </div>
 
+      {/* 禁忌カード表示 */}
+      {card.isForbidden && (
+        <div style={{
+          position: 'absolute',
+          top: '4px',
+          left: '28px',
+          fontSize: '14px',
+          filter: 'drop-shadow(0 0 2px rgba(0,0,0,0.8))',
+        }}>
+          ⚠️
+        </div>
+      )}
+
       {/* タイプアイコン */}
       <div style={{
         position: 'absolute',
@@ -580,6 +693,10 @@ const GameLog = ({ logs }) => (
 // メインゲームコンポーネント
 // ========================================
 export default function MagicSpiritGame() {
+  // カードデータ管理
+  const [allCards, setAllCards] = useState(SAMPLE_CARDS);
+  const [isLoadingCards, setIsLoadingCards] = useState(true);
+
   // ゲーム状態
   const [gameState, setGameState] = useState('title'); // title, playing, gameOver
   const [turn, setTurn] = useState(1);
@@ -620,10 +737,39 @@ export default function MagicSpiritGame() {
     setLogs(prev => [...prev, { message, type, time: Date.now() }]);
   }, []);
 
+  // CSVファイルの読み込み
+  useEffect(() => {
+    const loadCards = async () => {
+      try {
+        setIsLoadingCards(true);
+        const response = await fetch('/cardlist/cardlist.csv');
+        if (!response.ok) {
+          throw new Error('CSVファイルの読み込みに失敗しました');
+        }
+        const csvText = await response.text();
+        const parsedCards = parseCSV(csvText);
+
+        if (parsedCards.length > 0) {
+          setAllCards(parsedCards);
+          console.log(`${parsedCards.length}枚のカードをCSVから読み込みました`);
+        } else {
+          console.warn('CSVからカードが読み込めませんでした。サンプルカードを使用します。');
+        }
+      } catch (error) {
+        console.error('CSVの読み込みエラー:', error);
+        console.log('サンプルカードを使用します。');
+      } finally {
+        setIsLoadingCards(false);
+      }
+    };
+
+    loadCards();
+  }, []);
+
   // ゲーム初期化
   const initGame = useCallback(() => {
-    const deck1 = createDeck();
-    const deck2 = createDeck();
+    const deck1 = createDeck(allCards);
+    const deck2 = createDeck(allCards);
     
     setP1Deck(deck1.slice(INITIAL_HAND_SIZE));
     setP1Hand(deck1.slice(0, INITIAL_HAND_SIZE));
@@ -656,7 +802,7 @@ export default function MagicSpiritGame() {
     
     setGameState('playing');
     addLog('ゲーム開始！先攻プレイヤー1のターン', 'info');
-  }, [addLog]);
+  }, [addLog, allCards]);
 
   // 現在のプレイヤーのデータを取得
   const getCurrentPlayerData = () => {
@@ -1117,16 +1263,27 @@ export default function MagicSpiritGame() {
           <p style={{ color: '#a0a0a0', fontSize: '18px' }}>
             スピリットウェイヴァーよ、戦いの時だ
           </p>
-          <button
-            onClick={initGame}
-            style={{
-              ...styles.actionButton,
-              fontSize: '20px',
-              padding: '16px 48px',
-            }}
-          >
-            ゲーム開始
-          </button>
+          {isLoadingCards ? (
+            <div style={{ color: '#a0a0a0', fontSize: '16px' }}>
+              カードデータを読み込み中...
+            </div>
+          ) : (
+            <>
+              <button
+                onClick={initGame}
+                style={{
+                  ...styles.actionButton,
+                  fontSize: '20px',
+                  padding: '16px 48px',
+                }}
+              >
+                ゲーム開始
+              </button>
+              <div style={{ color: '#888', fontSize: '13px' }}>
+                {allCards.length}枚のカードを読み込み完了
+              </div>
+            </>
+          )}
           <div style={{ color: '#666', fontSize: '12px', marginTop: '32px' }}>
             プロトタイプ版 - 2人対戦
           </div>
