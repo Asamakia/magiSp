@@ -149,7 +149,7 @@ const MAX_SP = 10;
 const INITIAL_HAND_SIZE = 5;
 const DECK_SIZE = 40;
 const COUNTER_ATTACK_RATE = 0.3;
-const EXTRA_DRAW_COST = 2; // 追加ドローのSPコスト
+const EXTRA_DRAW_COST = 1; // 追加ドローのSPコスト
 
 const PHASES = ['ターン開始', 'ドロー', 'メイン', 'バトル', 'エンド'];
 
@@ -1238,6 +1238,12 @@ export default function MagicSpiritGame() {
   const handleExtraDraw = () => {
     if (phase !== 1) return;
 
+    // 先攻1ターン目は追加ドロー不可
+    if (isFirstTurn && currentPlayer === 1) {
+      addLog('先攻1ターン目は追加ドローできません', 'damage');
+      return;
+    }
+
     const player = getCurrentPlayerData();
 
     if (player.activeSP < EXTRA_DRAW_COST) {
@@ -1545,12 +1551,12 @@ export default function MagicSpiritGame() {
                   onClick={handleExtraDraw}
                   style={{
                     ...styles.actionButton,
-                    background: (currentPlayer === 1 ? p1ActiveSP : p2ActiveSP) >= EXTRA_DRAW_COST
-                      ? 'linear-gradient(135deg, #ff9800 0%, #ffc107 100%)'
-                      : 'linear-gradient(135deg, #666 0%, #888 100%)',
-                    cursor: (currentPlayer === 1 ? p1ActiveSP : p2ActiveSP) >= EXTRA_DRAW_COST ? 'pointer' : 'not-allowed',
+                    background: (isFirstTurn && currentPlayer === 1) || (currentPlayer === 1 ? p1ActiveSP : p2ActiveSP) < EXTRA_DRAW_COST
+                      ? 'linear-gradient(135deg, #666 0%, #888 100%)'
+                      : 'linear-gradient(135deg, #ff9800 0%, #ffc107 100%)',
+                    cursor: (isFirstTurn && currentPlayer === 1) || (currentPlayer === 1 ? p1ActiveSP : p2ActiveSP) < EXTRA_DRAW_COST ? 'not-allowed' : 'pointer',
                   }}
-                  disabled={(currentPlayer === 1 ? p1ActiveSP : p2ActiveSP) < EXTRA_DRAW_COST}
+                  disabled={(isFirstTurn && currentPlayer === 1) || (currentPlayer === 1 ? p1ActiveSP : p2ActiveSP) < EXTRA_DRAW_COST}
                 >
                   追加ドロー ({EXTRA_DRAW_COST}SP)
                 </button>
