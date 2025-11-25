@@ -62,12 +62,16 @@ const parseCSV = (csvText) => {
       // 禁忌カードフラグのチェック
       const isForbidden = keywordArray.includes('禁忌カード');
 
+      // 技情報の抽出（モンスターカードのみ）
+      const trimmedType = type.trim();
+      const skills = trimmedType === 'monster' ? parseSkills(effect.trim()) : { basicSkill: null, advancedSkill: null };
+
       cards.push({
         id: id.trim(),
         name: name.trim(),
         attribute: attribute.trim(),
         cost: parseInt(cost) || 0,
-        type: type.trim(),
+        type: trimmedType,
         keyword: keywordArray, // 配列形式に変更
         keywordText: keyword.trim(), // 表示用の元のテキスト
         attack: attack ? parseInt(attack) : undefined,
@@ -77,6 +81,8 @@ const parseCSV = (csvText) => {
         effect: effect.trim(),
         flavor: flavor?.trim() || '',
         isForbidden: isForbidden, // 禁忌カードフラグ
+        basicSkill: skills.basicSkill, // 基本技
+        advancedSkill: skills.advancedSkill, // 上級技
       });
     }
 
@@ -84,6 +90,52 @@ const parseCSV = (csvText) => {
   }
 
   return cards;
+};
+
+// ========================================
+// 技効果パーサー関数
+// ========================================
+const parseSkills = (effectText) => {
+  if (!effectText) return { basicSkill: null, advancedSkill: null };
+
+  const skills = {
+    basicSkill: null,
+    advancedSkill: null,
+  };
+
+  // 基本技のパターンマッチ
+  const basicMatch = effectText.match(/基本技[：:]\s*([^。\n]+)/);
+  if (basicMatch) {
+    const skillText = basicMatch[1].trim();
+    skills.basicSkill = {
+      text: skillText,
+      attribute: null, // デフォルトは同属性
+      cost: 1, // 基本技はチャージ1枚
+    };
+
+    // 「任意」が含まれているかチェック
+    if (effectText.match(/基本技.*任意/)) {
+      skills.basicSkill.attribute = 'any';
+    }
+  }
+
+  // 上級技のパターンマッチ
+  const advancedMatch = effectText.match(/上級技[：:]\s*([^。\n]+)/);
+  if (advancedMatch) {
+    const skillText = advancedMatch[1].trim();
+    skills.advancedSkill = {
+      text: skillText,
+      attribute: null, // デフォルトは同属性
+      cost: 2, // 上級技はチャージ2枚
+    };
+
+    // 「任意」が含まれているかチェック
+    if (effectText.match(/上級技.*任意/)) {
+      skills.advancedSkill.attribute = 'any';
+    }
+  }
+
+  return skills;
 };
 
 // ========================================
@@ -500,8 +552,55 @@ const Card = ({ card, onClick, selected, small, faceDown, inHand, disabled }) =>
         alignItems: 'center',
         justifyContent: 'center',
         fontSize: '24px',
+        position: 'relative',
       }}>
         {card.type === 'monster' ? '🐉' : card.type === 'magic' ? '📜' : '🏔️'}
+
+        {/* 技アイコン表示（モンスターのみ） */}
+        {card.type === 'monster' && (card.basicSkill || card.advancedSkill) && (
+          <div style={{
+            position: 'absolute',
+            bottom: '2px',
+            right: '2px',
+            display: 'flex',
+            gap: '2px',
+          }}>
+            {card.basicSkill && (
+              <div style={{
+                width: '16px',
+                height: '16px',
+                borderRadius: '50%',
+                background: 'linear-gradient(135deg, #4caf50 0%, #66bb6a 100%)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: '10px',
+                fontWeight: 'bold',
+                color: '#fff',
+                boxShadow: '0 1px 3px rgba(0,0,0,0.5)',
+              }} title={`基本技: ${card.basicSkill.text}`}>
+                1
+              </div>
+            )}
+            {card.advancedSkill && (
+              <div style={{
+                width: '16px',
+                height: '16px',
+                borderRadius: '50%',
+                background: 'linear-gradient(135deg, #ff9800 0%, #ffa726 100%)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: '10px',
+                fontWeight: 'bold',
+                color: '#fff',
+                boxShadow: '0 1px 3px rgba(0,0,0,0.5)',
+              }} title={`上級技: ${card.advancedSkill.text}`}>
+                2
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {/* ステータス（モンスターのみ） */}
@@ -609,8 +708,57 @@ const FieldMonster = ({ monster, onClick, selected, canAttack, isTarget, isValid
       <div style={{ fontSize: '9px', fontWeight: 'bold', color: colors.text, textAlign: 'center', marginBottom: '2px' }}>
         {monster.name}
       </div>
-      
-      <div style={{ fontSize: '24px', marginBottom: '4px' }}>🐉</div>
+
+      <div style={{ fontSize: '24px', marginBottom: '4px', position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        🐉
+        {/* 技アイコン */}
+        {(monster.basicSkill || monster.advancedSkill) && (
+          <div style={{
+            position: 'absolute',
+            bottom: '-2px',
+            right: '18px',
+            display: 'flex',
+            gap: '2px',
+          }}>
+            {monster.basicSkill && (
+              <div style={{
+                width: '14px',
+                height: '14px',
+                borderRadius: '50%',
+                background: 'linear-gradient(135deg, #4caf50 0%, #66bb6a 100%)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: '9px',
+                fontWeight: 'bold',
+                color: '#fff',
+                boxShadow: '0 1px 3px rgba(0,0,0,0.5)',
+                border: '1px solid rgba(255,255,255,0.3)',
+              }} title={`基本技: ${monster.basicSkill.text}`}>
+                1
+              </div>
+            )}
+            {monster.advancedSkill && (
+              <div style={{
+                width: '14px',
+                height: '14px',
+                borderRadius: '50%',
+                background: 'linear-gradient(135deg, #ff9800 0%, #ffa726 100%)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: '9px',
+                fontWeight: 'bold',
+                color: '#fff',
+                boxShadow: '0 1px 3px rgba(0,0,0,0.5)',
+                border: '1px solid rgba(255,255,255,0.3)',
+              }} title={`上級技: ${monster.advancedSkill.text}`}>
+                2
+              </div>
+            )}
+          </div>
+        )}
+      </div>
       
       {/* HPバー */}
       <div style={{
@@ -909,6 +1057,132 @@ export default function MagicSpiritGame() {
     }
   }, [currentPlayer, isFirstTurn, addLog]);
 
+  // チャージ処理
+  const chargeCard = useCallback((card, monsterIndex) => {
+    if (chargeUsedThisTurn) {
+      addLog('このターンは既にチャージを使用しました', 'damage');
+      return false;
+    }
+
+    const field = currentPlayer === 1 ? p1Field : p2Field;
+    const monster = field[monsterIndex];
+
+    if (!monster) {
+      addLog('モンスターが存在しません', 'damage');
+      return false;
+    }
+
+    if (monster.charges && monster.charges.length >= 2) {
+      addLog('このモンスターは既に2枚チャージされています', 'damage');
+      return false;
+    }
+
+    // 属性チャージ（モンスター、魔法、フィールドカード）
+    if (card.type === 'monster' || card.type === 'magic' || card.type === 'field') {
+      const newCharge = {
+        card: card,
+        attribute: card.attribute,
+      };
+
+      if (currentPlayer === 1) {
+        setP1Field(prev => {
+          const newField = [...prev];
+          newField[monsterIndex] = {
+            ...monster,
+            charges: [...(monster.charges || []), newCharge],
+          };
+          return newField;
+        });
+        setP1Hand(prev => prev.filter(c => c.uniqueId !== card.uniqueId));
+      } else {
+        setP2Field(prev => {
+          const newField = [...prev];
+          newField[monsterIndex] = {
+            ...monster,
+            charges: [...(monster.charges || []), newCharge],
+          };
+          return newField;
+        });
+        setP2Hand(prev => prev.filter(c => c.uniqueId !== card.uniqueId));
+      }
+
+      setChargeUsedThisTurn(true);
+      addLog(`${monster.name}に${card.name}をチャージしました`, 'info');
+      return true;
+    }
+
+    addLog('チャージできるのは属性カードのみです', 'damage');
+    return false;
+  }, [currentPlayer, p1Field, p2Field, chargeUsedThisTurn, addLog]);
+
+  // 技発動処理
+  const useSkill = useCallback((monsterIndex, skillType) => {
+    const field = currentPlayer === 1 ? p1Field : p2Field;
+    const monster = field[monsterIndex];
+
+    if (!monster) {
+      addLog('モンスターが存在しません', 'damage');
+      return false;
+    }
+
+    const skill = skillType === 'basic' ? monster.basicSkill : monster.advancedSkill;
+    const skillName = skillType === 'basic' ? '基本技' : '上級技';
+
+    if (!skill) {
+      addLog(`このモンスターには${skillName}がありません`, 'damage');
+      return false;
+    }
+
+    const requiredCharges = skill.cost;
+    const currentCharges = monster.charges ? monster.charges.length : 0;
+
+    if (currentCharges < requiredCharges) {
+      addLog(`${skillName}を発動するには${requiredCharges}枚のチャージが必要です（現在: ${currentCharges}枚）`, 'damage');
+      return false;
+    }
+
+    // 属性チェック（「任意」でない場合、同属性のチャージが必要）
+    if (skill.attribute !== 'any') {
+      const validCharges = monster.charges.filter(charge =>
+        charge.attribute === monster.attribute || charge.attribute === 'なし'
+      );
+      if (validCharges.length < requiredCharges) {
+        addLog(`${skillName}を発動するには同属性のチャージが必要です`, 'damage');
+        return false;
+      }
+    }
+
+    // 技発動（簡易実装：ダメージ処理のみ）
+    addLog(`${monster.name}の${skillName}を発動！`, 'info');
+    addLog(`効果: ${skill.text}`, 'info');
+
+    // ダメージパターンのマッチング
+    const damageMatch = skill.text.match(/(\d+)ダメージ/);
+    if (damageMatch) {
+      const damage = parseInt(damageMatch[1]);
+      if (currentPlayer === 1) {
+        setP2Life(prev => Math.max(0, prev - damage));
+      } else {
+        setP1Life(prev => Math.max(0, prev - damage));
+      }
+      addLog(`相手に${damage}ダメージ！`, 'damage');
+    }
+
+    // 回復パターンのマッチング
+    const healMatch = skill.text.match(/(\d+)回復/);
+    if (healMatch) {
+      const heal = parseInt(healMatch[1]);
+      if (currentPlayer === 1) {
+        setP1Life(prev => prev + heal);
+      } else {
+        setP2Life(prev => prev + heal);
+      }
+      addLog(`ライフを${heal}回復！`, 'heal');
+    }
+
+    return true;
+  }, [currentPlayer, p1Field, p2Field, addLog]);
+
   // カード召喚
   const summonCard = useCallback((card, slotIndex) => {
     // 現在のプレイヤーのSPを直接取得
@@ -1186,11 +1460,28 @@ export default function MagicSpiritGame() {
   const handleFieldSlotClick = (slotIndex, playerNum) => {
     // 現在のプレイヤーの場か相手の場かを判定
     const isMyField = playerNum === currentPlayer;
-    
-    if (phase === 2 && selectedHandCard && isMyField) {
-      // 召喚
-      if (selectedHandCard.type === 'monster') {
-        if (summonCard(selectedHandCard, slotIndex)) {
+
+    if (phase === 2 && isMyField) {
+      const field = currentPlayer === 1 ? p1Field : p2Field;
+      const monster = field[slotIndex];
+
+      if (selectedHandCard) {
+        // チャージモード（モンスターが存在する場合）
+        if (monster && (selectedHandCard.type === 'monster' || selectedHandCard.type === 'magic' || selectedHandCard.type === 'field')) {
+          if (chargeCard(selectedHandCard, slotIndex)) {
+            setSelectedHandCard(null);
+          }
+        }
+        // 召喚モード（空きスロットの場合）
+        else if (!monster && selectedHandCard.type === 'monster') {
+          if (summonCard(selectedHandCard, slotIndex)) {
+            setSelectedHandCard(null);
+          }
+        }
+      } else {
+        // モンスター選択（技発動用）
+        if (monster) {
+          setSelectedFieldMonster(selectedFieldMonster === slotIndex ? null : slotIndex);
           setSelectedHandCard(null);
         }
       }
@@ -1440,9 +1731,9 @@ export default function MagicSpiritGame() {
                     ⚔️ {selectedHandCard.attack} | ❤️ {selectedHandCard.hp}
                   </div>
                 )}
-                <div style={{ 
-                  fontSize: '10px', 
-                  color: '#e0e0e0', 
+                <div style={{
+                  fontSize: '10px',
+                  color: '#e0e0e0',
                   background: 'rgba(0,0,0,0.3)',
                   padding: '6px',
                   borderRadius: '4px',
@@ -1452,6 +1743,34 @@ export default function MagicSpiritGame() {
                 }}>
                   {selectedHandCard.effect || 'なし'}
                 </div>
+                {/* 技情報 */}
+                {selectedHandCard.type === 'monster' && (selectedHandCard.basicSkill || selectedHandCard.advancedSkill) && (
+                  <div style={{ marginTop: '6px', fontSize: '10px', lineHeight: '1.4' }}>
+                    {selectedHandCard.basicSkill && (
+                      <div style={{
+                        marginBottom: '4px',
+                        padding: '4px',
+                        background: 'rgba(76,175,80,0.2)',
+                        borderRadius: '4px',
+                        border: '1px solid rgba(76,175,80,0.3)',
+                      }}>
+                        <span style={{ color: '#4caf50', fontWeight: 'bold' }}>基本技(1):</span>
+                        <span style={{ color: '#e0e0e0', marginLeft: '4px' }}>{selectedHandCard.basicSkill.text}</span>
+                      </div>
+                    )}
+                    {selectedHandCard.advancedSkill && (
+                      <div style={{
+                        padding: '4px',
+                        background: 'rgba(255,152,0,0.2)',
+                        borderRadius: '4px',
+                        border: '1px solid rgba(255,152,0,0.3)',
+                      }}>
+                        <span style={{ color: '#ff9800', fontWeight: 'bold' }}>上級技(2):</span>
+                        <span style={{ color: '#e0e0e0', marginLeft: '4px' }}>{selectedHandCard.advancedSkill.text}</span>
+                      </div>
+                    )}
+                  </div>
+                )}
                 <div style={{ 
                   fontSize: '10px', 
                   color: '#ff6b6b', 
@@ -1489,24 +1808,110 @@ export default function MagicSpiritGame() {
           </div>
 
           {/* アクションボタン */}
-          <div style={{ display: 'flex', gap: '12px' }}>
-            {phase === 2 && (
-              <button onClick={nextPhase} style={styles.actionButton}>
-                バトルフェイズへ →
-              </button>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+            {/* 技発動ボタン（メインフェイズ） */}
+            {phase === 2 && selectedFieldMonster !== null && currentPlayer === 1 && (
+              (() => {
+                const monster = p1Field[selectedFieldMonster];
+                if (!monster) return null;
+                return (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                    <div style={{ fontSize: '12px', color: '#ffd700', textAlign: 'center' }}>
+                      {monster.name} - 技発動
+                    </div>
+                    {monster.basicSkill && (
+                      <button
+                        onClick={() => useSkill(selectedFieldMonster, 'basic')}
+                        style={{
+                          ...styles.actionButton,
+                          background: 'linear-gradient(135deg, #4caf50 0%, #66bb6a 100%)',
+                          fontSize: '12px',
+                          padding: '8px 16px',
+                        }}
+                        disabled={!monster.charges || monster.charges.length < 1}
+                      >
+                        基本技 (チャージ{monster.charges?.length || 0}/1)
+                      </button>
+                    )}
+                    {monster.advancedSkill && (
+                      <button
+                        onClick={() => useSkill(selectedFieldMonster, 'advanced')}
+                        style={{
+                          ...styles.actionButton,
+                          background: 'linear-gradient(135deg, #ff9800 0%, #ffa726 100%)',
+                          fontSize: '12px',
+                          padding: '8px 16px',
+                        }}
+                        disabled={!monster.charges || monster.charges.length < 2}
+                      >
+                        上級技 (チャージ{monster.charges?.length || 0}/2)
+                      </button>
+                    )}
+                  </div>
+                );
+              })()
             )}
-            {phase === 3 && (
-              <>
-                {attackingMonster !== null && (
-                  <button onClick={handleDirectAttack} style={{ ...styles.actionButton, background: '#ff4444' }}>
-                    ダイレクトアタック
-                  </button>
-                )}
+            {phase === 2 && selectedFieldMonster !== null && currentPlayer === 2 && (
+              (() => {
+                const monster = p2Field[selectedFieldMonster];
+                if (!monster) return null;
+                return (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                    <div style={{ fontSize: '12px', color: '#ffd700', textAlign: 'center' }}>
+                      {monster.name} - 技発動
+                    </div>
+                    {monster.basicSkill && (
+                      <button
+                        onClick={() => useSkill(selectedFieldMonster, 'basic')}
+                        style={{
+                          ...styles.actionButton,
+                          background: 'linear-gradient(135deg, #4caf50 0%, #66bb6a 100%)',
+                          fontSize: '12px',
+                          padding: '8px 16px',
+                        }}
+                        disabled={!monster.charges || monster.charges.length < 1}
+                      >
+                        基本技 (チャージ{monster.charges?.length || 0}/1)
+                      </button>
+                    )}
+                    {monster.advancedSkill && (
+                      <button
+                        onClick={() => useSkill(selectedFieldMonster, 'advanced')}
+                        style={{
+                          ...styles.actionButton,
+                          background: 'linear-gradient(135deg, #ff9800 0%, #ffa726 100%)',
+                          fontSize: '12px',
+                          padding: '8px 16px',
+                        }}
+                        disabled={!monster.charges || monster.charges.length < 2}
+                      >
+                        上級技 (チャージ{monster.charges?.length || 0}/2)
+                      </button>
+                    )}
+                  </div>
+                );
+              })()
+            )}
+
+            <div style={{ display: 'flex', gap: '12px' }}>
+              {phase === 2 && (
                 <button onClick={nextPhase} style={styles.actionButton}>
-                  ターン終了 →
+                  バトルフェイズへ →
                 </button>
-              </>
-            )}
+              )}
+              {phase === 3 && (
+                <>
+                  {attackingMonster !== null && (
+                    <button onClick={handleDirectAttack} style={{ ...styles.actionButton, background: '#ff4444' }}>
+                      ダイレクトアタック
+                    </button>
+                  )}
+                  <button onClick={nextPhase} style={styles.actionButton}>
+                    ターン終了 →
+                  </button>
+                </>
+              )}
+            </div>
           </div>
 
           {/* ログ */}
@@ -1597,9 +2002,9 @@ export default function MagicSpiritGame() {
                     ⚔️ {selectedHandCard.attack} | ❤️ {selectedHandCard.hp}
                   </div>
                 )}
-                <div style={{ 
-                  fontSize: '10px', 
-                  color: '#e0e0e0', 
+                <div style={{
+                  fontSize: '10px',
+                  color: '#e0e0e0',
                   background: 'rgba(0,0,0,0.3)',
                   padding: '6px',
                   borderRadius: '4px',
@@ -1609,6 +2014,34 @@ export default function MagicSpiritGame() {
                 }}>
                   {selectedHandCard.effect || 'なし'}
                 </div>
+                {/* 技情報 */}
+                {selectedHandCard.type === 'monster' && (selectedHandCard.basicSkill || selectedHandCard.advancedSkill) && (
+                  <div style={{ marginTop: '6px', fontSize: '10px', lineHeight: '1.4' }}>
+                    {selectedHandCard.basicSkill && (
+                      <div style={{
+                        marginBottom: '4px',
+                        padding: '4px',
+                        background: 'rgba(76,175,80,0.2)',
+                        borderRadius: '4px',
+                        border: '1px solid rgba(76,175,80,0.3)',
+                      }}>
+                        <span style={{ color: '#4caf50', fontWeight: 'bold' }}>基本技(1):</span>
+                        <span style={{ color: '#e0e0e0', marginLeft: '4px' }}>{selectedHandCard.basicSkill.text}</span>
+                      </div>
+                    )}
+                    {selectedHandCard.advancedSkill && (
+                      <div style={{
+                        padding: '4px',
+                        background: 'rgba(255,152,0,0.2)',
+                        borderRadius: '4px',
+                        border: '1px solid rgba(255,152,0,0.3)',
+                      }}>
+                        <span style={{ color: '#ff9800', fontWeight: 'bold' }}>上級技(2):</span>
+                        <span style={{ color: '#e0e0e0', marginLeft: '4px' }}>{selectedHandCard.advancedSkill.text}</span>
+                      </div>
+                    )}
+                  </div>
+                )}
                 <div style={{ 
                   fontSize: '10px', 
                   color: '#6b4ce6', 
