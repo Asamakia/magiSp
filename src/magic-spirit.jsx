@@ -4,52 +4,73 @@ import React, { useState, useEffect, useCallback } from 'react';
 // CSVパーサー関数
 // ========================================
 const parseCSV = (csvText) => {
-  const lines = csvText.split('\n');
   const cards = [];
-  let i = 1; // ヘッダー行をスキップ
+  const rows = [];
+  let currentRow = [];
+  let currentField = '';
+  let inQuotes = false;
 
-  while (i < lines.length) {
-    const line = lines[i].trim();
-    if (!line) {
-      i++;
-      continue;
-    }
+  // 文字列全体を1文字ずつ処理して、引用符内の改行を正しく扱う
+  for (let i = 0; i < csvText.length; i++) {
+    const char = csvText[i];
+    const nextChar = csvText[i + 1];
 
-    // CSVの各フィールドをパース（引用符で囲まれた複数行テキストに対応）
-    const fields = [];
-    let currentField = '';
-    let inQuotes = false;
-
-    for (let j = 0; j < line.length; j++) {
-      const char = line[j];
-
-      if (char === '"') {
-        inQuotes = !inQuotes;
-      } else if (char === ',' && !inQuotes) {
-        fields.push(currentField);
-        currentField = '';
+    if (char === '"') {
+      if (inQuotes && nextChar === '"') {
+        // エスケープされた引用符（""）
+        currentField += '"';
+        i++; // 次の引用符をスキップ
       } else {
-        currentField += char;
+        // 引用符の開始または終了
+        inQuotes = !inQuotes;
       }
+    } else if (char === ',' && !inQuotes) {
+      // フィールド区切り（引用符外のみ）
+      currentRow.push(currentField);
+      currentField = '';
+    } else if (char === '\n' && !inQuotes) {
+      // 行区切り（引用符外のみ）
+      currentRow.push(currentField);
+      if (currentRow.some(field => field.trim() !== '')) {
+        rows.push(currentRow);
+      }
+      currentRow = [];
+      currentField = '';
+    } else if (char === '\r' && nextChar === '\n' && !inQuotes) {
+      // Windows形式の改行（\r\n）
+      currentRow.push(currentField);
+      if (currentRow.some(field => field.trim() !== '')) {
+        rows.push(currentRow);
+      }
+      currentRow = [];
+      currentField = '';
+      i++; // \nをスキップ
+    } else if (char === '\r' && !inQuotes) {
+      // Mac形式の改行（\r）
+      currentRow.push(currentField);
+      if (currentRow.some(field => field.trim() !== '')) {
+        rows.push(currentRow);
+      }
+      currentRow = [];
+      currentField = '';
+    } else {
+      // 通常の文字（引用符内の改行も含む）
+      currentField += char;
     }
-    fields.push(currentField);
+  }
 
-    // 引用符内で改行がある場合、次の行も読み込む
-    while (inQuotes && i + 1 < lines.length) {
-      i++;
-      currentField += '\n' + lines[i];
-      for (let j = 0; j < lines[i].length; j++) {
-        const char = lines[i][j];
-        if (char === '"') {
-          inQuotes = !inQuotes;
-        }
-      }
-      if (!inQuotes) {
-        fields[fields.length - 1] = currentField;
-      }
+  // 最後のフィールドと行を追加
+  if (currentField || currentRow.length > 0) {
+    currentRow.push(currentField);
+    if (currentRow.some(field => field.trim() !== '')) {
+      rows.push(currentRow);
     }
+  }
 
-    // カードオブジェクトを作成
+  // ヘッダー行をスキップして、各行をカードオブジェクトに変換
+  for (let i = 1; i < rows.length; i++) {
+    const fields = rows[i];
+
     if (fields.length >= 11) {
       const [id, name, attribute, cost, type, keyword, attack, hp, category, effect, flavor] = fields;
 
@@ -85,8 +106,6 @@ const parseCSV = (csvText) => {
         advancedSkill: skills.advancedSkill, // 上級技
       });
     }
-
-    i++;
   }
 
   return cards;
@@ -1116,7 +1135,7 @@ export default function MagicSpiritGame() {
   }, [currentPlayer, p1Field, p2Field, chargeUsedThisTurn, addLog]);
 
   // 技発動処理
-  const useSkill = useCallback((monsterIndex, skillType) => {
+  const executeSkill = useCallback((monsterIndex, skillType) => {
     const field = currentPlayer === 1 ? p1Field : p2Field;
     const monster = field[monsterIndex];
 
@@ -1821,7 +1840,7 @@ export default function MagicSpiritGame() {
                     </div>
                     {monster.basicSkill && (
                       <button
-                        onClick={() => useSkill(selectedFieldMonster, 'basic')}
+                        onClick={() => executeSkill(selectedFieldMonster, 'basic')}
                         style={{
                           ...styles.actionButton,
                           background: 'linear-gradient(135deg, #4caf50 0%, #66bb6a 100%)',
@@ -1835,7 +1854,7 @@ export default function MagicSpiritGame() {
                     )}
                     {monster.advancedSkill && (
                       <button
-                        onClick={() => useSkill(selectedFieldMonster, 'advanced')}
+                        onClick={() => executeSkill(selectedFieldMonster, 'advanced')}
                         style={{
                           ...styles.actionButton,
                           background: 'linear-gradient(135deg, #ff9800 0%, #ffa726 100%)',
@@ -1862,7 +1881,7 @@ export default function MagicSpiritGame() {
                     </div>
                     {monster.basicSkill && (
                       <button
-                        onClick={() => useSkill(selectedFieldMonster, 'basic')}
+                        onClick={() => executeSkill(selectedFieldMonster, 'basic')}
                         style={{
                           ...styles.actionButton,
                           background: 'linear-gradient(135deg, #4caf50 0%, #66bb6a 100%)',
@@ -1876,7 +1895,7 @@ export default function MagicSpiritGame() {
                     )}
                     {monster.advancedSkill && (
                       <button
-                        onClick={() => useSkill(selectedFieldMonster, 'advanced')}
+                        onClick={() => executeSkill(selectedFieldMonster, 'advanced')}
                         style={{
                           ...styles.actionButton,
                           background: 'linear-gradient(135deg, #ff9800 0%, #ffa726 100%)',
