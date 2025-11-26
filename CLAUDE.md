@@ -23,6 +23,10 @@ Currently a **prototype version** with local 2-player gameplay.
   - Hybrid approach: generic effects + card-specific implementations
   - Effect helper library for reusable effect patterns
   - ~2100 lines of new effect implementation code
+- **2025-11-26 (Bug fixes & UI improvements)**: Fixed card display bugs and improved magic card UX
+  - Fixed field/phase card info display showing in both player areas
+  - Added dedicated magic card activation button for clearer UX
+  - Separated magic card activation from phase transition logic
 
 ---
 
@@ -212,8 +216,10 @@ The game uses React hooks with extensive state:
 3. **`summonCard(card, slotIndex)`**: Place cards on field
 4. **`attack(attackerIndex, targetIndex)`**: Combat resolution
 5. **`executeSkill(monsterIndex, skillType)`**: Execute monster skills (uses effectEngine)
-6. **`getCurrentPlayerData()`**: Get active player state
-7. **`getOpponentData()`**: Get opponent state
+6. **`useMagicCard()`**: Activate magic card from hand (dedicated function)
+7. **`nextPhase()`**: Advance to next phase (no longer handles magic card activation)
+8. **`getCurrentPlayerData()`**: Get active player state
+9. **`getOpponentData()`**: Get opponent state
 
 **Key Functions in effectEngine.js**:
 
@@ -844,6 +850,14 @@ console.log('Executing effect:', type, value, target);
 - **Solution**: Check console for errors, verify CSV format, check fallback to SAMPLE_CARDS
 - **Location**: `loadCardsFromCSV()` in `src/utils/cardManager.js`
 
+**Issue**: Field/Phase card info showing in both player areas
+- **Solution**: Ensure condition checks for specific player number (e.g., `selectedFieldCardInfo.player === 1` or `=== 2`), not `currentPlayer`
+- **Location**: Info panel rendering in `src/magic-spirit.jsx` (lines ~1396, ~1861)
+
+**Issue**: Magic card activation unclear
+- **Solution**: Use dedicated `useMagicCard()` button instead of combined phase transition button
+- **Location**: `useMagicCard()` function and center zone action buttons in `src/magic-spirit.jsx` (lines ~995, ~1560)
+
 ### Debug Mode
 
 **Add temporary logging**:
@@ -1023,12 +1037,17 @@ The Japanese text throughout suggests this may be for a Japanese audience or is 
   - Created effect helper library with 9 reusable functions
   - Established hybrid effect system (generic + card-specific)
   - ~2100 lines of new effect implementation code
+- **2025-11-26 (Bug fixes & UI improvements)**: Fixed display bugs and improved UX
+  - Fixed field/phase card info panel displaying in both player areas simultaneously
+  - Added dedicated "✨ 魔法カード発動" button for magic card activation
+  - Improved guidance text for magic card usage
+  - Separated magic card activation logic from phase transition
 
 This is suitable for expansion into a full game or as a learning project for React and game development concepts.
 
 ---
 
-**Document Version**: 3.0
-**Last Updated**: 2025-11-26 (Major update: Card-specific effects system)
+**Document Version**: 3.1
+**Last Updated**: 2025-11-26 (Bug fixes and UI improvements)
 **For**: Magic Spirit (magiSp) Repository
-**Branch**: claude/update-claude-md-017tKGZSNY44Cy1KQ1QRaeVe
+**Branch**: claude/fix-card-display-bug-01GRqf2n7HRRU54tA5fUXRBH
