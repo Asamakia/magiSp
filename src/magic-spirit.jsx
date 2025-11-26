@@ -1388,6 +1388,59 @@ export default function MagicSpiritGame() {
                 </div>
               );
             })()}
+            {!selectedHandCard && !selectedFieldMonster && selectedFieldCardInfo && selectedFieldCardInfo.player === currentPlayer && (
+              <div style={{
+                marginTop: '12px',
+                padding: '10px',
+                background: 'rgba(255,107,107,0.2)',
+                borderRadius: '8px',
+                border: '1px solid rgba(255,107,107,0.5)',
+              }}>
+                <div style={{ fontSize: '12px', fontWeight: 'bold', marginBottom: '6px', color: '#ff8a8a' }}>
+                  📋 {selectedFieldCardInfo.type === 'field' ? 'フィールドカード' : 'フェイズカード'}: {selectedFieldCardInfo.card.name}
+                </div>
+                <div style={{ fontSize: '11px', color: '#ccc', marginBottom: '4px' }}>
+                  属性: {selectedFieldCardInfo.card.attribute} | コスト: {selectedFieldCardInfo.card.cost} SP
+                </div>
+                {selectedFieldCardInfo.card.categoryText && (
+                  <div style={{ fontSize: '11px', color: '#ffd700', marginBottom: '4px' }}>
+                    カテゴリ: {selectedFieldCardInfo.card.categoryText}
+                  </div>
+                )}
+                {selectedFieldCardInfo.type === 'phasecard' && selectedFieldCardInfo.card.charges && (
+                  <div style={{ fontSize: '11px', color: '#4caf50', marginBottom: '4px' }}>
+                    ⚡ チャージ: {selectedFieldCardInfo.card.charges.length}/3
+                  </div>
+                )}
+                <div style={{
+                  fontSize: '10px',
+                  color: '#e0e0e0',
+                  background: 'rgba(0,0,0,0.3)',
+                  padding: '6px',
+                  borderRadius: '4px',
+                  lineHeight: '1.4',
+                  maxHeight: '80px',
+                  overflowY: 'auto',
+                }}>
+                  {selectedFieldCardInfo.card.effect || 'なし'}
+                </div>
+                <button
+                  onClick={() => setSelectedFieldCardInfo(null)}
+                  style={{
+                    marginTop: '8px',
+                    padding: '4px 12px',
+                    background: 'rgba(255,107,107,0.5)',
+                    border: '1px solid #ff6b6b',
+                    borderRadius: '4px',
+                    color: '#fff',
+                    fontSize: '10px',
+                    cursor: 'pointer',
+                  }}
+                >
+                  閉じる
+                </button>
+              </div>
+            )}
           </div>
         </div>
 
@@ -1795,6 +1848,59 @@ export default function MagicSpiritGame() {
                 </div>
               );
             })()}
+            {!selectedHandCard && !selectedFieldMonster && selectedFieldCardInfo && selectedFieldCardInfo.player === currentPlayer && (
+              <div style={{
+                marginTop: '12px',
+                padding: '10px',
+                background: 'rgba(107,76,230,0.2)',
+                borderRadius: '8px',
+                border: '1px solid rgba(107,76,230,0.5)',
+              }}>
+                <div style={{ fontSize: '12px', fontWeight: 'bold', marginBottom: '6px', color: '#a78bfa' }}>
+                  📋 {selectedFieldCardInfo.type === 'field' ? 'フィールドカード' : 'フェイズカード'}: {selectedFieldCardInfo.card.name}
+                </div>
+                <div style={{ fontSize: '11px', color: '#ccc', marginBottom: '4px' }}>
+                  属性: {selectedFieldCardInfo.card.attribute} | コスト: {selectedFieldCardInfo.card.cost} SP
+                </div>
+                {selectedFieldCardInfo.card.categoryText && (
+                  <div style={{ fontSize: '11px', color: '#ffd700', marginBottom: '4px' }}>
+                    カテゴリ: {selectedFieldCardInfo.card.categoryText}
+                  </div>
+                )}
+                {selectedFieldCardInfo.type === 'phasecard' && selectedFieldCardInfo.card.charges && (
+                  <div style={{ fontSize: '11px', color: '#4caf50', marginBottom: '4px' }}>
+                    ⚡ チャージ: {selectedFieldCardInfo.card.charges.length}/3
+                  </div>
+                )}
+                <div style={{
+                  fontSize: '10px',
+                  color: '#e0e0e0',
+                  background: 'rgba(0,0,0,0.3)',
+                  padding: '6px',
+                  borderRadius: '4px',
+                  lineHeight: '1.4',
+                  maxHeight: '80px',
+                  overflowY: 'auto',
+                }}>
+                  {selectedFieldCardInfo.card.effect || 'なし'}
+                </div>
+                <button
+                  onClick={() => setSelectedFieldCardInfo(null)}
+                  style={{
+                    marginTop: '8px',
+                    padding: '4px 12px',
+                    background: 'rgba(107,76,230,0.5)',
+                    border: '1px solid #6b4ce6',
+                    borderRadius: '4px',
+                    color: '#fff',
+                    fontSize: '10px',
+                    cursor: 'pointer',
+                  }}
+                >
+                  閉じる
+                </button>
+              </div>
+            )}
           </div>
         </div>
       </div>
