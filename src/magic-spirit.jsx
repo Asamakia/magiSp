@@ -331,6 +331,10 @@ export default function MagicSpiritGame() {
       setP2Deck,
       setP1Graveyard,
       setP2Graveyard,
+      setP1ActiveSP,
+      setP2ActiveSP,
+      setP1RestedSP,
+      setP2RestedSP,
       p1Field,
       p2Field,
       p1Hand,
@@ -339,14 +343,21 @@ export default function MagicSpiritGame() {
       p2Deck,
       p1Graveyard,
       p2Graveyard,
+      p1ActiveSP,
+      p2ActiveSP,
+      p1RestedSP,
+      p2RestedSP,
       addLog,
     };
 
-    const success = executeSkillEffects(skill.text, context);
+    // カードIDを渡して効果を実行（カード固有処理がある場合は優先）
+    const success = executeSkillEffects(skill.text, context, monster.id);
     return success;
   }, [currentPlayer, p1Field, p2Field, p1Hand, p2Hand, p1Deck, p2Deck, p1Graveyard, p2Graveyard,
+      p1ActiveSP, p2ActiveSP, p1RestedSP, p2RestedSP,
       addLog, setP1Life, setP2Life, setP1Field, setP2Field, setP1Hand, setP2Hand,
-      setP1Deck, setP2Deck, setP1Graveyard, setP2Graveyard]);
+      setP1Deck, setP2Deck, setP1Graveyard, setP2Graveyard,
+      setP1ActiveSP, setP2ActiveSP, setP1RestedSP, setP2RestedSP]);
 
   // カード召喚
   const summonCard = useCallback((card, slotIndex) => {
@@ -391,39 +402,44 @@ export default function MagicSpiritGame() {
       
       addLog(`プレイヤー${currentPlayer}: ${card.name}を召喚！`, 'info');
 
-      // 召喚時効果を実行
-      if (card.effect && card.effect.includes('召喚時')) {
+      // 召喚時効果を実行（新表記【召喚時】と旧表記「召喚時」に対応）
+      if (card.effect && (card.effect.includes('召喚時') || card.effect.includes('【召喚時】'))) {
         addLog(`${card.name}の召喚時効果発動！`, 'info');
 
-        // 召喚時効果のテキストを抽出
-        const summonEffectMatch = card.effect.match(/召喚時[、，](.+?)(?:。|$)/);
-        if (summonEffectMatch) {
-          const effectText = summonEffectMatch[1];
-          const context = {
-            currentPlayer,
-            monsterIndex: slotIndex,
-            setP1Life,
-            setP2Life,
-            setP1Field,
-            setP2Field,
-            setP1Hand,
-            setP2Hand,
-            setP1Deck,
-            setP2Deck,
-            setP1Graveyard,
-            setP2Graveyard,
-            p1Field,
-            p2Field,
-            p1Hand,
-            p2Hand,
-            p1Deck,
-            p2Deck,
-            p1Graveyard,
-            p2Graveyard,
-            addLog,
-          };
-          executeSkillEffects(effectText, context);
-        }
+        // 召喚時効果を含む全テキストを渡す（カード固有処理で判定）
+        const context = {
+          currentPlayer,
+          monsterIndex: slotIndex,
+          setP1Life,
+          setP2Life,
+          setP1Field,
+          setP2Field,
+          setP1Hand,
+          setP2Hand,
+          setP1Deck,
+          setP2Deck,
+          setP1Graveyard,
+          setP2Graveyard,
+          setP1ActiveSP,
+          setP2ActiveSP,
+          setP1RestedSP,
+          setP2RestedSP,
+          p1Field,
+          p2Field,
+          p1Hand,
+          p2Hand,
+          p1Deck,
+          p2Deck,
+          p1Graveyard,
+          p2Graveyard,
+          p1ActiveSP,
+          p2ActiveSP,
+          p1RestedSP,
+          p2RestedSP,
+          addLog,
+        };
+        // カードIDを渡して効果を実行
+        executeSkillEffects(card.effect, context, card.id);
       }
 
       return true;
