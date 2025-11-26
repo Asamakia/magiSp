@@ -217,6 +217,16 @@ export const TRIGGER_TYPES = {
    * 【ダメージを与えた時】
    */
   ON_DAMAGE_DEALT: 'on_damage_dealt',
+
+  // ========================================
+  // カードアクショントリガー (Card Action Triggers)
+  // ========================================
+
+  /**
+   * 相手が魔法カードを発動した時
+   * 【相手が魔法カードを発動時】
+   */
+  ON_OPPONENT_MAGIC_ACTIVATED: 'on_opponent_magic_activated',
 };
 
 /**
