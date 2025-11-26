@@ -129,6 +129,12 @@ export const TRIGGER_TYPES = {
   ON_END_PHASE_SELF: 'on_end_phase_self',
 
   /**
+   * 相手のエンドフェイズ時
+   * 【相手エンドフェイズ時】
+   */
+  ON_OPPONENT_END_PHASE: 'on_opponent_end_phase',
+
+  /**
    * エンドフェイズ時（両プレイヤー）
    * 【エンドフェイズ時】
    */

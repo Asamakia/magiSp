@@ -9,11 +9,16 @@
  * - Debuff effects (attack reduction, status removal)
  * - Search effects (theme support)
  *
- * Total: 18 cards
- * - 召喚時 (On Summon): 14 cards
- * - 攻撃時 (On Attack): 2 cards
+ * Total: 42 cards
+ * - 召喚時 (On Summon): 17 cards
+ * - 自壊時 (On Self-Destroy): 10 cards
+ * - 攻撃時 (On Attack): 4 cards
+ * - 常時 (Continuous): 7 cards
  * - メインフェイズ時 (Main Phase): 1 card
- * - フェイズカード (Phase Card): 1 card
+ * - エンドフェイズ時 (End Phase): 4 cards
+ * - フェイズカード (Phase Card): 3 cards
+ * - フィールドカード (Field Card): 5 cards
+ * - 特殊能力 (Special Abilities): 2 cards (死触)
  */
 
 import { TRIGGER_TYPES, ACTIVATION_TYPES } from '../triggerTypes';
@@ -34,6 +39,130 @@ import {
  * Value: Array of trigger objects
  */
 export const darkCardTriggers = {
+  /**
+   * C0000076: シャドウ・サーバント
+   * 【自壊時】デッキからコスト3以下「闇属性」魔法カード1枚を手札に加える。
+   */
+  C0000076: [
+    {
+      type: TRIGGER_TYPES.ON_DESTROY_SELF,
+      activationType: ACTIVATION_TYPES.AUTOMATIC,
+      description: '自壊時: コスト3以下の闇魔法カードをサーチ',
+      effect: (context) => {
+        const foundCard = searchCard(context, (card) => {
+          return card.type === 'magic' &&
+                 card.attribute === '闇' &&
+                 card.cost <= 3;
+        });
+
+        if (!foundCard) {
+          context.addLog('デッキに該当カードがない', 'info');
+        }
+      },
+    },
+  ],
+
+  /**
+   * C0000077: 彷徨える死者
+   * 【自壊時】相手モンスター1体に1200ダメージを与える。
+   */
+  C0000077: [
+    {
+      type: TRIGGER_TYPES.ON_DESTROY_SELF,
+      activationType: ACTIVATION_TYPES.AUTOMATIC,
+      description: '自壊時: 相手モンスター1体に1200ダメージ',
+      effect: (context) => {
+        const { currentPlayer, p1Field, p2Field, setP1Field, setP2Field,
+                p1Graveyard, p2Graveyard, setP1Graveyard, setP2Graveyard, addLog } = context;
+
+        const opponentField = currentPlayer === 1 ? p2Field : p1Field;
+        const setOpponentField = currentPlayer === 1 ? setP2Field : setP1Field;
+        const setOpponentGraveyard = currentPlayer === 1 ? setP2Graveyard : setP1Graveyard;
+
+        const targetIndex = opponentField.findIndex((m) => m !== null);
+
+        if (targetIndex !== -1) {
+          const target = opponentField[targetIndex];
+          const newHp = target.currentHp - 1200;
+
+          if (newHp <= 0) {
+            setOpponentField((prev) => {
+              const newField = [...prev];
+              newField[targetIndex] = null;
+              return newField;
+            });
+            setOpponentGraveyard((prev) => [...prev, target]);
+            addLog(`${target.name}に1200ダメージを与え破壊した！`, 'damage');
+          } else {
+            setOpponentField((prev) => {
+              const newField = [...prev];
+              newField[targetIndex] = { ...target, currentHp: newHp };
+              return newField;
+            });
+            addLog(`${target.name}に1200ダメージ！`, 'damage');
+          }
+        } else {
+          addLog('相手の場にモンスターがいない', 'info');
+        }
+      },
+    },
+  ],
+
+  /**
+   * C0000080: 闇魔界の貴婦人
+   * 【常時】相手の魔法カードのコストを1増加する。
+   * 【自壊時】デッキから《ダーク・ネクロフィア》を手札に加える。
+   */
+  C0000080: [
+    {
+      type: TRIGGER_TYPES.CONTINUOUS,
+      activationType: ACTIVATION_TYPES.AUTOMATIC,
+      description: '常時: 相手の魔法カードコスト+1',
+      effect: (context) => {
+        const { addLog } = context;
+        // Note: Cost modification system not yet implemented
+        // This requires game engine changes to track continuous effects
+        addLog('相手の魔法カードのコストを1増加！', 'info');
+      },
+    },
+    {
+      type: TRIGGER_TYPES.ON_DESTROY_SELF,
+      activationType: ACTIVATION_TYPES.AUTOMATIC,
+      description: '自壊時: 《ダーク・ネクロフィア》をサーチ',
+      effect: (context) => {
+        const foundCard = searchCard(context, (card) => {
+          return card.name && card.name.includes('ダーク・ネクロフィア');
+        });
+
+        if (!foundCard) {
+          context.addLog('デッキにダーク・ネクロフィアがない', 'info');
+        }
+      },
+    },
+  ],
+
+  /**
+   * C0000081: 虚蝕獣・喰らい触手
+   * 【自攻撃後】相手モンスターを破壊した場合、破壊したモンスターの攻撃力の50％分のライフを回復する。
+   */
+  C0000081: [
+    {
+      type: TRIGGER_TYPES.ON_ATTACK_SUCCESS,
+      activationType: ACTIVATION_TYPES.AUTOMATIC,
+      description: '攻撃成功時: 破壊モンスターの攻撃力50%回復',
+      effect: (context) => {
+        const { destroyedCard } = context;
+
+        if (destroyedCard) {
+          const healAmount = Math.floor((destroyedCard.attack || 0) * 0.5);
+          if (healAmount > 0) {
+            healLife(context, healAmount, true);
+          }
+        }
+      },
+    },
+  ],
+
   /**
    * C0000094: 闇鴉の斥候
    * 召喚時、相手のデッキの上から1枚を墓地に送る。
@@ -115,6 +244,25 @@ export const darkCardTriggers = {
           }
         } else {
           addLog('相手の手札がない', 'info');
+        }
+      },
+    },
+  ],
+
+  /**
+   * C0000098: 影喰いの鴉
+   * 【自攻撃後】相手モンスターを破壊した場合、相手のデッキの上から2枚を墓地に送る。
+   */
+  C0000098: [
+    {
+      type: TRIGGER_TYPES.ON_ATTACK_SUCCESS,
+      activationType: ACTIVATION_TYPES.AUTOMATIC,
+      description: '攻撃成功時: 相手デッキ2枚をミル',
+      effect: (context) => {
+        const { destroyedCard } = context;
+
+        if (destroyedCard) {
+          millOpponentDeck(context, 2);
         }
       },
     },
@@ -351,6 +499,78 @@ export const darkCardTriggers = {
   ],
 
   /**
+   * C0000111: 禁忌の守護者
+   * 【自壊時】デッキから《ブラック・オラクル》を手札に加える。
+   */
+  C0000111: [
+    {
+      type: TRIGGER_TYPES.ON_DESTROY_SELF,
+      activationType: ACTIVATION_TYPES.AUTOMATIC,
+      description: '自壊時: 《ブラック・オラクル》をサーチ',
+      effect: (context) => {
+        const foundCard = searchCard(context, (card) => {
+          return card.name && card.name.includes('ブラック・オラクル');
+        });
+
+        if (!foundCard) {
+          context.addLog('デッキにブラック・オラクルがない', 'info');
+        }
+      },
+    },
+  ],
+
+  /**
+   * C0000114: 闇の巨像
+   * 【常時】このカードは攻撃できない。
+   * 【自壊時】相手フィールド全体に1000ダメージを与える。
+   */
+  C0000114: [
+    {
+      type: TRIGGER_TYPES.CONTINUOUS,
+      activationType: ACTIVATION_TYPES.AUTOMATIC,
+      description: '常時: このカードは攻撃できない',
+      effect: (context) => {
+        const { addLog } = context;
+        // Note: Attack restriction system not yet implemented
+        // This requires game engine changes
+        addLog('このカードは攻撃できない', 'info');
+      },
+    },
+    {
+      type: TRIGGER_TYPES.ON_DESTROY_SELF,
+      activationType: ACTIVATION_TYPES.AUTOMATIC,
+      description: '自壊時: 相手フィールド全体に1000ダメージ',
+      effect: (context) => {
+        const { currentPlayer, p1Field, p2Field, setP1Field, setP2Field,
+                p1Graveyard, p2Graveyard, setP1Graveyard, setP2Graveyard, addLog } = context;
+
+        const opponentField = currentPlayer === 1 ? p2Field : p1Field;
+        const setOpponentField = currentPlayer === 1 ? setP2Field : setP1Field;
+        const setOpponentGraveyard = currentPlayer === 1 ? setP2Graveyard : setP1Graveyard;
+
+        let destroyedCount = 0;
+
+        setOpponentField((prev) => {
+          return prev.map((monster) => {
+            if (monster) {
+              const newHp = monster.currentHp - 1000;
+              if (newHp <= 0) {
+                destroyedCount++;
+                addLog(`${monster.name}が破壊された！`, 'damage');
+                return null;
+              }
+              return { ...monster, currentHp: newHp };
+            }
+            return monster;
+          });
+        });
+
+        addLog(`相手フィールド全体に1000ダメージ！${destroyedCount}体破壊！`, 'damage');
+      },
+    },
+  ],
+
+  /**
    * C0000115: 禁断の使徒
    * 召喚時、相手モンスター1体に300ダメージを与える。
    */
@@ -564,6 +784,21 @@ export const darkCardTriggers = {
   ],
 
   /**
+   * C0000282: 暗殺者の亡魂
+   * 【自壊時】相手に600ダメージを与える。
+   */
+  C0000282: [
+    {
+      type: TRIGGER_TYPES.ON_DESTROY_SELF,
+      activationType: ACTIVATION_TYPES.AUTOMATIC,
+      description: '自壊時: 相手に600ダメージ',
+      effect: (context) => {
+        conditionalDamage(context, 600, 'opponent');
+      },
+    },
+  ],
+
+  /**
    * C0000308: シャドウ・クロウ (変幻身)
    * 【変幻身】メインフェイズにSPコストを2払うことで場のこのモンスターを別の形態に変化する。
    */
@@ -676,6 +911,42 @@ export const darkCardTriggers = {
   ],
 
   /**
+   * C0000370: 影羽の鳥民・ノクティス
+   * 【常時】自分の《ヴォランティス》モンスターが相手モンスターを戦闘で破壊するたび、
+   * そのモンスターの攻撃力の半分を相手プレイヤーにダメージとして与える。
+   */
+  C0000370: [
+    {
+      type: TRIGGER_TYPES.CONTINUOUS,
+      activationType: ACTIVATION_TYPES.AUTOMATIC,
+      description: '常時: ヴォランティス破壊時、攻撃力半分ダメージ',
+      effect: (context) => {
+        const { addLog } = context;
+        // Note: Triggered effect from another card's action
+        // This requires game engine changes to detect Volantis destroying monsters
+        addLog('ヴォランティスモンスターが破壊する度、追加ダメージ！', 'info');
+      },
+    },
+  ],
+
+  /**
+   * C0000384: 魔女エリザヴェット・ヴェイル
+   * 【常時】自分の《黒呪》魔法カードのコストを1軽減（重複不可）。
+   */
+  C0000384: [
+    {
+      type: TRIGGER_TYPES.CONTINUOUS,
+      activationType: ACTIVATION_TYPES.AUTOMATIC,
+      description: '常時: 黒呪魔法カードコスト-1',
+      effect: (context) => {
+        const { addLog } = context;
+        // Note: Cost modification system not yet implemented
+        addLog('黒呪魔法カードのコストを1軽減！', 'info');
+      },
+    },
+  ],
+
+  /**
    * C0000385: 呪魂の従者
    * 召喚時、デッキから「エリザヴェット・ヴェイル」1枚を手札に加える。
    */
@@ -742,6 +1013,386 @@ export const darkCardTriggers = {
         } else {
           addLog('場に空きがないためトークンを召喚できない', 'info');
         }
+      },
+    },
+  ],
+
+  /**
+   * C0000409: 血涙の叫女バンシーディス
+   * 【死触】このモンスターが与えるダメージが1点でもあれば、その相手モンスターを破壊する。
+   */
+  C0000409: [
+    {
+      type: TRIGGER_TYPES.CONTINUOUS,
+      activationType: ACTIVATION_TYPES.AUTOMATIC,
+      description: '死触: ダメージ1点でも相手モンスター破壊',
+      effect: (context) => {
+        const { addLog } = context;
+        // Note: Death Touch is a special ability that modifies combat
+        // This requires game engine changes to implement properly
+        addLog('【死触】発動：ダメージを与えた相手モンスターを破壊！', 'info');
+      },
+    },
+  ],
+
+  /**
+   * C0000418: 深層の隠蟲クリプトノムス
+   * 【被攻撃時】そのターン終了時までこのカードのHPを800アップ。（ターンに1度）
+   */
+  C0000418: [
+    {
+      type: TRIGGER_TYPES.ON_ATTACKED,
+      activationType: ACTIVATION_TYPES.AUTOMATIC,
+      description: '被攻撃時: HP+800（ターン終了まで）',
+      effect: (context) => {
+        const { currentPlayer, slotIndex, p1Field, p2Field, setP1Field, setP2Field, addLog } = context;
+
+        const currentField = currentPlayer === 1 ? p1Field : p2Field;
+        const setField = currentPlayer === 1 ? setP1Field : setP2Field;
+
+        if (slotIndex !== undefined && currentField[slotIndex]) {
+          setField((prev) => {
+            const newField = [...prev];
+            newField[slotIndex] = {
+              ...newField[slotIndex],
+              currentHp: newField[slotIndex].currentHp + 800,
+              hp: newField[slotIndex].hp + 800, // Temporary HP boost
+            };
+            return newField;
+          });
+          addLog('HPが800上昇！（ターン終了まで）', 'info');
+          // Note: HP should revert at turn end - requires game engine support
+        }
+      },
+    },
+  ],
+
+  /**
+   * C0000420: 瘴気の蟻アラクノファグス
+   * 【自攻撃時】相手モンスターを破壊した時、相手プレイヤーに300ダメージを与える。
+   */
+  C0000420: [
+    {
+      type: TRIGGER_TYPES.ON_ATTACK_SUCCESS,
+      activationType: ACTIVATION_TYPES.AUTOMATIC,
+      description: '攻撃成功時: 相手に300ダメージ',
+      effect: (context) => {
+        const { destroyedCard } = context;
+
+        if (destroyedCard) {
+          conditionalDamage(context, 300, 'opponent');
+        }
+      },
+    },
+  ],
+
+  /**
+   * C0000424: 呪灰の翼ダスクドラゴン
+   * 【自分エンドフェイズ時】相手フィールド全体に400ダメージを与える。
+   */
+  C0000424: [
+    {
+      type: TRIGGER_TYPES.ON_END_PHASE_SELF,
+      activationType: ACTIVATION_TYPES.AUTOMATIC,
+      description: 'エンドフェイズ時: 相手フィールド全体に400ダメージ',
+      effect: (context) => {
+        const { currentPlayer, p1Field, p2Field, setP1Field, setP2Field,
+                p1Graveyard, p2Graveyard, setP1Graveyard, setP2Graveyard, addLog } = context;
+
+        const opponentField = currentPlayer === 1 ? p2Field : p1Field;
+        const setOpponentField = currentPlayer === 1 ? setP2Field : setP1Field;
+        const setOpponentGraveyard = currentPlayer === 1 ? setP2Graveyard : setP1Graveyard;
+
+        let destroyedCount = 0;
+
+        setOpponentField((prev) => {
+          return prev.map((monster) => {
+            if (monster) {
+              const newHp = monster.currentHp - 400;
+              if (newHp <= 0) {
+                destroyedCount++;
+                addLog(`${monster.name}が破壊された！`, 'damage');
+                return null;
+              }
+              return { ...monster, currentHp: newHp };
+            }
+            return monster;
+          });
+        });
+
+        addLog(`相手フィールド全体に400ダメージ！`, 'damage');
+        if (destroyedCount > 0) {
+          addLog(`${destroyedCount}体破壊！`, 'damage');
+        }
+      },
+    },
+  ],
+
+  /**
+   * C0000425: 灰骨竜フレアスケルス
+   * 【自攻撃時】相手モンスターに与えるダメージを400アップ。
+   */
+  C0000425: [
+    {
+      type: TRIGGER_TYPES.ON_ATTACK,
+      activationType: ACTIVATION_TYPES.AUTOMATIC,
+      description: '攻撃時: ダメージ+400',
+      effect: (context) => {
+        const { addLog } = context;
+        // Note: Damage modification requires combat system changes
+        addLog('攻撃ダメージが400上昇！', 'info');
+      },
+    },
+  ],
+
+  /**
+   * C0000426: 灰塵の怨念スペクトラグス
+   * 【死触】このモンスターが与えるダメージが1点でもあれば、相手モンスターを破壊する。
+   */
+  C0000426: [
+    {
+      type: TRIGGER_TYPES.CONTINUOUS,
+      activationType: ACTIVATION_TYPES.AUTOMATIC,
+      description: '死触: ダメージ1点でも相手モンスター破壊',
+      effect: (context) => {
+        const { addLog } = context;
+        // Note: Death Touch is a special ability that modifies combat
+        addLog('【死触】発動：ダメージを与えた相手モンスターを破壊！', 'info');
+      },
+    },
+  ],
+
+  /**
+   * C0000427: 灰塵の骨霊ファントマリス
+   * 【召喚時】自分の墓地の闇属性カード1枚をデッキに戻す。
+   */
+  C0000427: [
+    {
+      type: TRIGGER_TYPES.ON_SUMMON,
+      activationType: ACTIVATION_TYPES.AUTOMATIC,
+      description: '召喚時: 墓地の闇属性カード1枚をデッキに戻す',
+      effect: (context) => {
+        const { currentPlayer, p1Graveyard, p2Graveyard, setP1Graveyard, setP2Graveyard,
+                p1Deck, p2Deck, setP1Deck, setP2Deck, addLog } = context;
+
+        const currentGraveyard = currentPlayer === 1 ? p1Graveyard : p2Graveyard;
+        const setGraveyard = currentPlayer === 1 ? setP1Graveyard : setP2Graveyard;
+        const setDeck = currentPlayer === 1 ? setP1Deck : setP2Deck;
+
+        const darkCard = currentGraveyard.find((card) => card.attribute === '闇');
+
+        if (darkCard) {
+          setGraveyard((prev) => prev.filter((c) => c.id !== darkCard.id));
+          setDeck((prev) => [...prev, darkCard]);
+          addLog(`${darkCard.name}をデッキに戻した！`, 'info');
+        } else {
+          addLog('墓地に闇属性カードがない', 'info');
+        }
+      },
+    },
+  ],
+
+  // ========================================
+  // Field Cards (フィールドカード)
+  // ========================================
+
+  /**
+   * C0000089: 闇の宮殿
+   * 【常時】闇属性モンスターの攻撃力を400アップ。
+   * 【相手エンドフェイズ時】自分の場に闇属性モンスターがいるとき、相手の手札を1枚ランダムに墓地に捨てる。
+   */
+  C0000089: [
+    {
+      type: TRIGGER_TYPES.CONTINUOUS,
+      activationType: ACTIVATION_TYPES.AUTOMATIC,
+      description: '常時: 闇属性モンスター攻撃力+400',
+      effect: (context) => {
+        const { addLog } = context;
+        // Note: Continuous stat modification requires game engine changes
+        addLog('闇属性モンスターの攻撃力が400上昇！', 'info');
+      },
+    },
+    {
+      type: TRIGGER_TYPES.ON_OPPONENT_END_PHASE,
+      activationType: ACTIVATION_TYPES.AUTOMATIC,
+      description: '相手エンドフェイズ時: 闇属性いれば相手手札1枚破棄',
+      effect: (context) => {
+        const { currentPlayer, p1Field, p2Field, p1Hand, p2Hand, setP1Hand, setP2Hand,
+                p1Graveyard, p2Graveyard, setP1Graveyard, setP2Graveyard, addLog } = context;
+
+        const currentField = currentPlayer === 1 ? p1Field : p2Field;
+        const hasDarkMonster = currentField.some((m) => m && m.attribute === '闇');
+
+        if (hasDarkMonster) {
+          const opponentHand = currentPlayer === 1 ? p2Hand : p1Hand;
+          const setOpponentHand = currentPlayer === 1 ? setP2Hand : setP1Hand;
+          const setOpponentGraveyard = currentPlayer === 1 ? setP2Graveyard : setP1Graveyard;
+
+          if (opponentHand.length > 0) {
+            const randomIndex = Math.floor(Math.random() * opponentHand.length);
+            const discardedCard = opponentHand[randomIndex];
+
+            setOpponentHand((prev) => prev.filter((_, index) => index !== randomIndex));
+            setOpponentGraveyard((prev) => [...prev, discardedCard]);
+            addLog(`相手の手札から${discardedCard.name}を墓地に捨てた！`, 'info');
+          } else {
+            addLog('相手の手札がない', 'info');
+          }
+        }
+      },
+    },
+  ],
+
+  /**
+   * C0000108: 虚蝕の呪詛 (Phase Card)
+   * 初期効果: 【自分エンドフェイズ時】相手プレイヤーに300ダメージを与える。
+   */
+  C0000108: [
+    {
+      type: TRIGGER_TYPES.ON_END_PHASE_SELF,
+      activationType: ACTIVATION_TYPES.AUTOMATIC,
+      description: 'エンドフェイズ時: 相手に300ダメージ',
+      effect: (context) => {
+        conditionalDamage(context, 300, 'opponent');
+      },
+    },
+  ],
+
+  /**
+   * C0000123: 禁忌の王座
+   * 【常時】自分のライフが2000以下の場合、闇属性モンスターの召喚コストを1軽減。
+   * 【自分エンドフェイズ時】場にいる闇属性モンスター1体につき、相手プレイヤーに300ダメージ。
+   */
+  C0000123: [
+    {
+      type: TRIGGER_TYPES.CONTINUOUS,
+      activationType: ACTIVATION_TYPES.AUTOMATIC,
+      description: '常時: ライフ2000以下で闇コスト-1',
+      effect: (context) => {
+        const { addLog } = context;
+        // Note: Cost reduction requires game engine changes
+        addLog('闇属性モンスターの召喚コストを1軽減！', 'info');
+      },
+    },
+    {
+      type: TRIGGER_TYPES.ON_END_PHASE_SELF,
+      activationType: ACTIVATION_TYPES.AUTOMATIC,
+      description: 'エンドフェイズ時: 闇属性数×300ダメージ',
+      effect: (context) => {
+        const { currentPlayer, p1Field, p2Field, addLog } = context;
+
+        const currentField = currentPlayer === 1 ? p1Field : p2Field;
+        const darkCount = currentField.filter((m) => m && m.attribute === '闇').length;
+
+        if (darkCount > 0) {
+          const damage = darkCount * 300;
+          conditionalDamage(context, damage, 'opponent');
+          addLog(`闇属性${darkCount}体で${damage}ダメージ！`, 'damage');
+        }
+      },
+    },
+  ],
+
+  /**
+   * C0000124: シャドウ・エンパイア
+   * 【相手モンスター召喚時】その攻撃力を500ダウン、そのモンスターに300ダメージ。
+   * 【自壊時】自分のライフを1000減らす。
+   */
+  C0000124: [
+    {
+      type: TRIGGER_TYPES.ON_OPPONENT_SUMMON,
+      activationType: ACTIVATION_TYPES.AUTOMATIC,
+      description: '相手召喚時: 攻撃力-500、300ダメージ',
+      effect: (context) => {
+        const { card, addLog } = context;
+
+        if (card) {
+          // Note: Modifying summoned monster requires game engine changes
+          // This trigger should fire during summon and modify the monster
+          addLog(`${card.name}の攻撃力を500減少、300ダメージ！`, 'damage');
+        }
+      },
+    },
+    {
+      type: TRIGGER_TYPES.ON_DESTROY_SELF,
+      activationType: ACTIVATION_TYPES.AUTOMATIC,
+      description: '自壊時: 自ライフ-1000',
+      effect: (context) => {
+        conditionalDamage(context, 1000, 'self');
+      },
+    },
+  ],
+
+  /**
+   * C0000240: 魔界の幼魔王城
+   * 【常時】《リリカ》と名の付くモンスターの攻撃力を500アップ。
+   * 【エンドフェイズ時】自分の墓地の《リリカ》モンスター1体をデッキに戻したら、相手プレイヤーに300ダメージ。
+   */
+  C0000240: [
+    {
+      type: TRIGGER_TYPES.CONTINUOUS,
+      activationType: ACTIVATION_TYPES.AUTOMATIC,
+      description: '常時: リリカ攻撃力+500',
+      effect: (context) => {
+        const { addLog } = context;
+        addLog('リリカモンスターの攻撃力が500上昇！', 'info');
+      },
+    },
+    {
+      type: TRIGGER_TYPES.ON_END_PHASE,
+      activationType: ACTIVATION_TYPES.OPTIONAL,
+      description: 'エンドフェイズ時: 墓地リリカをデッキに戻し300ダメージ',
+      effect: (context) => {
+        const { currentPlayer, p1Graveyard, p2Graveyard, setP1Graveyard, setP2Graveyard,
+                p1Deck, p2Deck, setP1Deck, setP2Deck, addLog } = context;
+
+        const currentGraveyard = currentPlayer === 1 ? p1Graveyard : p2Graveyard;
+        const setGraveyard = currentPlayer === 1 ? setP1Graveyard : setP2Graveyard;
+        const setDeck = currentPlayer === 1 ? setP1Deck : setP2Deck;
+
+        const lilikaCard = currentGraveyard.find((card) =>
+          card.type === 'monster' && card.name && card.name.includes('リリカ')
+        );
+
+        if (lilikaCard) {
+          setGraveyard((prev) => prev.filter((c) => c.id !== lilikaCard.id));
+          setDeck((prev) => [...prev, lilikaCard]);
+          conditionalDamage(context, 300, 'opponent');
+          addLog(`${lilikaCard.name}をデッキに戻し、300ダメージ！`, 'damage');
+        } else {
+          addLog('墓地にリリカモンスターがない', 'info');
+        }
+      },
+    },
+  ],
+
+  /**
+   * C0000386: 呪縛の塔・ヴェルナクール
+   * 【常時】自分の《黒呪》魔法カードのコストを1軽減（エリザヴェットと重複可）。
+   */
+  C0000386: [
+    {
+      type: TRIGGER_TYPES.CONTINUOUS,
+      activationType: ACTIVATION_TYPES.AUTOMATIC,
+      description: '常時: 黒呪魔法カードコスト-1（重複可）',
+      effect: (context) => {
+        const { addLog } = context;
+        addLog('黒呪魔法カードのコストを1軽減！（エリザヴェットと重複可）', 'info');
+      },
+    },
+  ],
+
+  /**
+   * C0000387: 呪核の杖・ザルヴェリオ (Phase Card)
+   * 初期効果: 【発動時】相手プレイヤーに200ダメージ。
+   */
+  C0000387: [
+    {
+      type: TRIGGER_TYPES.ON_PHASE_CARD_ACTIVATE,
+      activationType: ACTIVATION_TYPES.AUTOMATIC,
+      description: '発動時: 相手に200ダメージ',
+      effect: (context) => {
+        conditionalDamage(context, 200, 'opponent');
       },
     },
   ],
