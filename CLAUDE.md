@@ -33,6 +33,14 @@ Currently a **prototype version** with local 2-player gameplay.
   - Fixed field/phase card info display showing in both player areas
   - Added dedicated magic card activation button for clearer UX
   - Separated magic card activation from phase transition logic
+- **2025-11-26 (Phase 6 - Trigger System)**: Comprehensive trigger system implemented ⭐
+  - 26 generic trigger types (reduced from 51 specific types)
+  - Automatic vs optional trigger distinction
+  - Card-bound UI integration (triggers shown with skills)
+  - Priority-based trigger execution
+  - Turn-based usage flags and lifecycle management
+  - ~1230 lines of new trigger infrastructure
+  - 12 Future attribute cards with full trigger implementations (~514 lines)
 
 ---
 
@@ -68,16 +76,20 @@ Currently a **prototype version** with local 2-player gameplay.
 │   ├── engine/                 # Game logic engines ⭐⭐
 │   │   ├── effectEngine.js     # Generic effect execution engine (220 lines)
 │   │   ├── effectHelpers.js    # Reusable effect helper functions (446 lines)
-│   │   └── cardEffects/        # Card-specific effect implementations (~1695 lines)
-│   │       ├── index.js        # Effect registry and exports
-│   │       ├── _template.js    # Template for new card effects
-│   │       ├── fire.js         # 炎属性 card effects
-│   │       ├── water.js        # 水属性 card effects
-│   │       ├── light.js        # 光属性 card effects
-│   │       ├── dark.js         # 闇属性 card effects
-│   │       ├── primitive.js    # 原始属性 card effects
-│   │       ├── future.js       # 未来属性 card effects
-│   │       └── neutral.js      # なし属性 card effects
+│   │   ├── triggerTypes.js     # Trigger type definitions (302 lines) ⭐ NEW
+│   │   ├── triggerEngine.js    # Trigger lifecycle management (658 lines) ⭐ NEW
+│   │   ├── cardEffects/        # Card-specific effect implementations (~1695 lines)
+│   │   │   ├── index.js        # Effect registry and exports
+│   │   │   ├── _template.js    # Template for new card effects
+│   │   │   ├── fire.js         # 炎属性 card effects
+│   │   │   ├── water.js        # 水属性 card effects
+│   │   │   ├── light.js        # 光属性 card effects
+│   │   │   ├── dark.js         # 闇属性 card effects
+│   │   │   ├── primitive.js    # 原始属性 card effects
+│   │   │   ├── future.js       # 未来属性 card effects
+│   │   │   └── neutral.js      # なし属性 card effects
+│   │   └── cardTriggers/       # Card-specific trigger implementations ⭐ NEW
+│   │       └── futureCards.js  # 未来属性 trigger implementations (12 cards)
 │   │
 │   ├── ルール/                  # Documentation
 │   │   ├── magic-spirit-roadmap-updated.txt
@@ -122,6 +134,28 @@ Currently a **prototype version** with local 2-player gameplay.
 - Organized by attribute (fire, water, light, dark, primitive, future, neutral)
 - Central registry in `index.js`
 - Template file for new card effects
+
+**`src/engine/triggerTypes.js`** (Trigger type definitions - 302 lines) ⭐ **NEW**
+- 26 generic trigger types (召喚時, 破壊時, フェイズ, etc.)
+- Activation types: AUTOMATIC vs OPTIONAL
+- Priority system (HIGHEST, HIGH, NORMAL, LOW, LOWEST)
+- Helper functions for trigger metadata
+- Designed for extensibility without hardcoding
+
+**`src/engine/triggerEngine.js`** (Trigger lifecycle engine - 658 lines) ⭐ **NEW**
+- Global trigger registry system
+- Trigger registration/unregistration (on summon/destroy)
+- Automatic trigger firing (phase-based)
+- Optional trigger retrieval (for UI display)
+- Manual trigger activation
+- Turn-based usage flag management
+- Priority-based execution ordering
+
+**`src/engine/cardTriggers/futureCards.js`** (Future card triggers - 514 lines) ⭐ **NEW**
+- 12 Future attribute card trigger implementations
+- Uses effect helpers for common patterns
+- Demonstrates trigger implementation patterns
+- Template for other attribute implementations
 
 **`src/utils/cardManager.js`** (Card data manager - 240 lines)
 - CSV parser for 433 cards
@@ -213,6 +247,7 @@ The game uses React hooks with extensive state:
 **Generic Effect System**: Located in `src/engine/effectEngine.js` (220 lines)
 **Card-Specific Effects**: Located in `src/engine/cardEffects/` (~1695 lines, 108+ cards)
 **Effect Helpers**: Located in `src/engine/effectHelpers.js` (446 lines)
+**Trigger System**: Located in `src/engine/` - triggerTypes.js, triggerEngine.js, cardTriggers/ ⭐ **NEW**
 **Card Management**: Located in `src/utils/cardManager.js` (240 lines)
 
 **Key Functions in magic-spirit.jsx**:
@@ -552,6 +587,126 @@ ATTRIBUTE_COLORS = {
 - **Simple generic effects**: Add pattern matching to `parseEffect()` in `src/engine/effectEngine.js`
 - **Complex unique effects**: Implement in card-specific effect file with custom logic
 - **Special on-summon effects**: Handled automatically if card effect includes '【召喚時】'
+
+**To implement card triggers** ⭐ **NEW**:
+1. Create/open attribute file in `src/engine/cardTriggers/` (e.g., `futureCards.js`)
+2. Import trigger types and effect helpers
+3. Define trigger array for each card ID
+4. Specify trigger type, activation type, and effect function
+5. Return trigger array from export object
+
+---
+
+### Working with the Trigger System ⭐⭐ **NEW**
+
+The trigger system manages event-based card effects that fire automatically or optionally based on game events.
+
+**System Architecture**:
+```
+Trigger Lifecycle:
+1. Card summoned → registerCardTriggers() registers all triggers
+2. Game event occurs (phase change, summon, destroy, etc.)
+3. For AUTOMATIC triggers → fireTrigger() executes all matching triggers
+4. For OPTIONAL triggers → getCardMainPhaseTriggers() retrieves for UI display
+5. Player activates → activateTrigger() executes manually
+6. Card destroyed → unregisterCardTriggers() removes all triggers
+7. Turn end → resetTurnFlags() clears usage flags
+```
+
+**Key Components**:
+
+**1. Trigger Types** (`src/engine/triggerTypes.js` - 26 types):
+- **Summon**: ON_SUMMON, ON_OPPONENT_SUMMON, ON_ATTRIBUTE_SUMMON_SELF, etc.
+- **Destroy**: ON_DESTROY_SELF, ON_CATEGORY_MONSTER_DESTROYED, etc.
+- **Phase**: ON_TURN_START_SELF, ON_MAIN_PHASE_SELF, ON_END_PHASE_SELF, etc.
+- **Attack**: ON_ATTACK, ON_ATTACKED, ON_ATTACK_SUCCESS
+- **Graveyard**: ON_MAIN_PHASE_FROM_GRAVEYARD, ON_END_PHASE_FROM_GRAVEYARD
+- **Conditional**: ON_LIFE_CONDITION, ON_FIELD_CONDITION, etc.
+
+**2. Activation Types**:
+- **AUTOMATIC**: Triggers fire automatically when condition met
+- **OPTIONAL**: Player chooses when to activate (shown in UI)
+
+**3. Trigger Engine Functions**:
+- **`registerCardTriggers(card, owner, slotIndex)`**: Register card's triggers
+- **`unregisterCardTriggers(cardId)`**: Remove card's triggers
+- **`fireTrigger(triggerType, context)`**: Fire all automatic triggers of a type
+- **`getCardMainPhaseTriggers(card, currentPlayer)`**: Get optional triggers for UI
+- **`activateTrigger(trigger, context)`**: Manually activate a trigger
+- **`resetTurnFlags()`**: Clear usedThisTurn flags at turn end
+
+**Implementing a Card Trigger**:
+```javascript
+// In src/engine/cardTriggers/futureCards.js
+import { TRIGGER_TYPES, ACTIVATION_TYPES } from '../triggerTypes';
+import { conditionalDamage, drawCards } from '../effectHelpers';
+
+export const futureCardTriggers = {
+  C0000XXX: [
+    {
+      type: TRIGGER_TYPES.ON_SUMMON,
+      activationType: ACTIVATION_TYPES.AUTOMATIC,
+      description: '召喚時に1枚ドロー',
+      effect: (context) => {
+        drawCards(context, 1);
+      },
+    },
+    {
+      type: TRIGGER_TYPES.ON_END_PHASE_SELF,
+      activationType: ACTIVATION_TYPES.AUTOMATIC,
+      description: 'エンド時に300ダメージ',
+      effect: (context) => {
+        conditionalDamage(context, 300, 'opponent');
+      },
+    },
+  ],
+};
+```
+
+**Trigger Context Object**:
+```javascript
+const context = {
+  currentPlayer,          // 1 or 2
+  card,                   // Card that triggered (if applicable)
+  slotIndex,              // Field slot index (if applicable)
+  monsterIndex,           // Monster index (for compatibility)
+  destroyedCard,          // Destroyed card (for destroy triggers)
+
+  // Life
+  p1Life, p2Life,
+  setP1Life, setP2Life,
+
+  // Fields
+  p1Field, p2Field,
+  setP1Field, setP2Field,
+
+  // Hands & Decks
+  p1Hand, p2Hand,
+  setP1Hand, setP2Hand,
+  p1Deck, p2Deck,
+  setP1Deck, setP2Deck,
+
+  // Graveyards
+  p1Graveyard, p2Graveyard,
+  setP1Graveyard, setP2Graveyard,
+
+  // SP
+  p1ActiveSP, p2ActiveSP,
+  setP1ActiveSP, setP2ActiveSP,
+  p1RestedSP, p2RestedSP,
+  setP1RestedSP, setP2RestedSP,
+
+  // Logging
+  addLog,
+};
+```
+
+**Integration in magic-spirit.jsx**:
+- **initGame()**: `clearAllTriggers()` - Reset system
+- **summonCard()**: `registerCardTriggers()` - Register on summon
+- **attack()**: `unregisterCardTriggers()` + `fireTrigger(ON_DESTROY_SELF)` - Handle destruction
+- **processPhase()**: `fireTrigger(ON_TURN_START_SELF, etc.)` - Fire phase triggers
+- **Skill Panel UI**: `getCardMainPhaseTriggers()` - Display optional triggers
 
 ---
 
