@@ -60,7 +60,7 @@ Currently a **prototype version** with local 2-player gameplay.
 - **2025-11-26 (Deck Selection)**: Deck selection feature implemented ⭐
   - Players can select from predefined decks before game starts
   - Deck selection UI on title screen
-  - Expanded card list from 433 to 715 cards
+  - Card pool maintained at 433 cards
 - **2025-11-26 (UI Bug Fix)**: Fixed info panel skill text duplication
   - Removed duplicate 基本技/上級技 display in card info panel
 
@@ -73,7 +73,7 @@ Currently a **prototype version** with local 2-player gameplay.
 ├── public/                     # Static assets
 │   ├── index.html              # HTML entry point
 │   ├── cardlist/
-│   │   └── cardlist.csv        # 715 cards data
+│   │   └── cardlist.csv        # 433 cards data
 │   ├── manifest.json           # PWA manifest
 │   └── *.png, *.ico            # Icons and images
 │
@@ -203,7 +203,7 @@ Currently a **prototype version** with local 2-player gameplay.
 - Comprehensive trigger system covering 220 cards across all attributes
 
 **`src/utils/cardManager.js`** (Card data manager - 253 lines)
-- CSV parser for 715 cards
+- CSV parser for 433 cards
 - Skill information extraction
 - Async card loading from CSV
 - Fallback sample cards
@@ -1081,9 +1081,9 @@ console.log('Executing effect:', type, value, target);
    - Priority-based execution and turn-based lifecycle management
 5. ✅ **~~Deck selection~~**: COMPLETED - Basic deck selection feature (2025-11-26)
    - Predefined deck selection UI on title screen
-   - 715 cards available in card pool
-6. **Remaining card effects**: Implement effects for remaining cards (715 total - 108 implemented)
-7. **Remaining card triggers**: Implement triggers for remaining cards (715 total - 220 implemented)
+   - 433 cards available in card pool
+6. **Remaining card effects**: Implement effects for remaining cards (433 total - 108 implemented)
+7. **Remaining card triggers**: Implement triggers for remaining cards (433 total - 220 implemented)
 8. **Card data format**: Convert CSV to JSON for better structure and validation
 9. **State management**: Consider Context API or Redux for complex state
 10. **TypeScript**: Add type safety to entire codebase
@@ -1329,7 +1329,6 @@ The Japanese text throughout suggests this may be for a Japanese audience or is 
   - Separated magic card activation logic from phase transition
 - **2025-11-26 (Deck Selection)**: Added deck selection feature
   - Predefined deck selection UI on title screen
-  - Expanded card pool to 715 cards
 - **2025-11-26 (Info Panel Fix)**: Fixed skill text duplication in info panel
   - Removed duplicate 基本技/上級技 display
 
@@ -1338,5 +1337,5 @@ This is suitable for expansion into a full game or as a learning project for Rea
 ---
 
 **Document Version**: 3.7
-**Last Updated**: 2025-11-26 (Deck selection feature, UI bug fix, card count 715)
+**Last Updated**: 2025-11-26 (Deck selection feature, UI bug fix, line count updates)
 **For**: Magic Spirit (magiSp) Repository
