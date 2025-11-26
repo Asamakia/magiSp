@@ -40,13 +40,22 @@ Currently a **prototype version** with local 2-player gameplay.
   - Priority-based trigger execution
   - Turn-based usage flags and lifecycle management
   - ~1230 lines of new trigger infrastructure
-  - **199 cards with trigger implementations across 6 attributes** (~6499 lines)
+  - **202 cards with trigger implementations across 6 attributes** (~6700 lines)
     - Fire (炎): 33 cards (819 lines)
-    - Water (水): 34 cards (970 lines)
+    - Water (水): 37 cards (~1170 lines) - includes 3 graveyard triggers
     - Light (光): 47 cards (1309 lines)
     - Dark (闇): 45 cards (1591 lines)
     - Future (未来): 12 cards (504 lines)
     - Primitive (原始): 28 cards (1306 lines)
+- **2025-11-26 (Graveyard Triggers)**: Graveyard trigger system implemented ⭐
+  - ON_MAIN_PHASE_FROM_GRAVEYARD: メインフェイズ墓地発動（任意発動）
+  - ON_END_PHASE_FROM_GRAVEYARD: エンドフェイズ墓地発動（自動発動）
+  - Graveyard trigger UI in main phase (shows activatable graveyard cards)
+  - Automatic graveyard trigger execution in end phase
+  - 3 water attribute cards implemented:
+    - C0000043 深海のクラーケン (SP4払い自己蘇生)
+    - C0000045 海流の守護者 (エンド時SPアクティブ)
+    - C0000143 氷猫の使い魔 (エンド時ブリザードキャット回収)
 
 ---
 
@@ -96,7 +105,7 @@ Currently a **prototype version** with local 2-player gameplay.
 │   │   │   └── neutral.js      # なし属性 card effects
 │   │   └── cardTriggers/       # Card-specific trigger implementations (~6499 lines) ⭐ NEW
 │   │       ├── fireCards.js      # 炎属性 trigger implementations (33 cards, 819 lines)
-│   │       ├── waterCards.js     # 水属性 trigger implementations (34 cards, 970 lines)
+│   │       ├── waterCards.js     # 水属性 trigger implementations (37 cards, ~1170 lines)
 │   │       ├── lightCards.js     # 光属性 trigger implementations (47 cards, 1309 lines)
 │   │       ├── darkCards.js      # 闇属性 trigger implementations (45 cards, 1591 lines)
 │   │       ├── futureCards.js    # 未来属性 trigger implementations (12 cards, 504 lines)
@@ -176,7 +185,7 @@ Currently a **prototype version** with local 2-player gameplay.
 
 **`src/engine/cardTriggers/`** (Card-specific trigger implementations - ~6499 lines, 199 cards) ⭐⭐ **NEW**
 - **fireCards.js**: 炎属性 triggers (33 cards, 819 lines)
-- **waterCards.js**: 水属性 triggers (34 cards, 970 lines)
+- **waterCards.js**: 水属性 triggers (37 cards, ~1170 lines) - includes 3 graveyard triggers
 - **lightCards.js**: 光属性 triggers (47 cards, 1309 lines) - Most cards!
 - **darkCards.js**: 闇属性 triggers (45 cards, 1591 lines)
 - **futureCards.js**: 未来属性 triggers (12 cards, 504 lines)
@@ -667,7 +676,7 @@ ATTRIBUTE_COLORS = {
 **To implement card triggers** ⭐ **NEW**:
 1. Open appropriate attribute file in `src/engine/cardTriggers/`
    - `fireCards.js` (炎属性) - 33 cards implemented
-   - `waterCards.js` (水属性) - 34 cards implemented
+   - `waterCards.js` (水属性) - 37 cards implemented (includes 3 graveyard triggers)
    - `lightCards.js` (光属性) - 47 cards implemented
    - `darkCards.js` (闇属性) - 45 cards implemented
    - `futureCards.js` (未来属性) - 12 cards implemented

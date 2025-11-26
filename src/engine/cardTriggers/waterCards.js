@@ -96,6 +96,73 @@ export const waterCardTriggers = {
   ],
 
   /**
+   * C0000043: 深海のクラーケン
+   * 【墓地発動】このカードが墓地にあるときSPコスト4を払い、このカードを再度召喚可能。
+   */
+  C0000043: [
+    {
+      type: TRIGGER_TYPES.ON_MAIN_PHASE_FROM_GRAVEYARD,
+      activationType: ACTIVATION_TYPES.OPTIONAL,
+      description: '墓地発動: SP4払い自己蘇生',
+      priority: TRIGGER_PRIORITIES.NORMAL,
+      costCheck: (context) => {
+        const { currentPlayer, p1ActiveSP, p2ActiveSP } = context;
+        const activeSP = currentPlayer === 1 ? p1ActiveSP : p2ActiveSP;
+        return activeSP >= 4;
+      },
+      effect: (context) => {
+        const { currentPlayer, p1ActiveSP, p2ActiveSP, setP1ActiveSP, setP2ActiveSP,
+                p1RestedSP, p2RestedSP, setP1RestedSP, setP2RestedSP,
+                p1Field, p2Field, setP1Field, setP2Field,
+                p1Graveyard, p2Graveyard, setP1Graveyard, setP2Graveyard,
+                card, addLog } = context;
+
+        const activeSP = currentPlayer === 1 ? p1ActiveSP : p2ActiveSP;
+        if (activeSP < 4) {
+          addLog('深海のクラーケンの効果: SPが足りません', 'info');
+          return false;
+        }
+
+        // 空きスロットを探す
+        const field = currentPlayer === 1 ? p1Field : p2Field;
+        const emptySlotIndex = field.findIndex((slot) => slot === null);
+        if (emptySlotIndex === -1) {
+          addLog('深海のクラーケンの効果: フィールドに空きがありません', 'info');
+          return false;
+        }
+
+        // SPコストを支払う
+        const setActiveSP = currentPlayer === 1 ? setP1ActiveSP : setP2ActiveSP;
+        const setRestedSP = currentPlayer === 1 ? setP1RestedSP : setP2RestedSP;
+        setActiveSP((prev) => prev - 4);
+        setRestedSP((prev) => prev + 4);
+
+        // 墓地から除外
+        const setGraveyard = currentPlayer === 1 ? setP1Graveyard : setP2Graveyard;
+        setGraveyard((prev) => prev.filter((c) => c.uniqueId !== card.uniqueId));
+
+        // フィールドに配置
+        const setField = currentPlayer === 1 ? setP1Field : setP2Field;
+        const resurrectedMonster = {
+          ...card,
+          currentHp: card.hp,
+          currentAttack: card.attack,
+          canAttack: false, // 召喚ターンは攻撃不可
+        };
+
+        setField((prev) => {
+          const newField = [...prev];
+          newField[emptySlotIndex] = resurrectedMonster;
+          return newField;
+        });
+
+        addLog(`深海のクラーケンを墓地からSP4で蘇生！`, 'heal');
+        return true;
+      },
+    },
+  ],
+
+  /**
    * C0000044: 水晶のマーメイド
    * 【召喚時】手札の水属性モンスター1体選び、次の自分のエンドフェイズまで召喚コストを1軽減。
    */
@@ -108,6 +175,36 @@ export const waterCardTriggers = {
         const { addLog } = context;
         addLog('水晶のマーメイドの効果: 手札の水属性モンスターのコスト軽減（未実装）', 'info');
         // TODO: 一時的なコスト軽減システムの実装が必要
+      },
+    },
+  ],
+
+  /**
+   * C0000045: 海流の守護者
+   * 【墓地発動】このカードが墓地にある場合、自分のターン終了時にレスト状態のSPトークンを１つアクティブにする。
+   */
+  C0000045: [
+    {
+      type: TRIGGER_TYPES.ON_END_PHASE_FROM_GRAVEYARD,
+      activationType: ACTIVATION_TYPES.AUTOMATIC,
+      description: '墓地・エンドフェイズ: レストSP1個をアクティブに',
+      priority: TRIGGER_PRIORITIES.NORMAL,
+      effect: (context) => {
+        const { currentPlayer, p1RestedSP, p2RestedSP, setP1RestedSP, setP2RestedSP,
+                setP1ActiveSP, setP2ActiveSP, addLog } = context;
+
+        const restedSP = currentPlayer === 1 ? p1RestedSP : p2RestedSP;
+
+        if (restedSP > 0) {
+          const setRestedSP = currentPlayer === 1 ? setP1RestedSP : setP2RestedSP;
+          const setActiveSP = currentPlayer === 1 ? setP1ActiveSP : setP2ActiveSP;
+          setRestedSP((prev) => prev - 1);
+          setActiveSP((prev) => prev + 1);
+          addLog('海流の守護者の墓地効果: レストSP1個をアクティブにした', 'info');
+        } else {
+          addLog('海流の守護者の墓地効果: レスト状態のSPがありません', 'info');
+        }
+        return true;
       },
     },
   ],
@@ -220,6 +317,61 @@ export const waterCardTriggers = {
         if (!found) {
           context.addLog('ブリザードマスターの効果: 対象カードが見つかりませんでした', 'info');
         }
+      },
+    },
+  ],
+
+  /**
+   * C0000143: 氷猫の使い魔
+   * 【墓地発動】このカードが墓地にある場合、自分のターン終了時に墓地の「ブリザードキャット」モンスター1体を手札に戻す（1度だけ）。
+   */
+  C0000143: [
+    {
+      type: TRIGGER_TYPES.ON_END_PHASE_FROM_GRAVEYARD,
+      activationType: ACTIVATION_TYPES.AUTOMATIC,
+      description: '墓地・エンドフェイズ: ブリザードキャットを手札に（1度だけ）',
+      priority: TRIGGER_PRIORITIES.NORMAL,
+      usedOnce: false, // 1度だけ発動のフラグ
+      effect: (context) => {
+        const { currentPlayer, p1Graveyard, p2Graveyard, setP1Graveyard, setP2Graveyard,
+                setP1Hand, setP2Hand, card, addLog } = context;
+
+        // 1度だけの制限チェック（カードにフラグを設定）
+        if (card.graveyardEffectUsed) {
+          return false; // 既に使用済み
+        }
+
+        const graveyard = currentPlayer === 1 ? p1Graveyard : p2Graveyard;
+        const setGraveyard = currentPlayer === 1 ? setP1Graveyard : setP2Graveyard;
+        const setHand = currentPlayer === 1 ? setP1Hand : setP2Hand;
+
+        // 墓地から「ブリザードキャット」を探す（自分自身以外）
+        const targetCard = graveyard.find((c) =>
+          c.uniqueId !== card.uniqueId &&
+          c.type === 'monster' &&
+          c.name &&
+          c.name.includes('ブリザードキャット')
+        );
+
+        if (!targetCard) {
+          addLog('氷猫の使い魔の墓地効果: 墓地に「ブリザードキャット」がいません', 'info');
+          return false;
+        }
+
+        // 墓地から手札に戻す
+        setGraveyard((prev) => {
+          // 自分自身にフラグを設定
+          return prev.map((c) => {
+            if (c.uniqueId === card.uniqueId) {
+              return { ...c, graveyardEffectUsed: true };
+            }
+            return c;
+          }).filter((c) => c.uniqueId !== targetCard.uniqueId);
+        });
+        setHand((prev) => [...prev, targetCard]);
+
+        addLog(`氷猫の使い魔の墓地効果: ${targetCard.name}を手札に戻した`, 'info');
+        return true;
       },
     },
   ],
