@@ -233,6 +233,12 @@ export const TRIGGER_TYPES = {
    * 【相手が魔法カードを発動時】
    */
   ON_OPPONENT_MAGIC_ACTIVATED: 'on_opponent_magic_activated',
+
+  /**
+   * フェイズカード発動時
+   * 【フェイズカード発動時】【初期効果】
+   */
+  ON_PHASE_CARD_ACTIVATE: 'on_phase_card_activate',
 };
 
 /**
