@@ -983,17 +983,19 @@ export default function MagicSpiritGame() {
   // 次のフェイズへ
   const nextPhase = () => {
     if (phase === 2) {
-      // メインフェイズ終了前に手札の魔法を使用可能
-      if (selectedHandCard && selectedHandCard.type === 'magic') {
-        summonCard(selectedHandCard, 0);
-        setSelectedHandCard(null);
-        return;
-      }
       setPhase(3);
       setSelectedHandCard(null);
     } else if (phase === 3) {
       setPhase(4);
       processPhase(4);
+    }
+  };
+
+  // 魔法カード発動
+  const useMagicCard = () => {
+    if (selectedHandCard && selectedHandCard.type === 'magic') {
+      summonCard(selectedHandCard, 0);
+      setSelectedHandCard(null);
     }
   };
 
@@ -1314,7 +1316,7 @@ export default function MagicSpiritGame() {
                   fontWeight: 'bold',
                 }}>
                   {selectedHandCard.type === 'monster' && '👆 空きスロットをクリックして召喚'}
-                  {selectedHandCard.type === 'magic' && '👆 「バトルフェイズへ」で発動'}
+                  {selectedHandCard.type === 'magic' && '👆 「魔法カード発動」ボタンで発動'}
                   {selectedHandCard.type === 'field' && '👆 フィールドゾーンをクリックして設置'}
                   {selectedHandCard.type === 'phasecard' && '👆 フィールドゾーンをクリックして設置'}
                 </div>
@@ -1393,7 +1395,7 @@ export default function MagicSpiritGame() {
                 </div>
               );
             })()}
-            {!selectedHandCard && !selectedFieldMonster && selectedFieldCardInfo && selectedFieldCardInfo.player === currentPlayer && (
+            {!selectedHandCard && !selectedFieldMonster && selectedFieldCardInfo && selectedFieldCardInfo.player === 2 && (
               <div style={{
                 marginTop: '12px',
                 padding: '10px',
@@ -1556,24 +1558,39 @@ export default function MagicSpiritGame() {
               })()
             )}
 
-            <div style={{ display: 'flex', gap: '12px' }}>
-              {phase === 2 && (
-                <button onClick={nextPhase} style={styles.actionButton}>
-                  バトルフェイズへ →
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              {phase === 2 && selectedHandCard && selectedHandCard.type === 'magic' && (
+                <button
+                  onClick={useMagicCard}
+                  style={{
+                    ...styles.actionButton,
+                    background: 'linear-gradient(135deg, #9c27b0 0%, #ba68c8 100%)',
+                    fontSize: '14px',
+                    padding: '10px 20px',
+                  }}
+                >
+                  ✨ 魔法カード発動
                 </button>
               )}
-              {phase === 3 && (
-                <>
-                  {attackingMonster !== null && (
-                    <button onClick={handleDirectAttack} style={{ ...styles.actionButton, background: '#ff4444' }}>
-                      ダイレクトアタック
-                    </button>
-                  )}
+              <div style={{ display: 'flex', gap: '12px' }}>
+                {phase === 2 && (
                   <button onClick={nextPhase} style={styles.actionButton}>
-                    ターン終了 →
+                    バトルフェイズへ →
                   </button>
-                </>
-              )}
+                )}
+                {phase === 3 && (
+                  <>
+                    {attackingMonster !== null && (
+                      <button onClick={handleDirectAttack} style={{ ...styles.actionButton, background: '#ff4444' }}>
+                        ダイレクトアタック
+                      </button>
+                    )}
+                    <button onClick={nextPhase} style={styles.actionButton}>
+                      ターン終了 →
+                    </button>
+                  </>
+                )}
+              </div>
             </div>
           </div>
 
@@ -1779,7 +1796,7 @@ export default function MagicSpiritGame() {
                   fontWeight: 'bold',
                 }}>
                   {selectedHandCard.type === 'monster' && '👆 空きスロットをクリックして召喚'}
-                  {selectedHandCard.type === 'magic' && '👆 「バトルフェイズへ」で発動'}
+                  {selectedHandCard.type === 'magic' && '👆 「魔法カード発動」ボタンで発動'}
                   {selectedHandCard.type === 'field' && '👆 フィールドゾーンをクリックして設置'}
                   {selectedHandCard.type === 'phasecard' && '👆 フィールドゾーンをクリックして設置'}
                 </div>
@@ -1858,7 +1875,7 @@ export default function MagicSpiritGame() {
                 </div>
               );
             })()}
-            {!selectedHandCard && !selectedFieldMonster && selectedFieldCardInfo && selectedFieldCardInfo.player === currentPlayer && (
+            {!selectedHandCard && !selectedFieldMonster && selectedFieldCardInfo && selectedFieldCardInfo.player === 1 && (
               <div style={{
                 marginTop: '12px',
                 padding: '10px',
