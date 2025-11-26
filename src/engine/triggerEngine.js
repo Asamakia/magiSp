@@ -25,6 +25,7 @@ import { getFireCardTriggers, hasFireCardTrigger } from './cardTriggers/fireCard
 import { getWaterCardTriggers, hasWaterCardTrigger } from './cardTriggers/waterCards';
 import { getLightCardTriggers, hasLightCardTrigger } from './cardTriggers/lightCards';
 import { getDarkCardTriggers, hasDarkCardTrigger } from './cardTriggers/darkCards';
+import { getPrimitiveCardTriggers, hasPrimitiveCardTrigger } from './cardTriggers/primitiveCards';
 
 /**
  * グローバルトリガーレジストリ
@@ -228,6 +229,14 @@ export const parseCardTriggers = (card) => {
   // 闇属性
   if (card.id && hasDarkCardTrigger(card.id)) {
     const cardSpecificTriggers = getDarkCardTriggers(card.id);
+    if (cardSpecificTriggers) {
+      return cardSpecificTriggers;
+    }
+  }
+
+  // 原始属性
+  if (card.id && hasPrimitiveCardTrigger(card.id)) {
+    const cardSpecificTriggers = getPrimitiveCardTriggers(card.id);
     if (cardSpecificTriggers) {
       return cardSpecificTriggers;
     }
@@ -634,9 +643,15 @@ export const hasCardTrigger = (cardId, triggerType = TRIGGER_TYPES.ON_SUMMON) =>
     }
   }
 
-  // 他の属性のトリガーも将来的にここで追加
-  // if (hasDarkCardTrigger(cardId)) { ... }
-  // if (hasPrimitiveCardTrigger(cardId)) { ... }
+  // 原始属性カードのトリガーをチェック
+  if (hasPrimitiveCardTrigger(cardId)) {
+    const triggers = getPrimitiveCardTriggers(cardId);
+    if (triggers && Array.isArray(triggers)) {
+      return triggers.some(trigger => trigger.type === triggerType);
+    }
+  }
+
+  // 他の属性のトリガーも将来的にここで追加可能
 
   return false;
 };
