@@ -1,8 +1,8 @@
 # トリガーシステム設計の修正方針
 
 **作成日**: 2025-11-26
-**バージョン**: 1.1
-**修正理由**: ユーザーフィードバックに基づく設計改善
+**バージョン**: 1.2（UIフロー修正版）
+**修正理由**: ユーザーフィードバックに基づく設計改善（カード紐づけ型UI）
 
 ---
 
@@ -28,7 +28,7 @@ ON_SUMMON_LIGHT_SELF: 'on_summon_light_self', // 【自分光属性モンスタ�
 
 ---
 
-### 問題2: メインフェイズトリガーの発動タイミング
+### 問題2: メインフェイズトリガーの発動タイミングとUI
 
 **現在の設計**:
 - 【自分メインフェイズ時】を自動発動トリガーとして扱っている
@@ -36,12 +36,18 @@ ON_SUMMON_LIGHT_SELF: 'on_summon_light_self', // 【自分光属性モンスタ�
 
 **問題**:
 - メインフェイズトリガーは実際には**任意発動**（プレイヤーが発動を選択）
-- 自動発動では戦略性が失われる
-- UIでの発動ボタンが必要
+- フェイズ開始時ではなく、**メインフェイズ中いつでも発動可能**（基本技と同じ）
+- トリガーは**カードに紐づく**（全トリガーを一覧表示するのではない）
+- 墓地トリガーは墓地カードを選択する必要がある
+
+**正しいUI設計**:
+- **フィールドカード選択時**: 基本技/上級技と同じエリアに【自分メインフェイズ時】トリガーを表示
+- **墓地カード選択時**: 墓地UI（モーダル等）で墓地カードを選択し、【墓地で発動】トリガーを表示
 
 **影響範囲**:
-- 【自分メインフェイズ時】トリガー
-- 【自分メインフェイズ時、墓地で発動】トリガー
+- 【自分メインフェイズ時】トリガー（フィールドカードに紐づく）
+- 【自分メインフェイズ時、墓地で発動】トリガー（墓地カードに紐づく）
+- 墓地UI実装（新規）
 
 ---
 
@@ -125,7 +131,7 @@ export const ACTIVATION_TYPES = {
 
 ---
 
-### 修正3: メインフェイズトリガーの扱い
+### 修正3: メインフェイズトリガーの扱い（カード紐づけ型）
 
 #### 現在のフロー（問題あり）
 ```
@@ -136,31 +142,120 @@ export const ACTIVATION_TYPES = {
 プレイヤーは選択できない
 ```
 
-#### 修正後のフロー
+#### 修正後のフロー（フィールドカード）
 ```
-メインフェイズ開始
+メインフェイズ中
   ↓
-発動可能なトリガーをリストアップ
+【フィールドのモンスターを選択】
   ↓
-UIで発動ボタンを表示
+選択したカードのスキル/トリガーを表示:
+  - 基本技ボタン
+  - 上級技ボタン
+  - 【自分メインフェイズ時】トリガーボタン ← NEW!
   ↓
-プレイヤーが発動を選択
-  ↓
-選択されたトリガーのみ発火
+プレイヤーがボタンをクリックして発動
 ```
 
-#### UI実装イメージ
+#### 修正後のフロー（墓地カード）
+```
+メインフェイズ中
+  ↓
+【墓地エリアをクリック】
+  ↓
+墓地カード一覧を表示（モーダル or パネル）
+  ↓
+【墓地カードを選択】
+  ↓
+選択した墓地カードの効果を表示:
+  - 【自分メインフェイズ時、墓地で発動】トリガーボタン
+  ↓
+プレイヤーがボタンをクリックして発動
+  ↓
+墓地UIを閉じる
+```
+
+#### UI実装イメージ（フィールドカード）
 
 ```javascript
-// メインフェイズ中に発動可能なトリガーを取得
-const availableTriggers = getAvailableTriggers(TRIGGER_TYPES.ON_MAIN_PHASE_SELF);
+// フィールドカード選択時、既存のスキル表示エリアに統合
+{selectedFieldMonster && phase === 2 && (
+  <div style={styles.skillPanel}>
+    {/* 基本技 */}
+    {selectedFieldMonster.basicSkill && (
+      <button onClick={() => useBasicSkill()}>
+        基本技: {selectedFieldMonster.basicSkill}
+      </button>
+    )}
 
-// UI表示
-{availableTriggers.map(trigger => (
-  <button onClick={() => activateTrigger(trigger)}>
-    {trigger.cardName} の効果を発動
-  </button>
-))}
+    {/* 上級技 */}
+    {selectedFieldMonster.advancedSkill && chargeCount >= 3 && (
+      <button onClick={() => useAdvancedSkill()}>
+        上級技: {selectedFieldMonster.advancedSkill}
+      </button>
+    )}
+
+    {/* 【自分メインフェイズ時】トリガー */}
+    {getCardMainPhaseTriggers(selectedFieldMonster).map((trigger, idx) => (
+      <button
+        key={idx}
+        onClick={() => activateTrigger(trigger)}
+        disabled={trigger.usedThisTurn}
+      >
+        {trigger.description}
+        {trigger.usedThisTurn && ' (使用済み)'}
+      </button>
+    ))}
+  </div>
+)}
+```
+
+#### UI実装イメージ（墓地カード）
+
+```javascript
+// 墓地エリアのボタン
+<button onClick={() => setShowGraveyard(true)}>
+  墓地を確認 ({currentGraveyard.length}枚)
+</button>
+
+// 墓地モーダル
+{showGraveyard && (
+  <div style={styles.graveyardModal}>
+    <h3>墓地</h3>
+    {currentGraveyard.map((card, idx) => (
+      <div
+        key={idx}
+        onClick={() => setSelectedGraveyardCard(card)}
+        style={{
+          ...styles.graveyardCard,
+          border: selectedGraveyardCard === card ? '2px solid gold' : 'none'
+        }}
+      >
+        <Card card={card} small />
+      </div>
+    ))}
+
+    {/* 選択した墓地カードのトリガー */}
+    {selectedGraveyardCard && phase === 2 && (
+      <div style={styles.graveyardTriggerPanel}>
+        {getCardGraveyardTriggers(selectedGraveyardCard).map((trigger, idx) => (
+          <button
+            key={idx}
+            onClick={() => {
+              activateTrigger(trigger);
+              setShowGraveyard(false);
+            }}
+            disabled={!trigger.canActivate}
+          >
+            {trigger.description}
+            {trigger.cost && ` (SP${trigger.cost})`}
+          </button>
+        ))}
+      </div>
+    )}
+
+    <button onClick={() => setShowGraveyard(false)}>閉じる</button>
+  </div>
+)}
 ```
 
 ---
@@ -283,51 +378,84 @@ export const registerCardTriggers = (card, owner, slotIndex) => {
 };
 ```
 
-#### 任意発動トリガーの取得
+#### カードに紐づくトリガーの取得
 
 ```javascript
 /**
- * 発動可能な任意トリガーを取得
- * @param {string} triggerType
- * @param {object} context
+ * 特定のカードに紐づくメインフェイズトリガーを取得（フィールドカード用）
+ * @param {object} card - カードオブジェクト
+ * @param {number} currentPlayer - 現在のプレイヤー
  * @returns {Array} 発動可能なトリガーの配列
  */
-export const getAvailableTriggers = (triggerType, context) => {
-  const triggers = globalRegistry.get(triggerType);
+export const getCardMainPhaseTriggers = (card, currentPlayer) => {
+  if (!card || !card.uniqueId) return [];
 
-  return triggers.filter(trigger => {
-    // 任意発動のみ
-    if (trigger.activationType !== ACTIVATION_TYPES.OPTIONAL) {
-      return false;
-    }
-
-    // 条件チェック
-    if (trigger.condition && !trigger.condition(context)) {
-      return false;
-    }
-
-    // コストチェック
-    if (trigger.costCheck && !trigger.costCheck(context)) {
-      return false;
-    }
-
-    return true;
-  });
+  return globalRegistry.get(TRIGGER_TYPES.ON_MAIN_PHASE_SELF)
+    .filter(trigger => {
+      // このカードのトリガーのみ
+      return trigger.cardId === card.uniqueId &&
+             trigger.owner === currentPlayer;
+    })
+    .map(trigger => ({
+      ...trigger,
+      usedThisTurn: trigger.usedThisTurn || false,
+      canActivate: !trigger.usedThisTurn && checkTriggerCondition(trigger),
+    }));
 };
 
 /**
- * 任意トリガーを手動で発動
+ * 墓地カードのトリガーを取得（墓地カード用）
+ * @param {object} card - 墓地のカードオブジェクト
+ * @param {object} context - ゲームコンテキスト
+ * @returns {Array} 発動可能なトリガーの配列
+ */
+export const getCardGraveyardTriggers = (card, context) => {
+  if (!card || !card.uniqueId) return [];
+
+  // 墓地のカードは登録されていないので、効果テキストをパース
+  const triggers = parseCardTriggers(card);
+
+  return triggers
+    .filter(trigger => {
+      return trigger.type === TRIGGER_TYPES.ON_MAIN_PHASE_FROM_GRAVEYARD;
+    })
+    .map(trigger => ({
+      ...trigger,
+      cardId: card.uniqueId,
+      cardName: card.name,
+      canActivate: checkGraveyardTriggerActivatable(card, trigger, context),
+    }));
+};
+
+/**
+ * トリガーを手動で発動
  * @param {object} trigger
  * @param {object} context
  */
 export const activateTrigger = (trigger, context) => {
   try {
+    // 使用済みフラグを設定
+    trigger.usedThisTurn = true;
+
     if (typeof trigger.effect === 'function') {
       trigger.effect(context);
     }
+
+    context.addLog(`${trigger.cardName}の効果を発動！`, 'info');
   } catch (error) {
     console.error(`トリガー発動エラー: ${trigger.cardName}`, error);
   }
+};
+
+/**
+ * ターン終了時に使用済みフラグをリセット
+ */
+export const resetTurnFlags = () => {
+  globalRegistry.triggers.forEach((triggerArray) => {
+    triggerArray.forEach(trigger => {
+      trigger.usedThisTurn = false;
+    });
+  });
 };
 ```
 
@@ -376,20 +504,8 @@ const processPhase = useCallback((phaseIndex) => {
 
   switch (phaseIndex) {
     case 2: // メインフェイズ
-      // 自動発動トリガーは発火しない
-      // 代わりに、発動可能なトリガーをステートに保存
-      const available = getAvailableTriggers(TRIGGER_TYPES.ON_MAIN_PHASE_SELF, {
-        currentPlayer,
-        // ... context
-      });
-      setAvailableMainPhaseTriggers(available);
-
-      // 墓地発動トリガーも同様
-      const graveyardTriggers = getAvailableTriggers(
-        TRIGGER_TYPES.ON_MAIN_PHASE_FROM_GRAVEYARD,
-        { currentPlayer, /* ... */ }
-      );
-      setAvailableGraveyardTriggers(graveyardTriggers);
+      // メインフェイズトリガーは自動発火しない
+      // カード選択時に表示されるため、ここでは何もしない
       break;
 
     // その他のフェイズは自動発動
@@ -400,36 +516,131 @@ const processPhase = useCallback((phaseIndex) => {
     case 4: // エンドフェイズ
       fireTrigger(TRIGGER_TYPES.ON_END_PHASE_SELF, context);
       fireTrigger(TRIGGER_TYPES.ON_END_PHASE, context);
+      // ターン終了時に使用済みフラグをリセット
+      resetTurnFlags();
       break;
   }
 }, [currentPlayer, /* ... */]);
 ```
 
-#### UI: 任意発動トリガーの表示
+#### UI: フィールドカードのトリガー表示（既存のスキル表示エリアに統合）
 
 ```javascript
-// メインフェイズ中のUI
-{phase === 2 && availableMainPhaseTriggers.length > 0 && (
-  <div style={styles.triggerPanel}>
-    <h4>発動可能な効果</h4>
-    {availableMainPhaseTriggers.map((trigger, idx) => (
+// フィールドモンスター選択時のUI（既存のスキルパネルに追加）
+{selectedFieldMonster && phase === 2 && (
+  <div style={styles.skillPanel}>
+    {/* 既存の基本技 */}
+    {selectedFieldMonster.basicSkill && (
+      <button onClick={() => useBasicSkill()}>
+        基本技: {selectedFieldMonster.basicSkill}
+      </button>
+    )}
+
+    {/* 既存の上級技 */}
+    {selectedFieldMonster.advancedSkill && chargeCount >= 3 && (
+      <button onClick={() => useAdvancedSkill()}>
+        上級技: {selectedFieldMonster.advancedSkill}
+      </button>
+    )}
+
+    {/* 【自分メインフェイズ時】トリガー - NEW! */}
+    {getCardMainPhaseTriggers(selectedFieldMonster, currentPlayer).map((trigger, idx) => (
       <button
         key={idx}
         onClick={() => {
           activateTrigger(trigger, {
             currentPlayer,
-            // ... context
+            card: selectedFieldMonster,
+            slotIndex: selectedFieldMonsterIndex,
+            // ... その他のcontext
           });
-          // トリガー発動後、リストを更新
-          setAvailableMainPhaseTriggers(prev =>
-            prev.filter((_, i) => i !== idx)
-          );
         }}
+        disabled={trigger.usedThisTurn}
         style={styles.triggerButton}
       >
-        {trigger.cardName}: {trigger.description}
+        {trigger.description}
+        {trigger.usedThisTurn && ' (使用済み)'}
       </button>
     ))}
+  </div>
+)}
+```
+
+#### UI: 墓地カードのトリガー表示（新規実装）
+
+```javascript
+// ステート追加
+const [showGraveyard, setShowGraveyard] = useState(false);
+const [selectedGraveyardCard, setSelectedGraveyardCard] = useState(null);
+
+// 墓地ボタン（プレイヤーエリアに配置）
+<button
+  onClick={() => setShowGraveyard(true)}
+  style={styles.graveyardButton}
+>
+  墓地 ({currentGraveyard.length})
+</button>
+
+// 墓地モーダル
+{showGraveyard && (
+  <div style={styles.modalOverlay}>
+    <div style={styles.graveyardModal}>
+      <h3>墓地カード一覧</h3>
+
+      <div style={styles.graveyardCardList}>
+        {currentGraveyard.map((card, idx) => (
+          <div
+            key={idx}
+            onClick={() => setSelectedGraveyardCard(card)}
+            style={{
+              ...styles.graveyardCard,
+              border: selectedGraveyardCard === card ? '3px solid gold' : '1px solid #666',
+            }}
+          >
+            <Card card={card} small />
+          </div>
+        ))}
+      </div>
+
+      {/* 選択した墓地カードの効果表示 */}
+      {selectedGraveyardCard && phase === 2 && (
+        <div style={styles.graveyardTriggerPanel}>
+          <h4>{selectedGraveyardCard.name} の効果</h4>
+          {getCardGraveyardTriggers(selectedGraveyardCard, {
+            currentPlayer,
+            // ... context
+          }).map((trigger, idx) => (
+            <button
+              key={idx}
+              onClick={() => {
+                activateTrigger(trigger, {
+                  currentPlayer,
+                  card: selectedGraveyardCard,
+                  // ... context
+                });
+                setShowGraveyard(false);
+                setSelectedGraveyardCard(null);
+              }}
+              disabled={!trigger.canActivate}
+              style={styles.triggerButton}
+            >
+              {trigger.description}
+              {trigger.cost && ` (コスト: SP${trigger.cost})`}
+            </button>
+          ))}
+        </div>
+      )}
+
+      <button
+        onClick={() => {
+          setShowGraveyard(false);
+          setSelectedGraveyardCard(null);
+        }}
+        style={styles.closeButton}
+      >
+        閉じる
+      </button>
+    </div>
   </div>
 )}
 ```
@@ -571,17 +782,36 @@ C0000005: {
 
 ### 主要な変更点
 
-1. **トリガータイプの汎用化**
+1. **トリガータイプの汎用化** ✅
    - カテゴリ/属性特定のトリガーを汎用化
    - 条件関数で柔軟に対応
+   - 51種類 → 約20種類に削減
 
 2. **発動タイプの追加**
    - 自動発動（automatic）と任意発動（optional）を区別
-   - メインフェイズトリガーは任意発動
+   - デフォルトは自動発動、カード固有で任意化可能
 
-3. **UI対応**
-   - 任意発動トリガーを表示するUI
-   - プレイヤーが発動を選択
+3. **メインフェイズトリガーのUI統合** ⭐ 重要
+   - **トリガーはカードに紐づく**
+   - フィールドカード選択時 → 基本技/上級技と同じエリアに表示
+   - 墓地カード選択時 → 墓地UIで墓地カードを選択して表示
+   - **メインフェイズ中いつでも発動可能**（基本技と同じ）
+
+4. **墓地UI実装** 🆕
+   - 墓地カード一覧を表示するモーダル/パネル
+   - 墓地カード選択機能
+   - 墓地トリガー発動UI
+
+5. **1ターン1度制限の管理**
+   - `usedThisTurn` フラグで管理
+   - エンドフェイズ時にリセット
+
+### 設計の利点
+
+✅ **一貫したUX**: 基本技/上級技と同じUIパターン
+✅ **直感的**: カード選択 → 効果発動という自然なフロー
+✅ **拡張性**: 新しいカテゴリ/属性にも柔軟に対応
+✅ **戦略性**: プレイヤーが発動タイミングを選択
 
 この修正により、より柔軟で拡張性の高いトリガーシステムを実現できます。
 
