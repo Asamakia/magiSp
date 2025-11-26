@@ -17,7 +17,7 @@ Currently a **prototype version** with local 2-player gameplay.
 **Recent Major Updates**:
 - **2025-11-26 (Phase 1-4)**: Code refactoring completed
   - Modular architecture with separated concerns
-  - Note: magic-spirit.jsx has grown to 2386 lines due to trigger system integration
+  - Note: magic-spirit.jsx has grown to 2482 lines due to trigger system and deck selection integration
 - **2025-11-26 (Phase 5 - Card Effects)**: Card-specific effects system implemented
   - 108+ individual card effects across all attributes
   - Hybrid approach: generic effects + card-specific implementations
@@ -42,12 +42,12 @@ Currently a **prototype version** with local 2-player gameplay.
   - ~1230 lines of new trigger infrastructure
   - **220 cards with trigger implementations across 7 attributes** (~7500 lines)
     - Fire (炎): 33 cards (819 lines)
-    - Water (水): 37 cards (~1170 lines) - includes 3 graveyard triggers
+    - Water (水): 37 cards (1122 lines) - includes 3 graveyard triggers
     - Light (光): 47 cards (1309 lines)
     - Dark (闇): 45 cards (1591 lines)
     - Future (未来): 12 cards (504 lines)
     - Primitive (原始): 28 cards (1306 lines)
-    - Neutral (なし): 18 cards (~770 lines) - includes graveyard/field/phase card triggers
+    - Neutral (なし): 18 cards (758 lines) - includes graveyard/field/phase card triggers
 - **2025-11-26 (Graveyard Triggers)**: Graveyard trigger system implemented ⭐
   - ON_MAIN_PHASE_FROM_GRAVEYARD: メインフェイズ墓地発動（任意発動）
   - ON_END_PHASE_FROM_GRAVEYARD: エンドフェイズ墓地発動（自動発動）
@@ -57,6 +57,12 @@ Currently a **prototype version** with local 2-player gameplay.
     - C0000043 深海のクラーケン (SP4払い自己蘇生)
     - C0000045 海流の守護者 (エンド時SPアクティブ)
     - C0000143 氷猫の使い魔 (エンド時ブリザードキャット回収)
+- **2025-11-26 (Deck Selection)**: Deck selection feature implemented ⭐
+  - Players can select from predefined decks before game starts
+  - Deck selection UI on title screen
+  - Card pool maintained at 433 cards
+- **2025-11-26 (UI Bug Fix)**: Fixed info panel skill text duplication
+  - Removed duplicate 基本技/上級技 display in card info panel
 
 ---
 
@@ -73,11 +79,11 @@ Currently a **prototype version** with local 2-player gameplay.
 │
 ├── src/
 │   ├── App.js                  # Main app component (renders MagicSpiritGame)
-│   ├── magic-spirit.jsx        # Main game logic (2386 lines) ⭐
+│   ├── magic-spirit.jsx        # Main game logic (2482 lines) ⭐
 │   │
 │   ├── utils/                  # Utility functions
 │   │   ├── constants.js        # Game constants (30 lines)
-│   │   ├── helpers.js          # Helper functions (61 lines)
+│   │   ├── helpers.js          # Helper functions (108 lines)
 │   │   └── cardManager.js      # Card data management (253 lines)
 │   │
 │   ├── components/             # UI Components
@@ -106,12 +112,12 @@ Currently a **prototype version** with local 2-player gameplay.
 │   │   │   └── neutral.js      # なし属性 card effects
 │   │   └── cardTriggers/       # Card-specific trigger implementations (~7270 lines) ⭐ NEW
 │   │       ├── fireCards.js      # 炎属性 trigger implementations (33 cards, 819 lines)
-│   │       ├── waterCards.js     # 水属性 trigger implementations (37 cards, ~1170 lines)
+│   │       ├── waterCards.js     # 水属性 trigger implementations (37 cards, 1122 lines)
 │   │       ├── lightCards.js     # 光属性 trigger implementations (37 cards, 1069 lines)
 │   │       ├── darkCards.js      # 闘属性 trigger implementations (45 cards, 1591 lines)
 │   │       ├── futureCards.js    # 未来属性 trigger implementations (12 cards, 504 lines)
 │   │       ├── primitiveCards.js # 原始属性 trigger implementations (28 cards, 1306 lines)
-│   │       └── neutralCards.js   # なし属性 trigger implementations (18 cards, ~770 lines)
+│   │       └── neutralCards.js   # なし属性 trigger implementations (18 cards, 758 lines)
 │   │
 │   ├── ルール/                  # Documentation (~5356 lines total)
 │   │   ├── Game Rules (日本語) - 3 files (244 lines)
@@ -143,7 +149,7 @@ Currently a **prototype version** with local 2-player gameplay.
 
 ### Key Files
 
-**`src/magic-spirit.jsx`** (Main game component - 2386 lines)
+**`src/magic-spirit.jsx`** (Main game component - 2482 lines)
 - Game state management (React hooks)
 - Game flow control (phase progression, turn management)
 - Card summoning logic
@@ -187,12 +193,12 @@ Currently a **prototype version** with local 2-player gameplay.
 
 **`src/engine/cardTriggers/`** (Card-specific trigger implementations - ~7270 lines, 220 cards) ⭐⭐ **NEW**
 - **fireCards.js**: 炎属性 triggers (33 cards, 819 lines)
-- **waterCards.js**: 水属性 triggers (37 cards, ~1170 lines) - includes 3 graveyard triggers
+- **waterCards.js**: 水属性 triggers (37 cards, 1122 lines) - includes 3 graveyard triggers
 - **lightCards.js**: 光属性 triggers (37 cards, 1069 lines)
 - **darkCards.js**: 闇属性 triggers (45 cards, 1591 lines)
 - **futureCards.js**: 未来属性 triggers (12 cards, 504 lines)
 - **primitiveCards.js**: 原始属性 triggers (28 cards, 1306 lines)
-- **neutralCards.js**: なし属性 triggers (18 cards, ~770 lines) - includes field/phase card triggers
+- **neutralCards.js**: なし属性 triggers (18 cards, 758 lines) - includes field/phase card triggers
 - Uses effect helpers for common patterns
 - Comprehensive trigger system covering 220 cards across all attributes
 
@@ -331,7 +337,7 @@ The game uses React hooks with extensive state:
 
 ### Working with Game Logic
 
-**Main Game Logic**: Located in `src/magic-spirit.jsx` (2386 lines)
+**Main Game Logic**: Located in `src/magic-spirit.jsx` (2482 lines)
 **Generic Effect System**: Located in `src/engine/effectEngine.js` (563 lines)
 **Card-Specific Effects**: Located in `src/engine/cardEffects/` (~1695 lines, 108+ cards)
 **Effect Helpers**: Located in `src/engine/effectHelpers.js` (445 lines)
@@ -1055,7 +1061,7 @@ console.log('Executing effect:', type, value, target);
 
 1. **Card effects**: Many are simplified or not fully implemented
 2. **AI opponent**: No computer opponent, requires 2 human players
-3. **Deck building**: Decks are randomly generated, no customization
+3. **Deck building**: Basic deck selection available; full deck customization not yet implemented
 4. **Multiplayer**: Local only, no online play
 5. **Mobile support**: Designed for desktop, may not work well on mobile
 6. **Animations**: Limited visual effects for actions
@@ -1073,18 +1079,21 @@ console.log('Executing effect:', type, value, target);
    - 220 cards with triggers across 7 attributes (~7270 lines)
    - 26 generic trigger types with automatic/optional distinction
    - Priority-based execution and turn-based lifecycle management
-5. **Remaining card effects**: Implement effects for remaining 325 cards (433 total - 108 implemented)
-6. **Remaining card triggers**: Implement triggers for remaining cards (433 total - 220 implemented)
-7. **Card data format**: Convert CSV to JSON for better structure and validation
-8. **State management**: Consider Context API or Redux for complex state
-9. **TypeScript**: Add type safety to entire codebase
-10. **Backend**: Add server for online multiplayer
-11. **Deck builder UI**: Allow custom deck creation
-12. **Card images**: Replace placeholder emojis with actual artwork
-13. **Animations**: Add GSAP or Framer Motion for smooth transitions
-14. **Mobile responsive**: Add mobile-friendly layouts
-15. **Testing**: Add comprehensive unit and integration tests for card effects and triggers
-16. **Effect/Trigger testing framework**: Automated tests for all 108+ card effects and 168+ card triggers
+5. ✅ **~~Deck selection~~**: COMPLETED - Basic deck selection feature (2025-11-26)
+   - Predefined deck selection UI on title screen
+   - 433 cards available in card pool
+6. **Remaining card effects**: Implement effects for remaining cards (433 total - 108 implemented)
+7. **Remaining card triggers**: Implement triggers for remaining cards (433 total - 220 implemented)
+8. **Card data format**: Convert CSV to JSON for better structure and validation
+9. **State management**: Consider Context API or Redux for complex state
+10. **TypeScript**: Add type safety to entire codebase
+11. **Backend**: Add server for online multiplayer
+12. **Full deck builder UI**: Allow complete custom deck creation (currently only predefined decks)
+13. **Card images**: Replace placeholder emojis with actual artwork
+14. **Animations**: Add GSAP or Framer Motion for smooth transitions
+15. **Mobile responsive**: Add mobile-friendly layouts
+16. **Testing**: Add comprehensive unit and integration tests for card effects and triggers
+17. **Effect/Trigger testing framework**: Automated tests for all card effects and triggers
 
 ---
 
@@ -1301,7 +1310,7 @@ The Japanese text throughout suggests this may be for a Japanese audience or is 
   - Created 9-file modular structure
   - Separated UI components for reusability
   - Centralized constants and styles
-  - Note: magic-spirit.jsx has grown to 2386 lines due to trigger system integration
+  - Note: magic-spirit.jsx has grown to 2482 lines due to trigger system and deck selection integration
 - **2025-11-26 (Phase 5 - Card Effects)**: Implemented card-specific effects system
   - Added 108+ card implementations across all attributes
   - Created effect helper library with 9 reusable functions
@@ -1318,11 +1327,15 @@ The Japanese text throughout suggests this may be for a Japanese audience or is 
   - Added dedicated "✨ 魔法カード発動" button for magic card activation
   - Improved guidance text for magic card usage
   - Separated magic card activation logic from phase transition
+- **2025-11-26 (Deck Selection)**: Added deck selection feature
+  - Predefined deck selection UI on title screen
+- **2025-11-26 (Info Panel Fix)**: Fixed skill text duplication in info panel
+  - Removed duplicate 基本技/上級技 display
 
 This is suitable for expansion into a full game or as a learning project for React and game development concepts.
 
 ---
 
-**Document Version**: 3.6
-**Last Updated**: 2025-11-26 (Line count update, removed duplicate src/cardlist/)
+**Document Version**: 3.7
+**Last Updated**: 2025-11-26 (Deck selection feature, UI bug fix, line count updates)
 **For**: Magic Spirit (magiSp) Repository
