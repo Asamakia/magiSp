@@ -1173,71 +1173,76 @@ export default function MagicSpiritGame() {
             </div>
           </div>
 
-          {/* フィールドカード */}
+          {/* フィールドカード・フェイズカード */}
           <div style={styles.infoPanel}>
-            <div style={{ fontSize: '12px', marginBottom: '8px' }}>フィールド</div>
-            {p2FieldCard ? (
-              <div
-                style={{
-                  cursor: currentPlayer === 2 && phase === 2 ? 'pointer' : 'default',
-                  border: selectedFieldCardInfo?.card === p2FieldCard ? '2px solid #ff6b6b' : 'none',
-                  borderRadius: '4px',
-                  padding: '2px',
-                }}
-                onClick={currentPlayer === 2 ? handleFieldCardZoneClick : undefined}
-              >
-                <Card card={p2FieldCard} small />
+            <div style={styles.cardZoneContainer}>
+              {/* フィールドカード */}
+              <div style={styles.cardZoneItem}>
+                <div style={{ fontSize: '12px', marginBottom: '8px' }}>フィールド</div>
+                {p2FieldCard ? (
+                  <div
+                    style={{
+                      cursor: currentPlayer === 2 && phase === 2 ? 'pointer' : 'default',
+                      border: selectedFieldCardInfo?.card === p2FieldCard ? '2px solid #ff6b6b' : 'none',
+                      borderRadius: '4px',
+                      padding: '2px',
+                    }}
+                    onClick={currentPlayer === 2 ? handleFieldCardZoneClick : undefined}
+                  >
+                    <Card card={p2FieldCard} small />
+                  </div>
+                ) : (
+                  <div
+                    style={{
+                      ...styles.cardSlot,
+                      width: '80px',
+                      height: '100px',
+                      cursor: currentPlayer === 2 && phase === 2 && selectedHandCard && selectedHandCard.type === 'field' ? 'pointer' : 'default',
+                      border: currentPlayer === 2 && phase === 2 && selectedHandCard && selectedHandCard.type === 'field' ? '2px solid #ff6b6b' : '1px dashed #444',
+                      background: currentPlayer === 2 && phase === 2 && selectedHandCard && selectedHandCard.type === 'field' ? 'rgba(255,107,107,0.1)' : 'rgba(30,30,40,0.5)',
+                    }}
+                    onClick={currentPlayer === 2 ? handleFieldCardZoneClick : undefined}
+                  >
+                    なし
+                  </div>
+                )}
               </div>
-            ) : (
-              <div
-                style={{
-                  ...styles.cardSlot,
-                  width: '80px',
-                  height: '100px',
-                  cursor: currentPlayer === 2 && phase === 2 && selectedHandCard && selectedHandCard.type === 'field' ? 'pointer' : 'default',
-                  border: currentPlayer === 2 && phase === 2 && selectedHandCard && selectedHandCard.type === 'field' ? '2px solid #ff6b6b' : '1px dashed #444',
-                  background: currentPlayer === 2 && phase === 2 && selectedHandCard && selectedHandCard.type === 'field' ? 'rgba(255,107,107,0.1)' : 'rgba(30,30,40,0.5)',
-                }}
-                onClick={currentPlayer === 2 ? handleFieldCardZoneClick : undefined}
-              >
-                なし
-              </div>
-            )}
-          </div>
 
-          {/* フェイズカード */}
-          <div style={styles.infoPanel}>
-            <div style={{ fontSize: '12px', marginBottom: '8px' }}>フェイズ</div>
-            {p2PhaseCard ? (
-              <div
-                style={{
-                  cursor: currentPlayer === 2 && phase === 2 ? 'pointer' : 'default',
-                  border: currentPlayer === 2 && phase === 2 && selectedHandCard && (selectedHandCard.type === 'monster' || selectedHandCard.type === 'magic' || selectedHandCard.type === 'field') ? '2px solid #ff6b6b' : selectedFieldCardInfo?.card === p2PhaseCard ? '2px solid #ff6b6b' : 'none',
-                  borderRadius: '4px',
-                  padding: '2px',
-                }}
-                onClick={currentPlayer === 2 ? handlePhaseCardZoneClick : undefined}
-              >
-                <Card card={p2PhaseCard} small />
-                <div style={{ fontSize: '10px', color: '#ffd700', textAlign: 'center', marginTop: '4px' }}>
-                  ⚡ チャージ: {p2PhaseCard.charges?.length || 0}/3
-                </div>
+              {/* フェイズカード */}
+              <div style={styles.cardZoneItem}>
+                <div style={{ fontSize: '12px', marginBottom: '8px' }}>フェイズ</div>
+                {p2PhaseCard ? (
+                  <div
+                    style={{
+                      cursor: currentPlayer === 2 && phase === 2 ? 'pointer' : 'default',
+                      border: currentPlayer === 2 && phase === 2 && selectedHandCard && (selectedHandCard.type === 'monster' || selectedHandCard.type === 'magic' || selectedHandCard.type === 'field') ? '2px solid #ff6b6b' : selectedFieldCardInfo?.card === p2PhaseCard ? '2px solid #ff6b6b' : 'none',
+                      borderRadius: '4px',
+                      padding: '2px',
+                    }}
+                    onClick={currentPlayer === 2 ? handlePhaseCardZoneClick : undefined}
+                  >
+                    <Card card={p2PhaseCard} small />
+                    <div style={{ fontSize: '10px', color: '#ffd700', textAlign: 'center', marginTop: '4px' }}>
+                      ⚡ チャージ: {p2PhaseCard.charges?.length || 0}/3
+                    </div>
+                  </div>
+                ) : (
+                  <div
+                    style={{
+                      ...styles.cardSlot,
+                      width: '80px',
+                      height: '100px',
+                      cursor: currentPlayer === 2 && phase === 2 && selectedHandCard && selectedHandCard.type === 'phasecard' ? 'pointer' : 'default',
+                      border: currentPlayer === 2 && phase === 2 && selectedHandCard && selectedHandCard.type === 'phasecard' ? '2px solid #ff6b6b' : '1px dashed #444',
+                      background: currentPlayer === 2 && phase === 2 && selectedHandCard && selectedHandCard.type === 'phasecard' ? 'rgba(255,107,107,0.1)' : 'rgba(30,30,40,0.5)',
+                    }}
+                    onClick={currentPlayer === 2 ? handlePhaseCardZoneClick : undefined}
+                  >
+                    なし
+                  </div>
+                )}
               </div>
-            ) : (
-              <div
-                style={{
-                  ...styles.cardSlot,
-                  width: '80px',
-                  height: '100px',
-                  cursor: currentPlayer === 2 && phase === 2 && selectedHandCard && selectedHandCard.type === 'phasecard' ? 'pointer' : 'default',
-                  border: currentPlayer === 2 && phase === 2 && selectedHandCard && selectedHandCard.type === 'phasecard' ? '2px solid #ff6b6b' : '1px dashed #444',
-                  background: currentPlayer === 2 && phase === 2 && selectedHandCard && selectedHandCard.type === 'phasecard' ? 'rgba(255,107,107,0.1)' : 'rgba(30,30,40,0.5)',
-                }}
-                onClick={currentPlayer === 2 ? handlePhaseCardZoneClick : undefined}
-              >
-                なし
-              </div>
-            )}
+            </div>
             {selectedHandCard && currentPlayer === 2 && (
               <div style={{
                 marginTop: '12px',
@@ -1633,71 +1638,76 @@ export default function MagicSpiritGame() {
             </div>
           </div>
 
-          {/* フィールドカード */}
+          {/* フィールドカード・フェイズカード */}
           <div style={styles.infoPanel}>
-            <div style={{ fontSize: '12px', marginBottom: '8px' }}>フィールド</div>
-            {p1FieldCard ? (
-              <div
-                style={{
-                  cursor: currentPlayer === 1 && phase === 2 ? 'pointer' : 'default',
-                  border: selectedFieldCardInfo?.card === p1FieldCard ? '2px solid #4da6ff' : 'none',
-                  borderRadius: '4px',
-                  padding: '2px',
-                }}
-                onClick={currentPlayer === 1 ? handleFieldCardZoneClick : undefined}
-              >
-                <Card card={p1FieldCard} small />
+            <div style={styles.cardZoneContainer}>
+              {/* フィールドカード */}
+              <div style={styles.cardZoneItem}>
+                <div style={{ fontSize: '12px', marginBottom: '8px' }}>フィールド</div>
+                {p1FieldCard ? (
+                  <div
+                    style={{
+                      cursor: currentPlayer === 1 && phase === 2 ? 'pointer' : 'default',
+                      border: selectedFieldCardInfo?.card === p1FieldCard ? '2px solid #4da6ff' : 'none',
+                      borderRadius: '4px',
+                      padding: '2px',
+                    }}
+                    onClick={currentPlayer === 1 ? handleFieldCardZoneClick : undefined}
+                  >
+                    <Card card={p1FieldCard} small />
+                  </div>
+                ) : (
+                  <div
+                    style={{
+                      ...styles.cardSlot,
+                      width: '80px',
+                      height: '100px',
+                      cursor: currentPlayer === 1 && phase === 2 && selectedHandCard && selectedHandCard.type === 'field' ? 'pointer' : 'default',
+                      border: currentPlayer === 1 && phase === 2 && selectedHandCard && selectedHandCard.type === 'field' ? '2px solid #4da6ff' : '1px dashed #444',
+                      background: currentPlayer === 1 && phase === 2 && selectedHandCard && selectedHandCard.type === 'field' ? 'rgba(77,166,255,0.1)' : 'rgba(30,30,40,0.5)',
+                    }}
+                    onClick={currentPlayer === 1 ? handleFieldCardZoneClick : undefined}
+                  >
+                    なし
+                  </div>
+                )}
               </div>
-            ) : (
-              <div
-                style={{
-                  ...styles.cardSlot,
-                  width: '80px',
-                  height: '100px',
-                  cursor: currentPlayer === 1 && phase === 2 && selectedHandCard && selectedHandCard.type === 'field' ? 'pointer' : 'default',
-                  border: currentPlayer === 1 && phase === 2 && selectedHandCard && selectedHandCard.type === 'field' ? '2px solid #4da6ff' : '1px dashed #444',
-                  background: currentPlayer === 1 && phase === 2 && selectedHandCard && selectedHandCard.type === 'field' ? 'rgba(77,166,255,0.1)' : 'rgba(30,30,40,0.5)',
-                }}
-                onClick={currentPlayer === 1 ? handleFieldCardZoneClick : undefined}
-              >
-                なし
-              </div>
-            )}
-          </div>
 
-          {/* フェイズカード */}
-          <div style={styles.infoPanel}>
-            <div style={{ fontSize: '12px', marginBottom: '8px' }}>フェイズ</div>
-            {p1PhaseCard ? (
-              <div
-                style={{
-                  cursor: currentPlayer === 1 && phase === 2 ? 'pointer' : 'default',
-                  border: currentPlayer === 1 && phase === 2 && selectedHandCard && (selectedHandCard.type === 'monster' || selectedHandCard.type === 'magic' || selectedHandCard.type === 'field') ? '2px solid #4da6ff' : selectedFieldCardInfo?.card === p1PhaseCard ? '2px solid #4da6ff' : 'none',
-                  borderRadius: '4px',
-                  padding: '2px',
-                }}
-                onClick={currentPlayer === 1 ? handlePhaseCardZoneClick : undefined}
-              >
-                <Card card={p1PhaseCard} small />
-                <div style={{ fontSize: '10px', color: '#ffd700', textAlign: 'center', marginTop: '4px' }}>
-                  ⚡ チャージ: {p1PhaseCard.charges?.length || 0}/3
-                </div>
+              {/* フェイズカード */}
+              <div style={styles.cardZoneItem}>
+                <div style={{ fontSize: '12px', marginBottom: '8px' }}>フェイズ</div>
+                {p1PhaseCard ? (
+                  <div
+                    style={{
+                      cursor: currentPlayer === 1 && phase === 2 ? 'pointer' : 'default',
+                      border: currentPlayer === 1 && phase === 2 && selectedHandCard && (selectedHandCard.type === 'monster' || selectedHandCard.type === 'magic' || selectedHandCard.type === 'field') ? '2px solid #4da6ff' : selectedFieldCardInfo?.card === p1PhaseCard ? '2px solid #4da6ff' : 'none',
+                      borderRadius: '4px',
+                      padding: '2px',
+                    }}
+                    onClick={currentPlayer === 1 ? handlePhaseCardZoneClick : undefined}
+                  >
+                    <Card card={p1PhaseCard} small />
+                    <div style={{ fontSize: '10px', color: '#ffd700', textAlign: 'center', marginTop: '4px' }}>
+                      ⚡ チャージ: {p1PhaseCard.charges?.length || 0}/3
+                    </div>
+                  </div>
+                ) : (
+                  <div
+                    style={{
+                      ...styles.cardSlot,
+                      width: '80px',
+                      height: '100px',
+                      cursor: currentPlayer === 1 && phase === 2 && selectedHandCard && selectedHandCard.type === 'phasecard' ? 'pointer' : 'default',
+                      border: currentPlayer === 1 && phase === 2 && selectedHandCard && selectedHandCard.type === 'phasecard' ? '2px solid #4da6ff' : '1px dashed #444',
+                      background: currentPlayer === 1 && phase === 2 && selectedHandCard && selectedHandCard.type === 'phasecard' ? 'rgba(77,166,255,0.1)' : 'rgba(30,30,40,0.5)',
+                    }}
+                    onClick={currentPlayer === 1 ? handlePhaseCardZoneClick : undefined}
+                  >
+                    なし
+                  </div>
+                )}
               </div>
-            ) : (
-              <div
-                style={{
-                  ...styles.cardSlot,
-                  width: '80px',
-                  height: '100px',
-                  cursor: currentPlayer === 1 && phase === 2 && selectedHandCard && selectedHandCard.type === 'phasecard' ? 'pointer' : 'default',
-                  border: currentPlayer === 1 && phase === 2 && selectedHandCard && selectedHandCard.type === 'phasecard' ? '2px solid #4da6ff' : '1px dashed #444',
-                  background: currentPlayer === 1 && phase === 2 && selectedHandCard && selectedHandCard.type === 'phasecard' ? 'rgba(77,166,255,0.1)' : 'rgba(30,30,40,0.5)',
-                }}
-                onClick={currentPlayer === 1 ? handlePhaseCardZoneClick : undefined}
-              >
-                なし
-              </div>
-            )}
+            </div>
             {selectedHandCard && currentPlayer === 1 && (
               <div style={{
                 marginTop: '12px',
