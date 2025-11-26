@@ -40,7 +40,12 @@ Currently a **prototype version** with local 2-player gameplay.
   - Priority-based trigger execution
   - Turn-based usage flags and lifecycle management
   - ~1230 lines of new trigger infrastructure
-  - 12 Future attribute cards with full trigger implementations (~514 lines)
+  - **168 cards with trigger implementations across 5 attributes** (~5030 lines)
+    - Fire (炎): 33 cards (819 lines)
+    - Water (水): 34 cards (970 lines)
+    - Light (光): 47 cards (1309 lines)
+    - Dark (闇): 42 cards (1428 lines)
+    - Future (未来): 12 cards (504 lines)
 
 ---
 
@@ -88,12 +93,28 @@ Currently a **prototype version** with local 2-player gameplay.
 │   │   │   ├── primitive.js    # 原始属性 card effects
 │   │   │   ├── future.js       # 未来属性 card effects
 │   │   │   └── neutral.js      # なし属性 card effects
-│   │   └── cardTriggers/       # Card-specific trigger implementations ⭐ NEW
-│   │       └── futureCards.js  # 未来属性 trigger implementations (12 cards)
+│   │   └── cardTriggers/       # Card-specific trigger implementations (~5030 lines) ⭐ NEW
+│   │       ├── fireCards.js    # 炎属性 trigger implementations (33 cards, 819 lines)
+│   │       ├── waterCards.js   # 水属性 trigger implementations (34 cards, 970 lines)
+│   │       ├── lightCards.js   # 光属性 trigger implementations (47 cards, 1309 lines)
+│   │       ├── darkCards.js    # 闇属性 trigger implementations (42 cards, 1428 lines)
+│   │       └── futureCards.js  # 未来属性 trigger implementations (12 cards, 504 lines)
 │   │
-│   ├── ルール/                  # Documentation
-│   │   ├── magic-spirit-roadmap-updated.txt
-│   │   └── code-structure.md   # Detailed code structure guide
+│   ├── ルール/                  # Documentation (~5356 lines total)
+│   │   ├── Game Rules (日本語) - 3 files (244 lines)
+│   │   │   ├── マジックスピリット 公式ルール仕様書 ver2.11.txt (114 lines)
+│   │   │   ├── マジックスピリット - デッキ構築とコストバランス.txt (86 lines)
+│   │   │   └── マジックスピリット - フェイズカードルール (ver1.0).txt (44 lines)
+│   │   ├── Development Roadmaps - 2 files (1100 lines)
+│   │   │   ├── magic-spirit-roadmap-updated.txt (851 lines) ⭐ Current
+│   │   │   └── magic-spirit-roadmap.txt (249 lines) - Legacy
+│   │   ├── Code Architecture
+│   │   │   └── code-structure.md (433 lines) - Detailed architecture guide
+│   │   └── Trigger System Documentation - 4 files (3579 lines) ⭐ NEW
+│   │       ├── trigger-implementation-guide.md (1268 lines) - Implementation guide
+│   │       ├── trigger-specifications.md (941 lines) - Spec details
+│   │       ├── trigger-revision-plan.md (823 lines) - Design revision plan
+│   │       └── trigger-system-design.md (547 lines) - System design
 │   │
 │   ├── index.js                # React entry point
 │   ├── App.css                 # App styling
@@ -151,11 +172,14 @@ Currently a **prototype version** with local 2-player gameplay.
 - Turn-based usage flag management
 - Priority-based execution ordering
 
-**`src/engine/cardTriggers/futureCards.js`** (Future card triggers - 514 lines) ⭐ **NEW**
-- 12 Future attribute card trigger implementations
+**`src/engine/cardTriggers/`** (Card-specific trigger implementations - ~5030 lines, 168 cards) ⭐⭐ **NEW**
+- **fireCards.js**: 炎属性 triggers (33 cards, 819 lines)
+- **waterCards.js**: 水属性 triggers (34 cards, 970 lines)
+- **lightCards.js**: 光属性 triggers (47 cards, 1309 lines) - Most cards!
+- **darkCards.js**: 闇属性 triggers (42 cards, 1428 lines)
+- **futureCards.js**: 未来属性 triggers (12 cards, 504 lines)
 - Uses effect helpers for common patterns
-- Demonstrates trigger implementation patterns
-- Template for other attribute implementations
+- Comprehensive trigger system covering 168 cards across all major attributes
 
 **`src/utils/cardManager.js`** (Card data manager - 240 lines)
 - CSV parser for 433 cards
@@ -171,12 +195,61 @@ Currently a **prototype version** with local 2-player gameplay.
 - All game constants in one place
 - Easy to adjust game balance
 
+**`src/ルール/`** (Documentation directory - ~5356 lines total) 📚
+
+*Game Rules (日本語) - 3 files, 244 lines:*
+- **公式ルール仕様書 ver2.11.txt** (114 lines): Official game rules specification
+  - Core game mechanics and rules
+  - Turn structure and phase details
+  - Card types and attributes
+- **デッキ構築とコストバランス.txt** (86 lines): Deck building and cost balance guide
+  - Deck construction rules
+  - Cost balance guidelines
+  - Card distribution recommendations
+- **フェイズカードルール (ver1.0).txt** (44 lines): Phase card rules
+  - Phase card mechanics
+  - Stage progression rules
+  - Phase card activation timing
+
+*Development Roadmaps - 2 files, 1100 lines:*
+- **magic-spirit-roadmap-updated.txt** (851 lines) ⭐ **Current roadmap**
+  - Complete development history
+  - Phase-by-phase implementation status
+  - Current progress: Phase 6 (Trigger System) completed
+  - Future development plans
+- **magic-spirit-roadmap.txt** (249 lines): Legacy roadmap (archived)
+
+*Code Architecture - 1 file, 433 lines:*
+- **code-structure.md**: Detailed architecture documentation
+  - Module organization
+  - Component hierarchy
+  - State management patterns
+  - Effect and trigger system architecture
+
+*Trigger System Documentation - 4 files, 3579 lines:* ⭐ **NEW**
+- **trigger-implementation-guide.md** (1268 lines): Implementation guide
+  - Step-by-step trigger implementation
+  - Code examples and patterns
+  - Best practices and common pitfalls
+- **trigger-specifications.md** (941 lines): Detailed specifications
+  - Complete trigger type catalog
+  - Activation rules and priorities
+  - Edge case handling
+- **trigger-revision-plan.md** (823 lines): Design revision documentation
+  - System design evolution
+  - Refactoring decisions
+  - Architecture improvements
+- **trigger-system-design.md** (547 lines): System design overview
+  - High-level architecture
+  - Design principles
+  - Integration patterns
+
 **`package.json`**
 - React 19.2.0 (latest)
 - Testing libraries included
 - Standard CRA scripts
 
-**See also**: `src/ルール/code-structure.md` for detailed architecture documentation
+**See also**: Complete documentation in `src/ルール/` directory for game rules, architecture, and system design
 
 ---
 
@@ -589,7 +662,12 @@ ATTRIBUTE_COLORS = {
 - **Special on-summon effects**: Handled automatically if card effect includes '【召喚時】'
 
 **To implement card triggers** ⭐ **NEW**:
-1. Create/open attribute file in `src/engine/cardTriggers/` (e.g., `futureCards.js`)
+1. Open appropriate attribute file in `src/engine/cardTriggers/`
+   - `fireCards.js` (炎属性) - 33 cards implemented
+   - `waterCards.js` (水属性) - 34 cards implemented
+   - `lightCards.js` (光属性) - 47 cards implemented
+   - `darkCards.js` (闇属性) - 42 cards implemented
+   - `futureCards.js` (未来属性) - 12 cards implemented
 2. Import trigger types and effect helpers
 3. Define trigger array for each card ID
 4. Specify trigger type, activation type, and effect function
@@ -637,11 +715,11 @@ Trigger Lifecycle:
 
 **Implementing a Card Trigger**:
 ```javascript
-// In src/engine/cardTriggers/futureCards.js
+// In appropriate attribute file (e.g., src/engine/cardTriggers/fireCards.js)
 import { TRIGGER_TYPES, ACTIVATION_TYPES } from '../triggerTypes';
 import { conditionalDamage, drawCards } from '../effectHelpers';
 
-export const futureCardTriggers = {
+export const fireCardTriggers = {
   C0000XXX: [
     {
       type: TRIGGER_TYPES.ON_SUMMON,
@@ -661,6 +739,13 @@ export const futureCardTriggers = {
     },
   ],
 };
+
+// Available attribute files:
+// - fireCards.js (炎属性)
+// - waterCards.js (水属性)
+// - lightCards.js (光属性)
+// - darkCards.js (闇属性)
+// - futureCards.js (未来属性)
 ```
 
 **Trigger Context Object**:
@@ -965,17 +1050,22 @@ console.log('Executing effect:', type, value, target);
    - 108+ card implementations across all attributes
    - Effect helper library with 9 reusable functions
    - Hybrid approach: generic + card-specific effects
-4. **Remaining card effects**: Implement effects for remaining 325 cards (433 total - 108 implemented)
-5. **Card data format**: Convert CSV to JSON for better structure and validation
-6. **State management**: Consider Context API or Redux for complex state
-7. **TypeScript**: Add type safety to entire codebase
-8. **Backend**: Add server for online multiplayer
-9. **Deck builder UI**: Allow custom deck creation
-10. **Card images**: Replace placeholder emojis with actual artwork
-11. **Animations**: Add GSAP or Framer Motion for smooth transitions
-12. **Mobile responsive**: Add mobile-friendly layouts
-13. **Testing**: Add comprehensive unit and integration tests for card effects
-14. **Effect testing framework**: Automated tests for all 108+ card effects
+4. ✅ **~~Trigger system~~**: COMPLETED - Comprehensive trigger system implemented (2025-11-26)
+   - 168 cards with triggers across 5 attributes (~5030 lines)
+   - 26 generic trigger types with automatic/optional distinction
+   - Priority-based execution and turn-based lifecycle management
+5. **Remaining card effects**: Implement effects for remaining 325 cards (433 total - 108 implemented)
+6. **Remaining card triggers**: Implement triggers for remaining cards (433 total - 168 implemented)
+7. **Card data format**: Convert CSV to JSON for better structure and validation
+8. **State management**: Consider Context API or Redux for complex state
+9. **TypeScript**: Add type safety to entire codebase
+10. **Backend**: Add server for online multiplayer
+11. **Deck builder UI**: Allow custom deck creation
+12. **Card images**: Replace placeholder emojis with actual artwork
+13. **Animations**: Add GSAP or Framer Motion for smooth transitions
+14. **Mobile responsive**: Add mobile-friendly layouts
+15. **Testing**: Add comprehensive unit and integration tests for card effects and triggers
+16. **Effect/Trigger testing framework**: Automated tests for all 108+ card effects and 168+ card triggers
 
 ---
 
@@ -1214,7 +1304,7 @@ This is suitable for expansion into a full game or as a learning project for Rea
 
 ---
 
-**Document Version**: 3.2
-**Last Updated**: 2025-11-26 (Roadmap update - Phase card UI implementation documented)
+**Document Version**: 3.3
+**Last Updated**: 2025-11-26 (Trigger system complete - 168 cards across 5 attributes documented)
 **For**: Magic Spirit (magiSp) Repository
-**Branch**: claude/update-docs-roadmap-018r29Jw8pqBKW9ZaB1tifbE
+**Branch**: claude/update-claude-md-01TiLLBqcPC9ErsvheF6d417
