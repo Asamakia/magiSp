@@ -766,44 +766,99 @@ export const lightCardTriggers = {
   ],
 
   /**
-   * C0000343: ヴォランティス・レイルード
-   * 【召喚時】相手の攻撃力2000以上のモンスター1体を破壊する。
-   */
-  C0000343: [
-    {
-      type: TRIGGER_TYPES.ON_SUMMON,
-      activationType: ACTIVATION_TYPES.OPTIONAL,
-      description: '召喚時: 相手の攻撃力2000以上を破壊',
-      effect: (context) => {
-        const { p2Field, setP2Field, addLog } = context;
-
-        // 攻撃力2000以上のモンスターを探す
-        const targetIndex = p2Field.findIndex((monster) =>
-          monster && monster.attack >= 2000
-        );
-
-        if (targetIndex === -1) {
-          addLog('ヴォランティス・レイルードの効果: 対象モンスターがいません', 'info');
-          return;
-        }
-
-        const targetMonster = p2Field[targetIndex];
-        destroyMonster(context, targetIndex, true);
-        addLog(`ヴォランティス・レイルードの効果: ${targetMonster.name}を破壊`, 'info');
-      },
-    },
-  ],
-
-  /**
-   * C0000345: ヴォランティス・レイフィス
-   * 【召喚時】デッキから《ヴォランティス》モンスター1体を手札に加える。
+   * C0000345: ヴォランティス・アルディオン
+   * 【召喚時】相手モンスター全体の攻撃力をターン終了時まで500下げる。
    */
   C0000345: [
     {
       type: TRIGGER_TYPES.ON_SUMMON,
       activationType: ACTIVATION_TYPES.AUTOMATIC,
-      description: '召喚時: 《ヴォランティス》をサーチ',
+      description: '召喚時: 相手モンスター全体の攻撃力-500',
       effect: (context) => {
+        const { p2Field, setP2Field, addLog } = context;
+
+        const opponentMonsters = p2Field.filter((m) => m !== null);
+        if (opponentMonsters.length === 0) {
+          addLog('ヴォランティス・アルディオンの効果: 相手フィールドにモンスターがいません', 'info');
+          return;
+        }
+
+        // 相手モンスター全体の攻撃力を500ダウン
+        let count = 0;
+        setP2Field((prev) => {
+          return prev.map((monster) => {
+            if (monster) {
+              count++;
+              const newAttack = Math.max(0, monster.currentAttack - 500);
+              return {
+                ...monster,
+                currentAttack: newAttack,
+                attackModified: true,
+              };
+            }
+            return monster;
+          });
+        });
+
+        if (count > 0) {
+          addLog(`ヴォランティス・アルディオンの効果: 相手モンスター${count}体の攻撃力-500`, 'info');
+        }
+      },
+    },
+  ],
+
+  /**
+   * C0000346: ヴォランティス・セラヴェント
+   * 【召喚時】デッキから《アヴィクルス》魔法カード1枚を手札に加える。
+   */
+  C0000346: [
+    {
+      type: TRIGGER_TYPES.ON_SUMMON,
+      activationType: ACTIVATION_TYPES.AUTOMATIC,
+      description: '召喚時: 《アヴィクルス》魔法カードをサーチ',
+      effect: (context) => {
+        const found = searchCard(context, (card) => {
+          return card.type === 'magic' &&
+                 card.name &&
+                 card.name.includes('アヴィクルス');
+        });
+
+        if (!found) {
+          context.addLog('ヴォランティス・セラヴェントの効果: 対象カードが見つかりませんでした', 'info');
+        }
+      },
+    },
+  ],
+
+  /**
+   * C0000347: 鳥民の供物者・カルディス
+   * 【召喚時】自分の手札1枚を墓地に送り、デッキから《ヴォランティス》モンスター1体を手札に加える。
+   */
+  C0000347: [
+    {
+      type: TRIGGER_TYPES.ON_SUMMON,
+      activationType: ACTIVATION_TYPES.OPTIONAL,
+      description: '召喚時: 手札1枚捨てて《ヴォランティス》サーチ',
+      effect: (context) => {
+        const { currentPlayer, p1Hand, p2Hand, setP1Hand, setP2Hand,
+                setP1Graveyard, setP2Graveyard, addLog } = context;
+
+        const hand = currentPlayer === 1 ? p1Hand : p2Hand;
+        const setHand = currentPlayer === 1 ? setP1Hand : setP2Hand;
+        const setGraveyard = currentPlayer === 1 ? setP1Graveyard : setP2Graveyard;
+
+        if (hand.length === 0) {
+          addLog('鳥民の供物者・カルディスの効果: 手札がありません', 'info');
+          return;
+        }
+
+        // 手札の最初のカードを墓地に送る
+        const discardCard = hand[0];
+        setHand((prev) => prev.filter((c) => c.uniqueId !== discardCard.uniqueId));
+        setGraveyard((prev) => [...prev, discardCard]);
+        addLog(`${discardCard.name}を墓地に送った`, 'info');
+
+        // 《ヴォランティス》モンスターをサーチ
         const found = searchCard(context, (card) => {
           return card.type === 'monster' &&
                  card.name &&
@@ -811,47 +866,8 @@ export const lightCardTriggers = {
         });
 
         if (!found) {
-          context.addLog('ヴォランティス・レイフィスの効果: 対象カードが見つかりませんでした', 'info');
+          addLog('鳥民の供物者・カルディスの効果: 《ヴォランティス》が見つかりませんでした', 'info');
         }
-      },
-    },
-  ],
-
-  /**
-   * C0000346: ヴォランティス・フレアード
-   * 【召喚時】自分の墓地の《ヴォランティス》モンスター1体を場に戻す（攻撃力半分）。
-   */
-  C0000346: [
-    {
-      type: TRIGGER_TYPES.ON_SUMMON,
-      activationType: ACTIVATION_TYPES.AUTOMATIC,
-      description: '召喚時: 墓地の《ヴォランティス》を攻撃力半減で復活',
-      effect: (context) => {
-        const success = reviveFromGraveyard(context, (card) => {
-          return card.type === 'monster' &&
-                 card.name &&
-                 card.name.includes('ヴォランティス');
-        }, true);
-
-        if (!success) {
-          context.addLog('ヴォランティス・フレアードの効果: 墓地に《ヴォランティス》がいません', 'info');
-        }
-      },
-    },
-  ],
-
-  /**
-   * C0000347: ヴォランティス・ネブロス
-   * 【召喚時】相手プレイヤーに800ダメージを与える。
-   */
-  C0000347: [
-    {
-      type: TRIGGER_TYPES.ON_SUMMON,
-      activationType: ACTIVATION_TYPES.AUTOMATIC,
-      description: '召喚時: 相手に800ダメージ',
-      effect: (context) => {
-        context.addLog('ヴォランティス・ネブロスの効果: 相手に800ダメージ', 'damage');
-        conditionalDamage(context, 800, 'opponent');
       },
     },
   ],
@@ -877,16 +893,31 @@ export const lightCardTriggers = {
   ],
 
   /**
-   * C0000350: ヴォランティス・レディエント
-   * 【召喚時】自分のライフを1000回復する。
+   * C0000350: 鳥民の祈り
+   * magic: 自分のライフを800回復し、デッキから《アヴィクルス》フィールドカード1枚を手札に加える。
+   * Note: magicカードのためトリガーではなく、発動時効果として実装
    */
   C0000350: [
     {
       type: TRIGGER_TYPES.ON_SUMMON,
       activationType: ACTIVATION_TYPES.AUTOMATIC,
-      description: '召喚時: 自分のライフ1000回復',
+      description: '発動時: ライフ800回復、《アヴィクルス》フィールドカードサーチ',
       effect: (context) => {
-        healLife(context, 1000, true);
+        const { addLog } = context;
+
+        // ライフ800回復
+        healLife(context, 800, true);
+
+        // 《アヴィクルス》フィールドカードをサーチ
+        const found = searchCard(context, (card) => {
+          return card.type === 'field' &&
+                 card.name &&
+                 card.name.includes('アヴィクルス');
+        });
+
+        if (!found) {
+          addLog('鳥民の祈りの効果: 《アヴィクルス》フィールドカードが見つかりませんでした', 'info');
+        }
       },
     },
   ],
@@ -1003,277 +1034,6 @@ export const lightCardTriggers = {
         const { addLog } = context;
         addLog('呪術狩りの聖焔騎士レオノーラの常時効果: ダメージ増加（未実装）', 'info');
         // TODO: ダメージ増加システムの実装が必要
-      },
-    },
-  ],
-
-  /**
-   * C0000400: 呪術狩りの武闘家ジーナ
-   * 【召喚時】場にいる闇属性モンスター1体に800ダメージを与える。
-   */
-  C0000400: [
-    {
-      type: TRIGGER_TYPES.ON_SUMMON,
-      activationType: ACTIVATION_TYPES.OPTIONAL,
-      description: '召喚時: 闇属性モンスター1体に800ダメージ',
-      effect: (context) => {
-        const { p1Field, p2Field, addLog } = context;
-
-        // 両フィールドから闇属性モンスターを探す
-        const allDarkMonsters = [];
-        p1Field.forEach((m, idx) => {
-          if (m && m.attribute === '闇') allDarkMonsters.push({ monster: m, index: idx, isOpponent: false });
-        });
-        p2Field.forEach((m, idx) => {
-          if (m && m.attribute === '闇') allDarkMonsters.push({ monster: m, index: idx, isOpponent: true });
-        });
-
-        if (allDarkMonsters.length === 0) {
-          addLog('呪術狩りの武闘家ジーナの効果: 闇属性モンスターがいません', 'info');
-          return;
-        }
-
-        // 最初の闇属性モンスターにダメージ
-        const target = allDarkMonsters[0];
-        conditionalDamage(context, 800, target.isOpponent ? 'opponent_monster' : 'self_monster', target.index);
-        addLog(`呪術狩りの武闘家ジーナの効果: ${target.monster.name}に800ダメージ`, 'damage');
-      },
-    },
-  ],
-
-  /**
-   * C0000401: 呪術狩りの重戦士カーツ
-   * 【召喚時】自分のライフを800回復する。
-   */
-  C0000401: [
-    {
-      type: TRIGGER_TYPES.ON_SUMMON,
-      activationType: ACTIVATION_TYPES.AUTOMATIC,
-      description: '召喚時: 自分のライフ800回復',
-      effect: (context) => {
-        healLife(context, 800, true);
-      },
-    },
-  ],
-
-  /**
-   * C0000402: 呪術狩りの聖僧ゼノール
-   * 【召喚時】デッキから《呪術狩り》モンスター1体を手札に加える。
-   */
-  C0000402: [
-    {
-      type: TRIGGER_TYPES.ON_SUMMON,
-      activationType: ACTIVATION_TYPES.AUTOMATIC,
-      description: '召喚時: 《呪術狩り》をサーチ',
-      effect: (context) => {
-        const found = searchCard(context, (card) => {
-          return card.type === 'monster' &&
-                 card.name &&
-                 card.name.includes('呪術狩り');
-        });
-
-        if (!found) {
-          context.addLog('呪術狩りの聖僧ゼノールの効果: 対象カードが見つかりませんでした', 'info');
-        }
-      },
-    },
-  ],
-
-  /**
-   * C0000413: 聖金の護衛犬グラドルフ
-   * 【召喚時】相手の場にいるモンスター1体の攻撃力をターン終了時まで500下げる。
-   */
-  C0000413: [
-    {
-      type: TRIGGER_TYPES.ON_SUMMON,
-      activationType: ACTIVATION_TYPES.OPTIONAL,
-      description: '召喚時: 相手モンスター1体の攻撃力-500',
-      effect: (context) => {
-        const { p2Field, addLog } = context;
-
-        const opponentMonsters = p2Field.filter((m) => m !== null);
-        if (opponentMonsters.length === 0) {
-          addLog('聖金の護衛犬グラドルフの効果: 相手フィールドにモンスターがいません', 'info');
-          return;
-        }
-
-        const targetIndex = p2Field.findIndex((m) => m !== null);
-        if (targetIndex !== -1) {
-          modifyAttack(context, -500, targetIndex, true, false);
-          addLog('聖金の護衛犬グラドルフの効果: 相手モンスターの攻撃力-500', 'info');
-        }
-      },
-    },
-  ],
-
-  /**
-   * C0000414: 聖金の魔獣バスターグ
-   * 【召喚時】相手の場にいるモンスター1体を破壊し、自分のライフを500回復する。
-   */
-  C0000414: [
-    {
-      type: TRIGGER_TYPES.ON_SUMMON,
-      activationType: ACTIVATION_TYPES.OPTIONAL,
-      description: '召喚時: 相手モンスター1体破壊、500回復',
-      effect: (context) => {
-        const { p2Field, addLog } = context;
-
-        const opponentMonsters = p2Field.filter((m) => m !== null);
-        if (opponentMonsters.length === 0) {
-          addLog('聖金の魔獣バスターグの効果: 相手フィールドにモンスターがいません', 'info');
-          return;
-        }
-
-        const targetIndex = p2Field.findIndex((m) => m !== null);
-        if (targetIndex !== -1) {
-          const targetMonster = p2Field[targetIndex];
-          destroyMonster(context, targetIndex, true);
-          healLife(context, 500, true);
-          addLog(`聖金の魔獣バスターグの効果: ${targetMonster.name}を破壊、500回復`, 'info');
-        }
-      },
-    },
-  ],
-
-  /**
-   * C0000415: 聖金の聖者オーラウィン
-   * 【召喚時】自分の墓地のコスト3以下のモンスター1体を手札に戻す。
-   */
-  C0000415: [
-    {
-      type: TRIGGER_TYPES.ON_SUMMON,
-      activationType: ACTIVATION_TYPES.AUTOMATIC,
-      description: '召喚時: 墓地のコスト3以下を手札に',
-      effect: (context) => {
-        const { currentPlayer, p1Graveyard, p2Graveyard, setP1Graveyard, setP2Graveyard,
-                setP1Hand, setP2Hand, addLog } = context;
-
-        const graveyard = currentPlayer === 1 ? p1Graveyard : p2Graveyard;
-        const setGraveyard = currentPlayer === 1 ? setP1Graveyard : setP2Graveyard;
-        const setHand = currentPlayer === 1 ? setP1Hand : setP2Hand;
-
-        // 墓地からコスト3以下のモンスターを探す
-        const targetCard = graveyard.find((card) =>
-          card.type === 'monster' && card.cost <= 3
-        );
-
-        if (!targetCard) {
-          addLog('聖金の聖者オーラウィンの効果: 墓地に対象カードがありません', 'info');
-          return;
-        }
-
-        // 墓地から手札に戻す
-        setGraveyard((prev) => prev.filter((c) => c.uniqueId !== targetCard.uniqueId));
-        setHand((prev) => [...prev, targetCard]);
-        addLog(`${targetCard.name}を手札に戻した`, 'info');
-      },
-    },
-  ],
-
-  /**
-   * C0000416: 聖金の救済者ヴェルナリクス
-   * 【召喚時】自分の場のモンスター全てのHPを500回復。
-   */
-  C0000416: [
-    {
-      type: TRIGGER_TYPES.ON_SUMMON,
-      activationType: ACTIVATION_TYPES.AUTOMATIC,
-      description: '召喚時: 自分モンスター全てのHP+500',
-      effect: (context) => {
-        const { currentPlayer, p1Field, p2Field, setP1Field, setP2Field, addLog } = context;
-        const field = currentPlayer === 1 ? p1Field : p2Field;
-        const setField = currentPlayer === 1 ? setP1Field : setP2Field;
-
-        let healed = 0;
-        setField((prev) => {
-          return prev.map((monster) => {
-            if (monster) {
-              healed++;
-              const newHp = Math.min(monster.currentHp + 500, monster.maxHp);
-              return { ...monster, currentHp: newHp };
-            }
-            return monster;
-          });
-        });
-
-        if (healed > 0) {
-          addLog(`聖金の救済者ヴェルナリクスの効果: ${healed}体のHPを500回復`, 'info');
-        }
-      },
-    },
-  ],
-
-  /**
-   * C0000417: 聖金の守護聖アルマティア
-   * 【召喚時】相手の場にいるコスト5以上のモンスター1体を破壊する。
-   */
-  C0000417: [
-    {
-      type: TRIGGER_TYPES.ON_SUMMON,
-      activationType: ACTIVATION_TYPES.OPTIONAL,
-      description: '召喚時: 相手のコスト5以上を破壊',
-      effect: (context) => {
-        const { p2Field, addLog } = context;
-
-        // コスト5以上のモンスターを探す
-        const targetIndex = p2Field.findIndex((monster) =>
-          monster && monster.cost >= 5
-        );
-
-        if (targetIndex === -1) {
-          addLog('聖金の守護聖アルマティアの効果: 対象モンスターがいません', 'info');
-          return;
-        }
-
-        const targetMonster = p2Field[targetIndex];
-        destroyMonster(context, targetIndex, true);
-        addLog(`聖金の守護聖アルマティアの効果: ${targetMonster.name}を破壊`, 'info');
-      },
-    },
-  ],
-
-  /**
-   * C0000418: 光の翼竜ルミドラック
-   * 【召喚時】相手に600ダメージを与え、自分のライフを300回復する。
-   */
-  C0000418: [
-    {
-      type: TRIGGER_TYPES.ON_SUMMON,
-      activationType: ACTIVATION_TYPES.AUTOMATIC,
-      description: '召喚時: 相手に600ダメージ、自分300回復',
-      effect: (context) => {
-        conditionalDamage(context, 600, 'opponent');
-        healLife(context, 300, true);
-        context.addLog('光の翼竜ルミドラックの効果発動', 'info');
-      },
-    },
-  ],
-
-  /**
-   * C0000419: 聖雷の翼獣フラッグルス
-   * 【召喚時】相手の場にコスト4以上のモンスターがいる場合、1体を破壊する。
-   */
-  C0000419: [
-    {
-      type: TRIGGER_TYPES.ON_SUMMON,
-      activationType: ACTIVATION_TYPES.OPTIONAL,
-      description: '召喚時: 相手のコスト4以上を破壊',
-      effect: (context) => {
-        const { p2Field, addLog } = context;
-
-        // コスト4以上のモンスターを探す
-        const targetIndex = p2Field.findIndex((monster) =>
-          monster && monster.cost >= 4
-        );
-
-        if (targetIndex === -1) {
-          addLog('聖雷の翼獣フラッグルスの効果: 対象モンスターがいません', 'info');
-          return;
-        }
-
-        const targetMonster = p2Field[targetIndex];
-        destroyMonster(context, targetIndex, true);
-        addLog(`聖雷の翼獣フラッグルスの効果: ${targetMonster.name}を破壊`, 'info');
       },
     },
   ],
