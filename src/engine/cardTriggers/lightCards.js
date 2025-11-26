@@ -1,0 +1,1309 @@
+/**
+ * 光属性カードのトリガー実装
+ *
+ * このファイルには光属性カードの個別トリガー効果を実装します。
+ * 各カードは独自のトリガー定義を持ち、triggerEngineによって管理されます。
+ */
+
+import { TRIGGER_TYPES, ACTIVATION_TYPES, TRIGGER_PRIORITIES } from '../triggerTypes';
+import {
+  millDeck,
+  conditionalDamage,
+  searchCard,
+  reviveFromGraveyard,
+  drawCards,
+  healLife,
+  destroyMonster,
+  modifyAttack,
+  modifyHP,
+} from '../effectHelpers';
+
+/**
+ * 光属性カードのトリガー定義
+ * カードID => トリガー配列のマッピング
+ */
+export const lightCardTriggers = {
+  /**
+   * C0000020: 灯火の護衛霊
+   * 【常時】自分の光属性モンスターが受けるダメージを200軽減する（1ターンに1度）。
+   */
+  C0000020: [
+    {
+      type: TRIGGER_TYPES.CONTINUOUS,
+      activationType: ACTIVATION_TYPES.AUTOMATIC,
+      description: '常時: 光属性が受けるダメージ-200（1ターン1度）',
+      effect: (context) => {
+        const { addLog } = context;
+        addLog('灯火の護衛霊の常時効果: ダメージ軽減（未実装）', 'info');
+        // TODO: ダメージ軽減システムが必要
+      },
+    },
+  ],
+
+  /**
+   * C0000056: 輝聖女ルミナス
+   * 【エンドフェイズ時】相手のモンスターの攻撃力を200ダウン。
+   */
+  C0000056: [
+    {
+      type: TRIGGER_TYPES.ON_END_PHASE_SELF,
+      activationType: ACTIVATION_TYPES.OPTIONAL,
+      description: 'エンドフェイズ: 相手モンスター1体の攻撃力-200',
+      effect: (context) => {
+        const { p2Field, addLog } = context;
+
+        const opponentMonsters = p2Field.filter((m) => m !== null);
+        if (opponentMonsters.length === 0) {
+          addLog('輝聖女ルミナスの効果: 相手フィールドにモンスターがいません', 'info');
+          return;
+        }
+
+        // 最初のモンスターをターゲット
+        const targetIndex = p2Field.findIndex((m) => m !== null);
+        if (targetIndex !== -1) {
+          modifyAttack(context, -200, targetIndex, true, false);
+          addLog('輝聖女ルミナスの効果: 相手モンスターの攻撃力-200', 'info');
+        }
+      },
+    },
+  ],
+
+  /**
+   * C0000057: プリズム・ガーディアン
+   * 【自分モンスター被ダメージ時】1ターンに1度だけ、自分の光属性モンスターがダメージを受ける場合、代わりにこのカードが受ける。
+   */
+  C0000057: [
+    {
+      type: TRIGGER_TYPES.ON_DAMAGE_RECEIVED,
+      activationType: ACTIVATION_TYPES.AUTOMATIC,
+      description: '被ダメージ時: 光属性の代わりにダメージを受ける',
+      effect: (context) => {
+        const { addLog } = context;
+        addLog('プリズム・ガーディアンの効果: ダメージ肩代わり（未実装）', 'info');
+        // TODO: ダメージ肩代わりシステムが必要
+      },
+    },
+  ],
+
+  /**
+   * C0000058: 熾天使セラフ
+   * 【相手モンスター召喚時】対象モンスターに200ダメージを与える。
+   */
+  C0000058: [
+    {
+      type: TRIGGER_TYPES.ON_OPPONENT_SUMMON,
+      activationType: ACTIVATION_TYPES.AUTOMATIC,
+      description: '相手召喚時: 召喚されたモンスターに200ダメージ',
+      effect: (context) => {
+        const { slotIndex, addLog } = context;
+        addLog('熾天使セラフの効果: 召喚されたモンスターに200ダメージ', 'damage');
+        // 召喚されたモンスター（相手フィールドのslotIndex）にダメージ
+        conditionalDamage(context, 200, 'opponent_monster', slotIndex);
+      },
+    },
+  ],
+
+  /**
+   * C0000059: 光の騎士
+   * 【召喚時】デッキから《光の》魔法カード1枚を手札に加える。
+   */
+  C0000059: [
+    {
+      type: TRIGGER_TYPES.ON_SUMMON,
+      activationType: ACTIVATION_TYPES.AUTOMATIC,
+      description: '召喚時: 《光の》魔法カードをサーチ',
+      effect: (context) => {
+        const found = searchCard(context, (card) => {
+          return card.type === 'magic' && card.name && card.name.includes('光の');
+        });
+
+        if (!found) {
+          context.addLog('光の騎士の効果: 《光の》魔法カードが見つかりませんでした', 'info');
+        }
+      },
+    },
+  ],
+
+  /**
+   * C0000061: 輝くユニコーン
+   * 【自攻撃時】自分のライフを500回復。
+   */
+  C0000061: [
+    {
+      type: TRIGGER_TYPES.ON_ATTACK,
+      activationType: ACTIVATION_TYPES.AUTOMATIC,
+      description: '攻撃時: 自分のライフ500回復',
+      effect: (context) => {
+        healLife(context, 500, true);
+      },
+    },
+  ],
+
+  /**
+   * C0000062: 光の使徒
+   * 【自メインフェイズ時】このカードをリリースすると、自分のライフを400回復できる。
+   */
+  C0000062: [
+    {
+      type: TRIGGER_TYPES.ON_MAIN_PHASE_SELF,
+      activationType: ACTIVATION_TYPES.OPTIONAL,
+      description: 'メインフェイズ: リリースで400回復',
+      effect: (context) => {
+        const { monsterIndex, addLog } = context;
+        // このカードを破壊
+        destroyMonster(context, monsterIndex, false);
+        // ライフ回復
+        healLife(context, 400, true);
+        addLog('光の使徒の効果: リリースして400回復', 'info');
+      },
+    },
+  ],
+
+  /**
+   * C0000071: クリスタルサンクチュアリ
+   * 【常時】光属性モンスターの攻撃力を500アップ。
+   * 【常時】2体以上光属性モンスターが場にいるとき相手の基本技の効果を1ターンに1度無効化できる。
+   * 【自エンドフェイズ時】自分のライフを500回復。
+   */
+  C0000071: [
+    {
+      type: TRIGGER_TYPES.CONTINUOUS,
+      activationType: ACTIVATION_TYPES.AUTOMATIC,
+      description: '常時: 光属性の攻撃力+500',
+      effect: (context) => {
+        const { addLog } = context;
+        addLog('クリスタルサンクチュアリの常時効果: 光属性攻撃力+500（未実装）', 'info');
+        // TODO: フィールドカードの常時効果システムが必要
+      },
+    },
+    {
+      type: TRIGGER_TYPES.ON_END_PHASE_SELF,
+      activationType: ACTIVATION_TYPES.AUTOMATIC,
+      description: 'エンドフェイズ: 自分のライフ500回復',
+      effect: (context) => {
+        healLife(context, 500, true);
+      },
+    },
+  ],
+
+  /**
+   * C0000072: ルミナスの聖域
+   * 【光属性モンスターが破壊される時】HPを1にして、代わりに自分のSPを1減らして守ることができる（1ターンに1度）。
+   */
+  C0000072: [
+    {
+      type: TRIGGER_TYPES.ON_ATTRIBUTE_BEFORE_DESTROY,
+      activationType: ACTIVATION_TYPES.OPTIONAL,
+      description: '光属性破壊時: SP1消費でHP1で守る',
+      effect: (context) => {
+        const { addLog } = context;
+        addLog('ルミナスの聖域の効果: 破壊を防ぐ（未実装）', 'info');
+        // TODO: 破壊防止システムが必要
+      },
+    },
+  ],
+
+  /**
+   * C0000073: 輝く天蓋
+   * 【常時】相手モンスター全体の攻撃力を、場にいる光属性モンスター1体につき200ダウン。
+   */
+  C0000073: [
+    {
+      type: TRIGGER_TYPES.CONTINUOUS,
+      activationType: ACTIVATION_TYPES.AUTOMATIC,
+      description: '常時: 相手全体の攻撃力を光属性×200ダウン',
+      effect: (context) => {
+        const { currentPlayer, p1Field, p2Field, addLog } = context;
+        const field = currentPlayer === 1 ? p1Field : p2Field;
+
+        // 場の光属性モンスターをカウント
+        const lightCount = field.filter((monster) =>
+          monster && monster.attribute === '光'
+        ).length;
+
+        if (lightCount > 0) {
+          const attackDown = lightCount * 200;
+          addLog(`輝く天蓋の効果: 相手全体の攻撃力-${attackDown}（未実装）`, 'info');
+          // TODO: フィールドカードの常時効果システムが必要
+        }
+      },
+    },
+  ],
+
+  /**
+   * C0000091: 灯火の精霊
+   * 【常時】自分の光属性モンスターが召喚されるたび、そのモンスターのHPを200アップ。
+   */
+  C0000091: [
+    {
+      type: TRIGGER_TYPES.ON_ATTRIBUTE_SUMMON_SELF,
+      activationType: ACTIVATION_TYPES.AUTOMATIC,
+      description: '光属性召喚時: そのモンスターのHP+200',
+      effect: (context) => {
+        const { card, slotIndex, addLog } = context;
+
+        if (card && card.attribute === '光') {
+          modifyHP(context, 200, slotIndex, false);
+          addLog(`灯火の精霊の効果: ${card.name}のHP+200`, 'info');
+        }
+      },
+    },
+  ],
+
+  /**
+   * C0000121: 聖域の灯守兵
+   * 【召喚時】自分の手札から光属性モンスター1体を公開し、デッキに戻す。その後、1枚ドローする。
+   */
+  C0000121: [
+    {
+      type: TRIGGER_TYPES.ON_SUMMON,
+      activationType: ACTIVATION_TYPES.OPTIONAL,
+      description: '召喚時: 光属性モンスター1枚をデッキに戻しドロー',
+      effect: (context) => {
+        const { currentPlayer, p1Hand, p2Hand, setP1Hand, setP2Hand,
+                p1Deck, p2Deck, setP1Deck, setP2Deck, addLog } = context;
+
+        const hand = currentPlayer === 1 ? p1Hand : p2Hand;
+        const setHand = currentPlayer === 1 ? setP1Hand : setP2Hand;
+        const setDeck = currentPlayer === 1 ? setP1Deck : setP2Deck;
+
+        // 手札から光属性モンスターを探す
+        const lightMonster = hand.find((card) =>
+          card.type === 'monster' && card.attribute === '光'
+        );
+
+        if (!lightMonster) {
+          addLog('聖域の灯守兵の効果: 手札に光属性モンスターがいません', 'info');
+          return;
+        }
+
+        // 手札からデッキに戻す
+        setHand((prev) => prev.filter((c) => c.uniqueId !== lightMonster.uniqueId));
+        setDeck((prev) => [...prev, lightMonster]);
+
+        // 1枚ドロー
+        drawCards(context, 1);
+        addLog(`${lightMonster.name}をデッキに戻し、1枚ドロー`, 'info');
+      },
+    },
+  ],
+
+  /**
+   * C0000162: 死神天使ルシフェリエル
+   * 【召喚時】自分の墓地の光属性モンスターを全てデッキに戻し、その枚数×500ライフを回復。
+   * 【自壊時】相手プレイヤーに1500ダメージを与え、自分のライフを半分にする。
+   */
+  C0000162: [
+    {
+      type: TRIGGER_TYPES.ON_SUMMON,
+      activationType: ACTIVATION_TYPES.AUTOMATIC,
+      description: '召喚時: 墓地の光属性をデッキに戻し枚数×500回復',
+      effect: (context) => {
+        const { currentPlayer, p1Graveyard, p2Graveyard, setP1Graveyard, setP2Graveyard,
+                p1Deck, p2Deck, setP1Deck, setP2Deck, addLog } = context;
+
+        const graveyard = currentPlayer === 1 ? p1Graveyard : p2Graveyard;
+        const setGraveyard = currentPlayer === 1 ? setP1Graveyard : setP2Graveyard;
+        const setDeck = currentPlayer === 1 ? setP1Deck : setP2Deck;
+
+        // 墓地から光属性モンスターを全て取得
+        const lightMonsters = graveyard.filter((card) =>
+          card.type === 'monster' && card.attribute === '光'
+        );
+
+        if (lightMonsters.length === 0) {
+          addLog('死神天使ルシフェリエルの効果: 墓地に光属性モンスターがいません', 'info');
+          return;
+        }
+
+        // 墓地からデッキに戻す
+        setGraveyard((prev) => prev.filter((c) =>
+          !(c.type === 'monster' && c.attribute === '光')
+        ));
+        setDeck((prev) => [...prev, ...lightMonsters]);
+
+        // ライフ回復
+        const healAmount = lightMonsters.length * 500;
+        healLife(context, healAmount, true);
+        addLog(`死神天使ルシフェリエルの効果: 光属性${lightMonsters.length}体をデッキに戻し、${healAmount}回復`, 'info');
+      },
+    },
+    {
+      type: TRIGGER_TYPES.ON_DESTROY_SELF,
+      activationType: ACTIVATION_TYPES.AUTOMATIC,
+      description: '破壊時: 相手に1500、自分のライフ半分に',
+      effect: (context) => {
+        const { currentPlayer, p1Life, p2Life, setP1Life, setP2Life, addLog } = context;
+
+        // 相手に1500ダメージ
+        conditionalDamage(context, 1500, 'opponent');
+
+        // 自分のライフを半分に
+        const currentLife = currentPlayer === 1 ? p1Life : p2Life;
+        const setLife = currentPlayer === 1 ? setP1Life : setP2Life;
+        const newLife = Math.floor(currentLife / 2);
+        setLife(newLife);
+        addLog(`死神天使ルシフェリエルの効果: 自分のライフが${newLife}になった`, 'damage');
+      },
+    },
+  ],
+
+  /**
+   * C0000211: フルーツ・マリオネット・アップル
+   * 【召喚時】デッキからコスト3以下のプラントモンスター1体を墓地に送る。
+   * 【自分エンドフェイズ時】レスト状態のSPトークンを１つアクティブにする（ターンに1度のみ）。
+   */
+  C0000211: [
+    {
+      type: TRIGGER_TYPES.ON_SUMMON,
+      activationType: ACTIVATION_TYPES.AUTOMATIC,
+      description: '召喚時: コスト3以下のプラントを墓地に',
+      effect: (context) => {
+        const { currentPlayer, p1Deck, p2Deck, setP1Deck, setP2Deck,
+                setP1Graveyard, setP2Graveyard, addLog } = context;
+
+        const deck = currentPlayer === 1 ? p1Deck : p2Deck;
+        const setDeck = currentPlayer === 1 ? setP1Deck : setP2Deck;
+        const setGraveyard = currentPlayer === 1 ? setP1Graveyard : setP2Graveyard;
+
+        // デッキからコスト3以下のプラントを探す
+        const plantCard = deck.find((card) =>
+          card.type === 'monster' &&
+          card.category &&
+          card.category.includes('【プラント】') &&
+          card.cost <= 3
+        );
+
+        if (!plantCard) {
+          addLog('フルーツ・マリオネット・アップルの効果: 対象カードが見つかりませんでした', 'info');
+          return;
+        }
+
+        // デッキから墓地に送る
+        setDeck((prev) => prev.filter((c) => c.uniqueId !== plantCard.uniqueId));
+        setGraveyard((prev) => [...prev, plantCard]);
+        addLog(`${plantCard.name}を墓地に送った`, 'info');
+      },
+    },
+    {
+      type: TRIGGER_TYPES.ON_END_PHASE_SELF,
+      activationType: ACTIVATION_TYPES.AUTOMATIC,
+      description: 'エンドフェイズ: レストSP1個をアクティブに',
+      effect: (context) => {
+        const { currentPlayer, p1RestedSP, p2RestedSP, setP1RestedSP, setP2RestedSP,
+                setP1ActiveSP, setP2ActiveSP, addLog } = context;
+
+        const restedSP = currentPlayer === 1 ? p1RestedSP : p2RestedSP;
+
+        if (restedSP > 0) {
+          const setRestedSP = currentPlayer === 1 ? setP1RestedSP : setP2RestedSP;
+          const setActiveSP = currentPlayer === 1 ? setP1ActiveSP : setP2ActiveSP;
+          setRestedSP((prev) => prev - 1);
+          setActiveSP((prev) => prev + 1);
+          addLog('フルーツ・マリオネット・アップルの効果: レストSP1個をアクティブにした', 'info');
+        }
+      },
+    },
+  ],
+
+  /**
+   * C0000212: フルーツ・マリオネット・オレンジ
+   * 【召喚時】デッキから《フルーツ・マリオネット》モンスター1体を手札に加える。
+   */
+  C0000212: [
+    {
+      type: TRIGGER_TYPES.ON_SUMMON,
+      activationType: ACTIVATION_TYPES.AUTOMATIC,
+      description: '召喚時: 《フルーツ・マリオネット》をサーチ',
+      effect: (context) => {
+        const found = searchCard(context, (card) => {
+          return card.type === 'monster' &&
+                 card.name &&
+                 card.name.includes('フルーツ・マリオネット');
+        });
+
+        if (!found) {
+          context.addLog('フルーツ・マリオネット・オレンジの効果: 対象カードが見つかりませんでした', 'info');
+        }
+      },
+    },
+  ],
+
+  /**
+   * C0000213: フルーツ・マリオネット・バナナ
+   * 【自壊時】自分モンスター全てのHPを600回復。
+   */
+  C0000213: [
+    {
+      type: TRIGGER_TYPES.ON_DESTROY_SELF,
+      activationType: ACTIVATION_TYPES.AUTOMATIC,
+      description: '破壊時: 自分モンスター全てのHP+600',
+      effect: (context) => {
+        const { currentPlayer, p1Field, p2Field, setP1Field, setP2Field, addLog } = context;
+        const field = currentPlayer === 1 ? p1Field : p2Field;
+        const setField = currentPlayer === 1 ? setP1Field : setP2Field;
+
+        let healed = 0;
+        setField((prev) => {
+          return prev.map((monster) => {
+            if (monster) {
+              healed++;
+              const newHp = Math.min(monster.currentHp + 600, monster.maxHp);
+              return { ...monster, currentHp: newHp };
+            }
+            return monster;
+          });
+        });
+
+        if (healed > 0) {
+          addLog(`フルーツ・マリオネット・バナナの効果: ${healed}体のHPを600回復`, 'info');
+        }
+      },
+    },
+  ],
+
+  /**
+   * C0000214: フルーツ・マリオネット・グレープ
+   * 【召喚時】自分の墓地の［プラント］モンスター1体を場に戻す（攻撃力は半分）。
+   */
+  C0000214: [
+    {
+      type: TRIGGER_TYPES.ON_SUMMON,
+      activationType: ACTIVATION_TYPES.AUTOMATIC,
+      description: '召喚時: 墓地の［プラント］を攻撃力半減で復活',
+      effect: (context) => {
+        const success = reviveFromGraveyard(context, (card) => {
+          return card.type === 'monster' &&
+                 card.category &&
+                 card.category.includes('【プラント】');
+        }, true);
+
+        if (!success) {
+          context.addLog('フルーツ・マリオネット・グレープの効果: 墓地に［プラント］モンスターがいません', 'info');
+        }
+      },
+    },
+  ],
+
+  /**
+   * C0000215: フルーツ・マリオネット・メロン王
+   * 【常時】場にいる［プラント］モンスター1体につき攻撃力400アップ。
+   */
+  C0000215: [
+    {
+      type: TRIGGER_TYPES.CONTINUOUS,
+      activationType: ACTIVATION_TYPES.AUTOMATIC,
+      description: '常時: ［プラント］1体につき攻撃力+400',
+      effect: (context) => {
+        const { currentPlayer, p1Field, p2Field, monsterIndex } = context;
+        const field = currentPlayer === 1 ? p1Field : p2Field;
+
+        // 場の［プラント］をカウント（自分自身を除く）
+        const plantCount = field.filter((monster, idx) =>
+          monster &&
+          idx !== monsterIndex &&
+          monster.category &&
+          monster.category.includes('【プラント】')
+        ).length;
+
+        if (plantCount > 0) {
+          const attackBonus = plantCount * 400;
+          modifyAttack(context, attackBonus, monsterIndex, false, true);
+        }
+      },
+    },
+  ],
+
+  /**
+   * C0000218: フルーツ・マリオネット劇場
+   * 【常時】光属性［プラント］モンスターの攻撃力を400アップ。
+   * 【自分エンドフェイズ時】場に光属性モンスターが3体以上いる場合、相手モンスター1体の攻撃力を500下げ、自分のライフを500回復。
+   */
+  C0000218: [
+    {
+      type: TRIGGER_TYPES.CONTINUOUS,
+      activationType: ACTIVATION_TYPES.AUTOMATIC,
+      description: '常時: 光属性［プラント］の攻撃力+400',
+      effect: (context) => {
+        const { addLog } = context;
+        addLog('フルーツ・マリオネット劇場の常時効果: 攻撃力+400（未実装）', 'info');
+        // TODO: フィールドカードの常時効果システムが必要
+      },
+    },
+    {
+      type: TRIGGER_TYPES.ON_END_PHASE_SELF,
+      activationType: ACTIVATION_TYPES.OPTIONAL,
+      description: 'エンドフェイズ: 光属性3体以上で相手攻撃力-500と500回復',
+      effect: (context) => {
+        const { currentPlayer, p1Field, p2Field, addLog } = context;
+        const field = currentPlayer === 1 ? p1Field : p2Field;
+
+        const lightCount = field.filter((monster) =>
+          monster && monster.attribute === '光'
+        ).length;
+
+        if (lightCount >= 3) {
+          // 相手モンスター1体の攻撃力を500ダウン
+          const targetIndex = p2Field.findIndex((m) => m !== null);
+          if (targetIndex !== -1) {
+            modifyAttack(context, -500, targetIndex, true, false);
+          }
+
+          // 自分のライフを500回復
+          healLife(context, 500, true);
+          addLog('フルーツ・マリオネット劇場の効果発動', 'info');
+        }
+      },
+    },
+  ],
+
+  /**
+   * C0000230: 永遠の灯の祈り
+   * 初期効果: 【発動時】場にいる光属性モンスターに【魔障壁（相手の魔法の効果を受けない）】を付与。
+   */
+  C0000230: [
+    {
+      type: TRIGGER_TYPES.ON_SUMMON,
+      activationType: ACTIVATION_TYPES.AUTOMATIC,
+      description: '発動時: 光属性に魔障壁を付与',
+      effect: (context) => {
+        const { addLog } = context;
+        addLog('永遠の灯の祈りの効果: 光属性に魔障壁付与（未実装）', 'info');
+        // TODO: 魔障壁システムの実装が必要
+      },
+    },
+  ],
+
+  /**
+   * C0000234: 撮影会のリリカ
+   * 【常時】相手の魔法カードの発動をターンに1度無効化。
+   */
+  C0000234: [
+    {
+      type: TRIGGER_TYPES.CONTINUOUS,
+      activationType: ACTIVATION_TYPES.AUTOMATIC,
+      description: '常時: 相手の魔法を1度無効化',
+      effect: (context) => {
+        const { addLog } = context;
+        addLog('撮影会のリリカの常時効果: 魔法無効化（未実装）', 'info');
+        // TODO: 魔法無効化システムの実装が必要
+      },
+    },
+  ],
+
+  /**
+   * C0000235: プリンセス狂いのリリカ
+   * 【召喚時】デッキから《プリティ☆プリンセス》魔法カード1枚を発動する（コストなし）。
+   */
+  C0000235: [
+    {
+      type: TRIGGER_TYPES.ON_SUMMON,
+      activationType: ACTIVATION_TYPES.AUTOMATIC,
+      description: '召喚時: 《プリティ☆プリンセス》をコスト不要で発動',
+      effect: (context) => {
+        const { addLog } = context;
+        addLog('プリンセス狂いのリリカの効果: 《プリティ☆プリンセス》発動（未実装）', 'info');
+        // TODO: カード発動システムの実装が必要
+      },
+    },
+  ],
+
+  /**
+   * C0000241: ご主人様
+   * 【召喚時】SP2を消費してデッキまたは墓地から《リリカ》と名の付くモンスター1体を場に召喚する（攻撃力50％、HP50％）。
+   */
+  C0000241: [
+    {
+      type: TRIGGER_TYPES.ON_SUMMON,
+      activationType: ACTIVATION_TYPES.OPTIONAL,
+      description: '召喚時: SP2消費で《リリカ》を特殊召喚',
+      effect: (context) => {
+        const { currentPlayer, p1ActiveSP, p2ActiveSP, addLog } = context;
+        const activeSP = currentPlayer === 1 ? p1ActiveSP : p2ActiveSP;
+
+        if (activeSP < 2) {
+          addLog('ご主人様の効果: SPが不足しています', 'info');
+          return;
+        }
+
+        addLog('ご主人様の効果: 《リリカ》特殊召喚（未実装）', 'info');
+        // TODO: 特殊召喚システムの実装が必要
+      },
+    },
+  ],
+
+  /**
+   * C0000248: 輝鎖の聖姫ルミリア
+   * 【召喚時】場にいる光属性モンスター1体につき相手に500ダメージを与え、ターン終了時まで相手モンスター全体の攻撃力を半分にする。
+   * 【常時】場に『鎖縛の幻姫リアノン』または『鎖縛の禁忌姫リアノン・エターナル』がいる場合、このカードの攻撃力を1000アップする。
+   */
+  C0000248: [
+    {
+      type: TRIGGER_TYPES.ON_SUMMON,
+      activationType: ACTIVATION_TYPES.AUTOMATIC,
+      description: '召喚時: 光属性×500ダメージ、相手全体攻撃力半分',
+      effect: (context) => {
+        const { currentPlayer, p1Field, p2Field, setP2Field, addLog } = context;
+        const field = currentPlayer === 1 ? p1Field : p2Field;
+
+        // 場の光属性モンスターをカウント
+        const lightCount = field.filter((monster) =>
+          monster && monster.attribute === '光'
+        ).length;
+
+        if (lightCount > 0) {
+          const damage = lightCount * 500;
+          conditionalDamage(context, damage, 'opponent');
+          addLog(`輝鎖の聖姫ルミリアの効果: 相手に${damage}ダメージ`, 'damage');
+
+          // 相手モンスター全体の攻撃力を半分に
+          setP2Field((prev) => {
+            return prev.map((monster) => {
+              if (monster) {
+                return {
+                  ...monster,
+                  currentAttack: Math.floor(monster.attack / 2),
+                  attackModified: true,
+                };
+              }
+              return monster;
+            });
+          });
+          addLog('相手モンスター全体の攻撃力を半分にした', 'info');
+        }
+      },
+    },
+    {
+      type: TRIGGER_TYPES.CONTINUOUS,
+      activationType: ACTIVATION_TYPES.AUTOMATIC,
+      description: '常時: リアノンいれば攻撃力+1000',
+      effect: (context) => {
+        const { currentPlayer, p1Field, p2Field, monsterIndex } = context;
+        const field = currentPlayer === 1 ? p1Field : p2Field;
+
+        const hasRianon = field.some((monster, idx) =>
+          monster &&
+          idx !== monsterIndex &&
+          monster.name &&
+          (monster.name.includes('鎖縛の幻姫リアノン') ||
+           monster.name.includes('鎖縛の禁忌姫リアノン・エターナル'))
+        );
+
+        if (hasRianon) {
+          modifyAttack(context, 1000, monsterIndex, false, true);
+        }
+      },
+    },
+  ],
+
+  /**
+   * C0000314: 聖光フェニックス
+   * 【自壊時】次のターンに攻撃力1500で場に戻る（バトル中1度だけ）。
+   */
+  C0000314: [
+    {
+      type: TRIGGER_TYPES.ON_DESTROY_SELF,
+      activationType: ACTIVATION_TYPES.AUTOMATIC,
+      description: '破壊時: 次ターンに攻撃力1500で復活',
+      effect: (context) => {
+        const { addLog } = context;
+        addLog('聖光フェニックスの効果: 次ターンに復活（未実装）', 'info');
+        // TODO: 遅延復活システムの実装が必要
+      },
+    },
+  ],
+
+  /**
+   * C0000319: 嵐光の騎士
+   * 【自分光属性モンスター攻撃時】相手モンスターに300ダメージを与える。
+   */
+  C0000319: [
+    {
+      type: TRIGGER_TYPES.ON_ATTRIBUTE_SUMMON_SELF,
+      activationType: ACTIVATION_TYPES.AUTOMATIC,
+      description: '光属性攻撃時: 相手モンスターに300ダメージ',
+      effect: (context) => {
+        const { card, addLog } = context;
+
+        if (card && card.attribute === '光') {
+          addLog('嵐光の騎士の効果: 相手モンスターに300ダメージ（未実装）', 'info');
+          // TODO: 攻撃時トリガーが必要
+        }
+      },
+    },
+  ],
+
+  /**
+   * C0000326: 雷嵐の聖域
+   * 【常時】場にいる光属性モンスターの攻撃力を500アップ。
+   * 【自分エンドフェイズ時】相手モンスターがいる場合、ランダムに1体を「雷撃」状態にする（次のターン中攻撃力-500、技不能）。
+   */
+  C0000326: [
+    {
+      type: TRIGGER_TYPES.CONTINUOUS,
+      activationType: ACTIVATION_TYPES.AUTOMATIC,
+      description: '常時: 光属性の攻撃力+500',
+      effect: (context) => {
+        const { addLog } = context;
+        addLog('雷嵐の聖域の常時効果: 攻撃力+500（未実装）', 'info');
+        // TODO: フィールドカードの常時効果システムが必要
+      },
+    },
+    {
+      type: TRIGGER_TYPES.ON_END_PHASE_SELF,
+      activationType: ACTIVATION_TYPES.AUTOMATIC,
+      description: 'エンドフェイズ: 相手1体を「雷撃」状態に',
+      effect: (context) => {
+        const { p2Field, addLog } = context;
+
+        const opponentMonsters = p2Field.filter((m) => m !== null);
+        if (opponentMonsters.length > 0) {
+          addLog('雷嵐の聖域の効果: 相手を「雷撃」状態に（未実装）', 'info');
+          // TODO: 状態異常システムの実装が必要
+        }
+      },
+    },
+  ],
+
+  /**
+   * C0000343: ヴォランティス・レイルード
+   * 【召喚時】相手の攻撃力2000以上のモンスター1体を破壊する。
+   */
+  C0000343: [
+    {
+      type: TRIGGER_TYPES.ON_SUMMON,
+      activationType: ACTIVATION_TYPES.OPTIONAL,
+      description: '召喚時: 相手の攻撃力2000以上を破壊',
+      effect: (context) => {
+        const { p2Field, setP2Field, addLog } = context;
+
+        // 攻撃力2000以上のモンスターを探す
+        const targetIndex = p2Field.findIndex((monster) =>
+          monster && monster.attack >= 2000
+        );
+
+        if (targetIndex === -1) {
+          addLog('ヴォランティス・レイルードの効果: 対象モンスターがいません', 'info');
+          return;
+        }
+
+        const targetMonster = p2Field[targetIndex];
+        destroyMonster(context, targetIndex, true);
+        addLog(`ヴォランティス・レイルードの効果: ${targetMonster.name}を破壊`, 'info');
+      },
+    },
+  ],
+
+  /**
+   * C0000345: ヴォランティス・レイフィス
+   * 【召喚時】デッキから《ヴォランティス》モンスター1体を手札に加える。
+   */
+  C0000345: [
+    {
+      type: TRIGGER_TYPES.ON_SUMMON,
+      activationType: ACTIVATION_TYPES.AUTOMATIC,
+      description: '召喚時: 《ヴォランティス》をサーチ',
+      effect: (context) => {
+        const found = searchCard(context, (card) => {
+          return card.type === 'monster' &&
+                 card.name &&
+                 card.name.includes('ヴォランティス');
+        });
+
+        if (!found) {
+          context.addLog('ヴォランティス・レイフィスの効果: 対象カードが見つかりませんでした', 'info');
+        }
+      },
+    },
+  ],
+
+  /**
+   * C0000346: ヴォランティス・フレアード
+   * 【召喚時】自分の墓地の《ヴォランティス》モンスター1体を場に戻す（攻撃力半分）。
+   */
+  C0000346: [
+    {
+      type: TRIGGER_TYPES.ON_SUMMON,
+      activationType: ACTIVATION_TYPES.AUTOMATIC,
+      description: '召喚時: 墓地の《ヴォランティス》を攻撃力半減で復活',
+      effect: (context) => {
+        const success = reviveFromGraveyard(context, (card) => {
+          return card.type === 'monster' &&
+                 card.name &&
+                 card.name.includes('ヴォランティス');
+        }, true);
+
+        if (!success) {
+          context.addLog('ヴォランティス・フレアードの効果: 墓地に《ヴォランティス》がいません', 'info');
+        }
+      },
+    },
+  ],
+
+  /**
+   * C0000347: ヴォランティス・ネブロス
+   * 【召喚時】相手プレイヤーに800ダメージを与える。
+   */
+  C0000347: [
+    {
+      type: TRIGGER_TYPES.ON_SUMMON,
+      activationType: ACTIVATION_TYPES.AUTOMATIC,
+      description: '召喚時: 相手に800ダメージ',
+      effect: (context) => {
+        context.addLog('ヴォランティス・ネブロスの効果: 相手に800ダメージ', 'damage');
+        conditionalDamage(context, 800, 'opponent');
+      },
+    },
+  ],
+
+  /**
+   * C0000348: ヴォランティス・ファルクェス
+   * 【自分《ヴォランティス》モンスターの攻撃時】相手プレイヤーに300ダメージ。
+   */
+  C0000348: [
+    {
+      type: TRIGGER_TYPES.ON_ATTACK,
+      activationType: ACTIVATION_TYPES.AUTOMATIC,
+      description: '《ヴォランティス》攻撃時: 相手に300ダメージ',
+      effect: (context) => {
+        const { card, addLog } = context;
+
+        if (card && card.name && card.name.includes('ヴォランティス')) {
+          addLog('ヴォランティス・ファルクェスの効果: 相手に300ダメージ', 'damage');
+          conditionalDamage(context, 300, 'opponent');
+        }
+      },
+    },
+  ],
+
+  /**
+   * C0000350: ヴォランティス・レディエント
+   * 【召喚時】自分のライフを1000回復する。
+   */
+  C0000350: [
+    {
+      type: TRIGGER_TYPES.ON_SUMMON,
+      activationType: ACTIVATION_TYPES.AUTOMATIC,
+      description: '召喚時: 自分のライフ1000回復',
+      effect: (context) => {
+        healLife(context, 1000, true);
+      },
+    },
+  ],
+
+  /**
+   * C0000351: 天翔峰アヴィクルス
+   * 【常時】《ヴォランティス》モンスターの攻撃力を700アップ。
+   * 【相手モンスター召喚時】対象の攻撃力をターン終了時まで500下げる。
+   * 【エンドフェイズ時】場に《ヴォランティス》モンスターがいる場合、自分のライフを500回復。
+   */
+  C0000351: [
+    {
+      type: TRIGGER_TYPES.CONTINUOUS,
+      activationType: ACTIVATION_TYPES.AUTOMATIC,
+      description: '常時: 《ヴォランティス》の攻撃力+700',
+      effect: (context) => {
+        const { addLog } = context;
+        addLog('天翔峰アヴィクルスの常時効果: 攻撃力+700（未実装）', 'info');
+        // TODO: フィールドカードの常時効果システムが必要
+      },
+    },
+    {
+      type: TRIGGER_TYPES.ON_OPPONENT_SUMMON,
+      activationType: ACTIVATION_TYPES.AUTOMATIC,
+      description: '相手召喚時: 攻撃力-500',
+      effect: (context) => {
+        const { slotIndex, addLog } = context;
+        modifyAttack(context, -500, slotIndex, true, false);
+        addLog('天翔峰アヴィクルスの効果: 召喚されたモンスターの攻撃力-500', 'info');
+      },
+    },
+    {
+      type: TRIGGER_TYPES.ON_END_PHASE_SELF,
+      activationType: ACTIVATION_TYPES.AUTOMATIC,
+      description: 'エンドフェイズ: 《ヴォランティス》いれば500回復',
+      effect: (context) => {
+        const { currentPlayer, p1Field, p2Field } = context;
+        const field = currentPlayer === 1 ? p1Field : p2Field;
+
+        const hasVolantis = field.some((monster) =>
+          monster && monster.name && monster.name.includes('ヴォランティス')
+        );
+
+        if (hasVolantis) {
+          healLife(context, 500, true);
+        }
+      },
+    },
+  ],
+
+  /**
+   * C0000352: アヴィクルスの試練
+   * 初期効果: 【常時】《ヴォランティス》モンスターの攻撃力を400アップ。
+   */
+  C0000352: [
+    {
+      type: TRIGGER_TYPES.CONTINUOUS,
+      activationType: ACTIVATION_TYPES.AUTOMATIC,
+      description: '常時: 《ヴォランティス》の攻撃力+400',
+      effect: (context) => {
+        const { addLog } = context;
+        addLog('アヴィクルスの試練の常時効果: 攻撃力+400（未実装）', 'info');
+        // TODO: フィールドカードの常時効果システムが必要
+      },
+    },
+  ],
+
+  /**
+   * C0000374: 虹羽密林の輝甲虫・ルクセリオ
+   * 【自分エンドフェイズ時】自分のライフを400回復し、デッキの上から1枚を墓地に送る。
+   */
+  C0000374: [
+    {
+      type: TRIGGER_TYPES.ON_END_PHASE_SELF,
+      activationType: ACTIVATION_TYPES.AUTOMATIC,
+      description: 'エンドフェイズ: 400回復、1枚ミル',
+      effect: (context) => {
+        healLife(context, 400, true);
+        millDeck(context, 1);
+      },
+    },
+  ],
+
+  /**
+   * C0000378: 虹羽密林の金胞草・ファルネシア
+   * 【常時】自分の《虹羽密林》モンスターが召喚されるたび、そのモンスターの攻撃力をターン終了時まで400アップ。
+   */
+  C0000378: [
+    {
+      type: TRIGGER_TYPES.ON_ATTRIBUTE_SUMMON_SELF,
+      activationType: ACTIVATION_TYPES.AUTOMATIC,
+      description: '《虹羽密林》召喚時: 攻撃力+400',
+      effect: (context) => {
+        const { card, slotIndex, addLog } = context;
+
+        if (card && card.name && card.name.includes('虹羽密林')) {
+          modifyAttack(context, 400, slotIndex, false, false);
+          addLog(`虹羽密林の金胞草・ファルネシアの効果: ${card.name}の攻撃力+400`, 'info');
+        }
+      },
+    },
+  ],
+
+  /**
+   * C0000397: 呪術狩りの聖焔騎士レオノーラ
+   * 【常時】相手の闇属性モンスターが受けるダメージを400アップ。
+   */
+  C0000397: [
+    {
+      type: TRIGGER_TYPES.CONTINUOUS,
+      activationType: ACTIVATION_TYPES.AUTOMATIC,
+      description: '常時: 相手の闇属性が受けるダメージ+400',
+      effect: (context) => {
+        const { addLog } = context;
+        addLog('呪術狩りの聖焔騎士レオノーラの常時効果: ダメージ増加（未実装）', 'info');
+        // TODO: ダメージ増加システムの実装が必要
+      },
+    },
+  ],
+
+  /**
+   * C0000400: 呪術狩りの武闘家ジーナ
+   * 【召喚時】場にいる闇属性モンスター1体に800ダメージを与える。
+   */
+  C0000400: [
+    {
+      type: TRIGGER_TYPES.ON_SUMMON,
+      activationType: ACTIVATION_TYPES.OPTIONAL,
+      description: '召喚時: 闇属性モンスター1体に800ダメージ',
+      effect: (context) => {
+        const { p1Field, p2Field, addLog } = context;
+
+        // 両フィールドから闇属性モンスターを探す
+        const allDarkMonsters = [];
+        p1Field.forEach((m, idx) => {
+          if (m && m.attribute === '闇') allDarkMonsters.push({ monster: m, index: idx, isOpponent: false });
+        });
+        p2Field.forEach((m, idx) => {
+          if (m && m.attribute === '闇') allDarkMonsters.push({ monster: m, index: idx, isOpponent: true });
+        });
+
+        if (allDarkMonsters.length === 0) {
+          addLog('呪術狩りの武闘家ジーナの効果: 闇属性モンスターがいません', 'info');
+          return;
+        }
+
+        // 最初の闇属性モンスターにダメージ
+        const target = allDarkMonsters[0];
+        conditionalDamage(context, 800, target.isOpponent ? 'opponent_monster' : 'self_monster', target.index);
+        addLog(`呪術狩りの武闘家ジーナの効果: ${target.monster.name}に800ダメージ`, 'damage');
+      },
+    },
+  ],
+
+  /**
+   * C0000401: 呪術狩りの重戦士カーツ
+   * 【召喚時】自分のライフを800回復する。
+   */
+  C0000401: [
+    {
+      type: TRIGGER_TYPES.ON_SUMMON,
+      activationType: ACTIVATION_TYPES.AUTOMATIC,
+      description: '召喚時: 自分のライフ800回復',
+      effect: (context) => {
+        healLife(context, 800, true);
+      },
+    },
+  ],
+
+  /**
+   * C0000402: 呪術狩りの聖僧ゼノール
+   * 【召喚時】デッキから《呪術狩り》モンスター1体を手札に加える。
+   */
+  C0000402: [
+    {
+      type: TRIGGER_TYPES.ON_SUMMON,
+      activationType: ACTIVATION_TYPES.AUTOMATIC,
+      description: '召喚時: 《呪術狩り》をサーチ',
+      effect: (context) => {
+        const found = searchCard(context, (card) => {
+          return card.type === 'monster' &&
+                 card.name &&
+                 card.name.includes('呪術狩り');
+        });
+
+        if (!found) {
+          context.addLog('呪術狩りの聖僧ゼノールの効果: 対象カードが見つかりませんでした', 'info');
+        }
+      },
+    },
+  ],
+
+  /**
+   * C0000413: 聖金の護衛犬グラドルフ
+   * 【召喚時】相手の場にいるモンスター1体の攻撃力をターン終了時まで500下げる。
+   */
+  C0000413: [
+    {
+      type: TRIGGER_TYPES.ON_SUMMON,
+      activationType: ACTIVATION_TYPES.OPTIONAL,
+      description: '召喚時: 相手モンスター1体の攻撃力-500',
+      effect: (context) => {
+        const { p2Field, addLog } = context;
+
+        const opponentMonsters = p2Field.filter((m) => m !== null);
+        if (opponentMonsters.length === 0) {
+          addLog('聖金の護衛犬グラドルフの効果: 相手フィールドにモンスターがいません', 'info');
+          return;
+        }
+
+        const targetIndex = p2Field.findIndex((m) => m !== null);
+        if (targetIndex !== -1) {
+          modifyAttack(context, -500, targetIndex, true, false);
+          addLog('聖金の護衛犬グラドルフの効果: 相手モンスターの攻撃力-500', 'info');
+        }
+      },
+    },
+  ],
+
+  /**
+   * C0000414: 聖金の魔獣バスターグ
+   * 【召喚時】相手の場にいるモンスター1体を破壊し、自分のライフを500回復する。
+   */
+  C0000414: [
+    {
+      type: TRIGGER_TYPES.ON_SUMMON,
+      activationType: ACTIVATION_TYPES.OPTIONAL,
+      description: '召喚時: 相手モンスター1体破壊、500回復',
+      effect: (context) => {
+        const { p2Field, addLog } = context;
+
+        const opponentMonsters = p2Field.filter((m) => m !== null);
+        if (opponentMonsters.length === 0) {
+          addLog('聖金の魔獣バスターグの効果: 相手フィールドにモンスターがいません', 'info');
+          return;
+        }
+
+        const targetIndex = p2Field.findIndex((m) => m !== null);
+        if (targetIndex !== -1) {
+          const targetMonster = p2Field[targetIndex];
+          destroyMonster(context, targetIndex, true);
+          healLife(context, 500, true);
+          addLog(`聖金の魔獣バスターグの効果: ${targetMonster.name}を破壊、500回復`, 'info');
+        }
+      },
+    },
+  ],
+
+  /**
+   * C0000415: 聖金の聖者オーラウィン
+   * 【召喚時】自分の墓地のコスト3以下のモンスター1体を手札に戻す。
+   */
+  C0000415: [
+    {
+      type: TRIGGER_TYPES.ON_SUMMON,
+      activationType: ACTIVATION_TYPES.AUTOMATIC,
+      description: '召喚時: 墓地のコスト3以下を手札に',
+      effect: (context) => {
+        const { currentPlayer, p1Graveyard, p2Graveyard, setP1Graveyard, setP2Graveyard,
+                setP1Hand, setP2Hand, addLog } = context;
+
+        const graveyard = currentPlayer === 1 ? p1Graveyard : p2Graveyard;
+        const setGraveyard = currentPlayer === 1 ? setP1Graveyard : setP2Graveyard;
+        const setHand = currentPlayer === 1 ? setP1Hand : setP2Hand;
+
+        // 墓地からコスト3以下のモンスターを探す
+        const targetCard = graveyard.find((card) =>
+          card.type === 'monster' && card.cost <= 3
+        );
+
+        if (!targetCard) {
+          addLog('聖金の聖者オーラウィンの効果: 墓地に対象カードがありません', 'info');
+          return;
+        }
+
+        // 墓地から手札に戻す
+        setGraveyard((prev) => prev.filter((c) => c.uniqueId !== targetCard.uniqueId));
+        setHand((prev) => [...prev, targetCard]);
+        addLog(`${targetCard.name}を手札に戻した`, 'info');
+      },
+    },
+  ],
+
+  /**
+   * C0000416: 聖金の救済者ヴェルナリクス
+   * 【召喚時】自分の場のモンスター全てのHPを500回復。
+   */
+  C0000416: [
+    {
+      type: TRIGGER_TYPES.ON_SUMMON,
+      activationType: ACTIVATION_TYPES.AUTOMATIC,
+      description: '召喚時: 自分モンスター全てのHP+500',
+      effect: (context) => {
+        const { currentPlayer, p1Field, p2Field, setP1Field, setP2Field, addLog } = context;
+        const field = currentPlayer === 1 ? p1Field : p2Field;
+        const setField = currentPlayer === 1 ? setP1Field : setP2Field;
+
+        let healed = 0;
+        setField((prev) => {
+          return prev.map((monster) => {
+            if (monster) {
+              healed++;
+              const newHp = Math.min(monster.currentHp + 500, monster.maxHp);
+              return { ...monster, currentHp: newHp };
+            }
+            return monster;
+          });
+        });
+
+        if (healed > 0) {
+          addLog(`聖金の救済者ヴェルナリクスの効果: ${healed}体のHPを500回復`, 'info');
+        }
+      },
+    },
+  ],
+
+  /**
+   * C0000417: 聖金の守護聖アルマティア
+   * 【召喚時】相手の場にいるコスト5以上のモンスター1体を破壊する。
+   */
+  C0000417: [
+    {
+      type: TRIGGER_TYPES.ON_SUMMON,
+      activationType: ACTIVATION_TYPES.OPTIONAL,
+      description: '召喚時: 相手のコスト5以上を破壊',
+      effect: (context) => {
+        const { p2Field, addLog } = context;
+
+        // コスト5以上のモンスターを探す
+        const targetIndex = p2Field.findIndex((monster) =>
+          monster && monster.cost >= 5
+        );
+
+        if (targetIndex === -1) {
+          addLog('聖金の守護聖アルマティアの効果: 対象モンスターがいません', 'info');
+          return;
+        }
+
+        const targetMonster = p2Field[targetIndex];
+        destroyMonster(context, targetIndex, true);
+        addLog(`聖金の守護聖アルマティアの効果: ${targetMonster.name}を破壊`, 'info');
+      },
+    },
+  ],
+
+  /**
+   * C0000418: 光の翼竜ルミドラック
+   * 【召喚時】相手に600ダメージを与え、自分のライフを300回復する。
+   */
+  C0000418: [
+    {
+      type: TRIGGER_TYPES.ON_SUMMON,
+      activationType: ACTIVATION_TYPES.AUTOMATIC,
+      description: '召喚時: 相手に600ダメージ、自分300回復',
+      effect: (context) => {
+        conditionalDamage(context, 600, 'opponent');
+        healLife(context, 300, true);
+        context.addLog('光の翼竜ルミドラックの効果発動', 'info');
+      },
+    },
+  ],
+
+  /**
+   * C0000419: 聖雷の翼獣フラッグルス
+   * 【召喚時】相手の場にコスト4以上のモンスターがいる場合、1体を破壊する。
+   */
+  C0000419: [
+    {
+      type: TRIGGER_TYPES.ON_SUMMON,
+      activationType: ACTIVATION_TYPES.OPTIONAL,
+      description: '召喚時: 相手のコスト4以上を破壊',
+      effect: (context) => {
+        const { p2Field, addLog } = context;
+
+        // コスト4以上のモンスターを探す
+        const targetIndex = p2Field.findIndex((monster) =>
+          monster && monster.cost >= 4
+        );
+
+        if (targetIndex === -1) {
+          addLog('聖雷の翼獣フラッグルスの効果: 対象モンスターがいません', 'info');
+          return;
+        }
+
+        const targetMonster = p2Field[targetIndex];
+        destroyMonster(context, targetIndex, true);
+        addLog(`聖雷の翼獣フラッグルスの効果: ${targetMonster.name}を破壊`, 'info');
+      },
+    },
+  ],
+};
+
+/**
+ * 光属性カードがトリガー実装を持っているかチェック
+ * @param {string} cardId - カードID
+ * @returns {boolean} トリガー実装を持っている場合true
+ */
+export const hasLightCardTrigger = (cardId) => {
+  return cardId && lightCardTriggers[cardId] !== undefined;
+};
+
+/**
+ * 光属性カードのトリガーを取得
+ * @param {string} cardId - カードID
+ * @returns {Array|null} トリガー配列、または null
+ */
+export const getLightCardTriggers = (cardId) => {
+  if (!cardId || !lightCardTriggers[cardId]) {
+    return null;
+  }
+  return lightCardTriggers[cardId];
+};
+
+/**
+ * 実装済み光属性カード数を取得
+ * @returns {number} 実装済みカード数
+ */
+export const getLightCardCount = () => {
+  return Object.keys(lightCardTriggers).length;
+};
