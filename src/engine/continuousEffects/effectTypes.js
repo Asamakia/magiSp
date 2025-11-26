@@ -94,6 +94,12 @@ export const CONTINUOUS_EFFECT_TYPES = {
    */
   SP_RESTRICTION: 'sp_restriction',
 
+  /**
+   * SP上限変更
+   * 例: 「自分のSP上限が4になる」
+   */
+  SP_LIMIT_MODIFIER: 'sp_limit_modifier',
+
   // ========================================
   // 無効化 (Negation)
   // ========================================
@@ -176,6 +182,11 @@ export const EFFECT_TYPE_METADATA = {
     displayName: 'SP制限',
     category: 'restriction',
     description: 'SPの状態を制限する',
+  },
+  [CONTINUOUS_EFFECT_TYPES.SP_LIMIT_MODIFIER]: {
+    displayName: 'SP上限変更',
+    category: 'restriction',
+    description: 'SP上限を変更する',
   },
   [CONTINUOUS_EFFECT_TYPES.MAGIC_NEGATION]: {
     displayName: '魔法無効',

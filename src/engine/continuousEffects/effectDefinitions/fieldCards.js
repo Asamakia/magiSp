@@ -116,6 +116,18 @@ export const fieldCardEffects = {
   ],
 
   /**
+   * C0000199: 永遠の氷結宮殿
+   * 【常時】自分のSP上限が4になる。
+   */
+  C0000199: [
+    {
+      type: CONTINUOUS_EFFECT_TYPES.SP_LIMIT_MODIFIER,
+      value: 4,
+      target: TARGET_TYPES.SELF_CARD,
+    },
+  ],
+
+  /**
    * C0000338: アクアレギアの廃墟
    * 【常時】『アクアレギナ』または『ヴェルゼファール』モンスターのHPを600アップ。
    */

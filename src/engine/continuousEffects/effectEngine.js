@@ -388,6 +388,32 @@ class ContinuousEffectEngine {
     return null;
   }
 
+  /**
+   * SP上限を取得（変更効果適用後）
+   * @param {number} player - プレイヤー（1 or 2）
+   * @param {number} defaultLimit - デフォルトのSP上限（通常10）
+   * @param {Object} context - ゲームコンテキスト
+   * @returns {number} 実際のSP上限
+   */
+  getSPLimit(player, defaultLimit, context) {
+    let limit = defaultLimit;
+
+    for (const [, { owner, effects }] of this.activeEffects) {
+      if (owner !== player) continue;
+
+      for (const effect of effects) {
+        if (effect.type !== CONTINUOUS_EFFECT_TYPES.SP_LIMIT_MODIFIER) continue;
+
+        // SP上限を効果の値に設定（最小値を採用）
+        if (effect.value < limit) {
+          limit = effect.value;
+        }
+      }
+    }
+
+    return limit;
+  }
+
   // ========================================
   // 無効化チェック
   // ========================================

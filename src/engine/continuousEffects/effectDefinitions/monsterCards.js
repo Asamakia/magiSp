@@ -176,10 +176,10 @@ export const monsterCardEffects = {
   ],
 
   /**
-   * C0000296: フルーツ・マリオネット・メロン王
+   * C0000215: フルーツ・マリオネット・メロン王
    * 【常時】場にいる［プラント］モンスター1体につき攻撃力400アップ。
    */
-  C0000296: [
+  C0000215: [
     {
       type: CONTINUOUS_EFFECT_TYPES.ATK_MODIFIER,
       valueCalculator: VALUE_CALCULATOR_TYPES.COUNT_MULTIPLY,
@@ -199,6 +199,30 @@ export const monsterCardEffects = {
       statType: 'atk',
       value: 400,
       condition: { nameIncludes: '虹羽密林' },
+    },
+  ],
+
+  /**
+   * C0000248: 輝鎖の聖姫ルミリア
+   * 【常時】場に『鎖縛の幻姫リアノン』または『鎖縛の禁忌姫リアノン・エターナル』がいる場合、このカードの攻撃力を1000アップする。
+   */
+  C0000248: [
+    {
+      type: CONTINUOUS_EFFECT_TYPES.ATK_MODIFIER,
+      valueCalculator: VALUE_CALCULATOR_TYPES.CONDITIONAL,
+      value: 1000,
+      ifCondition: { hasNameOnField: '鎖縛の幻姫リアノン' },
+      target: TARGET_TYPES.SELF_CARD,
+    },
+    {
+      type: CONTINUOUS_EFFECT_TYPES.ATK_MODIFIER,
+      valueCalculator: VALUE_CALCULATOR_TYPES.CONDITIONAL,
+      value: 1000,
+      ifCondition: { hasNameOnField: '鎖縛の禁忌姫リアノン・エターナル' },
+      target: TARGET_TYPES.SELF_CARD,
+      // Note: これらの効果は重複しない（どちらかがいれば+1000）
+      nonStackable: true,
+      stackGroup: 'lumilia_rianon_buff',
     },
   ],
 
