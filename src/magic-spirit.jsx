@@ -29,6 +29,19 @@ import FieldMonster from './components/FieldMonster';
 import SPTokens from './components/SPTokens';
 import GameLog from './components/GameLog';
 
+// ========================================
+// 効果テキストから基本技・上級技を除外するヘルパー関数
+// （情報パネルでの重複表示を防ぐため）
+// ========================================
+const getEffectWithoutSkills = (effectText) => {
+  if (!effectText) return effectText;
+  // 基本技と上級技の記述を削除（句点または文末まで）
+  return effectText
+    .replace(/基本技[：:][^。\n]+[。]?/g, '')
+    .replace(/上級技[：:][^。\n]+[。]?/g, '')
+    .trim();
+};
+
 // メインゲームコンポーネント
 // ========================================
 export default function MagicSpiritGame() {
@@ -1691,7 +1704,7 @@ export default function MagicSpiritGame() {
                   maxHeight: '80px',
                   overflowY: 'auto',
                 }}>
-                  {selectedHandCard.effect || 'なし'}
+                  {getEffectWithoutSkills(selectedHandCard.effect) || 'なし'}
                 </div>
                 {/* 技情報 */}
                 {selectedHandCard.type === 'monster' && (selectedHandCard.basicSkill || selectedHandCard.advancedSkill) && (
@@ -1774,7 +1787,7 @@ export default function MagicSpiritGame() {
                     maxHeight: '80px',
                     overflowY: 'auto',
                   }}>
-                    {monster.effect || 'なし'}
+                    {getEffectWithoutSkills(monster.effect) || 'なし'}
                   </div>
                   {/* 技情報 */}
                   {(monster.basicSkill || monster.advancedSkill) && (
@@ -1841,7 +1854,7 @@ export default function MagicSpiritGame() {
                   maxHeight: '80px',
                   overflowY: 'auto',
                 }}>
-                  {selectedFieldCardInfo.card.effect || 'なし'}
+                  {getEffectWithoutSkills(selectedFieldCardInfo.card.effect) || 'なし'}
                 </div>
                 <button
                   onClick={() => setSelectedFieldCardInfo(null)}
@@ -2292,7 +2305,7 @@ export default function MagicSpiritGame() {
                   maxHeight: '80px',
                   overflowY: 'auto',
                 }}>
-                  {selectedHandCard.effect || 'なし'}
+                  {getEffectWithoutSkills(selectedHandCard.effect) || 'なし'}
                 </div>
                 {/* 技情報 */}
                 {selectedHandCard.type === 'monster' && (selectedHandCard.basicSkill || selectedHandCard.advancedSkill) && (
@@ -2375,7 +2388,7 @@ export default function MagicSpiritGame() {
                     maxHeight: '80px',
                     overflowY: 'auto',
                   }}>
-                    {monster.effect || 'なし'}
+                    {getEffectWithoutSkills(monster.effect) || 'なし'}
                   </div>
                   {/* 技情報 */}
                   {(monster.basicSkill || monster.advancedSkill) && (
@@ -2442,7 +2455,7 @@ export default function MagicSpiritGame() {
                   maxHeight: '80px',
                   overflowY: 'auto',
                 }}>
-                  {selectedFieldCardInfo.card.effect || 'なし'}
+                  {getEffectWithoutSkills(selectedFieldCardInfo.card.effect) || 'なし'}
                 </div>
                 <button
                   onClick={() => setSelectedFieldCardInfo(null)}
