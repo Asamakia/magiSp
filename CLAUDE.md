@@ -12,7 +12,12 @@
 - **Styling**: Inline styles with CSS-in-JS approach
 
 ### Project Status
-Currently a **prototype version** with local 2-player gameplay. The recent commit (94a7a4d) introduced the Magic Spirit game implementation.
+Currently a **prototype version** with local 2-player gameplay.
+
+**Recent Major Update (2025-11-26)**:
+- Code refactoring completed (Phase 1-4)
+- 2237 lines → 1366 lines (39% reduction)
+- Modular architecture with separated concerns
 
 ---
 
@@ -20,38 +25,86 @@ Currently a **prototype version** with local 2-player gameplay. The recent commi
 
 ```
 /home/user/magiSp/
-├── public/              # Static assets
-│   ├── index.html       # HTML entry point
-│   ├── manifest.json    # PWA manifest
-│   └── *.png, *.ico     # Icons and images
+├── public/                     # Static assets
+│   ├── index.html              # HTML entry point
+│   ├── cardlist/
+│   │   └── cardlist.csv        # 433 cards data
+│   ├── manifest.json           # PWA manifest
+│   └── *.png, *.ico            # Icons and images
+│
 ├── src/
-│   ├── App.js           # Main app component (renders MagicSpiritGame)
-│   ├── App.css          # App styling
-│   ├── magic-spirit.jsx # Main game logic (1473 lines) ⭐
-│   ├── index.js         # React entry point
-│   ├── index.css        # Global styles
-│   ├── setupTests.js    # Test configuration
-│   ├── App.test.js      # App tests
-│   └── reportWebVitals.js # Performance monitoring
-├── package.json         # Dependencies and scripts
-└── README.md            # Standard CRA documentation
+│   ├── App.js                  # Main app component (renders MagicSpiritGame)
+│   ├── magic-spirit.jsx        # Main game logic (1366 lines) ⭐
+│   │
+│   ├── utils/                  # Utility functions
+│   │   ├── constants.js        # Game constants (32 lines)
+│   │   ├── helpers.js          # Helper functions (64 lines)
+│   │   └── cardManager.js      # Card data management (240 lines)
+│   │
+│   ├── components/             # UI Components
+│   │   ├── Card.jsx            # Card display (195 lines)
+│   │   ├── FieldMonster.jsx    # Field monster display (166 lines)
+│   │   ├── SPTokens.jsx        # SP token display (38 lines)
+│   │   └── GameLog.jsx         # Game log display (20 lines)
+│   │
+│   ├── styles/                 # Style definitions
+│   │   └── gameStyles.js       # Game styles (165 lines)
+│   │
+│   ├── engine/                 # Game logic engines
+│   │   └── effectEngine.js     # Effect execution engine (220 lines) ⭐
+│   │
+│   ├── ルール/                  # Documentation
+│   │   ├── magic-spirit-roadmap-updated.txt
+│   │   └── code-structure.md   # Detailed code structure guide
+│   │
+│   ├── index.js                # React entry point
+│   ├── App.css                 # App styling
+│   ├── index.css               # Global styles
+│   ├── setupTests.js           # Test configuration
+│   ├── App.test.js             # App tests
+│   └── reportWebVitals.js      # Performance monitoring
+│
+├── package.json                # Dependencies and scripts
+├── CLAUDE.md                   # This file - AI developer guide
+└── README.md                   # Standard CRA documentation
 ```
 
 ### Key Files
 
-**`src/magic-spirit.jsx`** (Main game file - 1473 lines)
-- All game logic, components, and state management
-- Self-contained React component with hooks
-- Includes card data, game rules, and UI rendering
+**`src/magic-spirit.jsx`** (Main game component - 1366 lines)
+- Game state management (React hooks)
+- Game flow control (phase progression, turn management)
+- Card summoning logic
+- Battle system
+- Skill execution
+- UI rendering
 
-**`src/App.js`** (Entry point)
-- Simple wrapper that renders `<MagicSpiritGame />`
-- No additional logic
+**`src/engine/effectEngine.js`** (Effect engine - 220 lines) ⭐ **Most Important**
+- Effect type definitions (13 types)
+- Effect text parser
+- Effect execution system
+- Foundation for expanding card effects
+
+**`src/utils/cardManager.js`** (Card data manager - 240 lines)
+- CSV parser for 433 cards
+- Skill information extraction
+- Async card loading from CSV
+- Fallback sample cards
+
+**`src/components/`** (UI components - 4 files, 419 lines total)
+- Separated UI components for better maintainability
+- Independent, reusable components
+
+**`src/utils/constants.js`** (Game constants - 32 lines)
+- All game constants in one place
+- Easy to adjust game balance
 
 **`package.json`**
 - React 19.2.0 (latest)
 - Testing libraries included
 - Standard CRA scripts
+
+**See also**: `src/ルール/code-structure.md` for detailed architecture documentation
 
 ---
 
@@ -118,18 +171,27 @@ The game uses React hooks with extensive state:
 
 ### Working with Game Logic
 
-**Location**: All game logic is in `src/magic-spirit.jsx`
+**Main Game Logic**: Located in `src/magic-spirit.jsx` (1366 lines)
+**Effect System**: Located in `src/engine/effectEngine.js` (220 lines)
+**Card Management**: Located in `src/utils/cardManager.js` (240 lines)
 
-**Key Functions to Understand**:
+**Key Functions in magic-spirit.jsx**:
 
-1. **`initGame()`** (line ~624): Initialize/reset game state
-2. **`processPhase(phaseIndex)`** (line ~705): Handle phase transitions
-3. **`summonCard(card, slotIndex)`** (line ~767): Place cards on field
-4. **`attack(attackerIndex, targetIndex)`** (line ~867): Combat resolution
-5. **`getCurrentPlayerData()`** (line ~662): Get active player state
-6. **`getOpponentData()`** (line ~687): Get opponent state
+1. **`initGame()`**: Initialize/reset game state
+2. **`processPhase(phaseIndex)`**: Handle phase transitions
+3. **`summonCard(card, slotIndex)`**: Place cards on field
+4. **`attack(attackerIndex, targetIndex)`**: Combat resolution
+5. **`executeSkill(monsterIndex, skillType)`**: Execute monster skills (uses effectEngine)
+6. **`getCurrentPlayerData()`**: Get active player state
+7. **`getOpponentData()`**: Get opponent state
 
-**Important Constants**:
+**Key Functions in effectEngine.js**:
+
+1. **`parseEffect(effectText)`**: Parse effect text into effect objects
+2. **`executeEffect(effect, context)`**: Execute single effect
+3. **`executeSkillEffects(skillText, context)`**: Execute all effects in skill text
+
+**Important Constants** (in `src/utils/constants.js`):
 ```javascript
 INITIAL_LIFE = 6000
 INITIAL_SP = 1
@@ -137,35 +199,120 @@ MAX_SP = 10
 INITIAL_HAND_SIZE = 5
 DECK_SIZE = 40
 COUNTER_ATTACK_RATE = 0.3
+PHASES = ['ターン開始', 'ドロー', 'メイン', 'バトル', 'エンド']
+ATTRIBUTE_COLORS = { '炎': {...}, '水': {...}, ... }
+TYPE_ICONS = { 'monster': '⚔️', 'magic': '✨', ... }
+```
+
+### Working with the Effect Engine ⭐
+
+The effect engine (`src/engine/effectEngine.js`) is the foundation for card effects. Understanding this is crucial for implementing new cards.
+
+**Effect Flow**:
+1. Card effect text → `parseEffect()` → Effect objects
+2. Effect objects → `executeEffect()` → Game state changes
+3. Full skill text → `executeSkillEffects()` → All effects executed
+
+**Currently Implemented Effects**:
+- ✅ DAMAGE: Direct damage to opponent
+- ✅ HEAL: Restore life to self
+- ⚠️ BUFF_ATK, BUFF_HP: Planned (returns false)
+- ⚠️ DEBUFF_ATK: Planned (returns false)
+- ⚠️ DOUBLE_ATTACK, DRAW: Planned (returns false)
+- ⚠️ SEARCH, REVIVE, DESTROY: Planned (returns false)
+
+**Adding a New Effect**:
+```javascript
+// Step 1: Add to EFFECT_TYPES
+export const EFFECT_TYPES = {
+  // ...existing types
+  YOUR_EFFECT: 'your_effect',
+};
+
+// Step 2: Add parsing pattern in parseEffect()
+const yourEffectMatch = effectText.match(/your_pattern/);
+if (yourEffectMatch) {
+  effects.push({
+    type: EFFECT_TYPES.YOUR_EFFECT,
+    value: /* extracted value */,
+    target: /* target */,
+  });
+}
+
+// Step 3: Add execution in executeEffect()
+case EFFECT_TYPES.YOUR_EFFECT:
+  const { currentPlayer, setP1Life, addLog } = context;
+  // Implement effect logic
+  addLog(`Effect message`, 'info');
+  return true;
+```
+
+**Effect Context Object**:
+```javascript
+const context = {
+  currentPlayer,      // 1 or 2
+  setP1Life,          // P1 life setter
+  setP2Life,          // P2 life setter
+  setP1Field,         // P1 field setter
+  setP2Field,         // P2 field setter
+  addLog,             // Log function (message, type)
+};
 ```
 
 ### Component Structure
 
-The file contains several React components:
+**Main Component**:
+- **`MagicSpiritGame`** (in `src/magic-spirit.jsx`): Root game component with all game state and logic
 
-1. **`MagicSpiritGame`** (main export): Root game component
-2. **`Card`** (line ~292): Renders individual cards
-3. **`FieldMonster`** (line ~415): Renders monsters on field
-4. **`SPTokens`** (line ~531): SP visualization
-5. **`GameLog`** (line ~565): Battle log display
+**UI Components** (in `src/components/`):
+1. **`Card.jsx`** (195 lines): Renders individual cards in hand/deck
+   - Props: card, onClick, selected, small, faceDown, inHand, disabled
+   - Displays cost, name, stats, skills, forbidden markers
+
+2. **`FieldMonster.jsx`** (166 lines): Renders monsters on field
+   - Props: monster, onClick, selected, canAttack, isTarget, isValidTarget
+   - Features: HP bar, attack indicators, charge counters, skill icons
+
+3. **`SPTokens.jsx`** (38 lines): SP token visualization
+   - Props: active, rested, max
+   - Displays ◆ (active), ◇ (rested), ○ (empty) tokens
+
+4. **`GameLog.jsx`** (20 lines): Battle log display
+   - Props: logs
+   - Color-coded messages (damage: red, heal: green, info: gray)
 
 ### Styling Approach
 
-- **All styles are inline** using JavaScript objects
-- `styles` object (line ~123) contains reusable style definitions
+- **All styles centralized** in `src/styles/gameStyles.js` (165 lines)
+- **Inline styling** using JavaScript objects
 - Uses gradients, animations, and CSS-in-JS patterns
 - Responsive design with flexbox/grid
 - Dark theme with neon accents
 
-**Color scheme**:
+**Style Structure**:
+```javascript
+// src/styles/gameStyles.js exports default styles object
+export default {
+  container: { ... },
+  titleScreen: { ... },
+  playerArea: { ... },
+  card: { ... },
+  cardSlot: { ... },
+  spToken: { ... },
+  log: { ... },
+  // ... and more
+};
+```
+
+**Color scheme** (defined in `src/utils/constants.js`):
 ```javascript
 ATTRIBUTE_COLORS = {
-  '炎': red/orange gradients
-  '水': blue gradients
-  '光': gold/yellow gradients
-  '闇': purple/dark gradients
-  '原始': green/earth tones
-  'なし': gray
+  '炎': red/orange gradients with #ff6b6b glow
+  '水': blue gradients with #6b9eff glow
+  '光': gold/yellow gradients with #ffd700 glow
+  '闇': purple/dark gradients with #9d4ce6 glow
+  '原始': green/earth tones with #6bff6b glow
+  'なし': gray gradients
 }
 ```
 
@@ -173,31 +320,41 @@ ATTRIBUTE_COLORS = {
 
 **To add a new card**:
 ```javascript
-// Add to SAMPLE_CARDS array (line ~6)
+// Option 1: Add to CSV file at public/cardlist/cardlist.csv
+// (Recommended for production)
+
+// Option 2: Add to SAMPLE_CARDS array in src/utils/cardManager.js
 {
   id: 'C0000XXX',
   name: 'Card Name',
-  attribute: 'fire/water/light/dark/primitive/none',
+  attribute: '炎', // or '水', '光', '闇', '原始', 'なし'
   cost: 2,
-  type: 'monster/magic/field',
+  type: 'monster', // or 'magic', 'field'
   attack: 1000,  // monsters only
   hp: 1000,      // monsters only
   category: '【Category】',
-  effect: 'Effect description',
+  effect: 'Effect description. 基本技: 100ダメージ. 上級技: 200ダメージ',
   flavor: 'Flavor text',
-  keyword: '【Keyword】' // optional
+  keyword: '【Keyword】', // optional
+  forbidden: false // optional
 }
 ```
 
+**To add a new effect type**:
+1. Add to `EFFECT_TYPES` in `src/engine/effectEngine.js`
+2. Add parsing logic in `parseEffect()` function
+3. Add execution logic in `executeEffect()` switch statement
+4. Test with cards that use the new effect
+
 **To add a new game phase**:
-1. Add to `PHASES` array (line ~67)
-2. Add case in `processPhase()` switch statement
+1. Add to `PHASES` array in `src/utils/constants.js`
+2. Add case in `processPhase()` in `src/magic-spirit.jsx`
 3. Update phase transition logic in `nextPhase()`
 
 **To implement card effects**:
-- Most effects are currently simplified/placeholder
-- Check for effect keywords in `summonCard()` (line ~810)
-- Implement logic conditionally based on card name or effect text
+- **Simple effects**: Add pattern matching to `parseEffect()` in `src/engine/effectEngine.js`
+- **Complex effects**: Implement in `executeEffect()` switch statement
+- **Special effects**: Check card properties in `summonCard()` in `src/magic-spirit.jsx`
 
 ---
 
@@ -299,43 +456,64 @@ git push -u origin claude/[branch-name]
 
 ### Task: Add a New Monster Card
 
-1. **Define card data** in `SAMPLE_CARDS` (line ~6)
-2. **Implement effect** in `summonCard()` if needed (line ~767)
-3. **Test summoning** with correct SP cost
-4. **Test combat** if monster has special combat rules
+1. **Define card data** in CSV (`public/cardlist/cardlist.csv`) or `SAMPLE_CARDS` (`src/utils/cardManager.js`)
+2. **Add effect pattern** to `parseEffect()` in `src/engine/effectEngine.js` if using new effect type
+3. **Implement effect** in `executeEffect()` switch statement
+4. **Test summoning** with correct SP cost
+5. **Test combat** if monster has special combat rules
 
 ### Task: Modify Game Rules
 
-1. **Update constants** (e.g., `INITIAL_LIFE`, `MAX_SP`)
-2. **Find relevant function** (phase processing, combat, etc.)
+1. **Update constants** in `src/utils/constants.js` (e.g., `INITIAL_LIFE`, `MAX_SP`)
+2. **Find relevant function** in `src/magic-spirit.jsx` (phase processing, combat, etc.)
 3. **Update logic** with immutable state patterns
 4. **Add logging** with `addLog()` for visibility
 5. **Test edge cases** (deck empty, max HP, etc.)
 
 ### Task: Improve UI/Styling
 
-1. **Locate style object** in `styles` constant (line ~123)
-2. **Update inline styles** on components
-3. **Consider responsive design** (currently designed for desktop)
-4. **Test visual feedback** (hover, click, animations)
-5. **Maintain consistent color scheme** with `ATTRIBUTE_COLORS`
+1. **Update styles** in `src/styles/gameStyles.js`
+2. **Modify component** in `src/components/` if changing component structure
+3. **Update colors** in `ATTRIBUTE_COLORS` in `src/utils/constants.js` if needed
+4. **Consider responsive design** (currently designed for desktop)
+5. **Test visual feedback** (hover, click, animations)
 
 ### Task: Add Card Effects
 
-**Pattern for on-summon effects**:
+**Pattern 1: Simple damage/heal effects**:
 ```javascript
-// In summonCard() after placing monster
-if (card.effect && card.effect.includes('召喚時')) {
-  addLog(`${card.name}の召喚時効果発動！`, 'info');
-  // Implement effect logic here
-  if (card.name === 'Specific Card') {
-    // Direct implementation
-  }
+// Add parsing pattern to parseEffect() in src/engine/effectEngine.js
+const damageMatch = effectText.match(/(\d+)ダメージ/);
+if (damageMatch) {
+  effects.push({
+    type: EFFECT_TYPES.DAMAGE,
+    value: parseInt(damageMatch[1]),
+    target: 'opponent',
+  });
 }
 ```
 
-**Pattern for continuous effects**:
-- Add to `processPhase()` at appropriate phase
+**Pattern 2: Complex effects**:
+```javascript
+// Add to executeEffect() switch in src/engine/effectEngine.js
+case EFFECT_TYPES.YOUR_EFFECT:
+  const { currentPlayer, setP1Life, addLog } = context;
+  // Implement effect logic
+  addLog(`Effect executed!`, 'info');
+  return true;
+```
+
+**Pattern 3: On-summon effects**:
+```javascript
+// In summonCard() in src/magic-spirit.jsx after placing monster
+if (card.effect && card.effect.includes('召喚時')) {
+  addLog(`${card.name}の召喚時効果発動！`, 'info');
+  executeSkillEffects(card.effect, context);
+}
+```
+
+**Pattern 4: Continuous effects**:
+- Add to `processPhase()` at appropriate phase in `src/magic-spirit.jsx`
 - Check field for monsters with specific effects
 - Apply modifications to game state
 
@@ -343,14 +521,24 @@ if (card.effect && card.effect.includes('召喚時')) {
 
 **Useful debugging locations**:
 ```javascript
-// Log current state in processPhase (line ~705)
+// In src/magic-spirit.jsx
+
+// Log current state in processPhase()
 console.log('Player:', currentPlayer, 'Phase:', phase);
 
-// Log combat details in attack() (line ~867)
+// Log combat details in attack()
 console.log('Attacker:', attacker, 'Target:', target);
 
-// Check SP before summon in summonCard() (line ~768)
+// Check SP before summon in summonCard()
 console.log('Active SP:', activeSP, 'Cost:', card.cost);
+
+// In src/engine/effectEngine.js
+
+// Log effect parsing in parseEffect()
+console.log('Parsed effects:', effects);
+
+// Log effect execution in executeEffect()
+console.log('Executing effect:', type, value, target);
 ```
 
 **React DevTools**: Use React DevTools to inspect hooks and state
@@ -371,16 +559,19 @@ console.log('Active SP:', activeSP, 'Cost:', card.cost);
 
 ### Potential Improvements
 
-1. **Separate card data**: Move `SAMPLE_CARDS` to JSON file
-2. **Effect system**: Create plugin system for card effects
-3. **State management**: Consider Context API or Redux for complex state
-4. **Component splitting**: Break `magic-spirit.jsx` into multiple files
-5. **TypeScript**: Add type safety
-6. **Backend**: Add server for online multiplayer
-7. **Deck builder UI**: Allow custom deck creation
-8. **Card images**: Replace placeholder emojis with actual artwork
-9. **Animations**: Add GSAP or Framer Motion for smooth transitions
-10. **Mobile responsive**: Add mobile-friendly layouts
+1. ✅ **~~Component splitting~~**: COMPLETED - Refactored into modular architecture
+2. ✅ **~~Effect system foundation~~**: COMPLETED - Created effectEngine.js with extensible system
+3. **Effect expansion**: Implement remaining effects (buff/debuff, search, revive, destroy)
+4. **Card data format**: Convert CSV to JSON for better structure and validation
+5. **Effect plugin system**: Make effects more modular and extensible
+6. **State management**: Consider Context API or Redux for complex state
+7. **TypeScript**: Add type safety to entire codebase
+8. **Backend**: Add server for online multiplayer
+9. **Deck builder UI**: Allow custom deck creation
+10. **Card images**: Replace placeholder emojis with actual artwork
+11. **Animations**: Add GSAP or Framer Motion for smooth transitions
+12. **Mobile responsive**: Add mobile-friendly layouts
+13. **Testing**: Add comprehensive unit and integration tests
 
 ---
 
@@ -390,23 +581,31 @@ console.log('Active SP:', activeSP, 'Cost:', card.cost);
 
 **Issue**: "SP が足りません" (Not enough SP)
 - **Solution**: Check `p1ActiveSP`/`p2ActiveSP` state and card cost
-- **Location**: `summonCard()` line ~772
+- **Location**: `summonCard()` in `src/magic-spirit.jsx`
 
 **Issue**: Monster won't attack
 - **Solution**: Ensure `canAttack` flag is true and phase is バトル (3)
-- **Location**: `attack()` line ~873, `processPhase()` case 0
+- **Location**: `attack()` in `src/magic-spirit.jsx`, `processPhase()` case 0
 
 **Issue**: State not updating
 - **Solution**: Ensure immutable updates (spread operator, new arrays)
 - **Example**: `setP1Field(prev => [...prev])` not `field[i] = monster`
 
 **Issue**: Card not appearing in hand
-- **Solution**: Check deck generation in `createDeck()` and initial hand size
-- **Location**: `initGame()` line ~629
+- **Solution**: Check deck generation in `createDeck()` in `src/utils/helpers.js` and initial hand size
+- **Location**: `initGame()` in `src/magic-spirit.jsx`
 
 **Issue**: Phase not advancing
 - **Solution**: Check phase logic in `processPhase()` and auto-advance useEffect
-- **Location**: `processPhase()` line ~705, useEffect line ~1019
+- **Location**: `processPhase()` in `src/magic-spirit.jsx`
+
+**Issue**: Effect not working
+- **Solution**: Check if effect pattern is matched in `parseEffect()` and implemented in `executeEffect()`
+- **Location**: `src/engine/effectEngine.js`
+
+**Issue**: Card data not loading from CSV
+- **Solution**: Check console for errors, verify CSV format, check fallback to SAMPLE_CARDS
+- **Location**: `loadCardsFromCSV()` in `src/utils/cardManager.js`
 
 ### Debug Mode
 
@@ -443,18 +642,47 @@ Before considering a feature complete:
 
 ## Quick Reference
 
-### Important Line Numbers
+### Important File Locations
 
-- Card definitions: **line 6**
-- Game constants: **line 60**
-- Styles: **line 123**
-- Card component: **line 292**
-- FieldMonster component: **line 415**
-- Main game component: **line 582**
-- Game initialization: **line 624**
-- Phase processing: **line 705**
-- Summon logic: **line 767**
-- Attack logic: **line 867**
+**Game Constants**: `src/utils/constants.js`
+- INITIAL_LIFE, INITIAL_SP, MAX_SP, etc.
+- PHASES array
+- ATTRIBUTE_COLORS
+- TYPE_ICONS
+
+**Card Data**: `src/utils/cardManager.js`
+- SAMPLE_CARDS (fallback data)
+- parseCSV() - CSV parser
+- parseSkills() - skill extractor
+- loadCardsFromCSV() - async loader
+
+**Helper Functions**: `src/utils/helpers.js`
+- shuffle()
+- createDeck()
+- createMonsterInstance()
+
+**Effect System**: `src/engine/effectEngine.js` ⭐
+- EFFECT_TYPES (13 types)
+- parseEffect() - effect parser
+- executeEffect() - effect executor
+- executeSkillEffects() - skill processor
+
+**Styles**: `src/styles/gameStyles.js`
+- All style definitions
+
+**Components**: `src/components/`
+- Card.jsx - card display
+- FieldMonster.jsx - field monster
+- SPTokens.jsx - SP visualization
+- GameLog.jsx - log display
+
+**Main Game Logic**: `src/magic-spirit.jsx`
+- Game state management
+- initGame() - initialization
+- processPhase() - phase handler
+- summonCard() - summoning logic
+- attack() - combat logic
+- executeSkill() - skill execution
 
 ### State Setters Quick Map
 
@@ -532,16 +760,25 @@ This appears to be a prototype/learning project for a digital card game. The gam
 The Japanese text throughout suggests this may be for a Japanese audience or is being developed by Japanese speakers.
 
 **Key design decisions**:
-- Single-file component keeps all logic together (good for prototype)
-- Inline styles avoid CSS file management complexity
+- ~~Single-file component~~ → **Modular architecture** (refactored 2025-11-26)
+- **Separated concerns**: utils, components, styles, engine modules
+- **Effect engine foundation**: Extensible system for card effects
+- Inline styles with centralized style objects
 - Local multiplayer simplifies initial implementation
 - React hooks provide clean state management without boilerplate
+
+**Recent Evolution** (2025-11-26):
+- Refactored from 2237-line monolith to modular 9-file architecture
+- Created effect execution engine for extensibility
+- Separated UI components for reusability
+- Centralized constants and styles
+- 39% code reduction while improving maintainability
 
 This is suitable for expansion into a full game or as a learning project for React and game development concepts.
 
 ---
 
-**Document Version**: 1.0
-**Last Updated**: 2025-11-25
+**Document Version**: 2.0
+**Last Updated**: 2025-11-26 (Major update: Refactoring documentation)
 **For**: Magic Spirit (magiSp) Repository
-**Branch**: claude/claude-md-miefgtk5g6c064bt-01N9b6jLa9AE2zYJtbAD4dWD
+**Branch**: claude/plan-code-refactoring-01G9LgvBcjiL2ckZHPm6nxL3
