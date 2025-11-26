@@ -198,7 +198,7 @@ export const TRIGGER_TYPES = {
   /**
    * 場に特定のカードがある時
    * 【場に炎属性が3体以上いる場合】など
-   * condition: (context) => { /* custom check */ }
+   * condition: (context) => { return customCheck; }
    */
   ON_FIELD_CONDITION: 'on_field_condition',
 
