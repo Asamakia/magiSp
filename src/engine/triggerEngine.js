@@ -22,6 +22,7 @@ import {
 } from './triggerTypes';
 import { getFutureCardTriggers, hasFutureCardTrigger } from './cardTriggers/futureCards';
 import { getFireCardTriggers, hasFireCardTrigger } from './cardTriggers/fireCards';
+import { getWaterCardTriggers, hasWaterCardTrigger } from './cardTriggers/waterCards';
 
 /**
  * グローバルトリガーレジストリ
@@ -201,6 +202,14 @@ export const parseCardTriggers = (card) => {
   // 炎属性
   if (card.id && hasFireCardTrigger(card.id)) {
     const cardSpecificTriggers = getFireCardTriggers(card.id);
+    if (cardSpecificTriggers) {
+      return cardSpecificTriggers;
+    }
+  }
+
+  // 水属性
+  if (card.id && hasWaterCardTrigger(card.id)) {
+    const cardSpecificTriggers = getWaterCardTriggers(card.id);
     if (cardSpecificTriggers) {
       return cardSpecificTriggers;
     }
@@ -583,9 +592,17 @@ export const hasCardTrigger = (cardId, triggerType = TRIGGER_TYPES.ON_SUMMON) =>
     }
   }
 
+  // 水属性カードのトリガーをチェック
+  if (hasWaterCardTrigger(cardId)) {
+    const triggers = getWaterCardTriggers(cardId);
+    if (triggers && Array.isArray(triggers)) {
+      return triggers.some(trigger => trigger.type === triggerType);
+    }
+  }
+
   // 他の属性のトリガーも将来的にここで追加
-  // if (hasWaterCardTrigger(cardId)) { ... }
   // if (hasLightCardTrigger(cardId)) { ... }
+  // if (hasDarkCardTrigger(cardId)) { ... }
 
   return false;
 };

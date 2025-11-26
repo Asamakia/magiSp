@@ -156,6 +156,12 @@ export const TRIGGER_TYPES = {
    */
   ON_ATTACK_SUCCESS: 'on_attack_success',
 
+  /**
+   * 相手モンスターが攻撃した時
+   * 【相手モンスター攻撃時】
+   */
+  ON_OPPONENT_ATTACK: 'on_opponent_attack',
+
   // ========================================
   // 墓地発動トリガー (Graveyard Triggers)
   // ========================================
