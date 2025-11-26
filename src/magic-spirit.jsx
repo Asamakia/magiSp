@@ -30,6 +30,7 @@ import {
   getCurrentStageDescription,
   getNextStageDescription,
 } from './engine/phaseCardEffects';
+import { continuousEffectEngine } from './engine/continuousEffects';
 import styles from './styles/gameStyles';
 import Card from './components/Card';
 import FieldMonster from './components/FieldMonster';
@@ -155,6 +156,9 @@ export default function MagicSpiritGame() {
 
     // トリガーシステムをクリア
     clearAllTriggers();
+
+    // 常時効果システムをクリア
+    continuousEffectEngine.clear();
 
     setGameState('playing');
     addLog('ゲーム開始！先攻プレイヤー1のターン', 'info');
@@ -321,6 +325,7 @@ export default function MagicSpiritGame() {
 
         // ターン終了時に使用済みフラグをリセット
         resetTurnFlags();
+        continuousEffectEngine.resetTurnFlags();
 
         setPhase(0);
         // ターン終了、相手に切り替え
@@ -653,6 +658,29 @@ export default function MagicSpiritGame() {
       // トリガーを登録
       registerCardTriggers(monsterInstance, currentPlayer, slotIndex);
 
+      // 常時効果を登録
+      continuousEffectEngine.register(monsterInstance, currentPlayer);
+
+      // 召喚時バフを適用（他のカードの常時効果による）
+      const summonBuffContext = {
+        currentPlayer,
+        effectOwner: currentPlayer,
+        p1Field: currentPlayer === 1 ? [...p1Field.slice(0, slotIndex), monsterInstance, ...p1Field.slice(slotIndex + 1)] : p1Field,
+        p2Field: currentPlayer === 2 ? [...p2Field.slice(0, slotIndex), monsterInstance, ...p2Field.slice(slotIndex + 1)] : p2Field,
+        p1Life,
+        p2Life,
+      };
+      const summonBuffs = continuousEffectEngine.getSummonBuffs(monsterInstance, currentPlayer, summonBuffContext);
+      if (summonBuffs.hpBuff > 0) {
+        monsterInstance.currentHp += summonBuffs.hpBuff;
+        monsterInstance.maxHp += summonBuffs.hpBuff;
+        addLog(`${monsterInstance.name}のHPが${summonBuffs.hpBuff}アップ！（常時効果）`, 'info');
+      }
+      if (summonBuffs.atkBuff > 0) {
+        monsterInstance.currentAttack += summonBuffs.atkBuff;
+        addLog(`${monsterInstance.name}の攻撃力が${summonBuffs.atkBuff}アップ！（常時効果）`, 'info');
+      }
+
       // 召喚時効果を実行（新表記【召喚時】と旧表記「召喚時」に対応）
       // ただし、トリガーシステムに実装済みの場合はスキップ（二重実行を防ぐ）
       const hasTriggerImplementation = hasCardTrigger(card.id, TRIGGER_TYPES.ON_SUMMON);
@@ -797,6 +825,9 @@ export default function MagicSpiritGame() {
         setP2RestedSP(prev => prev + card.cost);
       }
 
+      // 常時効果を登録
+      continuousEffectEngine.register(card, currentPlayer);
+
       addLog(`プレイヤー${currentPlayer}: ${card.name}を設置！`, 'info');
       return true;
     }
@@ -881,19 +912,40 @@ export default function MagicSpiritGame() {
     // 現在のプレイヤーと相手のフィールドを直接取得
     const playerField = currentPlayer === 1 ? p1Field : p2Field;
     const opponentField = currentPlayer === 1 ? p2Field : p1Field;
-    
+
     const attacker = playerField[attackerIndex];
     if (!attacker || !attacker.canAttack) {
       addLog('このモンスターは攻撃できません', 'damage');
       return;
     }
 
+    // 常時効果による攻撃制限をチェック
+    const effectContext = {
+      currentPlayer,
+      effectOwner: currentPlayer,
+      p1Field,
+      p2Field,
+      p1Life,
+      p2Life,
+    };
+    if (!continuousEffectEngine.canAttack(attacker, effectContext)) {
+      addLog(`${attacker.name}は常時効果により攻撃できません！`, 'damage');
+      return;
+    }
+
     const target = opponentField[targetIndex];
-    
+
+    // 常時効果による攻撃力修正を計算
+    const attackerAtkMod = continuousEffectEngine.calculateAttackModifier(attacker, effectContext);
+    const effectiveAttackerAtk = attacker.currentAttack + attackerAtkMod;
+
     if (target) {
       // モンスター攻撃
-      const damage = attacker.currentAttack;
-      const counterDamage = Math.floor(target.currentAttack * COUNTER_ATTACK_RATE);
+      const targetAtkMod = continuousEffectEngine.calculateAttackModifier(target, { ...effectContext, effectOwner: currentPlayer === 1 ? 2 : 1 });
+      const effectiveTargetAtk = target.currentAttack + targetAtkMod;
+
+      const damage = effectiveAttackerAtk;
+      const counterDamage = Math.floor(effectiveTargetAtk * COUNTER_ATTACK_RATE);
       
       addLog(`${attacker.name}が${target.name}を攻撃！`, 'info');
       
@@ -939,6 +991,8 @@ export default function MagicSpiritGame() {
 
           // トリガー登録を解除
           unregisterCardTriggers(target.uniqueId);
+          // 常時効果を解除
+          continuousEffectEngine.unregister(target.uniqueId);
 
           setP2Field(prev => {
             const newField = [...prev];
@@ -988,6 +1042,8 @@ export default function MagicSpiritGame() {
 
           // トリガー登録を解除
           unregisterCardTriggers(attacker.uniqueId);
+          // 常時効果を解除
+          continuousEffectEngine.unregister(attacker.uniqueId);
 
           setP1Field(prev => {
             const newField = [...prev];
@@ -1037,6 +1093,8 @@ export default function MagicSpiritGame() {
 
           // トリガー登録を解除
           unregisterCardTriggers(target.uniqueId);
+          // 常時効果を解除
+          continuousEffectEngine.unregister(target.uniqueId);
 
           setP1Field(prev => {
             const newField = [...prev];
@@ -1052,7 +1110,7 @@ export default function MagicSpiritGame() {
             return newField;
           });
         }
-        
+
         // 自分のフィールドの更新
         if (newAttackerHp <= 0) {
           // 破壊時トリガーを発火（破壊される前）
@@ -1086,6 +1144,8 @@ export default function MagicSpiritGame() {
 
           // トリガー登録を解除
           unregisterCardTriggers(attacker.uniqueId);
+          // 常時効果を解除
+          continuousEffectEngine.unregister(attacker.uniqueId);
 
           setP2Field(prev => {
             const newField = [...prev];
@@ -1105,7 +1165,7 @@ export default function MagicSpiritGame() {
     } else {
       // ダイレクトアタック判定
       const hasOpponentMonster = opponentField.some(m => m !== null);
-      let damage = attacker.currentAttack;
+      let damage = effectiveAttackerAtk; // 常時効果による修正を適用
       const opponentFieldCard = currentPlayer === 1 ? p2FieldCard : p1FieldCard;
       
       if (hasOpponentMonster) {

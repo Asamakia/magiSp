@@ -21,6 +21,16 @@
  * @see src/ルール/continuous-effect-system-design.md
  */
 
+// ========================================
+// インポート（初期化用）
+// ========================================
+import { setEffectDefinitions } from './effectEngine';
+import { allEffectDefinitions } from './effectDefinitions';
+
+// ========================================
+// エクスポート
+// ========================================
+
 // 効果タイプ
 export {
   CONTINUOUS_EFFECT_TYPES,
@@ -68,9 +78,6 @@ export {
 // ========================================
 // 初期化関数
 // ========================================
-
-import { setEffectDefinitions } from './effectEngine';
-import { allEffectDefinitions } from './effectDefinitions';
 
 /**
  * 常時効果システムを初期化

@@ -8,49 +8,25 @@
  */
 
 // 各属性/タイプの効果定義をインポート
-// ファイルが作成されたらコメントを解除してください
+import { fieldCardEffects } from './fieldCards';
+import { monsterCardEffects } from './monsterCards';
 
-// import { fieldCardEffects } from './fieldCards';
+// 将来の拡張用（ファイルが作成されたらコメントを解除）
 // import { phaseCardEffects } from './phaseCards';
-// import { fireCardEffects } from './fireCards';
-// import { waterCardEffects } from './waterCards';
-// import { lightCardEffects } from './lightCards';
-// import { darkCardEffects } from './darkCards';
-// import { primitiveCardEffects } from './primitiveCards';
-// import { futureCardEffects } from './futureCards';
-// import { neutralCardEffects } from './neutralCards';
 
 /**
  * 全効果定義を集約したオブジェクト
  * カードID => 効果定義配列
  */
 export const allEffectDefinitions = {
-  // フィールドカード
-  // ...fieldCardEffects,
+  // フィールドカード（22枚）
+  ...fieldCardEffects,
 
-  // フェイズカード
+  // モンスターカード（20枚）
+  ...monsterCardEffects,
+
+  // フェイズカード（将来の拡張）
   // ...phaseCardEffects,
-
-  // 炎属性モンスター
-  // ...fireCardEffects,
-
-  // 水属性モンスター
-  // ...waterCardEffects,
-
-  // 光属性モンスター
-  // ...lightCardEffects,
-
-  // 闇属性モンスター
-  // ...darkCardEffects,
-
-  // 原始属性モンスター
-  // ...primitiveCardEffects,
-
-  // 未来属性モンスター
-  // ...futureCardEffects,
-
-  // なし属性モンスター
-  // ...neutralCardEffects,
 };
 
 /**
