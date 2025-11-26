@@ -17,6 +17,7 @@ import {
   clearAllTriggers,
   resetTurnFlags,
   getCardMainPhaseTriggers,
+  hasCardTrigger,
 } from './engine/triggerEngine';
 import { TRIGGER_TYPES } from './engine/triggerTypes';
 import styles from './styles/gameStyles';
@@ -581,7 +582,10 @@ export default function MagicSpiritGame() {
       registerCardTriggers(monsterInstance, currentPlayer, slotIndex);
 
       // 召喚時効果を実行（新表記【召喚時】と旧表記「召喚時」に対応）
-      if (card.effect && (card.effect.includes('召喚時') || card.effect.includes('【召喚時】'))) {
+      // ただし、トリガーシステムに実装済みの場合はスキップ（二重実行を防ぐ）
+      const hasTriggerImplementation = hasCardTrigger(card.id, TRIGGER_TYPES.ON_SUMMON);
+
+      if (card.effect && (card.effect.includes('召喚時') || card.effect.includes('【召喚時】')) && !hasTriggerImplementation) {
         addLog(`${card.name}の召喚時効果発動！`, 'info');
 
         // 召喚時効果を含む全テキストを渡す（カード固有処理で判定）
@@ -621,11 +625,12 @@ export default function MagicSpiritGame() {
         executeSkillEffects(card.effect, context, card.id);
       }
 
-      // 召喚時トリガーを発火（他のカードのトリガー）
+      // 召喚時トリガーを発火（トリガーシステムに登録された効果を実行）
       const triggerContext = {
         currentPlayer,
         card: monsterInstance,
         slotIndex,
+        monsterIndex: slotIndex, // トリガー効果で使用
         setP1Life,
         setP2Life,
         setP1Field,
@@ -636,6 +641,10 @@ export default function MagicSpiritGame() {
         setP2Deck,
         setP1Graveyard,
         setP2Graveyard,
+        setP1ActiveSP,
+        setP2ActiveSP,
+        setP1RestedSP,
+        setP2RestedSP,
         p1Field,
         p2Field,
         p1Hand,
@@ -646,6 +655,10 @@ export default function MagicSpiritGame() {
         p2Graveyard,
         p1Life,
         p2Life,
+        p1ActiveSP,
+        p2ActiveSP,
+        p1RestedSP,
+        p2RestedSP,
         addLog,
       };
       fireTrigger(TRIGGER_TYPES.ON_SUMMON, triggerContext);

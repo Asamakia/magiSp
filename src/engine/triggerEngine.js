@@ -548,6 +548,31 @@ export const getCardTriggers = (cardId) => {
 };
 
 /**
+ * カードがトリガー実装を持っているかチェック
+ * @param {string} cardId - カードID (例: 'C0000085')
+ * @param {string} triggerType - トリガータイプ (省略時は召喚時をチェック)
+ * @returns {boolean} トリガー実装を持っている場合true
+ */
+export const hasCardTrigger = (cardId, triggerType = TRIGGER_TYPES.ON_SUMMON) => {
+  if (!cardId) return false;
+
+  // 未来属性カードのトリガーをチェック
+  if (hasFutureCardTrigger(cardId)) {
+    const triggers = getFutureCardTriggers(cardId);
+    if (triggers && Array.isArray(triggers)) {
+      // 指定されたトリガータイプが含まれているかチェック
+      return triggers.some(trigger => trigger.type === triggerType);
+    }
+  }
+
+  // 他の属性のトリガーも将来的にここで追加
+  // if (hasWaterCardTrigger(cardId)) { ... }
+  // if (hasFireCardTrigger(cardId)) { ... }
+
+  return false;
+};
+
+/**
  * トリガーシステムの状態をログ出力
  */
 export const debugTriggerSystem = () => {
