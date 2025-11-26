@@ -7,7 +7,8 @@ import {
   COUNTER_ATTACK_RATE,
   PHASES,
 } from './utils/constants';
-import { createDeck, createMonsterInstance } from './utils/helpers';
+import { createDeck, createMonsterInstance, createDeckFromPrebuilt } from './utils/helpers';
+import { getDeckOptions } from './decks/prebuiltDecks';
 import { loadCardsFromCSV, SAMPLE_CARDS } from './utils/cardManager';
 import { executeSkillEffects } from './engine/effectEngine';
 import {
@@ -73,6 +74,10 @@ export default function MagicSpiritGame() {
   const [chargeUsedThisTurn, setChargeUsedThisTurn] = useState(false);
   const [selectedFieldCardInfo, setSelectedFieldCardInfo] = useState(null); // フィールド/フェイズカード情報表示用
 
+  // デッキ選択状態
+  const [p1SelectedDeck, setP1SelectedDeck] = useState('random');
+  const [p2SelectedDeck, setP2SelectedDeck] = useState('random');
+
   // ログ追加関数
   const addLog = useCallback((message, type = 'info') => {
     setLogs(prev => [...prev, { message, type, time: Date.now() }]);
@@ -92,8 +97,9 @@ export default function MagicSpiritGame() {
 
   // ゲーム初期化
   const initGame = useCallback(() => {
-    const deck1 = createDeck(allCards);
-    const deck2 = createDeck(allCards);
+    // 選択されたデッキからカードを生成
+    const deck1 = createDeckFromPrebuilt(p1SelectedDeck, allCards);
+    const deck2 = createDeckFromPrebuilt(p2SelectedDeck, allCards);
 
     setP1Deck(deck1.slice(INITIAL_HAND_SIZE));
     setP1Hand(deck1.slice(0, INITIAL_HAND_SIZE));
@@ -132,7 +138,7 @@ export default function MagicSpiritGame() {
 
     setGameState('playing');
     addLog('ゲーム開始！先攻プレイヤー1のターン', 'info');
-  }, [addLog, allCards]);
+  }, [addLog, allCards, p1SelectedDeck, p2SelectedDeck]);
 
   // 現在のプレイヤーのデータを取得
   const getCurrentPlayerData = () => {
@@ -1360,6 +1366,83 @@ export default function MagicSpiritGame() {
             </div>
           ) : (
             <>
+              {/* デッキ選択UI */}
+              <div style={{
+                display: 'flex',
+                gap: '40px',
+                marginBottom: '16px',
+              }}>
+                {/* プレイヤー1のデッキ選択 */}
+                <div style={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  gap: '8px',
+                }}>
+                  <label style={{ color: '#6b9eff', fontSize: '14px', fontWeight: 'bold' }}>
+                    プレイヤー1 デッキ
+                  </label>
+                  <select
+                    value={p1SelectedDeck}
+                    onChange={(e) => setP1SelectedDeck(e.target.value)}
+                    style={{
+                      padding: '8px 16px',
+                      fontSize: '14px',
+                      borderRadius: '8px',
+                      border: '2px solid #6b9eff',
+                      background: '#1a1a2e',
+                      color: '#fff',
+                      cursor: 'pointer',
+                      minWidth: '160px',
+                    }}
+                  >
+                    {getDeckOptions().map(deck => (
+                      <option key={deck.id} value={deck.id}>
+                        {deck.name}
+                      </option>
+                    ))}
+                  </select>
+                  <span style={{ color: '#888', fontSize: '11px', maxWidth: '180px', textAlign: 'center' }}>
+                    {getDeckOptions().find(d => d.id === p1SelectedDeck)?.description}
+                  </span>
+                </div>
+
+                {/* プレイヤー2のデッキ選択 */}
+                <div style={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  gap: '8px',
+                }}>
+                  <label style={{ color: '#ff6b6b', fontSize: '14px', fontWeight: 'bold' }}>
+                    プレイヤー2 デッキ
+                  </label>
+                  <select
+                    value={p2SelectedDeck}
+                    onChange={(e) => setP2SelectedDeck(e.target.value)}
+                    style={{
+                      padding: '8px 16px',
+                      fontSize: '14px',
+                      borderRadius: '8px',
+                      border: '2px solid #ff6b6b',
+                      background: '#1a1a2e',
+                      color: '#fff',
+                      cursor: 'pointer',
+                      minWidth: '160px',
+                    }}
+                  >
+                    {getDeckOptions().map(deck => (
+                      <option key={deck.id} value={deck.id}>
+                        {deck.name}
+                      </option>
+                    ))}
+                  </select>
+                  <span style={{ color: '#888', fontSize: '11px', maxWidth: '180px', textAlign: 'center' }}>
+                    {getDeckOptions().find(d => d.id === p2SelectedDeck)?.description}
+                  </span>
+                </div>
+              </div>
+
               <button
                 onClick={initGame}
                 style={{
