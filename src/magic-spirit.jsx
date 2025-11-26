@@ -10,6 +10,15 @@ import {
 import { createDeck, createMonsterInstance } from './utils/helpers';
 import { loadCardsFromCSV, SAMPLE_CARDS } from './utils/cardManager';
 import { executeSkillEffects } from './engine/effectEngine';
+import {
+  registerCardTriggers,
+  unregisterCardTriggers,
+  fireTrigger,
+  clearAllTriggers,
+  resetTurnFlags,
+  getCardMainPhaseTriggers,
+} from './engine/triggerEngine';
+import { TRIGGER_TYPES } from './engine/triggerTypes';
 import styles from './styles/gameStyles';
 import Card from './components/Card';
 import FieldMonster from './components/FieldMonster';
@@ -82,12 +91,12 @@ export default function MagicSpiritGame() {
   const initGame = useCallback(() => {
     const deck1 = createDeck(allCards);
     const deck2 = createDeck(allCards);
-    
+
     setP1Deck(deck1.slice(INITIAL_HAND_SIZE));
     setP1Hand(deck1.slice(0, INITIAL_HAND_SIZE));
     setP2Deck(deck2.slice(INITIAL_HAND_SIZE));
     setP2Hand(deck2.slice(0, INITIAL_HAND_SIZE));
-    
+
     setP1Life(INITIAL_LIFE);
     setP2Life(INITIAL_LIFE);
     setP1ActiveSP(INITIAL_SP);
@@ -114,7 +123,10 @@ export default function MagicSpiritGame() {
     setAttackingMonster(null);
     setChargeUsedThisTurn(false);
     setSelectedFieldCardInfo(null);
-    
+
+    // トリガーシステムをクリア
+    clearAllTriggers();
+
     setGameState('playing');
     addLog('ゲーム開始！先攻プレイヤー1のターン', 'info');
   }, [addLog, allCards]);
@@ -171,6 +183,32 @@ export default function MagicSpiritGame() {
     const player = getCurrentPlayerData();
     const opponent = getOpponentData();
 
+    // トリガー用コンテキスト
+    const triggerContext = {
+      currentPlayer,
+      setP1Life,
+      setP2Life,
+      setP1Field,
+      setP2Field,
+      setP1Hand,
+      setP2Hand,
+      setP1Deck,
+      setP2Deck,
+      setP1Graveyard,
+      setP2Graveyard,
+      p1Field,
+      p2Field,
+      p1Hand,
+      p2Hand,
+      p1Deck,
+      p2Deck,
+      p1Graveyard,
+      p2Graveyard,
+      p1Life,
+      p2Life,
+      addLog,
+    };
+
     switch (phaseIndex) {
       case 0: // ターン開始フェイズ
         // SPトークン追加（最大10）
@@ -182,10 +220,14 @@ export default function MagicSpiritGame() {
         // レスト状態のSPをアクティブに
         player.setActiveSP(prev => prev + player.restedSP);
         player.setRestedSP(0);
-        
+
         // モンスターの攻撃可能フラグをリセット
         player.setField(prev => prev.map(m => m ? { ...m, canAttack: true } : null));
         setChargeUsedThisTurn(false);
+
+        // ターン開始時トリガーを発火
+        fireTrigger(TRIGGER_TYPES.ON_TURN_START_SELF, triggerContext);
+
         setPhase(1);
         break;
 
@@ -198,11 +240,17 @@ export default function MagicSpiritGame() {
         } else {
           addLog(`プレイヤー${currentPlayer}: デッキ切れ！`, 'damage');
         }
+
+        // ドローフェイズトリガーを発火
+        fireTrigger(TRIGGER_TYPES.ON_DRAW_PHASE_SELF, triggerContext);
+
         setPhase(2);
         break;
 
       case 2: // メインフェイズ
         // プレイヤーの操作待ち（自動進行なし）
+        // メインフェイズトリガーは任意発動のため、ここでは発火しない
+        // カード選択時にUIに表示される
         break;
 
       case 3: // バトルフェイズ
@@ -211,9 +259,19 @@ export default function MagicSpiritGame() {
           addLog('先攻1ターン目は攻撃できません', 'info');
           setPhase(4);
         }
+
+        // バトルフェイズ開始時トリガーを発火
+        fireTrigger(TRIGGER_TYPES.ON_BATTLE_PHASE_START, triggerContext);
         break;
 
       case 4: // エンドフェイズ
+        // エンドフェイズトリガーを発火
+        fireTrigger(TRIGGER_TYPES.ON_END_PHASE_SELF, triggerContext);
+        fireTrigger(TRIGGER_TYPES.ON_END_PHASE, triggerContext);
+
+        // ターン終了時に使用済みフラグをリセット
+        resetTurnFlags();
+
         setPhase(0);
         // ターン終了、相手に切り替え
         if (currentPlayer === 1) {
@@ -226,7 +284,8 @@ export default function MagicSpiritGame() {
         addLog(`プレイヤー${currentPlayer}のターン終了`, 'info');
         break;
     }
-  }, [currentPlayer, isFirstTurn, addLog]);
+  }, [currentPlayer, isFirstTurn, p1Field, p2Field, p1Hand, p2Hand, p1Deck, p2Deck,
+      p1Graveyard, p2Graveyard, p1Life, p2Life, addLog]);
 
   // チャージ処理
   const chargeCard = useCallback((card, monsterIndex) => {
@@ -518,6 +577,9 @@ export default function MagicSpiritGame() {
       
       addLog(`プレイヤー${currentPlayer}: ${card.name}を召喚！`, 'info');
 
+      // トリガーを登録
+      registerCardTriggers(monsterInstance, currentPlayer, slotIndex);
+
       // 召喚時効果を実行（新表記【召喚時】と旧表記「召喚時」に対応）
       if (card.effect && (card.effect.includes('召喚時') || card.effect.includes('【召喚時】'))) {
         addLog(`${card.name}の召喚時効果発動！`, 'info');
@@ -526,6 +588,7 @@ export default function MagicSpiritGame() {
         const context = {
           currentPlayer,
           monsterIndex: slotIndex,
+          card: monsterInstance,
           setP1Life,
           setP2Life,
           setP1Field,
@@ -557,6 +620,35 @@ export default function MagicSpiritGame() {
         // カードIDを渡して効果を実行
         executeSkillEffects(card.effect, context, card.id);
       }
+
+      // 召喚時トリガーを発火（他のカードのトリガー）
+      const triggerContext = {
+        currentPlayer,
+        card: monsterInstance,
+        slotIndex,
+        setP1Life,
+        setP2Life,
+        setP1Field,
+        setP2Field,
+        setP1Hand,
+        setP2Hand,
+        setP1Deck,
+        setP2Deck,
+        setP1Graveyard,
+        setP2Graveyard,
+        p1Field,
+        p2Field,
+        p1Hand,
+        p2Hand,
+        p1Deck,
+        p2Deck,
+        p1Graveyard,
+        p2Graveyard,
+        p1Life,
+        p2Life,
+        addLog,
+      };
+      fireTrigger(TRIGGER_TYPES.ON_SUMMON, triggerContext);
 
       return true;
     }
@@ -715,6 +807,38 @@ export default function MagicSpiritGame() {
       if (currentPlayer === 1) {
         // プレイヤー1が攻撃 → 相手はプレイヤー2
         if (newTargetHp <= 0) {
+          // 破壊時トリガーを発火（破壊される前）
+          const destroyContext = {
+            currentPlayer: 2, // 破壊されるモンスターのオーナー
+            destroyedCard: target,
+            destroyedSlotIndex: targetIndex,
+            setP1Life,
+            setP2Life,
+            setP1Field,
+            setP2Field,
+            setP1Hand,
+            setP2Hand,
+            setP1Deck,
+            setP2Deck,
+            setP1Graveyard,
+            setP2Graveyard,
+            p1Field,
+            p2Field,
+            p1Hand,
+            p2Hand,
+            p1Deck,
+            p2Deck,
+            p1Graveyard,
+            p2Graveyard,
+            p1Life,
+            p2Life,
+            addLog,
+          };
+          fireTrigger(TRIGGER_TYPES.ON_DESTROY_SELF, destroyContext);
+
+          // トリガー登録を解除
+          unregisterCardTriggers(target.uniqueId);
+
           setP2Field(prev => {
             const newField = [...prev];
             newField[targetIndex] = null;
@@ -732,6 +856,38 @@ export default function MagicSpiritGame() {
         
         // 自分のフィールドの更新
         if (newAttackerHp <= 0) {
+          // 破壊時トリガーを発火（破壊される前）
+          const destroyContext = {
+            currentPlayer: 1, // 破壊されるモンスターのオーナー
+            destroyedCard: attacker,
+            destroyedSlotIndex: attackerIndex,
+            setP1Life,
+            setP2Life,
+            setP1Field,
+            setP2Field,
+            setP1Hand,
+            setP2Hand,
+            setP1Deck,
+            setP2Deck,
+            setP1Graveyard,
+            setP2Graveyard,
+            p1Field,
+            p2Field,
+            p1Hand,
+            p2Hand,
+            p1Deck,
+            p2Deck,
+            p1Graveyard,
+            p2Graveyard,
+            p1Life,
+            p2Life,
+            addLog,
+          };
+          fireTrigger(TRIGGER_TYPES.ON_DESTROY_SELF, destroyContext);
+
+          // トリガー登録を解除
+          unregisterCardTriggers(attacker.uniqueId);
+
           setP1Field(prev => {
             const newField = [...prev];
             newField[attackerIndex] = null;
@@ -749,6 +905,38 @@ export default function MagicSpiritGame() {
       } else {
         // プレイヤー2が攻撃 → 相手はプレイヤー1
         if (newTargetHp <= 0) {
+          // 破壊時トリガーを発火（破壊される前）
+          const destroyContext = {
+            currentPlayer: 1, // 破壊されるモンスターのオーナー
+            destroyedCard: target,
+            destroyedSlotIndex: targetIndex,
+            setP1Life,
+            setP2Life,
+            setP1Field,
+            setP2Field,
+            setP1Hand,
+            setP2Hand,
+            setP1Deck,
+            setP2Deck,
+            setP1Graveyard,
+            setP2Graveyard,
+            p1Field,
+            p2Field,
+            p1Hand,
+            p2Hand,
+            p1Deck,
+            p2Deck,
+            p1Graveyard,
+            p2Graveyard,
+            p1Life,
+            p2Life,
+            addLog,
+          };
+          fireTrigger(TRIGGER_TYPES.ON_DESTROY_SELF, destroyContext);
+
+          // トリガー登録を解除
+          unregisterCardTriggers(target.uniqueId);
+
           setP1Field(prev => {
             const newField = [...prev];
             newField[targetIndex] = null;
@@ -766,6 +954,38 @@ export default function MagicSpiritGame() {
         
         // 自分のフィールドの更新
         if (newAttackerHp <= 0) {
+          // 破壊時トリガーを発火（破壊される前）
+          const destroyContext = {
+            currentPlayer: 2, // 破壊されるモンスターのオーナー
+            destroyedCard: attacker,
+            destroyedSlotIndex: attackerIndex,
+            setP1Life,
+            setP2Life,
+            setP1Field,
+            setP2Field,
+            setP1Hand,
+            setP2Hand,
+            setP1Deck,
+            setP2Deck,
+            setP1Graveyard,
+            setP2Graveyard,
+            p1Field,
+            p2Field,
+            p1Hand,
+            p2Hand,
+            p1Deck,
+            p2Deck,
+            p1Graveyard,
+            p2Graveyard,
+            p1Life,
+            p2Life,
+            addLog,
+          };
+          fireTrigger(TRIGGER_TYPES.ON_DESTROY_SELF, destroyContext);
+
+          // トリガー登録を解除
+          unregisterCardTriggers(attacker.uniqueId);
+
           setP2Field(prev => {
             const newField = [...prev];
             newField[attackerIndex] = null;
@@ -1512,6 +1732,56 @@ export default function MagicSpiritGame() {
                         上級技 (チャージ{monster.charges?.length || 0}/2)
                       </button>
                     )}
+                    {/* メインフェイズトリガー */}
+                    {(() => {
+                      const triggers = getCardMainPhaseTriggers(monster, currentPlayer);
+                      return triggers.map((trigger, idx) => (
+                        <button
+                          key={idx}
+                          onClick={() => {
+                            const triggerContext = {
+                              currentPlayer,
+                              card: monster,
+                              slotIndex: selectedFieldMonster,
+                              setP1Life,
+                              setP2Life,
+                              setP1Field,
+                              setP2Field,
+                              setP1Hand,
+                              setP2Hand,
+                              setP1Deck,
+                              setP2Deck,
+                              setP1Graveyard,
+                              setP2Graveyard,
+                              p1Field,
+                              p2Field,
+                              p1Hand,
+                              p2Hand,
+                              p1Deck,
+                              p2Deck,
+                              p1Graveyard,
+                              p2Graveyard,
+                              p1Life,
+                              p2Life,
+                              addLog,
+                            };
+                            const { activateTrigger } = require('./engine/triggerEngine');
+                            activateTrigger(trigger, triggerContext);
+                          }}
+                          style={{
+                            ...styles.actionButton,
+                            background: trigger.usedThisTurn
+                              ? 'linear-gradient(135deg, #666 0%, #888 100%)'
+                              : 'linear-gradient(135deg, #9c27b0 0%, #ba68c8 100%)',
+                            fontSize: '12px',
+                            padding: '8px 16px',
+                          }}
+                          disabled={!trigger.canActivate}
+                        >
+                          🌟 {trigger.description} {trigger.usedThisTurn && '(使用済み)'}
+                        </button>
+                      ));
+                    })()}
                   </div>
                 );
               })()
@@ -1553,6 +1823,56 @@ export default function MagicSpiritGame() {
                         上級技 (チャージ{monster.charges?.length || 0}/2)
                       </button>
                     )}
+                    {/* メインフェイズトリガー */}
+                    {(() => {
+                      const triggers = getCardMainPhaseTriggers(monster, currentPlayer);
+                      return triggers.map((trigger, idx) => (
+                        <button
+                          key={idx}
+                          onClick={() => {
+                            const triggerContext = {
+                              currentPlayer,
+                              card: monster,
+                              slotIndex: selectedFieldMonster,
+                              setP1Life,
+                              setP2Life,
+                              setP1Field,
+                              setP2Field,
+                              setP1Hand,
+                              setP2Hand,
+                              setP1Deck,
+                              setP2Deck,
+                              setP1Graveyard,
+                              setP2Graveyard,
+                              p1Field,
+                              p2Field,
+                              p1Hand,
+                              p2Hand,
+                              p1Deck,
+                              p2Deck,
+                              p1Graveyard,
+                              p2Graveyard,
+                              p1Life,
+                              p2Life,
+                              addLog,
+                            };
+                            const { activateTrigger } = require('./engine/triggerEngine');
+                            activateTrigger(trigger, triggerContext);
+                          }}
+                          style={{
+                            ...styles.actionButton,
+                            background: trigger.usedThisTurn
+                              ? 'linear-gradient(135deg, #666 0%, #888 100%)'
+                              : 'linear-gradient(135deg, #9c27b0 0%, #ba68c8 100%)',
+                            fontSize: '12px',
+                            padding: '8px 16px',
+                          }}
+                          disabled={!trigger.canActivate}
+                        >
+                          🌟 {trigger.description} {trigger.usedThisTurn && '(使用済み)'}
+                        </button>
+                      ));
+                    })()}
                   </div>
                 );
               })()
