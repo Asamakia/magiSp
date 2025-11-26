@@ -427,9 +427,9 @@ export default function MagicSpiritGame() {
       return false;
     }
 
-    // 属性カードのみチャージ可能
-    if (card.type !== 'monster' && card.type !== 'magic' && card.type !== 'field') {
-      addLog('チャージできるのは属性カード（モンスター、魔法、フィールド）のみです', 'damage');
+    // 属性カードのみチャージ可能（フェイズカードも含む）
+    if (card.type !== 'monster' && card.type !== 'magic' && card.type !== 'field' && card.type !== 'phasecard') {
+      addLog('チャージできるのは属性カード（モンスター、魔法、フィールド、フェイズ）のみです', 'damage');
       return false;
     }
 
@@ -1279,13 +1279,13 @@ export default function MagicSpiritGame() {
     if (selectedHandCard) {
       // フェイズカードが設置されている場合 → チャージモード
       if (currentPhaseCard) {
-        // 属性カード（モンスター、魔法、フィールド）をチャージ
-        if (selectedHandCard.type === 'monster' || selectedHandCard.type === 'magic' || selectedHandCard.type === 'field') {
+        // 属性カード（モンスター、魔法、フィールド、フェイズカード）をチャージ
+        if (selectedHandCard.type === 'monster' || selectedHandCard.type === 'magic' || selectedHandCard.type === 'field' || selectedHandCard.type === 'phasecard') {
           if (chargePhaseCard(selectedHandCard)) {
             setSelectedHandCard(null);
           }
         } else {
-          addLog('フェイズカードにチャージできるのは属性カード（モンスター、魔法、フィールド）のみです', 'damage');
+          addLog('フェイズカードにチャージできるのは属性カード（モンスター、魔法、フィールド、フェイズ）のみです', 'damage');
         }
         return;
       }
@@ -1688,7 +1688,7 @@ export default function MagicSpiritGame() {
                   <div
                     style={{
                       cursor: currentPlayer === 2 && phase === 2 ? 'pointer' : 'default',
-                      border: currentPlayer === 2 && phase === 2 && selectedHandCard && (selectedHandCard.type === 'monster' || selectedHandCard.type === 'magic' || selectedHandCard.type === 'field') ? '2px solid #ff6b6b' : selectedFieldCardInfo?.card === p2PhaseCard ? '2px solid #ff6b6b' : 'none',
+                      border: currentPlayer === 2 && phase === 2 && selectedHandCard && (selectedHandCard.type === 'monster' || selectedHandCard.type === 'magic' || selectedHandCard.type === 'field' || selectedHandCard.type === 'phasecard') ? '2px solid #ff6b6b' : selectedFieldCardInfo?.card === p2PhaseCard ? '2px solid #ff6b6b' : 'none',
                       borderRadius: '4px',
                       padding: '2px',
                     }}
@@ -1699,7 +1699,7 @@ export default function MagicSpiritGame() {
                       ⚡ {getStageShortName(p2PhaseCard.stage || 0)}段階 ({p2PhaseCard.charges?.length || 0}/3)
                     </div>
                     {currentPlayer === 2 && phase === 2 && selectedHandCard &&
-                      (selectedHandCard.type === 'monster' || selectedHandCard.type === 'magic' || selectedHandCard.type === 'field') &&
+                      (selectedHandCard.type === 'monster' || selectedHandCard.type === 'magic' || selectedHandCard.type === 'field' || selectedHandCard.type === 'phasecard') &&
                       (selectedHandCard.attribute === p2PhaseCard.attribute || selectedHandCard.attribute === 'なし' || p2PhaseCard.attribute === 'なし') &&
                       (p2PhaseCard.stage || 0) < 3 && (
                       <div style={{ fontSize: '9px', color: '#4da6ff', textAlign: 'center', marginTop: '2px' }}>
@@ -2327,7 +2327,7 @@ export default function MagicSpiritGame() {
                   <div
                     style={{
                       cursor: currentPlayer === 1 && phase === 2 ? 'pointer' : 'default',
-                      border: currentPlayer === 1 && phase === 2 && selectedHandCard && (selectedHandCard.type === 'monster' || selectedHandCard.type === 'magic' || selectedHandCard.type === 'field') ? '2px solid #4da6ff' : selectedFieldCardInfo?.card === p1PhaseCard ? '2px solid #4da6ff' : 'none',
+                      border: currentPlayer === 1 && phase === 2 && selectedHandCard && (selectedHandCard.type === 'monster' || selectedHandCard.type === 'magic' || selectedHandCard.type === 'field' || selectedHandCard.type === 'phasecard') ? '2px solid #4da6ff' : selectedFieldCardInfo?.card === p1PhaseCard ? '2px solid #4da6ff' : 'none',
                       borderRadius: '4px',
                       padding: '2px',
                     }}
@@ -2338,7 +2338,7 @@ export default function MagicSpiritGame() {
                       ⚡ {getStageShortName(p1PhaseCard.stage || 0)}段階 ({p1PhaseCard.charges?.length || 0}/3)
                     </div>
                     {currentPlayer === 1 && phase === 2 && selectedHandCard &&
-                      (selectedHandCard.type === 'monster' || selectedHandCard.type === 'magic' || selectedHandCard.type === 'field') &&
+                      (selectedHandCard.type === 'monster' || selectedHandCard.type === 'magic' || selectedHandCard.type === 'field' || selectedHandCard.type === 'phasecard') &&
                       (selectedHandCard.attribute === p1PhaseCard.attribute || selectedHandCard.attribute === 'なし' || p1PhaseCard.attribute === 'なし') &&
                       (p1PhaseCard.stage || 0) < 3 && (
                       <div style={{ fontSize: '9px', color: '#4da6ff', textAlign: 'center', marginTop: '2px' }}>
