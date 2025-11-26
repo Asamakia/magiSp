@@ -69,6 +69,14 @@ Currently a **prototype version** with local 2-player gameplay.
   - 情報パネルに現在の段階効果と次の段階効果を表示
   - フェイズカードでフェイズカードをチャージ可能（同属性）
   - 最終段階（3枚チャージ）で墓地送り処理
+- **2025-11-26 (Phase 7 - Continuous Effect System)**: Comprehensive continuous effect system implemented ⭐⭐⭐⭐ **NEW**
+  - State-based effect system for persistent card effects
+  - 12 effect types: ATK_MODIFIER, HP_MODIFIER, DAMAGE_REDUCTION, DAMAGE_IMMUNITY, etc.
+  - Condition checking system (attribute, category, name, life, turn conditions)
+  - Value calculation system (fixed, count multiply, conditional)
+  - 45 cards with continuous effects (23 field cards + 22 monster cards)
+  - Phase card stage-based effects support
+  - ~2736 lines of new implementation code
 
 ---
 
@@ -117,16 +125,28 @@ Currently a **prototype version** with local 2-player gameplay.
 │   │   │   ├── primitive.js    # 原始属性 card effects
 │   │   │   ├── future.js       # 未来属性 card effects
 │   │   │   └── neutral.js      # なし属性 card effects
-│   │   └── cardTriggers/       # Card-specific trigger implementations (~7270 lines) ⭐ NEW
-│   │       ├── fireCards.js      # 炎属性 trigger implementations (33 cards, 819 lines)
-│   │       ├── waterCards.js     # 水属性 trigger implementations (37 cards, 1122 lines)
-│   │       ├── lightCards.js     # 光属性 trigger implementations (37 cards, 1069 lines)
-│   │       ├── darkCards.js      # 闘属性 trigger implementations (45 cards, 1591 lines)
-│   │       ├── futureCards.js    # 未来属性 trigger implementations (12 cards, 504 lines)
-│   │       ├── primitiveCards.js # 原始属性 trigger implementations (28 cards, 1306 lines)
-│   │       └── neutralCards.js   # なし属性 trigger implementations (18 cards, 758 lines)
+│   │   ├── cardTriggers/       # Card-specific trigger implementations (~7270 lines)
+│   │   │   ├── fireCards.js      # 炎属性 trigger implementations (33 cards, 819 lines)
+│   │   │   ├── waterCards.js     # 水属性 trigger implementations (37 cards, 1122 lines)
+│   │   │   ├── lightCards.js     # 光属性 trigger implementations (37 cards, 1069 lines)
+│   │   │   ├── darkCards.js      # 闘属性 trigger implementations (45 cards, 1591 lines)
+│   │   │   ├── futureCards.js    # 未来属性 trigger implementations (12 cards, 504 lines)
+│   │   │   ├── primitiveCards.js # 原始属性 trigger implementations (28 cards, 1306 lines)
+│   │   │   └── neutralCards.js   # なし属性 trigger implementations (18 cards, 758 lines)
+│   │   └── continuousEffects/  # Continuous effect system (~2736 lines) ⭐⭐⭐⭐ NEW
+│   │       ├── index.js          # Main exports (106 lines)
+│   │       ├── effectTypes.js    # Effect type definitions (224 lines)
+│   │       ├── targetTypes.js    # Target type definitions (182 lines)
+│   │       ├── conditionChecker.js # Condition checking (303 lines)
+│   │       ├── valueCalculator.js  # Value calculation (216 lines)
+│   │       ├── effectEngine.js   # Main continuous effect engine (687 lines)
+│   │       └── effectDefinitions/ # Card effect definitions (~1018 lines)
+│   │           ├── index.js      # Definition registry (77 lines)
+│   │           ├── fieldCards.js # Field card effects (23 cards, 390 lines)
+│   │           ├── monsterCards.js # Monster card effects (22 cards, 368 lines)
+│   │           └── phaseCards.js # Phase card effects (183 lines)
 │   │
-│   ├── ルール/                  # Documentation (~5356 lines total)
+│   ├── ルール/                  # Documentation (~8900 lines total)
 │   │   ├── Game Rules (日本語) - 3 files (244 lines)
 │   │   │   ├── マジックスピリット 公式ルール仕様書 ver2.11.txt (114 lines)
 │   │   │   ├── マジックスピリット - デッキ構築とコストバランス.txt (86 lines)
@@ -136,11 +156,13 @@ Currently a **prototype version** with local 2-player gameplay.
 │   │   │   └── magic-spirit-roadmap.txt (249 lines) - Legacy
 │   │   ├── Code Architecture
 │   │   │   └── code-structure.md (433 lines) - Detailed architecture guide
-│   │   └── Trigger System Documentation - 4 files (3579 lines) ⭐ NEW
-│   │       ├── trigger-implementation-guide.md (1268 lines) - Implementation guide
-│   │       ├── trigger-specifications.md (941 lines) - Spec details
-│   │       ├── trigger-revision-plan.md (823 lines) - Design revision plan
-│   │       └── trigger-system-design.md (547 lines) - System design
+│   │   ├── Trigger System Documentation - 4 files (3579 lines)
+│   │   │   ├── trigger-implementation-guide.md (1268 lines) - Implementation guide
+│   │   │   ├── trigger-specifications.md (941 lines) - Spec details
+│   │   │   ├── trigger-revision-plan.md (823 lines) - Design revision plan
+│   │   │   └── trigger-system-design.md (547 lines) - System design
+│   │   └── Continuous Effect System Documentation - 1 file (1247 lines) ⭐⭐⭐⭐ NEW
+│   │       └── continuous-effect-system-design.md (1247 lines) - System design
 │   │
 │   ├── index.js                # React entry point
 │   ├── App.css                 # App styling
@@ -206,7 +228,7 @@ Currently a **prototype version** with local 2-player gameplay.
 - Turn-based usage flag management
 - Priority-based execution ordering
 
-**`src/engine/cardTriggers/`** (Card-specific trigger implementations - ~7270 lines, 220 cards) ⭐⭐ **NEW**
+**`src/engine/cardTriggers/`** (Card-specific trigger implementations - ~7270 lines, 220 cards)
 - **fireCards.js**: 炎属性 triggers (33 cards, 819 lines)
 - **waterCards.js**: 水属性 triggers (37 cards, 1122 lines) - includes 3 graveyard triggers
 - **lightCards.js**: 光属性 triggers (37 cards, 1069 lines)
@@ -216,6 +238,19 @@ Currently a **prototype version** with local 2-player gameplay.
 - **neutralCards.js**: なし属性 triggers (18 cards, 758 lines) - includes field/phase card triggers
 - Uses effect helpers for common patterns
 - Comprehensive trigger system covering 220 cards across all attributes
+
+**`src/engine/continuousEffects/`** (Continuous effect system - ~2736 lines, 45 cards) ⭐⭐⭐⭐ **NEW**
+- **effectTypes.js**: 12 continuous effect types (ATK_MODIFIER, DAMAGE_REDUCTION, etc.)
+- **targetTypes.js**: Target type definitions (SELF_CARD, SELF_MONSTERS, etc.)
+- **conditionChecker.js**: Condition checking system (attribute, category, name, life, etc.)
+- **valueCalculator.js**: Value calculation (FIXED, COUNT_MULTIPLY, CONDITIONAL)
+- **effectEngine.js**: Main engine with lifecycle management and calculation methods
+- **effectDefinitions/**: Card-specific continuous effect definitions
+  - fieldCards.js: 23 field cards with continuous effects
+  - monsterCards.js: 22 monster cards with continuous effects
+  - phaseCards.js: Phase card stage-based effects
+- State-based effect system (vs event-driven trigger system)
+- Comprehensive coverage of 常時 effects
 
 **`src/utils/cardManager.js`** (Card data manager - 253 lines)
 - CSV parser for 433 cards
@@ -835,6 +870,155 @@ const context = {
 
 ---
 
+### Working with the Continuous Effect System ⭐⭐⭐⭐ **NEW**
+
+The continuous effect system manages state-based effects that apply while cards are on the field.
+
+**Key Difference from Trigger System**:
+- **Triggers**: Event-driven, fire once when event occurs (summon, destroy, phase change)
+- **Continuous Effects**: State-based, continuously apply while card is on field
+
+**System Architecture**:
+```
+Continuous Effect Lifecycle:
+1. Card placed on field → register(card, owner) registers all effects
+2. Game state changes (attack, damage, summon)
+3. Calculation methods called to get current effect values
+4. Card removed → unregister(uniqueId) removes all effects
+5. Turn end → resetTurnFlags() clears per-turn usage
+```
+
+**Effect Types (12 types)**:
+```javascript
+CONTINUOUS_EFFECT_TYPES = {
+  ATK_MODIFIER,           // 攻撃力修正
+  HP_MODIFIER,            // HP修正
+  DAMAGE_REDUCTION,       // ダメージ軽減
+  DAMAGE_IMMUNITY,        // ダメージ無効
+  DAMAGE_DEALT_MODIFIER,  // 与ダメージ修正
+  DAMAGE_RECEIVED_MODIFIER, // 被ダメージ修正
+  SUMMON_COST_MODIFIER,   // 召喚コスト修正
+  MAGIC_COST_MODIFIER,    // 魔法コスト修正
+  ATTACK_RESTRICTION,     // 攻撃制限
+  SP_RESTRICTION,         // SP制限
+  MAGIC_NEGATION,         // 魔法無効化
+  SKILL_NEGATION,         // 技無効化
+  ON_SUMMON_BUFF,         // 召喚時バフ
+};
+```
+
+**Implementing a Card's Continuous Effect**:
+```javascript
+// In appropriate file (e.g., src/engine/continuousEffects/effectDefinitions/fieldCards.js)
+import { CONTINUOUS_EFFECT_TYPES } from '../effectTypes';
+import { TARGET_TYPES } from '../targetTypes';
+
+export const fieldCardEffects = {
+  /**
+   * C0000XXX: Card Name
+   * 【常時】Light attribute monsters get +500 ATK.
+   */
+  C0000XXX: [
+    {
+      type: CONTINUOUS_EFFECT_TYPES.ATK_MODIFIER,
+      value: 500,
+      target: TARGET_TYPES.SELF_MONSTERS,
+      condition: { attribute: '光' },
+    },
+  ],
+};
+```
+
+**Value Calculation Types**:
+```javascript
+// Fixed value
+{ value: 500 }
+
+// Count-based (e.g., per monster on field)
+{
+  valueCalculator: VALUE_CALCULATOR_TYPES.COUNT_MULTIPLY,
+  baseValue: 1500,
+  countCondition: { category: '【粘液獣】', excludeSelf: true },
+}
+
+// Conditional (e.g., if specific card is on field)
+{
+  valueCalculator: VALUE_CALCULATOR_TYPES.CONDITIONAL,
+  value: 1000,
+  ifCondition: { hasNameOnField: 'ブリザードマスター' },
+}
+```
+
+**Condition Types**:
+```javascript
+const condition = {
+  // Attribute
+  attribute: '光',                    // Single attribute
+  attributes: ['光', '闇'],           // Multiple (OR)
+
+  // Category
+  category: '【ドラゴン】',            // Contains category
+
+  // Name
+  nameIncludes: '粘液獣',             // Name contains
+  hasNameOnField: 'ブリザードマスター', // Specific card on field
+  hasCategoryOnField: '【ドラゴン】',   // Category on field
+
+  // Numeric conditions
+  maxCost: 3,                         // Cost ≤ value
+  minCost: 5,                         // Cost ≥ value
+  maxLife: 2000,                      // Life ≤ value
+  minAttributeOnField: { attribute: '光', count: 2 },
+
+  // Turn condition
+  isMyTurn: true,                     // Only during own turn
+
+  // Exclude self
+  excludeSelf: true,                  // Don't count self
+};
+```
+
+**Engine API**:
+```javascript
+import { continuousEffectEngine } from './engine/continuousEffects';
+
+// Lifecycle
+continuousEffectEngine.register(card, owner);     // Register card effects
+continuousEffectEngine.unregister(uniqueId);      // Remove card effects
+continuousEffectEngine.clear();                   // Reset all (game init)
+continuousEffectEngine.resetTurnFlags();          // Reset per-turn usage
+
+// Calculations
+const atkMod = continuousEffectEngine.calculateAttackModifier(monster, context);
+const hpMod = continuousEffectEngine.calculateHPModifier(monster, context);
+const reduction = continuousEffectEngine.calculateDamageReduction(target, 'battle', context);
+const costMod = continuousEffectEngine.calculateSummonCostModifier(card, summoner, context);
+const magicCostMod = continuousEffectEngine.calculateMagicCostModifier(magicCard, caster, context);
+
+// Restriction checks
+const canAtkk = continuousEffectEngine.canAttack(monster, context);
+const negated = continuousEffectEngine.tryNegateMagic(magicCard, caster, context);
+const skillNegated = continuousEffectEngine.tryNegateSkill(skillType, skillUser, context);
+
+// Summon buffs
+const { atkBuff, hpBuff } = continuousEffectEngine.getSummonBuffs(monster, summoner, context);
+```
+
+**Integration in magic-spirit.jsx**:
+- **initGame()**: `continuousEffectEngine.clear()` - Reset system
+- **summonCard()**: `continuousEffectEngine.register()` - Register effects
+- **summonCard()**: `getSummonBuffs()` - Apply summon-time buffs
+- **attack()**: `calculateAttackModifier()` - Apply ATK modifications
+- **attack()**: `calculateDamageReduction()` - Apply damage reduction
+- **attack()**: `canAttack()` - Check attack restrictions
+- **destroyMonster()**: `unregister()` - Remove effects
+- **useMagicCard()**: `calculateMagicCostModifier()` - Apply cost modifications
+- **useMagicCard()**: `tryNegateMagic()` - Check for negation
+- **executeSkill()**: `tryNegateSkill()` - Check for skill negation
+- **processPhase()**: `resetTurnFlags()` - Reset per-turn usage
+
+---
+
 ## Development Workflow
 
 ### Available Scripts
@@ -1351,6 +1535,6 @@ This is suitable for expansion into a full game or as a learning project for Rea
 
 ---
 
-**Document Version**: 3.8
-**Last Updated**: 2025-11-26 (Phase card stage progression logic, phaseCardEffects.js refactoring)
+**Document Version**: 3.9
+**Last Updated**: 2025-11-26 (Continuous effect system implementation)
 **For**: Magic Spirit (magiSp) Repository
