@@ -3,6 +3,7 @@
 // ========================================
 
 import { DECK_SIZE } from './constants';
+import { PREBUILT_DECKS } from '../decks/prebuiltDecks';
 
 /**
  * 配列をシャッフル
@@ -59,3 +60,49 @@ export const createMonsterInstance = (card) => ({
   charges: [],
   statusEffects: [],
 });
+
+/**
+ * 固定デッキからカードインスタンスを生成
+ * @param {string} deckId - デッキID（'random', 'fire', 'water', 'light', 'balanced'）
+ * @param {Array} cardPool - カードプール（CSVから読み込んだ全カードデータ）
+ * @returns {Array} シャッフルされたデッキ
+ */
+export const createDeckFromPrebuilt = (deckId, cardPool = []) => {
+  const deckConfig = PREBUILT_DECKS[deckId];
+
+  // ランダムまたは不明なデッキIDの場合は従来のランダム生成
+  if (!deckConfig || deckConfig.cards === null) {
+    return createDeck(cardPool);
+  }
+
+  // 固定デッキからカードインスタンスを生成
+  const deck = [];
+  for (const cardId of deckConfig.cards) {
+    const cardData = cardPool.find(c => c.id === cardId);
+    if (cardData) {
+      deck.push({
+        ...cardData,
+        uniqueId: `${cardId}-${Date.now()}-${Math.random()}`,
+      });
+    } else {
+      console.warn(`カードが見つかりません: ${cardId}`);
+    }
+  }
+
+  // デッキが40枚に満たない場合、ランダムで補充
+  if (deck.length < DECK_SIZE) {
+    console.warn(`デッキが${deck.length}枚しかありません。ランダムで補充します。`);
+    const availableCards = cardPool.filter(c =>
+      c.type === 'monster' || c.type === 'magic' || c.type === 'field' || c.type === 'phasecard'
+    );
+    while (deck.length < DECK_SIZE && availableCards.length > 0) {
+      const randomCard = availableCards[Math.floor(Math.random() * availableCards.length)];
+      deck.push({
+        ...randomCard,
+        uniqueId: `${randomCard.id}-${Date.now()}-${Math.random()}`,
+      });
+    }
+  }
+
+  return shuffle(deck);
+};
