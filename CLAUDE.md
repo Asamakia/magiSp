@@ -63,6 +63,12 @@ Currently a **prototype version** with local 2-player gameplay.
   - Card pool maintained at 433 cards
 - **2025-11-26 (UI Bug Fix)**: Fixed info panel skill text duplication
   - Removed duplicate 基本技/上級技 display in card info panel
+- **2025-11-26 (Phase 5 - Phase Card Stage Logic)**: Phase card stage progression implemented ⭐
+  - CSVテキストパース方式で段階効果を取得（「初期効果:」「1枚重ね:」等）
+  - phaseCardEffects.jsを大幅簡素化（658行→200行）
+  - 情報パネルに現在の段階効果と次の段階効果を表示
+  - フェイズカードでフェイズカードをチャージ可能（同属性）
+  - 最終段階（3枚チャージ）で墓地送り処理
 
 ---
 
@@ -98,6 +104,7 @@ Currently a **prototype version** with local 2-player gameplay.
 │   ├── engine/                 # Game logic engines ⭐⭐
 │   │   ├── effectEngine.js     # Generic effect execution engine (563 lines)
 │   │   ├── effectHelpers.js    # Reusable effect helper functions (445 lines)
+│   │   ├── phaseCardEffects.js # Phase card stage effect parser (200 lines) ⭐ NEW
 │   │   ├── triggerTypes.js     # Trigger type definitions (372 lines) ⭐ NEW
 │   │   ├── triggerEngine.js    # Trigger lifecycle management (716 lines) ⭐ NEW
 │   │   ├── cardEffects/        # Card-specific effect implementations (~1695 lines)
@@ -168,6 +175,14 @@ Currently a **prototype version** with local 2-player gameplay.
 - Common patterns: damage, heal, draw, search, revive, destroy
 - Field/graveyard manipulation utilities
 - Used by all card-specific effects
+
+**`src/engine/phaseCardEffects.js`** (Phase card stage parser - 200 lines) ⭐ **NEW**
+- CSVのeffectフィールドから段階効果をパース
+- 「初期効果:」「1枚重ね:」「2枚重ね:」「3枚重ね:」形式をサポート
+- `parsePhaseCardStageEffects()` - 効果テキストから各段階を抽出
+- `getPhaseCardStageText()` - 指定段階の効果テキストを取得
+- `getStageName()` / `getStageShortName()` - 段階名ヘルパー
+- `getCurrentStageDescription()` / `getNextStageDescription()` - UI表示用
 
 **`src/engine/cardEffects/`** (Card-specific effects - ~1695 lines) ⭐⭐ **Most Important**
 - 108+ individual card implementations
@@ -1336,6 +1351,6 @@ This is suitable for expansion into a full game or as a learning project for Rea
 
 ---
 
-**Document Version**: 3.7
-**Last Updated**: 2025-11-26 (Deck selection feature, UI bug fix, line count updates)
+**Document Version**: 3.8
+**Last Updated**: 2025-11-26 (Phase card stage progression logic, phaseCardEffects.js refactoring)
 **For**: Magic Spirit (magiSp) Repository
