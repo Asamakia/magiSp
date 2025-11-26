@@ -40,12 +40,13 @@ Currently a **prototype version** with local 2-player gameplay.
   - Priority-based trigger execution
   - Turn-based usage flags and lifecycle management
   - ~1230 lines of new trigger infrastructure
-  - **168 cards with trigger implementations across 5 attributes** (~5030 lines)
+  - **196 cards with trigger implementations across 6 attributes** (~6336 lines)
     - Fire (炎): 33 cards (819 lines)
     - Water (水): 34 cards (970 lines)
     - Light (光): 47 cards (1309 lines)
     - Dark (闇): 42 cards (1428 lines)
     - Future (未来): 12 cards (504 lines)
+    - Primitive (原始): 28 cards (1306 lines)
 
 ---
 
@@ -93,12 +94,13 @@ Currently a **prototype version** with local 2-player gameplay.
 │   │   │   ├── primitive.js    # 原始属性 card effects
 │   │   │   ├── future.js       # 未来属性 card effects
 │   │   │   └── neutral.js      # なし属性 card effects
-│   │   └── cardTriggers/       # Card-specific trigger implementations (~5030 lines) ⭐ NEW
-│   │       ├── fireCards.js    # 炎属性 trigger implementations (33 cards, 819 lines)
-│   │       ├── waterCards.js   # 水属性 trigger implementations (34 cards, 970 lines)
-│   │       ├── lightCards.js   # 光属性 trigger implementations (47 cards, 1309 lines)
-│   │       ├── darkCards.js    # 闇属性 trigger implementations (42 cards, 1428 lines)
-│   │       └── futureCards.js  # 未来属性 trigger implementations (12 cards, 504 lines)
+│   │   └── cardTriggers/       # Card-specific trigger implementations (~6336 lines) ⭐ NEW
+│   │       ├── fireCards.js      # 炎属性 trigger implementations (33 cards, 819 lines)
+│   │       ├── waterCards.js     # 水属性 trigger implementations (34 cards, 970 lines)
+│   │       ├── lightCards.js     # 光属性 trigger implementations (47 cards, 1309 lines)
+│   │       ├── darkCards.js      # 闇属性 trigger implementations (42 cards, 1428 lines)
+│   │       ├── futureCards.js    # 未来属性 trigger implementations (12 cards, 504 lines)
+│   │       └── primitiveCards.js # 原始属性 trigger implementations (28 cards, 1306 lines)
 │   │
 │   ├── ルール/                  # Documentation (~5356 lines total)
 │   │   ├── Game Rules (日本語) - 3 files (244 lines)
@@ -172,14 +174,15 @@ Currently a **prototype version** with local 2-player gameplay.
 - Turn-based usage flag management
 - Priority-based execution ordering
 
-**`src/engine/cardTriggers/`** (Card-specific trigger implementations - ~5030 lines, 168 cards) ⭐⭐ **NEW**
+**`src/engine/cardTriggers/`** (Card-specific trigger implementations - ~6336 lines, 196 cards) ⭐⭐ **NEW**
 - **fireCards.js**: 炎属性 triggers (33 cards, 819 lines)
 - **waterCards.js**: 水属性 triggers (34 cards, 970 lines)
 - **lightCards.js**: 光属性 triggers (47 cards, 1309 lines) - Most cards!
 - **darkCards.js**: 闇属性 triggers (42 cards, 1428 lines)
 - **futureCards.js**: 未来属性 triggers (12 cards, 504 lines)
+- **primitiveCards.js**: 原始属性 triggers (28 cards, 1306 lines)
 - Uses effect helpers for common patterns
-- Comprehensive trigger system covering 168 cards across all major attributes
+- Comprehensive trigger system covering 196 cards across all major attributes
 
 **`src/utils/cardManager.js`** (Card data manager - 240 lines)
 - CSV parser for 433 cards
@@ -746,6 +749,7 @@ export const fireCardTriggers = {
 // - lightCards.js (光属性)
 // - darkCards.js (闇属性)
 // - futureCards.js (未来属性)
+// - primitiveCards.js (原始属性)
 ```
 
 **Trigger Context Object**:
@@ -1051,11 +1055,11 @@ console.log('Executing effect:', type, value, target);
    - Effect helper library with 9 reusable functions
    - Hybrid approach: generic + card-specific effects
 4. ✅ **~~Trigger system~~**: COMPLETED - Comprehensive trigger system implemented (2025-11-26)
-   - 168 cards with triggers across 5 attributes (~5030 lines)
+   - 196 cards with triggers across 6 attributes (~6336 lines)
    - 26 generic trigger types with automatic/optional distinction
    - Priority-based execution and turn-based lifecycle management
 5. **Remaining card effects**: Implement effects for remaining 325 cards (433 total - 108 implemented)
-6. **Remaining card triggers**: Implement triggers for remaining cards (433 total - 168 implemented)
+6. **Remaining card triggers**: Implement triggers for remaining cards (433 total - 196 implemented)
 7. **Card data format**: Convert CSV to JSON for better structure and validation
 8. **State management**: Consider Context API or Redux for complex state
 9. **TypeScript**: Add type safety to entire codebase
@@ -1304,7 +1308,7 @@ This is suitable for expansion into a full game or as a learning project for Rea
 
 ---
 
-**Document Version**: 3.3
-**Last Updated**: 2025-11-26 (Trigger system complete - 168 cards across 5 attributes documented)
+**Document Version**: 3.4
+**Last Updated**: 2025-11-26 (Trigger system expanded - 196 cards across 6 attributes documented, including primitive attribute)
 **For**: Magic Spirit (magiSp) Repository
 **Branch**: claude/update-claude-md-01TiLLBqcPC9ErsvheF6d417
