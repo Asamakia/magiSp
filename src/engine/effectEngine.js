@@ -27,61 +27,95 @@ export const EFFECT_TYPES = {
 export const parseEffect = (effectText) => {
   const effects = [];
 
-  // ダメージ効果
-  const damageMatch = effectText.match(/(\d+)ダメージ/);
+  // ダメージ効果（相手プレイヤー）
+  const damageMatch = effectText.match(/相手(?:プレイヤー)?に(\d+)ダメージ/);
   if (damageMatch) {
     effects.push({
       type: EFFECT_TYPES.DAMAGE,
       value: parseInt(damageMatch[1]),
-      target: 'opponent', // デフォルトは相手プレイヤー
-    });
-  }
-
-  // 回復効果
-  const healMatch = effectText.match(/(\d+)回復/);
-  if (healMatch) {
-    effects.push({
-      type: EFFECT_TYPES.HEAL,
-      value: parseInt(healMatch[1]),
-      target: 'self', // デフォルトは自分
-    });
-  }
-
-  // 攻撃力バフ
-  const buffAtkMatch = effectText.match(/攻撃力\+(\d+)/);
-  if (buffAtkMatch) {
-    effects.push({
-      type: EFFECT_TYPES.BUFF_ATK,
-      value: parseInt(buffAtkMatch[1]),
-      target: 'self', // TODO: ターゲット指定を拡張
-    });
-  }
-
-  // 攻撃力デバフ
-  const debuffAtkMatch = effectText.match(/攻撃力-(\d+)/);
-  if (debuffAtkMatch) {
-    effects.push({
-      type: EFFECT_TYPES.DEBUFF_ATK,
-      value: parseInt(debuffAtkMatch[1]),
       target: 'opponent',
     });
   }
 
-  // HP バフ
-  const buffHpMatch = effectText.match(/HP\+(\d+)/);
-  if (buffHpMatch) {
+  // ダメージ効果（相手モンスター）
+  const monsterDamageMatch = effectText.match(/相手(?:の)?モンスター.{0,10}(\d+)ダメージ/);
+  if (monsterDamageMatch) {
     effects.push({
-      type: EFFECT_TYPES.BUFF_HP,
-      value: parseInt(buffHpMatch[1]),
+      type: EFFECT_TYPES.DAMAGE,
+      value: parseInt(monsterDamageMatch[1]),
+      target: 'opponent_monster',
+    });
+  }
+
+  // 回復効果（ライフ）
+  const healMatch = effectText.match(/(?:ライフを?|HP.*を?)(\d+)回復/);
+  if (healMatch) {
+    effects.push({
+      type: EFFECT_TYPES.HEAL,
+      value: parseInt(healMatch[1]),
       target: 'self',
     });
   }
 
-  // 2回攻撃
-  if (effectText.includes('2回攻撃')) {
+  // 攻撃力バフ（様々なパターン）
+  const buffAtkMatch = effectText.match(/攻撃力(?:を)?(\d+)(?:アップ|上げ|上昇)|攻撃力\+(\d+)/);
+  if (buffAtkMatch) {
     effects.push({
-      type: EFFECT_TYPES.DOUBLE_ATTACK,
-      value: true,
+      type: EFFECT_TYPES.BUFF_ATK,
+      value: parseInt(buffAtkMatch[1] || buffAtkMatch[2]),
+      target: 'self',
+      duration: 'permanent', // デフォルトは永続
+    });
+  }
+
+  // 攻撃力デバフ（様々なパターン）
+  const debuffAtkMatch = effectText.match(/攻撃力(?:を)?(\d+)(?:ダウン|下げ|減少)|攻撃力-(\d+)/);
+  if (debuffAtkMatch) {
+    effects.push({
+      type: EFFECT_TYPES.DEBUFF_ATK,
+      value: parseInt(debuffAtkMatch[1] || debuffAtkMatch[2]),
+      target: 'opponent_monster',
+      duration: 'turn', // デフォルトはターン終了まで
+    });
+  }
+
+  // HP バフ
+  const buffHpMatch = effectText.match(/HP(?:を)?(\d+)(?:アップ|上げ|上昇)|HP\+(\d+)/);
+  if (buffHpMatch) {
+    effects.push({
+      type: EFFECT_TYPES.BUFF_HP,
+      value: parseInt(buffHpMatch[1] || buffHpMatch[2]),
+      target: 'self',
+    });
+  }
+
+  // HP デバフ
+  const debuffHpMatch = effectText.match(/HP(?:を)?(\d+)(?:ダウン|下げ|減少)|HP-(\d+)/);
+  if (debuffHpMatch) {
+    effects.push({
+      type: EFFECT_TYPES.DEBUFF_HP,
+      value: parseInt(debuffHpMatch[1] || debuffHpMatch[2]),
+      target: 'opponent_monster',
+    });
+  }
+
+  // サーチ効果
+  const searchMatch = effectText.match(/デッキから(.+?)(?:を|1枚を)?手札に加える/);
+  if (searchMatch) {
+    effects.push({
+      type: EFFECT_TYPES.SEARCH,
+      searchTerm: searchMatch[1].trim(),
+      target: 'deck',
+    });
+  }
+
+  // 蘇生効果
+  const reviveMatch = effectText.match(/墓地(?:の|から)(.+?)(?:を|1体を)?(?:場に|フィールドに)?戻す/);
+  if (reviveMatch) {
+    effects.push({
+      type: EFFECT_TYPES.REVIVE,
+      searchTerm: reviveMatch[1].trim(),
+      weakened: effectText.includes('攻撃力半減') || effectText.includes('弱体化'),
     });
   }
 
@@ -94,7 +128,22 @@ export const parseEffect = (effectText) => {
     });
   }
 
-  // TODO: サーチ、蘇生、破壊などの複雑な効果は将来実装
+  // 破壊効果
+  const destroyMatch = effectText.match(/(?:相手の?)?モンスター.{0,10}(?:を)?破壊/);
+  if (destroyMatch) {
+    effects.push({
+      type: EFFECT_TYPES.DESTROY,
+      target: 'opponent_monster',
+    });
+  }
+
+  // 2回攻撃
+  if (effectText.match(/2回攻撃|二回攻撃/)) {
+    effects.push({
+      type: EFFECT_TYPES.DOUBLE_ATTACK,
+      value: true,
+    });
+  }
 
   return effects;
 };
@@ -110,31 +159,69 @@ export const executeEffect = (effect, context) => {
     type,
     value,
     target,
+    searchTerm,
+    weakened,
+    // duration, // 将来の実装用に保持
   } = effect;
 
   const {
     currentPlayer,
+    monsterIndex,
     setP1Life,
     setP2Life,
     setP1Field,
     setP2Field,
+    setP1Hand,
+    setP2Hand,
+    setP1Deck,
+    setP2Deck,
+    setP1Graveyard,
+    setP2Graveyard,
+    p1Field,
+    p2Field,
+    // p1Hand, // コンテキストで渡されるが、現在未使用
+    // p2Hand, // コンテキストで渡されるが、現在未使用
+    p1Deck,
+    p2Deck,
+    p1Graveyard,
+    p2Graveyard,
     addLog,
   } = context;
 
   switch (type) {
     case EFFECT_TYPES.DAMAGE:
-      if (target === 'opponent' || !target) {
+      if (target === 'opponent') {
+        // 相手プレイヤーへのダメージ
         if (currentPlayer === 1) {
           setP2Life(prev => Math.max(0, prev - value));
         } else {
           setP1Life(prev => Math.max(0, prev - value));
         }
         addLog(`相手に${value}ダメージ！`, 'damage');
+      } else if (target === 'opponent_monster') {
+        // 相手モンスターへのダメージ（簡易実装：ランダムな相手モンスター）
+        const opponentField = currentPlayer === 1 ? p2Field : p1Field;
+        const setOpponentField = currentPlayer === 1 ? setP2Field : setP1Field;
+        const monsters = opponentField.filter(m => m !== null);
+
+        if (monsters.length > 0) {
+          const targetMonster = monsters[0]; // 最初のモンスターに
+          setOpponentField(prev => prev.map(m => {
+            if (m && m.uniqueId === targetMonster.uniqueId) {
+              const newHp = Math.max(0, m.currentHp - value);
+              addLog(`${m.name}に${value}ダメージ！（残りHP: ${newHp}）`, 'damage');
+              return { ...m, currentHp: newHp };
+            }
+            return m;
+          }));
+        } else {
+          addLog(`対象のモンスターがいません`, 'info');
+        }
       }
       return true;
 
     case EFFECT_TYPES.HEAL:
-      if (target === 'self' || !target) {
+      if (target === 'self') {
         if (currentPlayer === 1) {
           setP1Life(prev => prev + value);
         } else {
@@ -145,44 +232,210 @@ export const executeEffect = (effect, context) => {
       return true;
 
     case EFFECT_TYPES.BUFF_ATK:
-      // TODO: 実装（モンスターの攻撃力を永続的に上昇）
-      addLog(`攻撃力+${value}（未実装）`, 'info');
-      return false;
+      // モンスターの攻撃力を上昇
+      if (monsterIndex !== undefined && monsterIndex !== null) {
+        const setCurrentField = currentPlayer === 1 ? setP1Field : setP2Field;
+        setCurrentField(prev => prev.map((m, idx) => {
+          if (idx === monsterIndex && m) {
+            addLog(`${m.name}の攻撃力が${value}上昇！`, 'info');
+            return { ...m, attack: m.attack + value };
+          }
+          return m;
+        }));
+        return true;
+      } else {
+        addLog(`攻撃力+${value}（対象未指定）`, 'info');
+        return false;
+      }
 
     case EFFECT_TYPES.BUFF_HP:
-      // TODO: 実装（モンスターのHPを永続的に上昇）
-      addLog(`HP+${value}（未実装）`, 'info');
-      return false;
+      // モンスターのHPを上昇
+      if (monsterIndex !== undefined && monsterIndex !== null) {
+        const setCurrentField = currentPlayer === 1 ? setP1Field : setP2Field;
+        setCurrentField(prev => prev.map((m, idx) => {
+          if (idx === monsterIndex && m) {
+            addLog(`${m.name}のHPが${value}上昇！`, 'heal');
+            return {
+              ...m,
+              hp: m.hp + value,
+              currentHp: m.currentHp + value
+            };
+          }
+          return m;
+        }));
+        return true;
+      } else {
+        addLog(`HP+${value}（対象未指定）`, 'info');
+        return false;
+      }
 
     case EFFECT_TYPES.DEBUFF_ATK:
-      // TODO: 実装（相手モンスターの攻撃力を下降）
-      addLog(`攻撃力-${value}（未実装）`, 'info');
-      return false;
+      // 相手モンスターの攻撃力を減少
+      const opponentField = currentPlayer === 1 ? p2Field : p1Field;
+      const setOpponentField = currentPlayer === 1 ? setP2Field : setP1Field;
+      const monsters = opponentField.filter(m => m !== null);
 
-    case EFFECT_TYPES.DOUBLE_ATTACK:
-      // TODO: 実装（このターン2回攻撃可能）
-      addLog(`2回攻撃可能（未実装）`, 'info');
-      return false;
+      if (monsters.length > 0) {
+        const targetMonster = monsters[0]; // 最初のモンスター
+        setOpponentField(prev => prev.map(m => {
+          if (m && m.uniqueId === targetMonster.uniqueId) {
+            const newAtk = Math.max(0, m.attack - value);
+            addLog(`${m.name}の攻撃力が${value}減少！（攻撃力: ${newAtk}）`, 'info');
+            return { ...m, attack: newAtk };
+          }
+          return m;
+        }));
+        return true;
+      } else {
+        addLog(`対象のモンスターがいません`, 'info');
+        return false;
+      }
 
-    case EFFECT_TYPES.DRAW:
-      // TODO: 実装（カードをドロー）
-      addLog(`${value}枚ドロー（未実装）`, 'info');
-      return false;
+    case EFFECT_TYPES.DEBUFF_HP:
+      // 相手モンスターのHPを減少
+      const opponentField2 = currentPlayer === 1 ? p2Field : p1Field;
+      const setOpponentField2 = currentPlayer === 1 ? setP2Field : setP1Field;
+      const monsters2 = opponentField2.filter(m => m !== null);
+
+      if (monsters2.length > 0) {
+        const targetMonster = monsters2[0];
+        setOpponentField2(prev => prev.map(m => {
+          if (m && m.uniqueId === targetMonster.uniqueId) {
+            const newHp = Math.max(0, m.currentHp - value);
+            addLog(`${m.name}のHPが${value}減少！（HP: ${newHp}）`, 'damage');
+            return { ...m, currentHp: newHp };
+          }
+          return m;
+        }));
+        return true;
+      } else {
+        addLog(`対象のモンスターがいません`, 'info');
+        return false;
+      }
 
     case EFFECT_TYPES.SEARCH:
-      // TODO: 実装（デッキからサーチ）
-      addLog(`サーチ効果（未実装）`, 'info');
-      return false;
+      // デッキからサーチ
+      const currentDeck = currentPlayer === 1 ? p1Deck : p2Deck;
+      const setCurrentDeck = currentPlayer === 1 ? setP1Deck : setP2Deck;
+      const setCurrentHand = currentPlayer === 1 ? setP1Hand : setP2Hand;
+
+      // サーチ条件に一致するカードを検索
+      const foundCard = currentDeck.find(card =>
+        card.name.includes(searchTerm) ||
+        card.category.includes(searchTerm) ||
+        card.attribute === searchTerm
+      );
+
+      if (foundCard) {
+        setCurrentDeck(prev => prev.filter(c => c.uniqueId !== foundCard.uniqueId));
+        setCurrentHand(prev => [...prev, foundCard]);
+        addLog(`デッキから「${foundCard.name}」を手札に加えた！`, 'info');
+        return true;
+      } else {
+        addLog(`デッキに「${searchTerm}」が見つかりません`, 'info');
+        return false;
+      }
 
     case EFFECT_TYPES.REVIVE:
-      // TODO: 実装（墓地から蘇生）
-      addLog(`蘇生効果（未実装）`, 'info');
-      return false;
+      // 墓地から蘇生
+      const currentGraveyard = currentPlayer === 1 ? p1Graveyard : p2Graveyard;
+      const setCurrentGraveyard = currentPlayer === 1 ? setP1Graveyard : setP2Graveyard;
+      const currentField = currentPlayer === 1 ? p1Field : p2Field;
+      const setCurrentField2 = currentPlayer === 1 ? setP1Field : setP2Field;
+
+      // 墓地から蘇生対象を検索
+      const reviveCard = currentGraveyard.find(card =>
+        card.type === 'monster' &&
+        (card.name.includes(searchTerm) ||
+         card.category.includes(searchTerm) ||
+         card.attribute === searchTerm)
+      );
+
+      if (!reviveCard) {
+        addLog(`墓地に「${searchTerm}」が見つかりません`, 'info');
+        return false;
+      }
+
+      // 空きスロットを探す
+      const emptySlotIndex = currentField.findIndex(slot => slot === null);
+      if (emptySlotIndex === -1) {
+        addLog(`場が満杯で蘇生できません`, 'info');
+        return false;
+      }
+
+      // 蘇生（弱体化オプション付き）
+      setCurrentGraveyard(prev => prev.filter(c => c.uniqueId !== reviveCard.uniqueId));
+      setCurrentField2(prev => {
+        const newField = [...prev];
+        const revivedMonster = {
+          ...reviveCard,
+          attack: weakened ? Math.floor(reviveCard.attack / 2) : reviveCard.attack,
+          hp: weakened ? Math.floor(reviveCard.hp / 2) : reviveCard.hp,
+          currentHp: weakened ? Math.floor(reviveCard.hp / 2) : reviveCard.hp,
+          canAttack: false,
+        };
+        newField[emptySlotIndex] = revivedMonster;
+        return newField;
+      });
+      addLog(`${reviveCard.name}を墓地から蘇生！${weakened ? '（弱体化）' : ''}`, 'heal');
+      return true;
+
+    case EFFECT_TYPES.DRAW:
+      // カードをドロー
+      const deck = currentPlayer === 1 ? p1Deck : p2Deck;
+      const setDeck = currentPlayer === 1 ? setP1Deck : setP2Deck;
+      const setHand = currentPlayer === 1 ? setP1Hand : setP2Hand;
+
+      if (deck.length < value) {
+        addLog(`デッキが足りません（${deck.length}枚）`, 'info');
+        return false;
+      }
+
+      const drawnCards = deck.slice(0, value);
+      setDeck(prev => prev.slice(value));
+      setHand(prev => [...prev, ...drawnCards]);
+      addLog(`${value}枚ドロー！`, 'info');
+      return true;
 
     case EFFECT_TYPES.DESTROY:
-      // TODO: 実装（破壊効果）
-      addLog(`破壊効果（未実装）`, 'info');
-      return false;
+      // モンスターを破壊
+      const opponentField3 = currentPlayer === 1 ? p2Field : p1Field;
+      const setOpponentField3 = currentPlayer === 1 ? setP2Field : setP1Field;
+      const setOpponentGraveyard = currentPlayer === 1 ? setP2Graveyard : setP1Graveyard;
+      const monsters3 = opponentField3.filter(m => m !== null);
+
+      if (monsters3.length > 0) {
+        const targetMonster = monsters3[0]; // 最初のモンスターを破壊
+        setOpponentField3(prev => prev.map(m => {
+          if (m && m.uniqueId === targetMonster.uniqueId) {
+            return null;
+          }
+          return m;
+        }));
+        setOpponentGraveyard(prev => [...prev, targetMonster]);
+        addLog(`${targetMonster.name}を破壊！`, 'damage');
+        return true;
+      } else {
+        addLog(`破壊する対象がいません`, 'info');
+        return false;
+      }
+
+    case EFFECT_TYPES.DOUBLE_ATTACK:
+      // 2回攻撃フラグを設定
+      if (monsterIndex !== undefined && monsterIndex !== null) {
+        const setCurrentField3 = currentPlayer === 1 ? setP1Field : setP2Field;
+        setCurrentField3(prev => prev.map((m, idx) => {
+          if (idx === monsterIndex && m) {
+            addLog(`${m.name}は2回攻撃可能！`, 'info');
+            return { ...m, doubleAttack: true };
+          }
+          return m;
+        }));
+        return true;
+      } else {
+        addLog(`2回攻撃（対象未指定）`, 'info');
+        return false;
+      }
 
     default:
       console.warn('未実装の効果タイプ:', type);

@@ -320,16 +320,33 @@ export default function MagicSpiritGame() {
     // 効果実行エンジンを使用
     const context = {
       currentPlayer,
+      monsterIndex,
       setP1Life,
       setP2Life,
       setP1Field,
       setP2Field,
+      setP1Hand,
+      setP2Hand,
+      setP1Deck,
+      setP2Deck,
+      setP1Graveyard,
+      setP2Graveyard,
+      p1Field,
+      p2Field,
+      p1Hand,
+      p2Hand,
+      p1Deck,
+      p2Deck,
+      p1Graveyard,
+      p2Graveyard,
       addLog,
     };
 
     const success = executeSkillEffects(skill.text, context);
     return success;
-  }, [currentPlayer, p1Field, p2Field, addLog, setP1Life, setP2Life, setP1Field, setP2Field]);
+  }, [currentPlayer, p1Field, p2Field, p1Hand, p2Hand, p1Deck, p2Deck, p1Graveyard, p2Graveyard,
+      addLog, setP1Life, setP2Life, setP1Field, setP2Field, setP1Hand, setP2Hand,
+      setP1Deck, setP2Deck, setP1Graveyard, setP2Graveyard]);
 
   // カード召喚
   const summonCard = useCallback((card, slotIndex) => {
@@ -373,12 +390,42 @@ export default function MagicSpiritGame() {
       }
       
       addLog(`プレイヤー${currentPlayer}: ${card.name}を召喚！`, 'info');
-      
-      // 召喚時効果（簡易実装）
+
+      // 召喚時効果を実行
       if (card.effect && card.effect.includes('召喚時')) {
         addLog(`${card.name}の召喚時効果発動！`, 'info');
+
+        // 召喚時効果のテキストを抽出
+        const summonEffectMatch = card.effect.match(/召喚時[、，](.+?)(?:。|$)/);
+        if (summonEffectMatch) {
+          const effectText = summonEffectMatch[1];
+          const context = {
+            currentPlayer,
+            monsterIndex: slotIndex,
+            setP1Life,
+            setP2Life,
+            setP1Field,
+            setP2Field,
+            setP1Hand,
+            setP2Hand,
+            setP1Deck,
+            setP2Deck,
+            setP1Graveyard,
+            setP2Graveyard,
+            p1Field,
+            p2Field,
+            p1Hand,
+            p2Hand,
+            p1Deck,
+            p2Deck,
+            p1Graveyard,
+            p2Graveyard,
+            addLog,
+          };
+          executeSkillEffects(effectText, context);
+        }
       }
-      
+
       return true;
     }
 
@@ -396,18 +443,35 @@ export default function MagicSpiritGame() {
       }
       
       addLog(`プレイヤー${currentPlayer}: ${card.name}を発動！`, 'info');
-      
-      // 魔法効果（簡易実装）
-      if (card.effect && card.effect.includes('ダメージ')) {
-        const damage = parseInt(card.effect.match(/\d+/)?.[0] || '500');
-        if (currentPlayer === 1) {
-          setP2Life(prev => Math.max(0, prev - damage));
-        } else {
-          setP1Life(prev => Math.max(0, prev - damage));
-        }
-        addLog(`相手に${damage}ダメージ！`, 'damage');
+
+      // 魔法効果を実行
+      if (card.effect) {
+        const context = {
+          currentPlayer,
+          monsterIndex: null, // 魔法カードはモンスターではない
+          setP1Life,
+          setP2Life,
+          setP1Field,
+          setP2Field,
+          setP1Hand,
+          setP2Hand,
+          setP1Deck,
+          setP2Deck,
+          setP1Graveyard,
+          setP2Graveyard,
+          p1Field,
+          p2Field,
+          p1Hand,
+          p2Hand,
+          p1Deck,
+          p2Deck,
+          p1Graveyard,
+          p2Graveyard,
+          addLog,
+        };
+        executeSkillEffects(card.effect, context);
       }
-      
+
       return true;
     }
 
@@ -429,7 +493,11 @@ export default function MagicSpiritGame() {
     }
 
     return false;
-  }, [currentPlayer, p1ActiveSP, p2ActiveSP, p1Field, p2Field, addLog]);
+  }, [currentPlayer, p1ActiveSP, p2ActiveSP, p1Field, p2Field, p1Hand, p2Hand,
+      p1Deck, p2Deck, p1Graveyard, p2Graveyard, addLog,
+      setP1Life, setP2Life, setP1Field, setP2Field, setP1Hand, setP2Hand,
+      setP1Deck, setP2Deck, setP1Graveyard, setP2Graveyard,
+      setP1ActiveSP, setP1RestedSP, setP2ActiveSP, setP2RestedSP, setP1FieldCard, setP2FieldCard]);
 
   // 攻撃処理
   const attack = useCallback((attackerIndex, targetIndex) => {
