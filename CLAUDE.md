@@ -100,9 +100,21 @@ Currently a **prototype version** with local 2-player gameplay.
 │   │       ├── darkCards.js    # 闇属性 trigger implementations (42 cards, 1428 lines)
 │   │       └── futureCards.js  # 未来属性 trigger implementations (12 cards, 504 lines)
 │   │
-│   ├── ルール/                  # Documentation
-│   │   ├── magic-spirit-roadmap-updated.txt
-│   │   └── code-structure.md   # Detailed code structure guide
+│   ├── ルール/                  # Documentation (~5356 lines total)
+│   │   ├── Game Rules (日本語) - 3 files (244 lines)
+│   │   │   ├── マジックスピリット 公式ルール仕様書 ver2.11.txt (114 lines)
+│   │   │   ├── マジックスピリット - デッキ構築とコストバランス.txt (86 lines)
+│   │   │   └── マジックスピリット - フェイズカードルール (ver1.0).txt (44 lines)
+│   │   ├── Development Roadmaps - 2 files (1100 lines)
+│   │   │   ├── magic-spirit-roadmap-updated.txt (851 lines) ⭐ Current
+│   │   │   └── magic-spirit-roadmap.txt (249 lines) - Legacy
+│   │   ├── Code Architecture
+│   │   │   └── code-structure.md (433 lines) - Detailed architecture guide
+│   │   └── Trigger System Documentation - 4 files (3579 lines) ⭐ NEW
+│   │       ├── trigger-implementation-guide.md (1268 lines) - Implementation guide
+│   │       ├── trigger-specifications.md (941 lines) - Spec details
+│   │       ├── trigger-revision-plan.md (823 lines) - Design revision plan
+│   │       └── trigger-system-design.md (547 lines) - System design
 │   │
 │   ├── index.js                # React entry point
 │   ├── App.css                 # App styling
@@ -183,12 +195,61 @@ Currently a **prototype version** with local 2-player gameplay.
 - All game constants in one place
 - Easy to adjust game balance
 
+**`src/ルール/`** (Documentation directory - ~5356 lines total) 📚
+
+*Game Rules (日本語) - 3 files, 244 lines:*
+- **公式ルール仕様書 ver2.11.txt** (114 lines): Official game rules specification
+  - Core game mechanics and rules
+  - Turn structure and phase details
+  - Card types and attributes
+- **デッキ構築とコストバランス.txt** (86 lines): Deck building and cost balance guide
+  - Deck construction rules
+  - Cost balance guidelines
+  - Card distribution recommendations
+- **フェイズカードルール (ver1.0).txt** (44 lines): Phase card rules
+  - Phase card mechanics
+  - Stage progression rules
+  - Phase card activation timing
+
+*Development Roadmaps - 2 files, 1100 lines:*
+- **magic-spirit-roadmap-updated.txt** (851 lines) ⭐ **Current roadmap**
+  - Complete development history
+  - Phase-by-phase implementation status
+  - Current progress: Phase 6 (Trigger System) completed
+  - Future development plans
+- **magic-spirit-roadmap.txt** (249 lines): Legacy roadmap (archived)
+
+*Code Architecture - 1 file, 433 lines:*
+- **code-structure.md**: Detailed architecture documentation
+  - Module organization
+  - Component hierarchy
+  - State management patterns
+  - Effect and trigger system architecture
+
+*Trigger System Documentation - 4 files, 3579 lines:* ⭐ **NEW**
+- **trigger-implementation-guide.md** (1268 lines): Implementation guide
+  - Step-by-step trigger implementation
+  - Code examples and patterns
+  - Best practices and common pitfalls
+- **trigger-specifications.md** (941 lines): Detailed specifications
+  - Complete trigger type catalog
+  - Activation rules and priorities
+  - Edge case handling
+- **trigger-revision-plan.md** (823 lines): Design revision documentation
+  - System design evolution
+  - Refactoring decisions
+  - Architecture improvements
+- **trigger-system-design.md** (547 lines): System design overview
+  - High-level architecture
+  - Design principles
+  - Integration patterns
+
 **`package.json`**
 - React 19.2.0 (latest)
 - Testing libraries included
 - Standard CRA scripts
 
-**See also**: `src/ルール/code-structure.md` for detailed architecture documentation
+**See also**: Complete documentation in `src/ルール/` directory for game rules, architecture, and system design
 
 ---
 
