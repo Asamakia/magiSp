@@ -41,6 +41,7 @@ export default function MagicSpiritGame() {
   const [p1ActiveSP, setP1ActiveSP] = useState(INITIAL_SP);
   const [p1RestedSP, setP1RestedSP] = useState(0);
   const [p1FieldCard, setP1FieldCard] = useState(null);
+  const [p1PhaseCard, setP1PhaseCard] = useState(null);
 
   // プレイヤー2の状態
   const [p2Life, setP2Life] = useState(INITIAL_LIFE);
@@ -51,12 +52,14 @@ export default function MagicSpiritGame() {
   const [p2ActiveSP, setP2ActiveSP] = useState(INITIAL_SP);
   const [p2RestedSP, setP2RestedSP] = useState(0);
   const [p2FieldCard, setP2FieldCard] = useState(null);
+  const [p2PhaseCard, setP2PhaseCard] = useState(null);
 
   // UI状態
   const [selectedHandCard, setSelectedHandCard] = useState(null);
   const [selectedFieldMonster, setSelectedFieldMonster] = useState(null);
   const [attackingMonster, setAttackingMonster] = useState(null);
   const [chargeUsedThisTurn, setChargeUsedThisTurn] = useState(false);
+  const [selectedFieldCardInfo, setSelectedFieldCardInfo] = useState(null); // フィールド/フェイズカード情報表示用
 
   // ログ追加関数
   const addLog = useCallback((message, type = 'info') => {
@@ -95,9 +98,11 @@ export default function MagicSpiritGame() {
     setP2Field([null, null, null, null, null]);
     setP1FieldCard(null);
     setP2FieldCard(null);
+    setP1PhaseCard(null);
+    setP2PhaseCard(null);
     setP1Graveyard([]);
     setP2Graveyard([]);
-    
+
     setTurn(1);
     setCurrentPlayer(1);
     setPhase(0);
@@ -108,6 +113,7 @@ export default function MagicSpiritGame() {
     setSelectedFieldMonster(null);
     setAttackingMonster(null);
     setChargeUsedThisTurn(false);
+    setSelectedFieldCardInfo(null);
     
     setGameState('playing');
     addLog('ゲーム開始！先攻プレイヤー1のターン', 'info');
@@ -125,6 +131,7 @@ export default function MagicSpiritGame() {
         activeSP: p1ActiveSP, setActiveSP: setP1ActiveSP,
         restedSP: p1RestedSP, setRestedSP: setP1RestedSP,
         fieldCard: p1FieldCard, setFieldCard: setP1FieldCard,
+        phaseCard: p1PhaseCard, setPhaseCard: setP1PhaseCard,
       };
     }
     return {
@@ -136,6 +143,7 @@ export default function MagicSpiritGame() {
       activeSP: p2ActiveSP, setActiveSP: setP2ActiveSP,
       restedSP: p2RestedSP, setRestedSP: setP2RestedSP,
       fieldCard: p2FieldCard, setFieldCard: setP2FieldCard,
+      phaseCard: p2PhaseCard, setPhaseCard: setP2PhaseCard,
     };
   };
 
@@ -146,6 +154,7 @@ export default function MagicSpiritGame() {
         field: p2Field, setField: setP2Field,
         graveyard: p2Graveyard, setGraveyard: setP2Graveyard,
         fieldCard: p2FieldCard,
+        phaseCard: p2PhaseCard,
       };
     }
     return {
@@ -153,6 +162,7 @@ export default function MagicSpiritGame() {
       field: p1Field, setField: setP1Field,
       graveyard: p1Graveyard, setGraveyard: setP1Graveyard,
       fieldCard: p1FieldCard,
+      phaseCard: p1PhaseCard,
     };
   };
 
@@ -275,6 +285,112 @@ export default function MagicSpiritGame() {
     addLog('チャージできるのは属性カードのみです', 'damage');
     return false;
   }, [currentPlayer, p1Field, p2Field, chargeUsedThisTurn, addLog]);
+
+  // フェイズカードへのチャージ処理
+  const chargePhaseCard = useCallback((card) => {
+    if (chargeUsedThisTurn) {
+      addLog('このターンは既にチャージを使用しました', 'damage');
+      return false;
+    }
+
+    const phaseCard = currentPlayer === 1 ? p1PhaseCard : p2PhaseCard;
+    const setPhaseCard = currentPlayer === 1 ? setP1PhaseCard : setP2PhaseCard;
+    const setHand = currentPlayer === 1 ? setP1Hand : setP2Hand;
+    const setGraveyard = currentPlayer === 1 ? setP1Graveyard : setP2Graveyard;
+
+    if (!phaseCard || phaseCard.type !== 'phasecard') {
+      addLog('フェイズカードが設置されていません', 'damage');
+      return false;
+    }
+
+    // チャージ数チェック（最大3枚）
+    const currentCharges = phaseCard.charges ? phaseCard.charges.length : 0;
+    if (currentCharges >= 3) {
+      addLog('フェイズカードは既に最大（3枚）チャージされています', 'damage');
+      return false;
+    }
+
+    // 属性チェック（同属性のみ）
+    if (card.attribute !== phaseCard.attribute && card.attribute !== 'なし') {
+      addLog(`フェイズカードと同じ属性のカードのみチャージできます（フェイズカード: ${phaseCard.attribute}）`, 'damage');
+      return false;
+    }
+
+    // 属性カードのみチャージ可能
+    if (card.type !== 'monster' && card.type !== 'magic' && card.type !== 'field') {
+      addLog('チャージできるのは属性カード（モンスター、魔法、フィールド）のみです', 'damage');
+      return false;
+    }
+
+    const newCharge = {
+      card: card,
+      attribute: card.attribute,
+    };
+
+    const updatedPhaseCard = {
+      ...phaseCard,
+      charges: [...(phaseCard.charges || []), newCharge],
+    };
+
+    // 手札から削除
+    setHand(prev => prev.filter(c => c.uniqueId !== card.uniqueId));
+
+    // チャージ数に応じた処理
+    const newChargeCount = currentCharges + 1;
+    addLog(`フェイズカード【${phaseCard.name}】に${card.name}をチャージしました（${newChargeCount}/3）`, 'info');
+
+    // 段階効果を実行
+    if (phaseCard.effect) {
+      const context = {
+        currentPlayer,
+        monsterIndex: null,
+        setP1Life,
+        setP2Life,
+        setP1Field,
+        setP2Field,
+        setP1Hand,
+        setP2Hand,
+        setP1Deck,
+        setP2Deck,
+        setP1Graveyard,
+        setP2Graveyard,
+        p1Field,
+        p2Field,
+        p1Hand,
+        p2Hand,
+        p1Deck,
+        p2Deck,
+        p1Graveyard,
+        p2Graveyard,
+        addLog,
+      };
+
+      // 段階に応じた効果を実行
+      const phasePattern = new RegExp(`${newChargeCount}枚重ね[：:]\\s*([^。\\n]+)`);
+      const phaseMatch = phaseCard.effect.match(phasePattern);
+
+      if (phaseMatch) {
+        addLog(`【第${newChargeCount}段階効果】: ${phaseMatch[1]}`, 'info');
+        executeSkillEffects(phaseMatch[1], context, phaseCard.id);
+      }
+    }
+
+    // 3枚目の場合は墓地へ
+    if (newChargeCount >= 3) {
+      addLog(`フェイズカード【${phaseCard.name}】は最終段階に到達し、墓地へ送られます`, 'info');
+      setGraveyard(prev => [...prev, updatedPhaseCard, ...updatedPhaseCard.charges.map(c => c.card)]);
+      setPhaseCard(null);
+    } else {
+      setPhaseCard(updatedPhaseCard);
+    }
+
+    setChargeUsedThisTurn(true);
+    return true;
+  }, [currentPlayer, p1PhaseCard, p2PhaseCard, p1Field, p2Field, p1Hand, p2Hand,
+      p1Deck, p2Deck, p1Graveyard, p2Graveyard, chargeUsedThisTurn, addLog,
+      setP1Life, setP2Life, setP1Field, setP2Field, setP1Hand, setP2Hand,
+      setP1Deck, setP2Deck, setP1Graveyard, setP2Graveyard,
+      setP1PhaseCard, setP2PhaseCard]);
 
   // 技発動処理
   const executeSkill = useCallback((monsterIndex, skillType) => {
@@ -503,8 +619,59 @@ export default function MagicSpiritGame() {
         setP2ActiveSP(prev => prev - card.cost);
         setP2RestedSP(prev => prev + card.cost);
       }
-      
+
       addLog(`プレイヤー${currentPlayer}: ${card.name}を設置！`, 'info');
+      return true;
+    }
+
+    if (card.type === 'phasecard') {
+      if (currentPlayer === 1) {
+        setP1PhaseCard(card);
+        setP1Hand(prev => prev.filter(c => c.uniqueId !== card.uniqueId));
+        setP1ActiveSP(prev => prev - card.cost);
+        setP1RestedSP(prev => prev + card.cost);
+      } else {
+        setP2PhaseCard(card);
+        setP2Hand(prev => prev.filter(c => c.uniqueId !== card.uniqueId));
+        setP2ActiveSP(prev => prev - card.cost);
+        setP2RestedSP(prev => prev + card.cost);
+      }
+
+      addLog(`プレイヤー${currentPlayer}: フェイズカード【${card.name}】を設置！`, 'info');
+
+      // フェイズカードの初期効果を実行
+      if (card.effect) {
+        const context = {
+          currentPlayer,
+          monsterIndex: null,
+          setP1Life,
+          setP2Life,
+          setP1Field,
+          setP2Field,
+          setP1Hand,
+          setP2Hand,
+          setP1Deck,
+          setP2Deck,
+          setP1Graveyard,
+          setP2Graveyard,
+          p1Field,
+          p2Field,
+          p1Hand,
+          p2Hand,
+          p1Deck,
+          p2Deck,
+          p1Graveyard,
+          p2Graveyard,
+          addLog,
+        };
+        // 初期効果のみを実行
+        const initialEffectMatch = card.effect.match(/初期効果[：:]\s*([^。\n]+)/);
+        if (initialEffectMatch) {
+          addLog(`初期効果: ${initialEffectMatch[1]}`, 'info');
+          executeSkillEffects(initialEffectMatch[1], context, card.id);
+        }
+      }
+
       return true;
     }
 
@@ -513,7 +680,8 @@ export default function MagicSpiritGame() {
       p1Deck, p2Deck, p1Graveyard, p2Graveyard, addLog,
       setP1Life, setP2Life, setP1Field, setP2Field, setP1Hand, setP2Hand,
       setP1Deck, setP2Deck, setP1Graveyard, setP2Graveyard,
-      setP1ActiveSP, setP1RestedSP, setP2ActiveSP, setP2RestedSP, setP1FieldCard, setP2FieldCard]);
+      setP1ActiveSP, setP1RestedSP, setP2ActiveSP, setP2RestedSP, setP1FieldCard, setP2FieldCard,
+      setP1PhaseCard, setP2PhaseCard]);
 
   // 攻撃処理
   const attack = useCallback((attackerIndex, targetIndex) => {
@@ -743,6 +911,75 @@ export default function MagicSpiritGame() {
     }
   };
 
+  // フィールドカードゾーンクリック
+  const handleFieldCardZoneClick = () => {
+    if (phase !== 2) return;
+
+    const currentFieldCard = currentPlayer === 1 ? p1FieldCard : p2FieldCard;
+
+    // クリックして情報表示
+    if (currentFieldCard && !selectedHandCard) {
+      setSelectedFieldCardInfo({ card: currentFieldCard, type: 'field', player: currentPlayer });
+      return;
+    }
+
+    // 手札からフィールドカードを設置
+    if (selectedHandCard) {
+      // 既にフィールドカードが設置されている場合
+      if (currentFieldCard) {
+        addLog('既にフィールドカードが設置されています', 'damage');
+        return;
+      }
+
+      // フィールドカードを設置
+      if (selectedHandCard.type === 'field') {
+        if (summonCard(selectedHandCard, 0)) {
+          setSelectedHandCard(null);
+        }
+      } else {
+        addLog('フィールドゾーンに設置できるのはフィールドカードのみです', 'damage');
+      }
+    }
+  };
+
+  // フェイズカードゾーンクリック
+  const handlePhaseCardZoneClick = () => {
+    if (phase !== 2) return;
+
+    const currentPhaseCard = currentPlayer === 1 ? p1PhaseCard : p2PhaseCard;
+
+    // クリックして情報表示
+    if (currentPhaseCard && !selectedHandCard) {
+      setSelectedFieldCardInfo({ card: currentPhaseCard, type: 'phasecard', player: currentPlayer });
+      return;
+    }
+
+    // 手札からカードを選択している場合
+    if (selectedHandCard) {
+      // フェイズカードが設置されている場合 → チャージモード
+      if (currentPhaseCard) {
+        // 属性カード（モンスター、魔法、フィールド）をチャージ
+        if (selectedHandCard.type === 'monster' || selectedHandCard.type === 'magic' || selectedHandCard.type === 'field') {
+          if (chargePhaseCard(selectedHandCard)) {
+            setSelectedHandCard(null);
+          }
+        } else {
+          addLog('フェイズカードにチャージできるのは属性カード（モンスター、魔法、フィールド）のみです', 'damage');
+        }
+        return;
+      }
+
+      // フェイズカードを設置
+      if (selectedHandCard.type === 'phasecard') {
+        if (summonCard(selectedHandCard, 0)) {
+          setSelectedHandCard(null);
+        }
+      } else {
+        addLog('フェイズカードゾーンに設置できるのはフェイズカードのみです', 'damage');
+      }
+    }
+  };
+
   // 次のフェイズへ
   const nextPhase = () => {
     if (phase === 2) {
@@ -936,14 +1173,76 @@ export default function MagicSpiritGame() {
             </div>
           </div>
 
-          {/* フィールドカード */}
+          {/* フィールドカード・フェイズカード */}
           <div style={styles.infoPanel}>
-            <div style={{ fontSize: '12px', marginBottom: '8px' }}>フィールド</div>
-            {p2FieldCard ? (
-              <Card card={p2FieldCard} small />
-            ) : (
-              <div style={{ ...styles.cardSlot, width: '80px', height: '100px' }}>なし</div>
-            )}
+            <div style={styles.cardZoneContainer}>
+              {/* フィールドカード */}
+              <div style={styles.cardZoneItem}>
+                <div style={{ fontSize: '12px', marginBottom: '8px' }}>フィールド</div>
+                {p2FieldCard ? (
+                  <div
+                    style={{
+                      cursor: currentPlayer === 2 && phase === 2 ? 'pointer' : 'default',
+                      border: selectedFieldCardInfo?.card === p2FieldCard ? '2px solid #ff6b6b' : 'none',
+                      borderRadius: '4px',
+                      padding: '2px',
+                    }}
+                    onClick={currentPlayer === 2 ? handleFieldCardZoneClick : undefined}
+                  >
+                    <Card card={p2FieldCard} small />
+                  </div>
+                ) : (
+                  <div
+                    style={{
+                      ...styles.cardSlot,
+                      width: '80px',
+                      height: '100px',
+                      cursor: currentPlayer === 2 && phase === 2 && selectedHandCard && selectedHandCard.type === 'field' ? 'pointer' : 'default',
+                      border: currentPlayer === 2 && phase === 2 && selectedHandCard && selectedHandCard.type === 'field' ? '2px solid #ff6b6b' : '1px dashed #444',
+                      background: currentPlayer === 2 && phase === 2 && selectedHandCard && selectedHandCard.type === 'field' ? 'rgba(255,107,107,0.1)' : 'rgba(30,30,40,0.5)',
+                    }}
+                    onClick={currentPlayer === 2 ? handleFieldCardZoneClick : undefined}
+                  >
+                    なし
+                  </div>
+                )}
+              </div>
+
+              {/* フェイズカード */}
+              <div style={styles.cardZoneItem}>
+                <div style={{ fontSize: '12px', marginBottom: '8px' }}>フェイズ</div>
+                {p2PhaseCard ? (
+                  <div
+                    style={{
+                      cursor: currentPlayer === 2 && phase === 2 ? 'pointer' : 'default',
+                      border: currentPlayer === 2 && phase === 2 && selectedHandCard && (selectedHandCard.type === 'monster' || selectedHandCard.type === 'magic' || selectedHandCard.type === 'field') ? '2px solid #ff6b6b' : selectedFieldCardInfo?.card === p2PhaseCard ? '2px solid #ff6b6b' : 'none',
+                      borderRadius: '4px',
+                      padding: '2px',
+                    }}
+                    onClick={currentPlayer === 2 ? handlePhaseCardZoneClick : undefined}
+                  >
+                    <Card card={p2PhaseCard} small />
+                    <div style={{ fontSize: '10px', color: '#ffd700', textAlign: 'center', marginTop: '4px' }}>
+                      ⚡ チャージ: {p2PhaseCard.charges?.length || 0}/3
+                    </div>
+                  </div>
+                ) : (
+                  <div
+                    style={{
+                      ...styles.cardSlot,
+                      width: '80px',
+                      height: '100px',
+                      cursor: currentPlayer === 2 && phase === 2 && selectedHandCard && selectedHandCard.type === 'phasecard' ? 'pointer' : 'default',
+                      border: currentPlayer === 2 && phase === 2 && selectedHandCard && selectedHandCard.type === 'phasecard' ? '2px solid #ff6b6b' : '1px dashed #444',
+                      background: currentPlayer === 2 && phase === 2 && selectedHandCard && selectedHandCard.type === 'phasecard' ? 'rgba(255,107,107,0.1)' : 'rgba(30,30,40,0.5)',
+                    }}
+                    onClick={currentPlayer === 2 ? handlePhaseCardZoneClick : undefined}
+                  >
+                    なし
+                  </div>
+                )}
+              </div>
+            </div>
             {selectedHandCard && currentPlayer === 2 && (
               <div style={{
                 marginTop: '12px',
@@ -1016,7 +1315,8 @@ export default function MagicSpiritGame() {
                 }}>
                   {selectedHandCard.type === 'monster' && '👆 空きスロットをクリックして召喚'}
                   {selectedHandCard.type === 'magic' && '👆 「バトルフェイズへ」で発動'}
-                  {selectedHandCard.type === 'field' && '👆 フィールドゾーンに設置'}
+                  {selectedHandCard.type === 'field' && '👆 フィールドゾーンをクリックして設置'}
+                  {selectedHandCard.type === 'phasecard' && '👆 フィールドゾーンをクリックして設置'}
                 </div>
               </div>
             )}
@@ -1093,6 +1393,59 @@ export default function MagicSpiritGame() {
                 </div>
               );
             })()}
+            {!selectedHandCard && !selectedFieldMonster && selectedFieldCardInfo && selectedFieldCardInfo.player === currentPlayer && (
+              <div style={{
+                marginTop: '12px',
+                padding: '10px',
+                background: 'rgba(255,107,107,0.2)',
+                borderRadius: '8px',
+                border: '1px solid rgba(255,107,107,0.5)',
+              }}>
+                <div style={{ fontSize: '12px', fontWeight: 'bold', marginBottom: '6px', color: '#ff8a8a' }}>
+                  📋 {selectedFieldCardInfo.type === 'field' ? 'フィールドカード' : 'フェイズカード'}: {selectedFieldCardInfo.card.name}
+                </div>
+                <div style={{ fontSize: '11px', color: '#ccc', marginBottom: '4px' }}>
+                  属性: {selectedFieldCardInfo.card.attribute} | コスト: {selectedFieldCardInfo.card.cost} SP
+                </div>
+                {selectedFieldCardInfo.card.categoryText && (
+                  <div style={{ fontSize: '11px', color: '#ffd700', marginBottom: '4px' }}>
+                    カテゴリ: {selectedFieldCardInfo.card.categoryText}
+                  </div>
+                )}
+                {selectedFieldCardInfo.type === 'phasecard' && selectedFieldCardInfo.card.charges && (
+                  <div style={{ fontSize: '11px', color: '#4caf50', marginBottom: '4px' }}>
+                    ⚡ チャージ: {selectedFieldCardInfo.card.charges.length}/3
+                  </div>
+                )}
+                <div style={{
+                  fontSize: '10px',
+                  color: '#e0e0e0',
+                  background: 'rgba(0,0,0,0.3)',
+                  padding: '6px',
+                  borderRadius: '4px',
+                  lineHeight: '1.4',
+                  maxHeight: '80px',
+                  overflowY: 'auto',
+                }}>
+                  {selectedFieldCardInfo.card.effect || 'なし'}
+                </div>
+                <button
+                  onClick={() => setSelectedFieldCardInfo(null)}
+                  style={{
+                    marginTop: '8px',
+                    padding: '4px 12px',
+                    background: 'rgba(255,107,107,0.5)',
+                    border: '1px solid #ff6b6b',
+                    borderRadius: '4px',
+                    color: '#fff',
+                    fontSize: '10px',
+                    cursor: 'pointer',
+                  }}
+                >
+                  閉じる
+                </button>
+              </div>
+            )}
           </div>
         </div>
 
@@ -1285,14 +1638,76 @@ export default function MagicSpiritGame() {
             </div>
           </div>
 
-          {/* フィールドカード */}
+          {/* フィールドカード・フェイズカード */}
           <div style={styles.infoPanel}>
-            <div style={{ fontSize: '12px', marginBottom: '8px' }}>フィールド</div>
-            {p1FieldCard ? (
-              <Card card={p1FieldCard} small />
-            ) : (
-              <div style={{ ...styles.cardSlot, width: '80px', height: '100px' }}>なし</div>
-            )}
+            <div style={styles.cardZoneContainer}>
+              {/* フィールドカード */}
+              <div style={styles.cardZoneItem}>
+                <div style={{ fontSize: '12px', marginBottom: '8px' }}>フィールド</div>
+                {p1FieldCard ? (
+                  <div
+                    style={{
+                      cursor: currentPlayer === 1 && phase === 2 ? 'pointer' : 'default',
+                      border: selectedFieldCardInfo?.card === p1FieldCard ? '2px solid #4da6ff' : 'none',
+                      borderRadius: '4px',
+                      padding: '2px',
+                    }}
+                    onClick={currentPlayer === 1 ? handleFieldCardZoneClick : undefined}
+                  >
+                    <Card card={p1FieldCard} small />
+                  </div>
+                ) : (
+                  <div
+                    style={{
+                      ...styles.cardSlot,
+                      width: '80px',
+                      height: '100px',
+                      cursor: currentPlayer === 1 && phase === 2 && selectedHandCard && selectedHandCard.type === 'field' ? 'pointer' : 'default',
+                      border: currentPlayer === 1 && phase === 2 && selectedHandCard && selectedHandCard.type === 'field' ? '2px solid #4da6ff' : '1px dashed #444',
+                      background: currentPlayer === 1 && phase === 2 && selectedHandCard && selectedHandCard.type === 'field' ? 'rgba(77,166,255,0.1)' : 'rgba(30,30,40,0.5)',
+                    }}
+                    onClick={currentPlayer === 1 ? handleFieldCardZoneClick : undefined}
+                  >
+                    なし
+                  </div>
+                )}
+              </div>
+
+              {/* フェイズカード */}
+              <div style={styles.cardZoneItem}>
+                <div style={{ fontSize: '12px', marginBottom: '8px' }}>フェイズ</div>
+                {p1PhaseCard ? (
+                  <div
+                    style={{
+                      cursor: currentPlayer === 1 && phase === 2 ? 'pointer' : 'default',
+                      border: currentPlayer === 1 && phase === 2 && selectedHandCard && (selectedHandCard.type === 'monster' || selectedHandCard.type === 'magic' || selectedHandCard.type === 'field') ? '2px solid #4da6ff' : selectedFieldCardInfo?.card === p1PhaseCard ? '2px solid #4da6ff' : 'none',
+                      borderRadius: '4px',
+                      padding: '2px',
+                    }}
+                    onClick={currentPlayer === 1 ? handlePhaseCardZoneClick : undefined}
+                  >
+                    <Card card={p1PhaseCard} small />
+                    <div style={{ fontSize: '10px', color: '#ffd700', textAlign: 'center', marginTop: '4px' }}>
+                      ⚡ チャージ: {p1PhaseCard.charges?.length || 0}/3
+                    </div>
+                  </div>
+                ) : (
+                  <div
+                    style={{
+                      ...styles.cardSlot,
+                      width: '80px',
+                      height: '100px',
+                      cursor: currentPlayer === 1 && phase === 2 && selectedHandCard && selectedHandCard.type === 'phasecard' ? 'pointer' : 'default',
+                      border: currentPlayer === 1 && phase === 2 && selectedHandCard && selectedHandCard.type === 'phasecard' ? '2px solid #4da6ff' : '1px dashed #444',
+                      background: currentPlayer === 1 && phase === 2 && selectedHandCard && selectedHandCard.type === 'phasecard' ? 'rgba(77,166,255,0.1)' : 'rgba(30,30,40,0.5)',
+                    }}
+                    onClick={currentPlayer === 1 ? handlePhaseCardZoneClick : undefined}
+                  >
+                    なし
+                  </div>
+                )}
+              </div>
+            </div>
             {selectedHandCard && currentPlayer === 1 && (
               <div style={{
                 marginTop: '12px',
@@ -1365,7 +1780,8 @@ export default function MagicSpiritGame() {
                 }}>
                   {selectedHandCard.type === 'monster' && '👆 空きスロットをクリックして召喚'}
                   {selectedHandCard.type === 'magic' && '👆 「バトルフェイズへ」で発動'}
-                  {selectedHandCard.type === 'field' && '👆 フィールドゾーンに設置'}
+                  {selectedHandCard.type === 'field' && '👆 フィールドゾーンをクリックして設置'}
+                  {selectedHandCard.type === 'phasecard' && '👆 フィールドゾーンをクリックして設置'}
                 </div>
               </div>
             )}
@@ -1442,6 +1858,59 @@ export default function MagicSpiritGame() {
                 </div>
               );
             })()}
+            {!selectedHandCard && !selectedFieldMonster && selectedFieldCardInfo && selectedFieldCardInfo.player === currentPlayer && (
+              <div style={{
+                marginTop: '12px',
+                padding: '10px',
+                background: 'rgba(107,76,230,0.2)',
+                borderRadius: '8px',
+                border: '1px solid rgba(107,76,230,0.5)',
+              }}>
+                <div style={{ fontSize: '12px', fontWeight: 'bold', marginBottom: '6px', color: '#a78bfa' }}>
+                  📋 {selectedFieldCardInfo.type === 'field' ? 'フィールドカード' : 'フェイズカード'}: {selectedFieldCardInfo.card.name}
+                </div>
+                <div style={{ fontSize: '11px', color: '#ccc', marginBottom: '4px' }}>
+                  属性: {selectedFieldCardInfo.card.attribute} | コスト: {selectedFieldCardInfo.card.cost} SP
+                </div>
+                {selectedFieldCardInfo.card.categoryText && (
+                  <div style={{ fontSize: '11px', color: '#ffd700', marginBottom: '4px' }}>
+                    カテゴリ: {selectedFieldCardInfo.card.categoryText}
+                  </div>
+                )}
+                {selectedFieldCardInfo.type === 'phasecard' && selectedFieldCardInfo.card.charges && (
+                  <div style={{ fontSize: '11px', color: '#4caf50', marginBottom: '4px' }}>
+                    ⚡ チャージ: {selectedFieldCardInfo.card.charges.length}/3
+                  </div>
+                )}
+                <div style={{
+                  fontSize: '10px',
+                  color: '#e0e0e0',
+                  background: 'rgba(0,0,0,0.3)',
+                  padding: '6px',
+                  borderRadius: '4px',
+                  lineHeight: '1.4',
+                  maxHeight: '80px',
+                  overflowY: 'auto',
+                }}>
+                  {selectedFieldCardInfo.card.effect || 'なし'}
+                </div>
+                <button
+                  onClick={() => setSelectedFieldCardInfo(null)}
+                  style={{
+                    marginTop: '8px',
+                    padding: '4px 12px',
+                    background: 'rgba(107,76,230,0.5)',
+                    border: '1px solid #6b4ce6',
+                    borderRadius: '4px',
+                    color: '#fff',
+                    fontSize: '10px',
+                    cursor: 'pointer',
+                  }}
+                >
+                  閉じる
+                </button>
+              </div>
+            )}
           </div>
         </div>
       </div>

@@ -37,7 +37,7 @@ const styles = {
   },
   playerArea: {
     display: 'grid',
-    gridTemplateColumns: '200px 1fr 180px',
+    gridTemplateColumns: '200px 1fr 280px',
     gap: '12px',
     padding: '8px',
     borderRadius: '12px',
@@ -47,6 +47,17 @@ const styles = {
     borderRadius: '12px',
     padding: '12px',
     border: '1px solid rgba(107,76,230,0.3)',
+  },
+  cardZoneContainer: {
+    display: 'flex',
+    gap: '12px',
+    justifyContent: 'space-between',
+  },
+  cardZoneItem: {
+    flex: '1',
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
   },
   fieldArea: {
     display: 'flex',
