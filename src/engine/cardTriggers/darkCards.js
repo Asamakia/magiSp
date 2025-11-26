@@ -9,13 +9,15 @@
  * - Debuff effects (attack reduction, status removal)
  * - Search effects (theme support)
  *
- * Total: 42 cards
+ * Total: 45 cards
  * - 召喚時 (On Summon): 17 cards
  * - 自壊時 (On Self-Destroy): 10 cards
  * - 攻撃時 (On Attack): 4 cards
  * - 常時 (Continuous): 7 cards
- * - メインフェイズ時 (Main Phase): 1 card
+ * - メインフェイズ時 (Main Phase): 2 cards
  * - エンドフェイズ時 (End Phase): 4 cards
+ * - バトルフェイズ開始時 (Battle Phase Start): 1 card
+ * - 相手モンスター攻撃時 (Opponent Attack): 1 card
  * - フェイズカード (Phase Card): 3 cards
  * - フィールドカード (Field Card): 5 cards
  * - 特殊能力 (Special Abilities): 2 cards (死触)
@@ -39,6 +41,62 @@ import {
  * Value: Array of trigger objects
  */
 export const darkCardTriggers = {
+  /**
+   * C0000074: ダーク・ネクロフィア
+   * 【自バトルフェイズ開始時】場にこのカード以外の闇属性モンスターがいる場合のみ、
+   * 相手モンスター全体と相手プレイヤーに500ダメージを与える。
+   */
+  C0000074: [
+    {
+      type: TRIGGER_TYPES.ON_BATTLE_PHASE_START,
+      activationType: ACTIVATION_TYPES.AUTOMATIC,
+      description: 'バトルフェイズ開始時: 闇属性がいれば相手全体に500ダメージ',
+      effect: (context) => {
+        const { currentPlayer, p1Field, p2Field, setP1Field, setP2Field,
+                p1Graveyard, p2Graveyard, setP1Graveyard, setP2Graveyard,
+                slotIndex, addLog } = context;
+
+        const currentField = currentPlayer === 1 ? p1Field : p2Field;
+
+        // Check if there are other dark attribute monsters on the field
+        const hasDarkMonster = currentField.some((monster, index) =>
+          monster && monster.attribute === '闇' && index !== slotIndex
+        );
+
+        if (!hasDarkMonster) {
+          addLog('他の闇属性モンスターがいないため発動しない', 'info');
+          return;
+        }
+
+        // Deal 500 damage to all opponent monsters
+        const opponentField = currentPlayer === 1 ? p2Field : p1Field;
+        const setOpponentField = currentPlayer === 1 ? setP2Field : setP1Field;
+        const setOpponentGraveyard = currentPlayer === 1 ? setP2Graveyard : setP1Graveyard;
+
+        let destroyedCount = 0;
+
+        setOpponentField((prev) => {
+          return prev.map((monster) => {
+            if (monster) {
+              const newHp = monster.currentHp - 500;
+              if (newHp <= 0) {
+                destroyedCount++;
+                addLog(`${monster.name}に500ダメージを与え破壊！`, 'damage');
+                return null;
+              }
+              return { ...monster, currentHp: newHp };
+            }
+            return monster;
+          });
+        });
+
+        // Deal 500 damage to opponent player
+        conditionalDamage(context, 500, 'opponent');
+        addLog('相手プレイヤーに500ダメージ！', 'damage');
+      },
+    },
+  ],
+
   /**
    * C0000076: シャドウ・サーバント
    * 【自壊時】デッキからコスト3以下「闇属性」魔法カード1枚を手札に加える。
@@ -159,6 +217,64 @@ export const darkCardTriggers = {
             healLife(context, healAmount, true);
           }
         }
+      },
+    },
+  ],
+
+  /**
+   * C0000082: 怨霊の使者
+   * 【自メインフェイズ時】このカードをリリース（墓地に送る）すると、
+   * 相手の場にいるモンスター1体の攻撃力を半分にできる。
+   */
+  C0000082: [
+    {
+      type: TRIGGER_TYPES.ON_MAIN_PHASE_SELF,
+      activationType: ACTIVATION_TYPES.OPTIONAL,
+      description: 'メインフェイズ: リリースして相手モンスター1体の攻撃力半減',
+      effect: (context) => {
+        const { currentPlayer, slotIndex, p1Field, p2Field, setP1Field, setP2Field,
+                p1Graveyard, p2Graveyard, setP1Graveyard, setP2Graveyard, addLog } = context;
+
+        const currentField = currentPlayer === 1 ? p1Field : p2Field;
+        const setCurrentField = currentPlayer === 1 ? setP1Field : setP2Field;
+        const setCurrentGraveyard = currentPlayer === 1 ? setP1Graveyard : setP2Graveyard;
+
+        const opponentField = currentPlayer === 1 ? p2Field : p1Field;
+        const setOpponentField = currentPlayer === 1 ? setP2Field : setP1Field;
+
+        // Find first monster on opponent's field to halve attack
+        const targetIndex = opponentField.findIndex((m) => m !== null);
+
+        if (targetIndex === -1) {
+          addLog('相手の場にモンスターがいない', 'info');
+          return;
+        }
+
+        // Release this card (send to graveyard)
+        const thisCard = currentField[slotIndex];
+        if (!thisCard) {
+          addLog('カードが見つからない', 'info');
+          return;
+        }
+
+        setCurrentField((prev) => {
+          const newField = [...prev];
+          newField[slotIndex] = null;
+          return newField;
+        });
+        setCurrentGraveyard((prev) => [...prev, thisCard]);
+
+        // Halve opponent monster's attack
+        const target = opponentField[targetIndex];
+        const newAttack = Math.floor(target.attack / 2);
+
+        setOpponentField((prev) => {
+          const newField = [...prev];
+          newField[targetIndex] = { ...target, attack: newAttack };
+          return newField;
+        });
+
+        addLog(`${thisCard.name}をリリース！${target.name}の攻撃力が半減！(${target.attack} → ${newAttack})`, 'info');
       },
     },
   ],
@@ -1012,6 +1128,53 @@ export const darkCardTriggers = {
           addLog('ヴァルディスの幻影トークンを召喚！', 'info');
         } else {
           addLog('場に空きがないためトークンを召喚できない', 'info');
+        }
+      },
+    },
+  ],
+
+  /**
+   * C0000407: 魂喰いのレイスヴィット
+   * 【相手モンスター攻撃時】そのモンスターに200ダメージ。
+   */
+  C0000407: [
+    {
+      type: TRIGGER_TYPES.ON_OPPONENT_ATTACK,
+      activationType: ACTIVATION_TYPES.AUTOMATIC,
+      description: '相手モンスター攻撃時: 攻撃モンスターに200ダメージ',
+      effect: (context) => {
+        const { currentPlayer, attackerIndex, p1Field, p2Field, setP1Field, setP2Field,
+                p1Graveyard, p2Graveyard, setP1Graveyard, setP2Graveyard, addLog } = context;
+
+        // Opponent is attacking, so opponent's field has the attacker
+        const opponentField = currentPlayer === 1 ? p2Field : p1Field;
+        const setOpponentField = currentPlayer === 1 ? setP2Field : setP1Field;
+        const setOpponentGraveyard = currentPlayer === 1 ? setP2Graveyard : setP1Graveyard;
+
+        // Get the attacking monster
+        const attacker = opponentField[attackerIndex];
+        if (!attacker) {
+          addLog('攻撃モンスターが見つからない', 'info');
+          return;
+        }
+
+        const newHp = attacker.currentHp - 200;
+
+        if (newHp <= 0) {
+          setOpponentField((prev) => {
+            const newField = [...prev];
+            newField[attackerIndex] = null;
+            return newField;
+          });
+          setOpponentGraveyard((prev) => [...prev, attacker]);
+          addLog(`${attacker.name}に200ダメージを与え破壊！`, 'damage');
+        } else {
+          setOpponentField((prev) => {
+            const newField = [...prev];
+            newField[attackerIndex] = { ...attacker, currentHp: newHp };
+            return newField;
+          });
+          addLog(`${attacker.name}に200ダメージ！`, 'damage');
         }
       },
     },
