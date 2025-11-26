@@ -18,11 +18,17 @@ Currently a **prototype version** with local 2-player gameplay.
 - **2025-11-26 (Phase 1-4)**: Code refactoring completed
   - 2237 lines → 1366 lines (39% reduction)
   - Modular architecture with separated concerns
-- **2025-11-26 (Phase 5)**: Card-specific effects system implemented
+- **2025-11-26 (Phase 5 - Card Effects)**: Card-specific effects system implemented
   - 108+ individual card effects across all attributes
   - Hybrid approach: generic effects + card-specific implementations
   - Effect helper library for reusable effect patterns
   - ~2100 lines of new effect implementation code
+- **2025-11-26 (Phase 5 - Phase Cards UI)**: Phase card system UI implemented
+  - Field card and phase card separation (separate slots)
+  - Horizontal layout for field/phase cards
+  - Field/phase card information panel
+  - Basic placement and activation functionality
+  - Phase progression logic pending
 - **2025-11-26 (Bug fixes & UI improvements)**: Fixed card display bugs and improved magic card UX
   - Fixed field/phase card info display showing in both player areas
   - Added dedicated magic card activation button for clearer UX
@@ -1032,11 +1038,17 @@ The Japanese text throughout suggests this may be for a Japanese audience or is 
   - Separated UI components for reusability
   - Centralized constants and styles
   - 39% code reduction while improving maintainability
-- **2025-11-26 (Phase 5)**: Implemented card-specific effects system
+- **2025-11-26 (Phase 5 - Card Effects)**: Implemented card-specific effects system
   - Added 108+ card implementations across all attributes
   - Created effect helper library with 9 reusable functions
   - Established hybrid effect system (generic + card-specific)
   - ~2100 lines of new effect implementation code
+- **2025-11-26 (Phase 5 - Phase Cards UI)**: Implemented phase card system UI
+  - Separated field cards and phase cards into distinct slots
+  - Implemented horizontal layout for field/phase card display
+  - Added field/phase card information panel
+  - Implemented basic placement and activation functionality
+  - Phase progression logic (stage advancement) pending
 - **2025-11-26 (Bug fixes & UI improvements)**: Fixed display bugs and improved UX
   - Fixed field/phase card info panel displaying in both player areas simultaneously
   - Added dedicated "✨ 魔法カード発動" button for magic card activation
@@ -1047,7 +1059,7 @@ This is suitable for expansion into a full game or as a learning project for Rea
 
 ---
 
-**Document Version**: 3.1
-**Last Updated**: 2025-11-26 (Bug fixes and UI improvements)
+**Document Version**: 3.2
+**Last Updated**: 2025-11-26 (Roadmap update - Phase card UI implementation documented)
 **For**: Magic Spirit (magiSp) Repository
-**Branch**: claude/fix-card-display-bug-01GRqf2n7HRRU54tA5fUXRBH
+**Branch**: claude/update-docs-roadmap-018r29Jw8pqBKW9ZaB1tifbE
