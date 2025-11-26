@@ -16,12 +16,23 @@ import { calculateValue, setEffectUniqueId } from './valueCalculator';
 // 循環参照を避けるため、動的にインポートする方式を採用
 let effectDefinitions = {};
 
+// フェイズカード用の段階別効果定義
+let phaseCardEffectsByStage = {};
+
 /**
  * 効果定義を設定（外部から注入）
  * @param {Object} definitions - 効果定義オブジェクト
  */
 export const setEffectDefinitions = (definitions) => {
   effectDefinitions = definitions;
+};
+
+/**
+ * フェイズカード効果定義を設定（外部から注入）
+ * @param {Object} definitions - フェイズカード効果定義オブジェクト
+ */
+export const setPhaseCardEffectDefinitions = (definitions) => {
+  phaseCardEffectsByStage = definitions;
 };
 
 /**
@@ -76,6 +87,62 @@ class ContinuousEffectEngine {
    */
   unregister(uniqueId) {
     this.activeEffects.delete(uniqueId);
+  }
+
+  /**
+   * フェイズカードの常時効果を登録（段階指定）
+   * @param {Object} card - フェイズカード
+   * @param {number} owner - オーナー（1 or 2）
+   * @param {number} stage - 現在の段階（0-3）
+   */
+  registerPhaseCard(card, owner, stage = 0) {
+    if (!card || !card.uniqueId) {
+      console.warn('Cannot register phase card without uniqueId');
+      return;
+    }
+
+    // フェイズカード用の効果定義を取得
+    const cardStageEffects = phaseCardEffectsByStage[card.id];
+    if (!cardStageEffects) {
+      // このフェイズカードには常時効果がない
+      return;
+    }
+
+    const stageEffects = cardStageEffects[stage];
+    if (!stageEffects || stageEffects.length === 0) {
+      // この段階には常時効果がない
+      return;
+    }
+
+    // 効果にメタ情報を付与
+    const effects = stageEffects.map((def) => ({
+      ...def,
+      uniqueId: card.uniqueId,
+      cardId: card.id,
+      owner,
+      stage,
+      usedThisTurn: false,
+    }));
+
+    this.activeEffects.set(card.uniqueId, { card, owner, effects, stage });
+  }
+
+  /**
+   * フェイズカードの段階を更新（効果の再登録）
+   * @param {Object} card - フェイズカード
+   * @param {number} owner - オーナー（1 or 2）
+   * @param {number} newStage - 新しい段階（0-3）
+   */
+  updatePhaseCardStage(card, owner, newStage) {
+    if (!card || !card.uniqueId) {
+      return;
+    }
+
+    // 既存の効果を解除
+    this.unregister(card.uniqueId);
+
+    // 新しい段階で再登録
+    this.registerPhaseCard(card, owner, newStage);
   }
 
   /**

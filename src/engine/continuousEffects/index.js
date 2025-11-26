@@ -24,8 +24,8 @@
 // ========================================
 // インポート（初期化用）
 // ========================================
-import { setEffectDefinitions } from './effectEngine';
-import { allEffectDefinitions } from './effectDefinitions';
+import { setEffectDefinitions, setPhaseCardEffectDefinitions } from './effectEngine';
+import { allEffectDefinitions, phaseCardEffectsByStage } from './effectDefinitions';
 
 // ========================================
 // エクスポート
@@ -64,6 +64,7 @@ export {
   continuousEffectEngine,
   ContinuousEffectEngine,
   setEffectDefinitions,
+  setPhaseCardEffectDefinitions,
 } from './effectEngine';
 
 // 効果定義
@@ -73,6 +74,12 @@ export {
   hasEffectDefinition,
   getEffectDefinitionCount,
   getAllDefinedCardIds,
+  // フェイズカード用
+  phaseCardEffectsByStage,
+  getPhaseCardEffectsForStage,
+  hasPhaseCardContinuousEffects,
+  getAllPhaseCardEffects,
+  getPhaseCardCount,
 } from './effectDefinitions';
 
 // ========================================
@@ -86,11 +93,14 @@ export {
 export const initializeContinuousEffectSystem = () => {
   // 効果定義をエンジンに注入
   setEffectDefinitions(allEffectDefinitions);
+  setPhaseCardEffectDefinitions(phaseCardEffectsByStage);
   console.log(
-    `Continuous Effect System initialized with ${Object.keys(allEffectDefinitions).length} card definitions`
+    `Continuous Effect System initialized with ${Object.keys(allEffectDefinitions).length} card definitions ` +
+      `and ${Object.keys(phaseCardEffectsByStage).length} phase card definitions`
   );
 };
 
 // 自動初期化（インポート時に実行）
 // Note: 必要に応じてコメントアウトし、手動で initializeContinuousEffectSystem() を呼び出してください
 setEffectDefinitions(allEffectDefinitions);
+setPhaseCardEffectDefinitions(phaseCardEffectsByStage);

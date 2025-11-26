@@ -11,22 +11,35 @@
 import { fieldCardEffects } from './fieldCards';
 import { monsterCardEffects } from './monsterCards';
 
-// 将来の拡張用（ファイルが作成されたらコメントを解除）
-// import { phaseCardEffects } from './phaseCards';
+// フェイズカード（段階別効果）
+import {
+  phaseCardEffectsByStage,
+  getPhaseCardEffectsForStage,
+  hasPhaseCardContinuousEffects,
+  getAllPhaseCardEffects,
+  getPhaseCardCount,
+} from './phaseCards';
 
 /**
  * 全効果定義を集約したオブジェクト
  * カードID => 効果定義配列
+ * Note: フェイズカードは段階別なので別管理
  */
 export const allEffectDefinitions = {
-  // フィールドカード（22枚）
+  // フィールドカード（23枚）
   ...fieldCardEffects,
 
-  // モンスターカード（20枚）
+  // モンスターカード（22枚）
   ...monsterCardEffects,
+};
 
-  // フェイズカード（将来の拡張）
-  // ...phaseCardEffects,
+// フェイズカード関連をエクスポート
+export {
+  phaseCardEffectsByStage,
+  getPhaseCardEffectsForStage,
+  hasPhaseCardContinuousEffects,
+  getAllPhaseCardEffects,
+  getPhaseCardCount,
 };
 
 /**
