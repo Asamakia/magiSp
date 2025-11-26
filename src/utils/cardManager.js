@@ -162,7 +162,7 @@ export const parseCSV = (csvText) => {
 // ========================================
 // カードデータ（プロトタイプ用サンプル - CSVロード失敗時のフォールバック）
 // ========================================
-export const SAMPLE_CARDS = [
+const SAMPLE_CARDS_RAW = [
   // 炎属性モンスター
   { id: 'C0000021', name: 'フレア・ドラゴン', attribute: '炎', cost: 3, type: 'monster', attack: 1800, hp: 1500, category: ['ドラゴン'], categoryText: '【ドラゴン】', keyword: [], keywordText: '', effect: '召喚時、相手プレイヤーに300ダメージ。基本技：攻撃力の半分のダメージを相手モンスター1体に与える。', flavor: '炎の翼を広げ、灼熱の息吹で全てを焼き尽くす。', isForbidden: false },
   { id: 'C0000025', name: 'ブレイズ・ドラゴン', attribute: '炎', cost: 2, type: 'monster', attack: 1200, hp: 1200, category: ['ドラゴン'], categoryText: '【ドラゴン】', keyword: [], keywordText: '', effect: '破壊時、デッキから【ドラゴン】1体を手札に加える。', flavor: '炎の使者が現れ、敵に熱波を送り込む。', isForbidden: false },
@@ -212,6 +212,19 @@ export const SAMPLE_CARDS = [
   // なし（無色）
   { id: 'C0000401', name: '呪術狩りの傭兵バランド', attribute: 'なし', cost: 3, type: 'monster', attack: 1400, hp: 1500, category: '【ヒューマノイド】【ライバル】', effect: '他のモンスターが闇属性に与えるダメージ+200。', flavor: '呪剣を手に戦う傭兵。' },
 ];
+
+// SAMPLE_CARDSにparseSkillsを適用してエクスポート
+export const SAMPLE_CARDS = SAMPLE_CARDS_RAW.map(card => {
+  if (card.type === 'monster') {
+    const skills = parseSkills(card.effect);
+    return {
+      ...card,
+      basicSkill: skills.basicSkill,
+      advancedSkill: skills.advancedSkill,
+    };
+  }
+  return card;
+});
 
 // ========================================
 // CSV読み込み関数
