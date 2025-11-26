@@ -1114,6 +1114,166 @@ export const primitiveCardTriggers = {
       },
     },
   ],
+
+  /**
+   * C0000018: 粘液の沼地 (フィールドカード)
+   * 【常時】場にいる《粘液獣》の攻撃力を300アップ。(※トリガー対象外)
+   * 【相手モンスター攻撃時】相手プレイヤーに200ダメージを与える。
+   */
+  C0000018: [
+    {
+      type: TRIGGER_TYPES.ON_OPPONENT_ATTACK,
+      activationType: ACTIVATION_TYPES.AUTOMATIC,
+      description: '相手攻撃時: 相手プレイヤーに200ダメージ',
+      effect: (context) => {
+        const { currentPlayer, addLog } = context;
+        // 相手が攻撃した時、そのプレイヤーにダメージを与える
+        conditionalDamage(context, 200, 'opponent');
+        addLog('粘液の沼地: 相手の攻撃に反応して200ダメージ！', 'damage');
+        return true;
+      },
+    },
+  ],
+
+  /**
+   * C0000245: 鎖の守護霊リアリス
+   * 【相手攻撃時】場に『鎖縛の幻姫リアノン』がいる場合、相手の攻撃を1ターンに1度無効化し、相手モンスターに500ダメージを与える。
+   */
+  C0000245: [
+    {
+      type: TRIGGER_TYPES.ON_OPPONENT_ATTACK,
+      activationType: ACTIVATION_TYPES.AUTOMATIC,
+      description: '相手攻撃時: リアノンがいれば攻撃無効化＋500ダメージ',
+      effect: (context) => {
+        const {
+          currentPlayer,
+          p1Field,
+          p2Field,
+          card,
+          addLog,
+        } = context;
+
+        // トリガー使用済みチェック（1ターンに1度）
+        if (card.triggerUsedThisTurn) {
+          addLog('鎖の守護霊リアリス: 今ターンは既に発動済み', 'info');
+          return false;
+        }
+
+        const currentField = currentPlayer === 1 ? p1Field : p2Field;
+
+        // 場に鎖縛の幻姫リアノン（C0000244）がいるかチェック
+        const hasRiannon = currentField.some(
+          (m) => m && (m.id === 'C0000244' || m.name?.includes('鎖縛の幻姫リアノン'))
+        );
+
+        if (!hasRiannon) {
+          addLog('鎖の守護霊リアリス: 場に鎖縛の幻姫リアノンがいない', 'info');
+          return false;
+        }
+
+        // 攻撃を無効化（TODO: 実際の攻撃無効化処理が必要）
+        // 相手の攻撃モンスターに500ダメージ
+        // TODO: 攻撃モンスターの特定が必要。現時点では相手プレイヤーにダメージ
+        conditionalDamage(context, 500, 'opponent');
+
+        addLog(
+          '鎖の守護霊リアリス: 攻撃を無効化し、相手に500ダメージ！',
+          'info'
+        );
+
+        // 使用済みフラグを立てる
+        card.triggerUsedThisTurn = true;
+
+        return true;
+      },
+    },
+  ],
+
+  /**
+   * C0000138: 禁忌のゴシッククラウン
+   * 【常時】自分のSPトークンはすべてレスト状態になる。(※トリガー対象外)
+   * 【自壊時】自分のライフに2000ダメージ。
+   */
+  C0000138: [
+    {
+      type: TRIGGER_TYPES.ON_DESTROY_SELF,
+      activationType: ACTIVATION_TYPES.AUTOMATIC,
+      description: '破壊時: 自分に2000ダメージ',
+      effect: (context) => {
+        conditionalDamage(context, 2000, 'self');
+        const { addLog } = context;
+        addLog('禁忌のゴシッククラウンが破壊され、自分に2000ダメージ！', 'damage');
+        return true;
+      },
+    },
+  ],
+
+  /**
+   * C0000246: 鎖縛の禁忌姫リアノン・エターナル
+   * 【召喚時】相手モンスター1体を1ターン行動不能にする。
+   * 【常時】相手の魔法カードを1ターンに1度無効化する。(※トリガー対象外)
+   * 【自壊時】2000ダメージを受ける。
+   */
+  C0000246: [
+    {
+      type: TRIGGER_TYPES.ON_SUMMON,
+      activationType: ACTIVATION_TYPES.AUTOMATIC,
+      priority: TRIGGER_PRIORITIES.HIGH,
+      description: '召喚時: 相手モンスター1体を1ターン行動不能に',
+      effect: (context) => {
+        const {
+          currentPlayer,
+          p1Field,
+          p2Field,
+          setP1Field,
+          setP2Field,
+          addLog,
+        } = context;
+
+        const opponentField = currentPlayer === 1 ? p2Field : p1Field;
+        const setOpponentField = currentPlayer === 1 ? setP2Field : setP1Field;
+
+        // 対象を探す
+        const targetIndex = opponentField.findIndex((m) => m !== null);
+        if (targetIndex === -1) {
+          addLog('鎖縛の禁忌姫リアノン・エターナル: 対象がいない', 'info');
+          return false;
+        }
+
+        // TODO: UI実装時に対象選択が必要
+        const target = opponentField[targetIndex];
+        const newField = [...opponentField];
+        newField[targetIndex] = {
+          ...target,
+          canAttack: false,
+          effectDisabled: true,
+          immobilizedUntilNextTurn: true,
+        };
+        setOpponentField(newField);
+
+        addLog(
+          `鎖縛の禁忌姫リアノン・エターナルが${target.name}を行動不能にした！`,
+          'info'
+        );
+        return true;
+      },
+    },
+    {
+      type: TRIGGER_TYPES.ON_DESTROY_SELF,
+      activationType: ACTIVATION_TYPES.AUTOMATIC,
+      priority: TRIGGER_PRIORITIES.NORMAL,
+      description: '破壊時: 自分に2000ダメージ',
+      effect: (context) => {
+        conditionalDamage(context, 2000, 'self');
+        const { addLog } = context;
+        addLog(
+          '鎖縛の禁忌姫リアノン・エターナルが破壊され、自分に2000ダメージ！',
+          'damage'
+        );
+        return true;
+      },
+    },
+  ],
 };
 
 /**
