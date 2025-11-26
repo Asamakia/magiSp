@@ -20,6 +20,7 @@ import {
   TRIGGER_PRIORITIES,
   isOptionalTrigger,
 } from './triggerTypes';
+import { getFutureCardTriggers, hasFutureCardTrigger } from './cardTriggers/futureCards';
 
 /**
  * グローバルトリガーレジストリ
@@ -187,11 +188,16 @@ export const parseCardTriggers = (card) => {
     return triggers;
   }
 
-  const effectText = card.effect;
+  // カード固有のトリガー実装をチェック
+  if (card.id && hasFutureCardTrigger(card.id)) {
+    const cardSpecificTriggers = getFutureCardTriggers(card.id);
+    if (cardSpecificTriggers) {
+      return cardSpecificTriggers;
+    }
+  }
 
-  // TODO: カード固有のトリガー実装を参照
-  // cardEffects/index.js から getCardTriggers() を呼び出す予定
-  // 現在はプレースホルダーとして基本的なパターンマッチングを実装
+  // カード固有の実装がない場合、汎用パターンマッチングにフォールバック
+  const effectText = card.effect;
 
   // 【召喚時】パターン
   if (effectText.includes('【召喚時】') || effectText.includes('【このカードの召喚時】')) {
@@ -200,7 +206,6 @@ export const parseCardTriggers = (card) => {
       activationType: ACTIVATION_TYPES.AUTOMATIC,
       description: '召喚時効果',
       effect: (context) => {
-        // TODO: カード固有の効果実装
         context.addLog(`${card.name}の召喚時効果を発動！`, 'info');
       },
     });
