@@ -14,10 +14,15 @@
 ### Project Status
 Currently a **prototype version** with local 2-player gameplay.
 
-**Recent Major Update (2025-11-26)**:
-- Code refactoring completed (Phase 1-4)
-- 2237 lines → 1366 lines (39% reduction)
-- Modular architecture with separated concerns
+**Recent Major Updates**:
+- **2025-11-26 (Phase 1-4)**: Code refactoring completed
+  - 2237 lines → 1366 lines (39% reduction)
+  - Modular architecture with separated concerns
+- **2025-11-26 (Phase 5)**: Card-specific effects system implemented
+  - 108+ individual card effects across all attributes
+  - Hybrid approach: generic effects + card-specific implementations
+  - Effect helper library for reusable effect patterns
+  - ~2100 lines of new effect implementation code
 
 ---
 
@@ -50,8 +55,19 @@ Currently a **prototype version** with local 2-player gameplay.
 │   ├── styles/                 # Style definitions
 │   │   └── gameStyles.js       # Game styles (165 lines)
 │   │
-│   ├── engine/                 # Game logic engines
-│   │   └── effectEngine.js     # Effect execution engine (220 lines) ⭐
+│   ├── engine/                 # Game logic engines ⭐⭐
+│   │   ├── effectEngine.js     # Generic effect execution engine (220 lines)
+│   │   ├── effectHelpers.js    # Reusable effect helper functions (446 lines)
+│   │   └── cardEffects/        # Card-specific effect implementations (~1695 lines)
+│   │       ├── index.js        # Effect registry and exports
+│   │       ├── _template.js    # Template for new card effects
+│   │       ├── fire.js         # 炎属性 card effects
+│   │       ├── water.js        # 水属性 card effects
+│   │       ├── light.js        # 光属性 card effects
+│   │       ├── dark.js         # 闇属性 card effects
+│   │       ├── primitive.js    # 原始属性 card effects
+│   │       ├── future.js       # 未来属性 card effects
+│   │       └── neutral.js      # なし属性 card effects
 │   │
 │   ├── ルール/                  # Documentation
 │   │   ├── magic-spirit-roadmap-updated.txt
@@ -79,11 +95,23 @@ Currently a **prototype version** with local 2-player gameplay.
 - Skill execution
 - UI rendering
 
-**`src/engine/effectEngine.js`** (Effect engine - 220 lines) ⭐ **Most Important**
-- Effect type definitions (13 types)
-- Effect text parser
-- Effect execution system
-- Foundation for expanding card effects
+**`src/engine/effectEngine.js`** (Generic effect engine - 220 lines) ⭐
+- Generic effect type definitions (13 types)
+- Effect text parser for common patterns
+- Generic effect execution system
+- Delegates to card-specific effects when available
+
+**`src/engine/effectHelpers.js`** (Effect helpers - 446 lines) ⭐⭐ **Most Important**
+- Reusable effect helper functions
+- Common patterns: damage, heal, draw, search, revive, destroy
+- Field/graveyard manipulation utilities
+- Used by all card-specific effects
+
+**`src/engine/cardEffects/`** (Card-specific effects - ~1695 lines) ⭐⭐ **Most Important**
+- 108+ individual card implementations
+- Organized by attribute (fire, water, light, dark, primitive, future, neutral)
+- Central registry in `index.js`
+- Template file for new card effects
 
 **`src/utils/cardManager.js`** (Card data manager - 240 lines)
 - CSV parser for 433 cards
@@ -172,7 +200,9 @@ The game uses React hooks with extensive state:
 ### Working with Game Logic
 
 **Main Game Logic**: Located in `src/magic-spirit.jsx` (1366 lines)
-**Effect System**: Located in `src/engine/effectEngine.js` (220 lines)
+**Generic Effect System**: Located in `src/engine/effectEngine.js` (220 lines)
+**Card-Specific Effects**: Located in `src/engine/cardEffects/` (~1695 lines, 108+ cards)
+**Effect Helpers**: Located in `src/engine/effectHelpers.js` (446 lines)
 **Card Management**: Located in `src/utils/cardManager.js` (240 lines)
 
 **Key Functions in magic-spirit.jsx**:
@@ -191,6 +221,24 @@ The game uses React hooks with extensive state:
 2. **`executeEffect(effect, context)`**: Execute single effect
 3. **`executeSkillEffects(skillText, context)`**: Execute all effects in skill text
 
+**Key Functions in effectHelpers.js**:
+
+1. **`millDeck(context, count)`**: Mill cards from deck to graveyard
+2. **`conditionalDamage(context, damage, target, targetIndex)`**: Apply damage with targeting
+3. **`searchCard(context, condition)`**: Search deck for card matching condition
+4. **`reviveFromGraveyard(context, condition, weakened)`**: Revive monster from graveyard
+5. **`destroyMonster(context, targetIndex, isOpponent)`**: Destroy target monster
+6. **`drawCards(context, count)`**: Draw cards from deck
+7. **`healLife(context, amount, isSelf)`**: Heal life points
+8. **`modifyAttack(context, amount, targetIndex, isOpponent)`**: Buff/debuff attack
+9. **`modifyHP(context, amount, targetIndex, isOpponent)`**: Modify monster HP
+
+**Key Functions in cardEffects/index.js**:
+
+1. **`getCardEffect(cardId)`**: Get card-specific effect function by ID
+2. **`hasCardEffect(cardId)`**: Check if card has specific implementation
+3. **`getRegisteredEffectCount()`**: Get total count of implemented cards
+
 **Important Constants** (in `src/utils/constants.js`):
 ```javascript
 INITIAL_LIFE = 6000
@@ -204,26 +252,75 @@ ATTRIBUTE_COLORS = { '炎': {...}, '水': {...}, ... }
 TYPE_ICONS = { 'monster': '⚔️', 'magic': '✨', ... }
 ```
 
-### Working with the Effect Engine ⭐
+### Working with the Effect System ⭐⭐
 
-The effect engine (`src/engine/effectEngine.js`) is the foundation for card effects. Understanding this is crucial for implementing new cards.
+The effect system uses a **hybrid approach** combining generic effects and card-specific implementations:
 
-**Effect Flow**:
-1. Card effect text → `parseEffect()` → Effect objects
-2. Effect objects → `executeEffect()` → Game state changes
-3. Full skill text → `executeSkillEffects()` → All effects executed
+**System Architecture**:
+```
+Card Effect Execution Flow:
+1. executeSkillEffects() called with card ID and skill text
+2. Check if card has specific implementation (cardEffects/index.js)
+   ├─ YES → Execute card-specific effect function
+   └─ NO  → Fall back to generic effect parsing (effectEngine.js)
+3. Card-specific effects use helper functions (effectHelpers.js)
+4. Generic effects use built-in parsing patterns
+```
 
-**Currently Implemented Effects**:
-- ✅ DAMAGE: Direct damage to opponent
-- ✅ HEAL: Restore life to self
-- ⚠️ BUFF_ATK, BUFF_HP: Planned (returns false)
-- ⚠️ DEBUFF_ATK: Planned (returns false)
-- ⚠️ DOUBLE_ATTACK, DRAW: Planned (returns false)
-- ⚠️ SEARCH, REVIVE, DESTROY: Planned (returns false)
+**Three-Tier Effect System**:
 
-**Adding a New Effect**:
+1. **Card-Specific Effects** (`src/engine/cardEffects/*.js`) - **108+ cards**
+   - Custom implementations for complex/unique cards
+   - Organized by attribute (fire, water, light, dark, etc.)
+   - Full control over effect behavior
+   - Examples: C0000028 (炎竜母フレイマ), C0000161 (灯魔龍ランプデビル)
+
+2. **Effect Helpers** (`src/engine/effectHelpers.js`) - **9 helper functions**
+   - Reusable patterns used by card-specific effects
+   - Fully implemented: millDeck, conditionalDamage, searchCard, reviveFromGraveyard, destroyMonster, drawCards, healLife, modifyAttack, modifyHP
+
+3. **Generic Effects** (`src/engine/effectEngine.js`) - **13 effect types**
+   - ✅ DAMAGE: Direct damage to opponent
+   - ✅ HEAL: Restore life to self
+   - ⚠️ BUFF_ATK, BUFF_HP: Planned (returns false)
+   - ⚠️ DEBUFF_ATK: Planned (returns false)
+   - ⚠️ DOUBLE_ATTACK, DRAW: Planned (returns false)
+   - ⚠️ SEARCH, REVIVE, DESTROY: Planned (returns false)
+   - Note: Many generic effects are now superseded by effect helpers
+
+**Adding a Card-Specific Effect** (Recommended approach):
 ```javascript
-// Step 1: Add to EFFECT_TYPES
+// Step 1: Choose the appropriate attribute file in src/engine/cardEffects/
+// Example: fire.js for 炎属性, water.js for 水属性, etc.
+
+// Step 2: Add card effect to the exports object
+export const fireCardEffects = {
+  /**
+   * C0000XXX: Card Name
+   * Effect description
+   */
+  C0000XXX: (skillText, context) => {
+    // Check skill type (【召喚時】, 基本技, 上級技, etc.)
+    if (skillText.includes('【召喚時】')) {
+      // Use effect helpers for common patterns
+      const { addLog } = context;
+
+      // Example: Revive a dragon from graveyard
+      return reviveFromGraveyard(context, (card) => {
+        return card.category && card.category.includes('【ドラゴン】');
+      }, true); // true = weakened (half attack)
+    }
+    return false;
+  },
+};
+```
+
+**Adding a Generic Effect** (For simple, reusable patterns):
+```javascript
+// Only add generic effects if the pattern is truly reusable
+// Most card-specific behavior should use the card-specific approach above
+
+// Step 1: Add to EFFECT_TYPES in src/engine/effectEngine.js
 export const EFFECT_TYPES = {
   // ...existing types
   YOUR_EFFECT: 'your_effect',
@@ -250,14 +347,86 @@ case EFFECT_TYPES.YOUR_EFFECT:
 **Effect Context Object**:
 ```javascript
 const context = {
+  // Players
   currentPlayer,      // 1 or 2
+
+  // Life
   setP1Life,          // P1 life setter
   setP2Life,          // P2 life setter
+  p1Life,             // P1 current life (for helpers)
+  p2Life,             // P2 current life (for helpers)
+
+  // Fields
   setP1Field,         // P1 field setter
   setP2Field,         // P2 field setter
+  p1Field,            // P1 current field (for helpers)
+  p2Field,            // P2 current field (for helpers)
+
+  // Deck & Hand
+  p1Deck, p2Deck,     // Current decks
+  setP1Deck, setP2Deck, // Deck setters
+  p1Hand, p2Hand,     // Current hands
+  setP1Hand, setP2Hand, // Hand setters
+
+  // Graveyard
+  p1Graveyard, p2Graveyard,         // Current graveyards
+  setP1Graveyard, setP2Graveyard,   // Graveyard setters
+
+  // Context info
+  monsterIndex,       // Index of monster using skill (if applicable)
+
+  // Logging
   addLog,             // Log function (message, type)
 };
 ```
+
+### Available Effect Helper Functions ⭐
+
+The effect helper library provides 9 reusable functions for common card effect patterns:
+
+**1. millDeck(context, count)**
+- Mill cards from current player's deck to graveyard
+- Returns: Array of milled cards
+
+**2. millOpponentDeck(context, count)**
+- Mill cards from opponent's deck to graveyard
+- Returns: Array of milled cards
+
+**3. conditionalDamage(context, damage, target, targetIndex)**
+- Apply damage to specific target
+- Targets: 'opponent', 'self', 'opponent_monster', 'self_monster'
+- Returns: boolean (success)
+
+**4. searchCard(context, condition)**
+- Search deck for card matching condition function
+- Example: `(card) => card.attribute === '炎'`
+- Returns: Found card or null
+
+**5. reviveFromGraveyard(context, condition, weakened)**
+- Revive monster from graveyard matching condition
+- weakened=true: Half attack/HP
+- Returns: boolean (success)
+
+**6. destroyMonster(context, targetIndex, isOpponent)**
+- Destroy target monster and send to graveyard
+- Returns: boolean (success)
+
+**7. drawCards(context, count)**
+- Draw cards from deck to hand
+- Returns: Array of drawn cards
+
+**8. healLife(context, amount, isSelf)**
+- Heal life points for self or opponent
+- Returns: boolean (success)
+
+**9. modifyAttack(context, amount, targetIndex, isOpponent, permanent)**
+- Modify monster's attack stat
+- Positive amount = buff, negative = debuff
+- Returns: boolean (success)
+
+**10. modifyHP(context, amount, targetIndex, isOpponent)**
+- Modify monster's HP (both max and current)
+- Returns: boolean (success)
 
 ### Component Structure
 
@@ -340,7 +509,21 @@ ATTRIBUTE_COLORS = {
 }
 ```
 
-**To add a new effect type**:
+**To add a card-specific effect** (Recommended):
+1. Find or create appropriate attribute file in `src/engine/cardEffects/`
+2. Import needed helper functions from `effectHelpers.js`
+3. Add card ID and effect function to the attribute's export object
+4. Use effect helpers for common patterns (damage, heal, draw, etc.)
+5. Test with the specific card
+
+**To add a new effect helper**:
+1. Add function to `src/engine/effectHelpers.js`
+2. Follow existing patterns for context usage
+3. Ensure immutable state updates
+4. Add comprehensive logging with `addLog()`
+5. Export and use in card-specific effects
+
+**To add a generic effect type** (Only for truly reusable patterns):
 1. Add to `EFFECT_TYPES` in `src/engine/effectEngine.js`
 2. Add parsing logic in `parseEffect()` function
 3. Add execution logic in `executeEffect()` switch statement
@@ -352,9 +535,11 @@ ATTRIBUTE_COLORS = {
 3. Update phase transition logic in `nextPhase()`
 
 **To implement card effects**:
-- **Simple effects**: Add pattern matching to `parseEffect()` in `src/engine/effectEngine.js`
-- **Complex effects**: Implement in `executeEffect()` switch statement
-- **Special effects**: Check card properties in `summonCard()` in `src/magic-spirit.jsx`
+- **Card-specific effects** (Recommended): Add to appropriate file in `src/engine/cardEffects/`
+- **Reusable helpers**: Add to `src/engine/effectHelpers.js` for common patterns
+- **Simple generic effects**: Add pattern matching to `parseEffect()` in `src/engine/effectEngine.js`
+- **Complex unique effects**: Implement in card-specific effect file with custom logic
+- **Special on-summon effects**: Handled automatically if card effect includes '【召喚時】'
 
 ---
 
@@ -415,7 +600,7 @@ test('game initializes correctly', () => {
 
 ⚠️ **IMPORTANT**: Always work on branches starting with `claude/`
 
-Current development branch: `claude/claude-md-miefgtk5g6c064bt-01N9b6jLa9AE2zYJtbAD4dWD`
+Current development branch: `claude/update-claude-md-017tKGZSNY44Cy1KQ1QRaeVe`
 
 ### Commit Guidelines
 
@@ -480,9 +665,81 @@ git push -u origin claude/[branch-name]
 
 ### Task: Add Card Effects
 
-**Pattern 1: Simple damage/heal effects**:
+**Pattern 1: Card-Specific Effect (RECOMMENDED)**:
 ```javascript
-// Add parsing pattern to parseEffect() in src/engine/effectEngine.js
+// In appropriate attribute file (e.g., src/engine/cardEffects/fire.js)
+import { conditionalDamage, reviveFromGraveyard } from '../effectHelpers';
+
+export const fireCardEffects = {
+  /**
+   * C0000XXX: Your Card Name
+   * Effect description from card
+   */
+  C0000XXX: (skillText, context) => {
+    if (skillText.includes('【召喚時】')) {
+      // Use helper functions for common patterns
+      conditionalDamage(context, 1000, 'opponent');
+      return true;
+    }
+    return false;
+  },
+};
+```
+
+**Pattern 2: Using Effect Helpers**:
+```javascript
+// Import from effectHelpers.js
+import {
+  millDeck,           // Mill cards from deck
+  conditionalDamage,  // Deal damage to specific target
+  searchCard,         // Search deck for card
+  reviveFromGraveyard, // Revive monster
+  destroyMonster,     // Destroy monster
+  drawCards,          // Draw cards
+  healLife,           // Heal life points
+  modifyAttack,       // Buff/debuff attack
+  modifyHP,           // Modify HP
+} from '../effectHelpers';
+
+// Use in card effect
+C0000XXX: (skillText, context) => {
+  if (skillText.includes('基本技')) {
+    // Search for a card matching condition
+    const found = searchCard(context, (card) => {
+      return card.attribute === '炎' && card.cost <= 3;
+    });
+    return found !== null;
+  }
+  return false;
+};
+```
+
+**Pattern 3: Complex Custom Logic**:
+```javascript
+// For unique effects that don't fit helpers
+C0000XXX: (skillText, context) => {
+  const {
+    currentPlayer, p1Field, p2Field,
+    setP1Field, setP2Field, addLog
+  } = context;
+
+  if (skillText.includes('上級技')) {
+    // Custom complex logic here
+    const currentField = currentPlayer === 1 ? p1Field : p2Field;
+    const setField = currentPlayer === 1 ? setP1Field : setP2Field;
+
+    // Implement unique effect
+    addLog('Custom effect activated!', 'info');
+    return true;
+  }
+  return false;
+};
+```
+
+**Pattern 4: Generic Effect Parsing** (Legacy/Simple patterns only):
+```javascript
+// Only for truly generic, reusable patterns
+// Add to parseEffect() in src/engine/effectEngine.js
 const damageMatch = effectText.match(/(\d+)ダメージ/);
 if (damageMatch) {
   effects.push({
@@ -492,30 +749,6 @@ if (damageMatch) {
   });
 }
 ```
-
-**Pattern 2: Complex effects**:
-```javascript
-// Add to executeEffect() switch in src/engine/effectEngine.js
-case EFFECT_TYPES.YOUR_EFFECT:
-  const { currentPlayer, setP1Life, addLog } = context;
-  // Implement effect logic
-  addLog(`Effect executed!`, 'info');
-  return true;
-```
-
-**Pattern 3: On-summon effects**:
-```javascript
-// In summonCard() in src/magic-spirit.jsx after placing monster
-if (card.effect && card.effect.includes('召喚時')) {
-  addLog(`${card.name}の召喚時効果発動！`, 'info');
-  executeSkillEffects(card.effect, context);
-}
-```
-
-**Pattern 4: Continuous effects**:
-- Add to `processPhase()` at appropriate phase in `src/magic-spirit.jsx`
-- Check field for monsters with specific effects
-- Apply modifications to game state
 
 ### Task: Debug Game State
 
@@ -559,11 +792,14 @@ console.log('Executing effect:', type, value, target);
 
 ### Potential Improvements
 
-1. ✅ **~~Component splitting~~**: COMPLETED - Refactored into modular architecture
-2. ✅ **~~Effect system foundation~~**: COMPLETED - Created effectEngine.js with extensible system
-3. **Effect expansion**: Implement remaining effects (buff/debuff, search, revive, destroy)
-4. **Card data format**: Convert CSV to JSON for better structure and validation
-5. **Effect plugin system**: Make effects more modular and extensible
+1. ✅ **~~Component splitting~~**: COMPLETED - Refactored into modular architecture (2025-11-26)
+2. ✅ **~~Effect system foundation~~**: COMPLETED - Created effectEngine.js with extensible system (2025-11-26)
+3. ✅ **~~Effect expansion~~**: COMPLETED - Implemented card-specific effects system (2025-11-26)
+   - 108+ card implementations across all attributes
+   - Effect helper library with 9 reusable functions
+   - Hybrid approach: generic + card-specific effects
+4. **Remaining card effects**: Implement effects for remaining 325 cards (433 total - 108 implemented)
+5. **Card data format**: Convert CSV to JSON for better structure and validation
 6. **State management**: Consider Context API or Redux for complex state
 7. **TypeScript**: Add type safety to entire codebase
 8. **Backend**: Add server for online multiplayer
@@ -571,7 +807,8 @@ console.log('Executing effect:', type, value, target);
 10. **Card images**: Replace placeholder emojis with actual artwork
 11. **Animations**: Add GSAP or Framer Motion for smooth transitions
 12. **Mobile responsive**: Add mobile-friendly layouts
-13. **Testing**: Add comprehensive unit and integration tests
+13. **Testing**: Add comprehensive unit and integration tests for card effects
+14. **Effect testing framework**: Automated tests for all 108+ card effects
 
 ---
 
@@ -661,11 +898,19 @@ Before considering a feature complete:
 - createDeck()
 - createMonsterInstance()
 
-**Effect System**: `src/engine/effectEngine.js` ⭐
-- EFFECT_TYPES (13 types)
-- parseEffect() - effect parser
-- executeEffect() - effect executor
-- executeSkillEffects() - skill processor
+**Effect System**: `src/engine/` ⭐⭐
+- **effectEngine.js**: Generic effect types and parser
+  - EFFECT_TYPES (13 types)
+  - parseEffect() - generic effect parser
+  - executeEffect() - generic effect executor
+  - executeSkillEffects() - skill processor (checks card-specific first)
+- **effectHelpers.js**: Reusable effect functions (9 helpers)
+  - millDeck, conditionalDamage, searchCard, reviveFromGraveyard
+  - destroyMonster, drawCards, healLife, modifyAttack, modifyHP
+- **cardEffects/**: Card-specific implementations (108+ cards)
+  - index.js - effect registry
+  - fire.js, water.js, light.js, dark.js, primitive.js, future.js, neutral.js
+  - _template.js - template for new cards
 
 **Styles**: `src/styles/gameStyles.js`
 - All style definitions
@@ -767,18 +1012,23 @@ The Japanese text throughout suggests this may be for a Japanese audience or is 
 - Local multiplayer simplifies initial implementation
 - React hooks provide clean state management without boilerplate
 
-**Recent Evolution** (2025-11-26):
-- Refactored from 2237-line monolith to modular 9-file architecture
-- Created effect execution engine for extensibility
-- Separated UI components for reusability
-- Centralized constants and styles
-- 39% code reduction while improving maintainability
+**Recent Evolution**:
+- **2025-11-26 (Phase 1-4)**: Refactored from 2237-line monolith to modular architecture
+  - Created 9-file modular structure
+  - Separated UI components for reusability
+  - Centralized constants and styles
+  - 39% code reduction while improving maintainability
+- **2025-11-26 (Phase 5)**: Implemented card-specific effects system
+  - Added 108+ card implementations across all attributes
+  - Created effect helper library with 9 reusable functions
+  - Established hybrid effect system (generic + card-specific)
+  - ~2100 lines of new effect implementation code
 
 This is suitable for expansion into a full game or as a learning project for React and game development concepts.
 
 ---
 
-**Document Version**: 2.0
-**Last Updated**: 2025-11-26 (Major update: Refactoring documentation)
+**Document Version**: 3.0
+**Last Updated**: 2025-11-26 (Major update: Card-specific effects system)
 **For**: Magic Spirit (magiSp) Repository
-**Branch**: claude/plan-code-refactoring-01G9LgvBcjiL2ckZHPm6nxL3
+**Branch**: claude/update-claude-md-017tKGZSNY44Cy1KQ1QRaeVe
