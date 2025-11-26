@@ -1328,7 +1328,10 @@ export default function MagicSpiritGame() {
   // ========================================
   // レンダリング
   // ========================================
-  
+
+  // 墓地発動可能カードを事前計算（パフォーマンス最適化）
+  const activatableGraveyardCards = getActivatableGraveyardCards();
+
   // タイトル画面
   if (gameState === 'title') {
     return (
@@ -1999,12 +2002,12 @@ export default function MagicSpiritGame() {
                 </button>
               )}
               <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', justifyContent: 'center' }}>
-                {phase === 2 && getActivatableGraveyardCards().length > 0 && (
+                {phase === 2 && activatableGraveyardCards.length > 0 && (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                     <div style={{ fontSize: '11px', color: '#888', textAlign: 'center' }}>
                       墓地発動可能
                     </div>
-                    {getActivatableGraveyardCards().map((card) => (
+                    {activatableGraveyardCards.map((card) => (
                       <button
                         key={card.uniqueId}
                         onClick={() => activateGraveyardCard(card)}
