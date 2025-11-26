@@ -40,11 +40,11 @@ Currently a **prototype version** with local 2-player gameplay.
   - Priority-based trigger execution
   - Turn-based usage flags and lifecycle management
   - ~1230 lines of new trigger infrastructure
-  - **196 cards with trigger implementations across 6 attributes** (~6336 lines)
+  - **199 cards with trigger implementations across 6 attributes** (~6499 lines)
     - Fire (炎): 33 cards (819 lines)
     - Water (水): 34 cards (970 lines)
     - Light (光): 47 cards (1309 lines)
-    - Dark (闇): 42 cards (1428 lines)
+    - Dark (闇): 45 cards (1591 lines)
     - Future (未来): 12 cards (504 lines)
     - Primitive (原始): 28 cards (1306 lines)
 
@@ -94,11 +94,11 @@ Currently a **prototype version** with local 2-player gameplay.
 │   │   │   ├── primitive.js    # 原始属性 card effects
 │   │   │   ├── future.js       # 未来属性 card effects
 │   │   │   └── neutral.js      # なし属性 card effects
-│   │   └── cardTriggers/       # Card-specific trigger implementations (~6336 lines) ⭐ NEW
+│   │   └── cardTriggers/       # Card-specific trigger implementations (~6499 lines) ⭐ NEW
 │   │       ├── fireCards.js      # 炎属性 trigger implementations (33 cards, 819 lines)
 │   │       ├── waterCards.js     # 水属性 trigger implementations (34 cards, 970 lines)
 │   │       ├── lightCards.js     # 光属性 trigger implementations (47 cards, 1309 lines)
-│   │       ├── darkCards.js      # 闇属性 trigger implementations (42 cards, 1428 lines)
+│   │       ├── darkCards.js      # 闇属性 trigger implementations (45 cards, 1591 lines)
 │   │       ├── futureCards.js    # 未来属性 trigger implementations (12 cards, 504 lines)
 │   │       └── primitiveCards.js # 原始属性 trigger implementations (28 cards, 1306 lines)
 │   │
@@ -174,15 +174,15 @@ Currently a **prototype version** with local 2-player gameplay.
 - Turn-based usage flag management
 - Priority-based execution ordering
 
-**`src/engine/cardTriggers/`** (Card-specific trigger implementations - ~6336 lines, 196 cards) ⭐⭐ **NEW**
+**`src/engine/cardTriggers/`** (Card-specific trigger implementations - ~6499 lines, 199 cards) ⭐⭐ **NEW**
 - **fireCards.js**: 炎属性 triggers (33 cards, 819 lines)
 - **waterCards.js**: 水属性 triggers (34 cards, 970 lines)
 - **lightCards.js**: 光属性 triggers (47 cards, 1309 lines) - Most cards!
-- **darkCards.js**: 闇属性 triggers (42 cards, 1428 lines)
+- **darkCards.js**: 闇属性 triggers (45 cards, 1591 lines)
 - **futureCards.js**: 未来属性 triggers (12 cards, 504 lines)
 - **primitiveCards.js**: 原始属性 triggers (28 cards, 1306 lines)
 - Uses effect helpers for common patterns
-- Comprehensive trigger system covering 196 cards across all major attributes
+- Comprehensive trigger system covering 199 cards across all major attributes
 
 **`src/utils/cardManager.js`** (Card data manager - 240 lines)
 - CSV parser for 433 cards
@@ -669,8 +669,9 @@ ATTRIBUTE_COLORS = {
    - `fireCards.js` (炎属性) - 33 cards implemented
    - `waterCards.js` (水属性) - 34 cards implemented
    - `lightCards.js` (光属性) - 47 cards implemented
-   - `darkCards.js` (闇属性) - 42 cards implemented
+   - `darkCards.js` (闇属性) - 45 cards implemented
    - `futureCards.js` (未来属性) - 12 cards implemented
+   - `primitiveCards.js` (原始属性) - 28 cards implemented
 2. Import trigger types and effect helpers
 3. Define trigger array for each card ID
 4. Specify trigger type, activation type, and effect function
