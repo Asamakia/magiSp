@@ -16,8 +16,8 @@ Currently a **prototype version** with local 2-player gameplay.
 
 **Recent Major Updates**:
 - **2025-11-26 (Phase 1-4)**: Code refactoring completed
-  - 2237 lines → 1366 lines (39% reduction)
   - Modular architecture with separated concerns
+  - Note: magic-spirit.jsx has grown to 2386 lines due to trigger system integration
 - **2025-11-26 (Phase 5 - Card Effects)**: Card-specific effects system implemented
   - 108+ individual card effects across all attributes
   - Hybrid approach: generic effects + card-specific implementations
@@ -73,27 +73,27 @@ Currently a **prototype version** with local 2-player gameplay.
 │
 ├── src/
 │   ├── App.js                  # Main app component (renders MagicSpiritGame)
-│   ├── magic-spirit.jsx        # Main game logic (1366 lines) ⭐
+│   ├── magic-spirit.jsx        # Main game logic (2386 lines) ⭐
 │   │
 │   ├── utils/                  # Utility functions
-│   │   ├── constants.js        # Game constants (32 lines)
-│   │   ├── helpers.js          # Helper functions (64 lines)
-│   │   └── cardManager.js      # Card data management (240 lines)
+│   │   ├── constants.js        # Game constants (30 lines)
+│   │   ├── helpers.js          # Helper functions (61 lines)
+│   │   └── cardManager.js      # Card data management (253 lines)
 │   │
 │   ├── components/             # UI Components
-│   │   ├── Card.jsx            # Card display (195 lines)
-│   │   ├── FieldMonster.jsx    # Field monster display (166 lines)
+│   │   ├── Card.jsx            # Card display (187 lines)
+│   │   ├── FieldMonster.jsx    # Field monster display (170 lines)
 │   │   ├── SPTokens.jsx        # SP token display (38 lines)
-│   │   └── GameLog.jsx         # Game log display (20 lines)
+│   │   └── GameLog.jsx         # Game log display (21 lines)
 │   │
 │   ├── styles/                 # Style definitions
-│   │   └── gameStyles.js       # Game styles (165 lines)
+│   │   └── gameStyles.js       # Game styles (182 lines)
 │   │
 │   ├── engine/                 # Game logic engines ⭐⭐
-│   │   ├── effectEngine.js     # Generic effect execution engine (220 lines)
-│   │   ├── effectHelpers.js    # Reusable effect helper functions (446 lines)
-│   │   ├── triggerTypes.js     # Trigger type definitions (302 lines) ⭐ NEW
-│   │   ├── triggerEngine.js    # Trigger lifecycle management (658 lines) ⭐ NEW
+│   │   ├── effectEngine.js     # Generic effect execution engine (563 lines)
+│   │   ├── effectHelpers.js    # Reusable effect helper functions (445 lines)
+│   │   ├── triggerTypes.js     # Trigger type definitions (372 lines) ⭐ NEW
+│   │   ├── triggerEngine.js    # Trigger lifecycle management (716 lines) ⭐ NEW
 │   │   ├── cardEffects/        # Card-specific effect implementations (~1695 lines)
 │   │   │   ├── index.js        # Effect registry and exports
 │   │   │   ├── _template.js    # Template for new card effects
@@ -107,7 +107,7 @@ Currently a **prototype version** with local 2-player gameplay.
 │   │   └── cardTriggers/       # Card-specific trigger implementations (~7270 lines) ⭐ NEW
 │   │       ├── fireCards.js      # 炎属性 trigger implementations (33 cards, 819 lines)
 │   │       ├── waterCards.js     # 水属性 trigger implementations (37 cards, ~1170 lines)
-│   │       ├── lightCards.js     # 光属性 trigger implementations (47 cards, 1309 lines)
+│   │       ├── lightCards.js     # 光属性 trigger implementations (37 cards, 1069 lines)
 │   │       ├── darkCards.js      # 闘属性 trigger implementations (45 cards, 1591 lines)
 │   │       ├── futureCards.js    # 未来属性 trigger implementations (12 cards, 504 lines)
 │   │       ├── primitiveCards.js # 原始属性 trigger implementations (28 cards, 1306 lines)
@@ -143,7 +143,7 @@ Currently a **prototype version** with local 2-player gameplay.
 
 ### Key Files
 
-**`src/magic-spirit.jsx`** (Main game component - 1366 lines)
+**`src/magic-spirit.jsx`** (Main game component - 2386 lines)
 - Game state management (React hooks)
 - Game flow control (phase progression, turn management)
 - Card summoning logic
@@ -151,7 +151,7 @@ Currently a **prototype version** with local 2-player gameplay.
 - Skill execution
 - UI rendering
 
-**`src/engine/effectEngine.js`** (Generic effect engine - 220 lines) ⭐
+**`src/engine/effectEngine.js`** (Generic effect engine - 563 lines) ⭐
 - Generic effect type definitions (13 types)
 - Effect text parser for common patterns
 - Generic effect execution system
@@ -169,14 +169,14 @@ Currently a **prototype version** with local 2-player gameplay.
 - Central registry in `index.js`
 - Template file for new card effects
 
-**`src/engine/triggerTypes.js`** (Trigger type definitions - 302 lines) ⭐ **NEW**
+**`src/engine/triggerTypes.js`** (Trigger type definitions - 372 lines) ⭐ **NEW**
 - 26 generic trigger types (召喚時, 破壊時, フェイズ, etc.)
 - Activation types: AUTOMATIC vs OPTIONAL
 - Priority system (HIGHEST, HIGH, NORMAL, LOW, LOWEST)
 - Helper functions for trigger metadata
 - Designed for extensibility without hardcoding
 
-**`src/engine/triggerEngine.js`** (Trigger lifecycle engine - 658 lines) ⭐ **NEW**
+**`src/engine/triggerEngine.js`** (Trigger lifecycle engine - 716 lines) ⭐ **NEW**
 - Global trigger registry system
 - Trigger registration/unregistration (on summon/destroy)
 - Automatic trigger firing (phase-based)
@@ -188,7 +188,7 @@ Currently a **prototype version** with local 2-player gameplay.
 **`src/engine/cardTriggers/`** (Card-specific trigger implementations - ~7270 lines, 220 cards) ⭐⭐ **NEW**
 - **fireCards.js**: 炎属性 triggers (33 cards, 819 lines)
 - **waterCards.js**: 水属性 triggers (37 cards, ~1170 lines) - includes 3 graveyard triggers
-- **lightCards.js**: 光属性 triggers (47 cards, 1309 lines) - Most cards!
+- **lightCards.js**: 光属性 triggers (37 cards, 1069 lines)
 - **darkCards.js**: 闇属性 triggers (45 cards, 1591 lines)
 - **futureCards.js**: 未来属性 triggers (12 cards, 504 lines)
 - **primitiveCards.js**: 原始属性 triggers (28 cards, 1306 lines)
@@ -196,7 +196,7 @@ Currently a **prototype version** with local 2-player gameplay.
 - Uses effect helpers for common patterns
 - Comprehensive trigger system covering 220 cards across all attributes
 
-**`src/utils/cardManager.js`** (Card data manager - 240 lines)
+**`src/utils/cardManager.js`** (Card data manager - 253 lines)
 - CSV parser for 433 cards
 - Skill information extraction
 - Async card loading from CSV
@@ -206,7 +206,7 @@ Currently a **prototype version** with local 2-player gameplay.
 - Separated UI components for better maintainability
 - Independent, reusable components
 
-**`src/utils/constants.js`** (Game constants - 32 lines)
+**`src/utils/constants.js`** (Game constants - 30 lines)
 - All game constants in one place
 - Easy to adjust game balance
 
@@ -331,12 +331,12 @@ The game uses React hooks with extensive state:
 
 ### Working with Game Logic
 
-**Main Game Logic**: Located in `src/magic-spirit.jsx` (1366 lines)
-**Generic Effect System**: Located in `src/engine/effectEngine.js` (220 lines)
+**Main Game Logic**: Located in `src/magic-spirit.jsx` (2386 lines)
+**Generic Effect System**: Located in `src/engine/effectEngine.js` (563 lines)
 **Card-Specific Effects**: Located in `src/engine/cardEffects/` (~1695 lines, 108+ cards)
-**Effect Helpers**: Located in `src/engine/effectHelpers.js` (446 lines)
+**Effect Helpers**: Located in `src/engine/effectHelpers.js` (445 lines)
 **Trigger System**: Located in `src/engine/` - triggerTypes.js, triggerEngine.js, cardTriggers/ ⭐ **NEW**
-**Card Management**: Located in `src/utils/cardManager.js` (240 lines)
+**Card Management**: Located in `src/utils/cardManager.js` (253 lines)
 
 **Key Functions in magic-spirit.jsx**:
 
@@ -587,7 +587,7 @@ The effect helper library provides 9 reusable functions for common card effect p
 
 ### Styling Approach
 
-- **All styles centralized** in `src/styles/gameStyles.js` (165 lines)
+- **All styles centralized** in `src/styles/gameStyles.js` (182 lines)
 - **Inline styling** using JavaScript objects
 - Uses gradients, animations, and CSS-in-JS patterns
 - Responsive design with flexbox/grid
@@ -1297,11 +1297,11 @@ The Japanese text throughout suggests this may be for a Japanese audience or is 
 - React hooks provide clean state management without boilerplate
 
 **Recent Evolution**:
-- **2025-11-26 (Phase 1-4)**: Refactored from 2237-line monolith to modular architecture
+- **2025-11-26 (Phase 1-4)**: Refactored to modular architecture
   - Created 9-file modular structure
   - Separated UI components for reusability
   - Centralized constants and styles
-  - 39% code reduction while improving maintainability
+  - Note: magic-spirit.jsx has grown to 2386 lines due to trigger system integration
 - **2025-11-26 (Phase 5 - Card Effects)**: Implemented card-specific effects system
   - Added 108+ card implementations across all attributes
   - Created effect helper library with 9 reusable functions
@@ -1323,7 +1323,6 @@ This is suitable for expansion into a full game or as a learning project for Rea
 
 ---
 
-**Document Version**: 3.5
-**Last Updated**: 2025-11-26 (Neutral attribute triggers added - 220 cards across 7 attributes)
+**Document Version**: 3.6
+**Last Updated**: 2025-11-26 (Line count update, removed duplicate src/cardlist/)
 **For**: Magic Spirit (magiSp) Repository
-**Branch**: claude/implement-card-triggers-01E2phhcEjdPcBTMQMENr2nv
