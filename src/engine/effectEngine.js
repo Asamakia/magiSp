@@ -510,15 +510,39 @@ export const executeEffect = (effect, context) => {
 };
 
 /**
- * 技の効果を実行
+ * 技の効果を実行（拡張版 - カード固有処理対応）
  * @param {string} skillText - 技の効果テキスト
  * @param {Object} context - ゲームコンテキスト
+ * @param {string} cardId - カードID（オプション）
  * @returns {boolean} 成功したかどうか
  */
-export const executeSkillEffects = (skillText, context) => {
+export const executeSkillEffects = (skillText, context, cardId = null) => {
   const { addLog } = context;
 
-  // 効果を解析
+  // カード固有処理が存在する場合は優先
+  if (cardId) {
+    // 動的インポートを避けるため、レジストリをチェック
+    try {
+      const { hasCardEffect, getCardEffect } = require('./cardEffects/index');
+
+      if (hasCardEffect(cardId)) {
+        const cardEffect = getCardEffect(cardId);
+        const result = cardEffect(skillText, context);
+
+        // カード固有処理が成功した場合はそこで終了
+        if (result) {
+          return true;
+        }
+        // falseの場合は汎用パーサーにフォールバック
+        addLog('カード固有処理が失敗、汎用パーサーで処理します', 'info');
+      }
+    } catch (error) {
+      // カード固有処理のインポートが失敗した場合は汎用パーサーで処理
+      console.warn('Card effects not loaded, using generic parser:', error);
+    }
+  }
+
+  // 汎用パーサーで処理
   const effects = parseEffect(skillText);
 
   if (effects.length === 0) {

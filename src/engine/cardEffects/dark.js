@@ -1,0 +1,242 @@
+// ========================================
+// 闇属性カードの固有効果
+// ========================================
+
+import {
+  millOpponentDeck,
+  conditionalDamage,
+  searchCard,
+  reviveFromGraveyard,
+  modifyAttack,
+} from '../effectHelpers';
+
+/**
+ * 闇属性カードの固有効果
+ */
+export const darkCardEffects = {
+  /**
+   * C0000078: 禁忌の傀儡師マレウス
+   * 基本技：墓地の闇属性モンスター1体を自分の場に戻す（攻撃力300、HP800、効果無効）
+   */
+  C0000078: (skillText, context) => {
+    const {
+      addLog,
+      currentPlayer,
+      p1Graveyard, p2Graveyard,
+      setP1Graveyard, setP2Graveyard,
+      p1Field, p2Field,
+      setP1Field, setP2Field,
+    } = context;
+
+    if (skillText.includes('基本技')) {
+      const currentGraveyard = currentPlayer === 1 ? p1Graveyard : p2Graveyard;
+      const setGraveyard = currentPlayer === 1 ? setP1Graveyard : setP2Graveyard;
+      const currentField = currentPlayer === 1 ? p1Field : p2Field;
+      const setField = currentPlayer === 1 ? setP1Field : setP2Field;
+
+      const darkMonster = currentGraveyard.find(card =>
+        card.type === 'monster' && card.attribute === '闇'
+      );
+
+      if (!darkMonster) {
+        addLog('墓地に闇属性モンスターがありません', 'info');
+        return false;
+      }
+
+      const emptySlotIndex = currentField.findIndex(slot => slot === null);
+      if (emptySlotIndex === -1) {
+        addLog('場が満杯です', 'info');
+        return false;
+      }
+
+      // 墓地から蘇生（攻撃力300、HP800固定）
+      setGraveyard(prev => prev.filter(c => c.uniqueId !== darkMonster.uniqueId));
+      setField(prev => {
+        const newField = [...prev];
+        newField[emptySlotIndex] = {
+          ...darkMonster,
+          attack: 300,
+          hp: 800,
+          currentHp: 800,
+          canAttack: false,
+        };
+        return newField;
+      });
+
+      addLog(`${darkMonster.name}を蘇生（攻撃力300、HP800）`, 'info');
+      return true;
+    }
+    return false;
+  },
+
+  /**
+   * C0000094: 闇鴉の斥候
+   * 【召喚時】相手のデッキの上から1枚を墓地に送る
+   */
+  C0000094: (skillText, context) => {
+    if (skillText.includes('【召喚時】')) {
+      millOpponentDeck(context, 1);
+      return true;
+    }
+    return false;
+  },
+
+  /**
+   * C0000096: 奈落の追跡者
+   * 【召喚時】相手の手札を1枚選び、それがモンスターなら墓地に送る
+   */
+  C0000096: (skillText, context) => {
+    const {
+      addLog,
+      currentPlayer,
+      p1Hand, p2Hand,
+      setP1Hand, setP2Hand,
+      setP1Graveyard, setP2Graveyard,
+    } = context;
+
+    if (skillText.includes('【召喚時】')) {
+      const opponentHand = currentPlayer === 1 ? p2Hand : p1Hand;
+      const setOpponentHand = currentPlayer === 1 ? setP2Hand : setP1Hand;
+      const setOpponentGraveyard = currentPlayer === 1 ? setP2Graveyard : setP1Graveyard;
+
+      if (opponentHand.length === 0) {
+        addLog('相手の手札がありません', 'info');
+        return true;
+      }
+
+      // ランダムに1枚選択
+      const randomIndex = Math.floor(Math.random() * opponentHand.length);
+      const selectedCard = opponentHand[randomIndex];
+
+      if (selectedCard.type === 'monster') {
+        setOpponentHand(prev => prev.filter((_, idx) => idx !== randomIndex));
+        setOpponentGraveyard(prev => [...prev, selectedCard]);
+        addLog(`相手の手札「${selectedCard.name}」を墓地に送った`, 'damage');
+      } else {
+        addLog(`選ばれたカードはモンスターではありませんでした`, 'info');
+      }
+      return true;
+    }
+    return false;
+  },
+
+  /**
+   * C0000099: 虚蝕獣・爪刃の群れ
+   * 【召喚時】相手モンスター1体に800ダメージを与える
+   */
+  C0000099: (skillText, context) => {
+    if (skillText.includes('【召喚時】')) {
+      return conditionalDamage(context, 800, 'opponent_monster', 0);
+    }
+    return false;
+  },
+
+  /**
+   * C0000113: 咆哮の虚蝕獣
+   * 【召喚時】相手のデッキの上から3枚を墓地に送る
+   */
+  C0000113: (skillText, context) => {
+    if (skillText.includes('【召喚時】')) {
+      millOpponentDeck(context, 3);
+      return true;
+    }
+    return false;
+  },
+
+  /**
+   * C0000115: 禁断の使徒
+   * 【召喚時】相手モンスター1体に300ダメージを与える
+   */
+  C0000115: (skillText, context) => {
+    if (skillText.includes('【召喚時】')) {
+      return conditionalDamage(context, 300, 'opponent_monster', 0);
+    }
+    return false;
+  },
+
+  /**
+   * C0000126: ダーク・シャンデリア
+   * 【召喚時】相手モンスター全体の攻撃力を300ダウン
+   */
+  C0000126: (skillText, context) => {
+    const {
+      addLog,
+      currentPlayer,
+      p1Field, p2Field,
+      setP1Field, setP2Field,
+    } = context;
+
+    if (skillText.includes('【召喚時】')) {
+      const opponentField = currentPlayer === 1 ? p2Field : p1Field;
+      const setOpponentField = currentPlayer === 1 ? setP2Field : setP1Field;
+
+      const monsters = opponentField.filter(m => m !== null);
+      if (monsters.length === 0) {
+        addLog('相手モンスターがいません', 'info');
+        return true;
+      }
+
+      setOpponentField(prev => prev.map(m => {
+        if (m) {
+          const newAtk = Math.max(0, m.attack - 300);
+          return { ...m, attack: newAtk };
+        }
+        return m;
+      }));
+
+      addLog('相手モンスター全体の攻撃力を300ダウン', 'info');
+      return true;
+    }
+    return false;
+  },
+
+  /**
+   * C0000231: 幼魔王女リリカ
+   * 【召喚時】デッキから《ゴシック》または《鎖》魔法カード1枚を手札に加える
+   */
+  C0000231: (skillText, context) => {
+    if (skillText.includes('【召喚時】')) {
+      return searchCard(context, (card) => {
+        return card.type === 'magic' &&
+               card.name && (card.name.includes('ゴシック') || card.name.includes('鎖'));
+      }) !== null;
+    }
+    return false;
+  },
+
+  /**
+   * C0000232: 奉仕のリリカ
+   * 【召喚時】自分のSPトークンを１つアクティブにする
+   */
+  C0000232: (skillText, context) => {
+    const {
+      addLog,
+      currentPlayer,
+      p1RestedSP, p2RestedSP,
+      setP1ActiveSP, setP2ActiveSP,
+      setP1RestedSP, setP2RestedSP,
+    } = context;
+
+    if (skillText.includes('【召喚時】')) {
+      const restedSP = currentPlayer === 1 ? p1RestedSP : p2RestedSP;
+
+      if (restedSP > 0) {
+        if (currentPlayer === 1) {
+          setP1ActiveSP(prev => prev + 1);
+          setP1RestedSP(prev => prev - 1);
+        } else {
+          setP2ActiveSP(prev => prev + 1);
+          setP2RestedSP(prev => prev - 1);
+        }
+        addLog('レストSPを1個アクティブにした', 'info');
+        return true;
+      } else {
+        addLog('レストSPがありません', 'info');
+        return false;
+      }
+    }
+    return false;
+  },
+
+  // 他の闇属性カードを追加...
+};
