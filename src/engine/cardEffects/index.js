@@ -3,27 +3,27 @@
 // 各属性ファイルから効果をインポートして統合
 // ========================================
 
-// 属性別カード効果をインポート（段階的に追加）
-// import { fireCardEffects } from './fire';
-// import { waterCardEffects } from './water';
-// import { lightCardEffects } from './light';
-// import { darkCardEffects } from './dark';
-// import { primitiveCardEffects } from './primitive';
+// 属性別カード効果をインポート
+import { fireCardEffects } from './fire';
+import { waterCardEffects } from './water';
+import { lightCardEffects } from './light';
+import { darkCardEffects } from './dark';
+import { primitiveCardEffects } from './primitive';
 import { futureCardEffects } from './future';
-// import { neutralCardEffects } from './neutral';
+import { neutralCardEffects } from './neutral';
 
 /**
  * 全カード固有効果のレジストリ
  * 各属性のエフェクトを自動的にマージ
  */
 export const CARD_SPECIFIC_EFFECTS = {
-  // ...fireCardEffects,
-  // ...waterCardEffects,
-  // ...lightCardEffects,
-  // ...darkCardEffects,
-  // ...primitiveCardEffects,
+  ...fireCardEffects,
+  ...waterCardEffects,
+  ...lightCardEffects,
+  ...darkCardEffects,
+  ...primitiveCardEffects,
   ...futureCardEffects,
-  // ...neutralCardEffects,
+  ...neutralCardEffects,
 };
 
 /**
