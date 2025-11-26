@@ -24,10 +24,11 @@ import {
 } from './engine/triggerEngine';
 import { TRIGGER_TYPES } from './engine/triggerTypes';
 import {
-  getPhaseCardStageEffect,
-  getPhaseCardInfo,
-  getGenericStageEffect,
-  hasPhaseCardEffect,
+  getPhaseCardStageText,
+  getStageName,
+  getStageShortName,
+  getCurrentStageDescription,
+  getNextStageDescription,
 } from './engine/phaseCardEffects';
 import styles from './styles/gameStyles';
 import Card from './components/Card';
@@ -448,156 +449,53 @@ export default function MagicSpiritGame() {
     // 手札から削除
     setHand(prev => prev.filter(c => c.uniqueId !== card.uniqueId));
 
-    // 段階名を取得
-    const stageNames = ['初期段階', '第1段階', '第2段階', '最終段階'];
-    addLog(`フェイズカード【${phaseCard.name}】に${card.name}をチャージ → 【${stageNames[newStage]}】（${newStage}/3）`, 'info');
+    // 段階名を取得（新しい関数を使用）
+    const stageName = getStageName(newStage);
+    addLog(`フェイズカード【${phaseCard.name}】に${card.name}をチャージ → 【${stageName}】（${newStage}/3）`, 'info');
 
-    // コンテキストを作成
-    const context = {
-      currentPlayer,
-      monsterIndex: null,
-      setP1Life,
-      setP2Life,
-      setP1Field,
-      setP2Field,
-      setP1Hand,
-      setP2Hand,
-      setP1Deck,
-      setP2Deck,
-      setP1Graveyard,
-      setP2Graveyard,
-      p1Field,
-      p2Field,
-      p1Hand,
-      p2Hand,
-      p1Deck,
-      p2Deck,
-      p1Graveyard,
-      p2Graveyard,
-      p1ActiveSP,
-      p2ActiveSP,
-      setP1ActiveSP,
-      setP2ActiveSP,
-      p1RestedSP,
-      p2RestedSP,
-      setP1RestedSP,
-      setP2RestedSP,
-      addLog,
-    };
+    // CSVの効果テキストから段階効果を取得
+    const stageEffectText = getPhaseCardStageText(phaseCard, newStage);
 
-    // カード固有の段階効果を確認
-    const stageEffect = getPhaseCardStageEffect(phaseCard.id, newStage);
+    if (stageEffectText) {
+      // 段階効果のテキストをログに表示
+      addLog(`【${stageName}効果】: ${stageEffectText}`, 'info');
 
-    if (stageEffect) {
-      // カード固有の段階効果を実行
-      addLog(`【${stageNames[newStage]}効果】: ${stageEffect.description}`, 'info');
+      // コンテキストを作成して効果を実行
+      const context = {
+        currentPlayer,
+        monsterIndex: null,
+        setP1Life,
+        setP2Life,
+        setP1Field,
+        setP2Field,
+        setP1Hand,
+        setP2Hand,
+        setP1Deck,
+        setP2Deck,
+        setP1Graveyard,
+        setP2Graveyard,
+        p1Field,
+        p2Field,
+        p1Hand,
+        p2Hand,
+        p1Deck,
+        p2Deck,
+        p1Graveyard,
+        p2Graveyard,
+        p1ActiveSP,
+        p2ActiveSP,
+        setP1ActiveSP,
+        setP2ActiveSP,
+        p1RestedSP,
+        p2RestedSP,
+        setP1RestedSP,
+        setP2RestedSP,
+        addLog,
+      };
 
-      // 即時効果を実行
-      if (stageEffect.effect) {
-        stageEffect.effect(context);
-      }
-
-      // 最終段階の追加効果を実行
-      if (stageEffect.instantEffect) {
-        stageEffect.instantEffect(context);
-      }
-    } else {
-      // 汎用段階効果を使用（カード固有効果がない場合のフォールバック）
-      const genericEffect = getGenericStageEffect(phaseCard.attribute, newStage);
-      if (genericEffect) {
-        addLog(`【${stageNames[newStage]}効果】: ${genericEffect.description}`, 'info');
-
-        // 汎用効果を実行
-        if (genericEffect.damage) {
-          if (genericEffect.target === 'opponent') {
-            const setOpponentLife = currentPlayer === 1 ? setP2Life : setP1Life;
-            setOpponentLife(prev => prev - genericEffect.damage);
-            addLog(`相手に${genericEffect.damage}ダメージ！`, 'damage');
-          } else if (genericEffect.target === 'opponent_all') {
-            const setOpponentField = currentPlayer === 1 ? setP2Field : setP1Field;
-            setOpponentField(prev => prev.map(monster => {
-              if (monster) {
-                const newHp = (monster.currentHp || monster.hp) - genericEffect.damage;
-                if (newHp <= 0) {
-                  addLog(`${monster.name}が破壊された！`, 'damage');
-                  return null;
-                }
-                return { ...monster, currentHp: newHp };
-              }
-              return monster;
-            }));
-            addLog(`相手モンスター全体に${genericEffect.damage}ダメージ！`, 'damage');
-          }
-        }
-
-        if (genericEffect.heal) {
-          const setLife = currentPlayer === 1 ? setP1Life : setP2Life;
-          setLife(prev => prev + genericEffect.heal);
-          addLog(`ライフ${genericEffect.heal}回復！`, 'heal');
-        }
-
-        if (genericEffect.draw) {
-          const deck = currentPlayer === 1 ? p1Deck : p2Deck;
-          const setDeck = currentPlayer === 1 ? setP1Deck : setP2Deck;
-          const setHandTarget = currentPlayer === 1 ? setP1Hand : setP2Hand;
-          const drawCount = Math.min(genericEffect.draw, deck.length);
-          if (drawCount > 0) {
-            setHandTarget(prev => [...prev, ...deck.slice(0, drawCount)]);
-            setDeck(prev => prev.slice(drawCount));
-            addLog(`${drawCount}枚ドロー！`, 'info');
-          }
-        }
-
-        if (genericEffect.spRecover) {
-          const restedSP = currentPlayer === 1 ? p1RestedSP : p2RestedSP;
-          const recoverCount = Math.min(genericEffect.spRecover, restedSP);
-          if (recoverCount > 0) {
-            const setActiveSP = currentPlayer === 1 ? setP1ActiveSP : setP2ActiveSP;
-            const setRestedSP = currentPlayer === 1 ? setP1RestedSP : setP2RestedSP;
-            setActiveSP(prev => prev + recoverCount);
-            setRestedSP(prev => prev - recoverCount);
-            addLog(`SP${recoverCount}回復！`, 'heal');
-          }
-        }
-
-        if (genericEffect.attackBonus) {
-          const setField = currentPlayer === 1 ? setP1Field : setP2Field;
-          setField(prev => prev.map(monster => {
-            if (monster) {
-              const isTarget = genericEffect.allMonsters || monster.attribute === phaseCard.attribute;
-              if (isTarget) {
-                return { ...monster, currentAttack: (monster.currentAttack || monster.attack) + genericEffect.attackBonus };
-              }
-            }
-            return monster;
-          }));
-        }
-
-        if (genericEffect.hpBonus) {
-          const setField = currentPlayer === 1 ? setP1Field : setP2Field;
-          setField(prev => prev.map(monster => {
-            if (monster) {
-              const isTarget = genericEffect.allMonsters || monster.attribute === phaseCard.attribute;
-              if (isTarget) {
-                return {
-                  ...monster,
-                  hp: monster.hp + genericEffect.hpBonus,
-                  currentHp: (monster.currentHp || monster.hp) + genericEffect.hpBonus,
-                };
-              }
-            }
-            return monster;
-          }));
-        }
-      } else if (phaseCard.effect) {
-        // 最終フォールバック: テキストからパース
-        const phasePattern = new RegExp(`${newStage}枚重ね[：:]\\s*([^。\\n]+)`);
-        const phaseMatch = phaseCard.effect.match(phasePattern);
-        if (phaseMatch) {
-          addLog(`【${stageNames[newStage]}効果】: ${phaseMatch[1]}`, 'info');
-          executeSkillEffects(phaseMatch[1], context, phaseCard.id);
-        }
-      }
+      // 効果テキストを解析して実行（現状はトリガーシステムで処理される効果も多いため、ログ表示のみ）
+      // TODO: 即時効果（ダメージ、回復など）は executeSkillEffects で処理可能
+      // executeSkillEffects(stageEffectText, context, phaseCard.id);
     }
 
     // 最終段階（3枚チャージ）の場合は墓地へ送る
@@ -958,20 +856,13 @@ export default function MagicSpiritGame() {
         addLog,
       };
 
-      // カード固有の初期効果を確認
-      const stageEffect = getPhaseCardStageEffect(card.id, 0);
-      if (stageEffect) {
-        addLog(`【初期効果】: ${stageEffect.description}`, 'info');
-        if (stageEffect.effect) {
-          stageEffect.effect(context);
-        }
-      } else if (card.effect) {
-        // フォールバック: テキストから初期効果をパース
-        const initialEffectMatch = card.effect.match(/初期効果[：:]\s*([^。\n]+)/);
-        if (initialEffectMatch) {
-          addLog(`【初期効果】: ${initialEffectMatch[1]}`, 'info');
-          executeSkillEffects(initialEffectMatch[1], context, card.id);
-        }
+      // CSVの効果テキストから初期効果を取得して表示
+      const initialEffectText = getPhaseCardStageText(card, 0);
+      if (initialEffectText) {
+        addLog(`【初期効果】: ${initialEffectText}`, 'info');
+        // 初期効果はトリガーシステムで処理されるものが多い（【自分エンドフェイズ時】など）
+        // 即時効果の場合は executeSkillEffects で実行可能
+        // executeSkillEffects(initialEffectText, context, card.id);
       }
 
       return true;
@@ -1805,7 +1696,7 @@ export default function MagicSpiritGame() {
                   >
                     <Card card={p2PhaseCard} small />
                     <div style={{ fontSize: '10px', color: '#ffd700', textAlign: 'center', marginTop: '4px' }}>
-                      ⚡ {['初期', '第1', '第2', '最終'][p2PhaseCard.stage || 0]}段階 ({p2PhaseCard.charges?.length || 0}/3)
+                      ⚡ {getStageShortName(p2PhaseCard.stage || 0)}段階 ({p2PhaseCard.charges?.length || 0}/3)
                     </div>
                     {currentPlayer === 2 && phase === 2 && selectedHandCard &&
                       (selectedHandCard.type === 'monster' || selectedHandCard.type === 'magic' || selectedHandCard.type === 'field') &&
@@ -2002,23 +1893,53 @@ export default function MagicSpiritGame() {
                     カテゴリ: {selectedFieldCardInfo.card.categoryText}
                   </div>
                 )}
-                {selectedFieldCardInfo.type === 'phasecard' && selectedFieldCardInfo.card.charges && (
-                  <div style={{ fontSize: '11px', color: '#4caf50', marginBottom: '4px' }}>
-                    ⚡ チャージ: {selectedFieldCardInfo.card.charges.length}/3
+                {selectedFieldCardInfo.type === 'phasecard' && (
+                  <>
+                    <div style={{ fontSize: '11px', color: '#4caf50', marginBottom: '4px' }}>
+                      ⚡ {getStageShortName(selectedFieldCardInfo.card.stage || 0)}段階 ({selectedFieldCardInfo.card.charges?.length || 0}/3)
+                    </div>
+                    <div style={{
+                      fontSize: '10px',
+                      color: '#ffd700',
+                      background: 'rgba(255,215,0,0.1)',
+                      padding: '6px',
+                      borderRadius: '4px',
+                      marginBottom: '4px',
+                      lineHeight: '1.4',
+                    }}>
+                      <strong>【現在の効果】</strong><br/>
+                      {getCurrentStageDescription(selectedFieldCardInfo.card) || '効果なし'}
+                    </div>
+                    {(selectedFieldCardInfo.card.stage || 0) < 3 && getNextStageDescription(selectedFieldCardInfo.card) && (
+                      <div style={{
+                        fontSize: '10px',
+                        color: '#4da6ff',
+                        background: 'rgba(77,166,255,0.1)',
+                        padding: '6px',
+                        borderRadius: '4px',
+                        marginBottom: '4px',
+                        lineHeight: '1.4',
+                      }}>
+                        <strong>【次の段階効果】</strong><br/>
+                        {getNextStageDescription(selectedFieldCardInfo.card)}
+                      </div>
+                    )}
+                  </>
+                )}
+                {selectedFieldCardInfo.type === 'field' && (
+                  <div style={{
+                    fontSize: '10px',
+                    color: '#e0e0e0',
+                    background: 'rgba(0,0,0,0.3)',
+                    padding: '6px',
+                    borderRadius: '4px',
+                    lineHeight: '1.4',
+                    maxHeight: '80px',
+                    overflowY: 'auto',
+                  }}>
+                    {getEffectWithoutSkills(selectedFieldCardInfo.card.effect) || 'なし'}
                   </div>
                 )}
-                <div style={{
-                  fontSize: '10px',
-                  color: '#e0e0e0',
-                  background: 'rgba(0,0,0,0.3)',
-                  padding: '6px',
-                  borderRadius: '4px',
-                  lineHeight: '1.4',
-                  maxHeight: '80px',
-                  overflowY: 'auto',
-                }}>
-                  {getEffectWithoutSkills(selectedFieldCardInfo.card.effect) || 'なし'}
-                </div>
                 <button
                   onClick={() => setSelectedFieldCardInfo(null)}
                   style={{
@@ -2414,7 +2335,7 @@ export default function MagicSpiritGame() {
                   >
                     <Card card={p1PhaseCard} small />
                     <div style={{ fontSize: '10px', color: '#ffd700', textAlign: 'center', marginTop: '4px' }}>
-                      ⚡ {['初期', '第1', '第2', '最終'][p1PhaseCard.stage || 0]}段階 ({p1PhaseCard.charges?.length || 0}/3)
+                      ⚡ {getStageShortName(p1PhaseCard.stage || 0)}段階 ({p1PhaseCard.charges?.length || 0}/3)
                     </div>
                     {currentPlayer === 1 && phase === 2 && selectedHandCard &&
                       (selectedHandCard.type === 'monster' || selectedHandCard.type === 'magic' || selectedHandCard.type === 'field') &&
@@ -2611,23 +2532,53 @@ export default function MagicSpiritGame() {
                     カテゴリ: {selectedFieldCardInfo.card.categoryText}
                   </div>
                 )}
-                {selectedFieldCardInfo.type === 'phasecard' && selectedFieldCardInfo.card.charges && (
-                  <div style={{ fontSize: '11px', color: '#4caf50', marginBottom: '4px' }}>
-                    ⚡ チャージ: {selectedFieldCardInfo.card.charges.length}/3
+                {selectedFieldCardInfo.type === 'phasecard' && (
+                  <>
+                    <div style={{ fontSize: '11px', color: '#4caf50', marginBottom: '4px' }}>
+                      ⚡ {getStageShortName(selectedFieldCardInfo.card.stage || 0)}段階 ({selectedFieldCardInfo.card.charges?.length || 0}/3)
+                    </div>
+                    <div style={{
+                      fontSize: '10px',
+                      color: '#ffd700',
+                      background: 'rgba(255,215,0,0.1)',
+                      padding: '6px',
+                      borderRadius: '4px',
+                      marginBottom: '4px',
+                      lineHeight: '1.4',
+                    }}>
+                      <strong>【現在の効果】</strong><br/>
+                      {getCurrentStageDescription(selectedFieldCardInfo.card) || '効果なし'}
+                    </div>
+                    {(selectedFieldCardInfo.card.stage || 0) < 3 && getNextStageDescription(selectedFieldCardInfo.card) && (
+                      <div style={{
+                        fontSize: '10px',
+                        color: '#4da6ff',
+                        background: 'rgba(77,166,255,0.1)',
+                        padding: '6px',
+                        borderRadius: '4px',
+                        marginBottom: '4px',
+                        lineHeight: '1.4',
+                      }}>
+                        <strong>【次の段階効果】</strong><br/>
+                        {getNextStageDescription(selectedFieldCardInfo.card)}
+                      </div>
+                    )}
+                  </>
+                )}
+                {selectedFieldCardInfo.type === 'field' && (
+                  <div style={{
+                    fontSize: '10px',
+                    color: '#e0e0e0',
+                    background: 'rgba(0,0,0,0.3)',
+                    padding: '6px',
+                    borderRadius: '4px',
+                    lineHeight: '1.4',
+                    maxHeight: '80px',
+                    overflowY: 'auto',
+                  }}>
+                    {getEffectWithoutSkills(selectedFieldCardInfo.card.effect) || 'なし'}
                   </div>
                 )}
-                <div style={{
-                  fontSize: '10px',
-                  color: '#e0e0e0',
-                  background: 'rgba(0,0,0,0.3)',
-                  padding: '6px',
-                  borderRadius: '4px',
-                  lineHeight: '1.4',
-                  maxHeight: '80px',
-                  overflowY: 'auto',
-                }}>
-                  {getEffectWithoutSkills(selectedFieldCardInfo.card.effect) || 'なし'}
-                </div>
                 <button
                   onClick={() => setSelectedFieldCardInfo(null)}
                   style={{
