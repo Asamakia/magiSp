@@ -306,6 +306,32 @@ export const parseCardTriggers = (card) => {
     });
   }
 
+  // 【墓地発動】パターン - メインフェイズ時
+  // 「墓地にある」「墓地で発動」などのパターンで、SPコストを払う場合はメインフェイズ
+  if (effectText.includes('墓地にある') && effectText.includes('SP')) {
+    triggers.push({
+      type: TRIGGER_TYPES.ON_MAIN_PHASE_FROM_GRAVEYARD,
+      activationType: ACTIVATION_TYPES.OPTIONAL,
+      description: '墓地発動効果（メインフェイズ）',
+      effect: (context) => {
+        context.addLog(`${card.name}の墓地効果を発動！`, 'info');
+      },
+    });
+  }
+
+  // 【墓地発動】パターン - エンドフェイズ時
+  // 「墓地にある」「ターン終了時」などのパターン
+  if (effectText.includes('墓地にある') && effectText.includes('ターン終了時')) {
+    triggers.push({
+      type: TRIGGER_TYPES.ON_END_PHASE_FROM_GRAVEYARD,
+      activationType: ACTIVATION_TYPES.AUTOMATIC,
+      description: '墓地発動効果（エンドフェイズ）',
+      effect: (context) => {
+        context.addLog(`${card.name}の墓地効果を発動！`, 'info');
+      },
+    });
+  }
+
   return triggers;
 };
 

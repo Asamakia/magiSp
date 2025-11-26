@@ -17,7 +17,9 @@ import {
   clearAllTriggers,
   resetTurnFlags,
   getCardMainPhaseTriggers,
+  getCardGraveyardTriggers,
   hasCardTrigger,
+  parseCardTriggers,
 } from './engine/triggerEngine';
 import { TRIGGER_TYPES } from './engine/triggerTypes';
 import styles from './styles/gameStyles';
@@ -269,6 +271,27 @@ export default function MagicSpiritGame() {
         // エンドフェイズトリガーを発火
         fireTrigger(TRIGGER_TYPES.ON_END_PHASE_SELF, triggerContext);
         fireTrigger(TRIGGER_TYPES.ON_END_PHASE, triggerContext);
+
+        // 墓地カードのエンドフェイズトリガーを発火
+        {
+          const graveyard = currentPlayer === 1 ? p1Graveyard : p2Graveyard;
+          graveyard.forEach((card) => {
+            const graveyardTriggers = getCardGraveyardTriggers(card, triggerContext);
+            graveyardTriggers.forEach((trigger) => {
+              if (trigger.type === TRIGGER_TYPES.ON_END_PHASE_FROM_GRAVEYARD &&
+                  trigger.activationType === 'automatic' &&
+                  trigger.canActivate) {
+                try {
+                  if (typeof trigger.effect === 'function') {
+                    trigger.effect({ ...triggerContext, card });
+                  }
+                } catch (error) {
+                  console.error(`墓地トリガー発動エラー: ${card.name}`, error);
+                }
+              }
+            });
+          });
+        }
 
         // ターン終了時に使用済みフラグをリセット
         resetTurnFlags();
@@ -1232,6 +1255,76 @@ export default function MagicSpiritGame() {
     }
   };
 
+  // 墓地発動可能なカードを取得
+  const getActivatableGraveyardCards = () => {
+    const graveyard = currentPlayer === 1 ? p1Graveyard : p2Graveyard;
+    const field = currentPlayer === 1 ? p1Field : p2Field;
+    const hasEmptySlot = field.some((slot) => slot === null);
+
+    return graveyard.filter((card) => {
+      const triggers = parseCardTriggers(card);
+      return triggers.some((trigger) => {
+        if (trigger.type !== TRIGGER_TYPES.ON_MAIN_PHASE_FROM_GRAVEYARD) {
+          return false;
+        }
+        // コストチェック（深海のクラーケンはSP4必要）
+        if (trigger.costCheck) {
+          const context = { currentPlayer, p1ActiveSP, p2ActiveSP };
+          if (!trigger.costCheck(context)) {
+            return false;
+          }
+        }
+        // フィールド空きチェック（蘇生カードの場合）
+        if (card.type === 'monster' && !hasEmptySlot) {
+          return false;
+        }
+        return true;
+      });
+    });
+  };
+
+  // 墓地発動を実行
+  const activateGraveyardCard = (card) => {
+    const triggers = parseCardTriggers(card);
+    const graveyardTrigger = triggers.find(
+      (t) => t.type === TRIGGER_TYPES.ON_MAIN_PHASE_FROM_GRAVEYARD
+    );
+
+    if (!graveyardTrigger) {
+      addLog('墓地発動できません', 'damage');
+      return;
+    }
+
+    const triggerContext = {
+      currentPlayer,
+      p1ActiveSP, p2ActiveSP,
+      setP1ActiveSP, setP2ActiveSP,
+      p1RestedSP, p2RestedSP,
+      setP1RestedSP, setP2RestedSP,
+      p1Field, p2Field,
+      setP1Field, setP2Field,
+      p1Graveyard, p2Graveyard,
+      setP1Graveyard, setP2Graveyard,
+      p1Hand, p2Hand,
+      setP1Hand, setP2Hand,
+      p1Deck, p2Deck,
+      setP1Deck, setP2Deck,
+      p1Life, p2Life,
+      setP1Life, setP2Life,
+      card,
+      addLog,
+    };
+
+    try {
+      if (typeof graveyardTrigger.effect === 'function') {
+        graveyardTrigger.effect(triggerContext);
+      }
+    } catch (error) {
+      console.error('墓地発動エラー:', error);
+      addLog(`${card.name}の墓地発動に失敗しました`, 'damage');
+    }
+  };
+
   // ========================================
   // レンダリング
   // ========================================
@@ -1905,7 +1998,28 @@ export default function MagicSpiritGame() {
                   ✨ 魔法カード発動
                 </button>
               )}
-              <div style={{ display: 'flex', gap: '12px' }}>
+              <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', justifyContent: 'center' }}>
+                {phase === 2 && getActivatableGraveyardCards().length > 0 && (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                    <div style={{ fontSize: '11px', color: '#888', textAlign: 'center' }}>
+                      墓地発動可能
+                    </div>
+                    {getActivatableGraveyardCards().map((card) => (
+                      <button
+                        key={card.uniqueId}
+                        onClick={() => activateGraveyardCard(card)}
+                        style={{
+                          ...styles.actionButton,
+                          background: 'linear-gradient(135deg, #6b4e9e, #8b6bb8)',
+                          fontSize: '12px',
+                          padding: '6px 12px',
+                        }}
+                      >
+                        💀 {card.name}
+                      </button>
+                    ))}
+                  </div>
+                )}
                 {phase === 2 && (
                   <button onClick={nextPhase} style={styles.actionButton}>
                     バトルフェイズへ →
