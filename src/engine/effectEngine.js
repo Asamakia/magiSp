@@ -20,6 +20,43 @@ export const EFFECT_TYPES = {
 };
 
 /**
+ * 検索語を正規化（新表記形式［］《》に対応）
+ * @param {string} searchTerm - 検索語
+ * @returns {Object} { term: 正規化された検索語, type: 'name'|'category'|'text' }
+ */
+const normalizeSearchTerm = (searchTerm) => {
+  // 《名称》形式の場合（名称指定 - カード名の部分一致）
+  const nameMatch = searchTerm.match(/《(.+?)》/);
+  if (nameMatch) {
+    return {
+      term: nameMatch[1],
+      type: 'name',
+    };
+  }
+
+  // ［カテゴリ］形式の場合（カテゴリ指定 - カードデータ内では【】で表記）
+  const categoryMatch = searchTerm.match(/［(.+?)］/);
+  if (categoryMatch) {
+    return {
+      term: `【${categoryMatch[1]}】`,
+      type: 'category',
+    };
+  }
+
+  // その他のテキスト（「と名の付く」「モンスター」などの余分なテキストを除去）
+  const cleanTerm = searchTerm
+    .replace(/と名の付く.*/, '')
+    .replace(/モンスター.*/, '')
+    .replace(/カード.*/, '')
+    .trim();
+
+  return {
+    term: cleanTerm,
+    type: 'text',
+  };
+};
+
+/**
  * 効果テキストから効果を抽出
  * @param {string} effectText - 効果テキスト
  * @returns {Array} 効果オブジェクトの配列
@@ -319,12 +356,26 @@ export const executeEffect = (effect, context) => {
       const setCurrentDeck = currentPlayer === 1 ? setP1Deck : setP2Deck;
       const setCurrentHand = currentPlayer === 1 ? setP1Hand : setP2Hand;
 
+      // 検索語を正規化（新表記形式［］《》に対応）
+      const normalizedSearch = normalizeSearchTerm(searchTerm);
+
       // サーチ条件に一致するカードを検索
-      const foundCard = currentDeck.find(card =>
-        card.name.includes(searchTerm) ||
-        card.category.includes(searchTerm) ||
-        card.attribute === searchTerm
-      );
+      const foundCard = currentDeck.find(card => {
+        if (normalizedSearch.type === 'name') {
+          // 《名称》形式 - カード名の部分一致
+          return card.name.includes(normalizedSearch.term);
+        } else if (normalizedSearch.type === 'category') {
+          // ［カテゴリ］形式 - カテゴリの完全一致または部分一致
+          return card.category && card.category.includes(normalizedSearch.term);
+        } else {
+          // その他 - 名前、カテゴリ、属性で検索
+          return (
+            card.name.includes(normalizedSearch.term) ||
+            (card.category && card.category.includes(normalizedSearch.term)) ||
+            card.attribute === normalizedSearch.term
+          );
+        }
+      });
 
       if (foundCard) {
         setCurrentDeck(prev => prev.filter(c => c.uniqueId !== foundCard.uniqueId));
@@ -343,13 +394,28 @@ export const executeEffect = (effect, context) => {
       const currentField = currentPlayer === 1 ? p1Field : p2Field;
       const setCurrentField2 = currentPlayer === 1 ? setP1Field : setP2Field;
 
+      // 検索語を正規化（新表記形式［］《》に対応）
+      const normalizedRevive = normalizeSearchTerm(searchTerm);
+
       // 墓地から蘇生対象を検索
-      const reviveCard = currentGraveyard.find(card =>
-        card.type === 'monster' &&
-        (card.name.includes(searchTerm) ||
-         card.category.includes(searchTerm) ||
-         card.attribute === searchTerm)
-      );
+      const reviveCard = currentGraveyard.find(card => {
+        if (card.type !== 'monster') return false;
+
+        if (normalizedRevive.type === 'name') {
+          // 《名称》形式 - カード名の部分一致
+          return card.name.includes(normalizedRevive.term);
+        } else if (normalizedRevive.type === 'category') {
+          // ［カテゴリ］形式 - カテゴリの完全一致または部分一致
+          return card.category && card.category.includes(normalizedRevive.term);
+        } else {
+          // その他 - 名前、カテゴリ、属性で検索
+          return (
+            card.name.includes(normalizedRevive.term) ||
+            (card.category && card.category.includes(normalizedRevive.term)) ||
+            card.attribute === normalizedRevive.term
+          );
+        }
+      });
 
       if (!reviveCard) {
         addLog(`墓地に「${searchTerm}」が見つかりません`, 'info');
