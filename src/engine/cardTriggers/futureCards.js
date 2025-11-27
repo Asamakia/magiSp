@@ -487,6 +487,94 @@ export const futureCardTriggers = {
       },
     },
   ],
+
+  /**
+   * C0000278: 灯守の少女
+   * 【召喚時】自分のデッキ上1枚を見て、それが「未来属性」カードなら手札に、違えばデッキ下に。
+   * 【場を離れる時】自分の墓地の「未来属性」カード1枚をデッキに戻す。
+   */
+  C0000278: [
+    {
+      type: TRIGGER_TYPES.ON_SUMMON,
+      activationType: ACTIVATION_TYPES.AUTOMATIC,
+      description: 'デッキ上1枚を確認、未来属性なら手札に、違えばデッキ下に',
+      effect: (context) => {
+        const {
+          currentPlayer,
+          p1Deck,
+          p2Deck,
+          setP1Deck,
+          setP2Deck,
+          setP1Hand,
+          setP2Hand,
+          addLog,
+        } = context;
+
+        const deck = currentPlayer === 1 ? p1Deck : p2Deck;
+        const setDeck = currentPlayer === 1 ? setP1Deck : setP2Deck;
+        const setHand = currentPlayer === 1 ? setP1Hand : setP2Hand;
+
+        if (deck.length === 0) {
+          addLog('デッキにカードがありません', 'info');
+          return;
+        }
+
+        // デッキトップ1枚を確認
+        const topCard = deck[0];
+        addLog(`デッキトップを確認: ${topCard.name}`, 'info');
+
+        if (topCard.attribute === '未来') {
+          // 未来属性なら手札に加える
+          setDeck((prev) => prev.slice(1));
+          setHand((prev) => [...prev, topCard]);
+          addLog(`${topCard.name}は未来属性！手札に加えた`, 'info');
+        } else {
+          // 未来属性でなければデッキの下に戻す
+          setDeck((prev) => {
+            const newDeck = prev.slice(1);
+            return [...newDeck, topCard];
+          });
+          addLog(`${topCard.name}は未来属性ではない。デッキの下に戻した`, 'info');
+        }
+      },
+    },
+    {
+      type: TRIGGER_TYPES.ON_LEAVE_FIELD,
+      activationType: ACTIVATION_TYPES.AUTOMATIC,
+      description: '場を離れる時、墓地の未来属性カード1枚をデッキに戻す',
+      effect: (context) => {
+        const {
+          currentPlayer,
+          p1Graveyard,
+          p2Graveyard,
+          setP1Graveyard,
+          setP2Graveyard,
+          setP1Deck,
+          setP2Deck,
+          addLog,
+          leavingCard,
+        } = context;
+
+        const graveyard = currentPlayer === 1 ? p1Graveyard : p2Graveyard;
+        const setGraveyard = currentPlayer === 1 ? setP1Graveyard : setP2Graveyard;
+        const setDeck = currentPlayer === 1 ? setP1Deck : setP2Deck;
+
+        // 墓地から未来属性カードを探す（自分自身は除外）
+        const futureCard = graveyard.find(
+          (card) => card.attribute === '未来' && card.uniqueId !== leavingCard?.uniqueId
+        );
+
+        if (futureCard) {
+          // 墓地から削除してデッキに戻す
+          setGraveyard((prev) => prev.filter((c) => c.uniqueId !== futureCard.uniqueId));
+          setDeck((prev) => [...prev, futureCard]);
+          addLog(`灯守の少女の効果: ${futureCard.name}を墓地からデッキに戻した`, 'info');
+        } else {
+          addLog('墓地に未来属性カードがない', 'info');
+        }
+      },
+    },
+  ],
 };
 
 /**
