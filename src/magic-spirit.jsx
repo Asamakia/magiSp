@@ -98,6 +98,9 @@ export default function MagicSpiritGame() {
   const [pendingHandSelection, setPendingHandSelection] = useState(null); // 手札選択待ち状態 { message, callback, filter? }
   const [pendingSelectedCard, setPendingSelectedCard] = useState(null); // 手札選択モード中の選択カード
   const [hoveredCard, setHoveredCard] = useState(null); // ホバー中のカード情報表示用
+  const [showGraveyardViewer, setShowGraveyardViewer] = useState(null); // 墓地閲覧モーダル { player: 1|2 }
+  const [pendingGraveyardSelection, setPendingGraveyardSelection] = useState(null); // 墓地選択待ち { message, callback, filter? }
+  const [pendingGraveyardSelectedCard, setPendingGraveyardSelectedCard] = useState(null); // 墓地選択中のカード
 
   // デッキ選択状態
   const [p1SelectedDeck, setP1SelectedDeck] = useState('random');
@@ -275,6 +278,8 @@ export default function MagicSpiritGame() {
       p2Life,
       addLog,
       setPendingHandSelection,
+      setPendingGraveyardSelection,
+      setShowGraveyardViewer,
     };
 
     switch (phaseIndex) {
@@ -826,6 +831,8 @@ export default function MagicSpiritGame() {
         p2RestedSP,
         addLog,
         setPendingHandSelection,
+        setPendingGraveyardSelection,
+        setShowGraveyardViewer,
       };
       fireTrigger(TRIGGER_TYPES.ON_SUMMON, triggerContext);
 
@@ -1556,6 +1563,8 @@ export default function MagicSpiritGame() {
       card,
       addLog,
       setPendingHandSelection,
+      setPendingGraveyardSelection,
+      setShowGraveyardViewer,
     };
 
     try {
@@ -2055,8 +2064,19 @@ export default function MagicSpiritGame() {
             </div>
             <div style={{ fontSize: '12px', marginBottom: '4px' }}>SP: {p2ActiveSP}/{p2ActiveSP + p2RestedSP}</div>
             <SPTokens active={p2ActiveSP} rested={p2RestedSP} max={MAX_SP} />
-            <div style={{ fontSize: '11px', marginTop: '8px', color: '#888' }}>
-              デッキ: {p2Deck.length} | 墓地: {p2Graveyard.length}
+            <div style={{ fontSize: '11px', marginTop: '8px', color: '#888', display: 'flex', gap: '8px' }}>
+              <span>デッキ: {p2Deck.length}</span>
+              <span
+                onClick={() => p2Graveyard.length > 0 && setShowGraveyardViewer({ player: 2 })}
+                style={{
+                  cursor: p2Graveyard.length > 0 ? 'pointer' : 'default',
+                  color: p2Graveyard.length > 0 ? '#9c6bff' : '#888',
+                  textDecoration: p2Graveyard.length > 0 ? 'underline' : 'none',
+                }}
+                title={p2Graveyard.length > 0 ? 'クリックして墓地を閲覧' : '墓地にカードがありません'}
+              >
+                墓地: {p2Graveyard.length}
+              </span>
             </div>
           </div>
 
@@ -2317,6 +2337,8 @@ export default function MagicSpiritGame() {
                               p2Life,
                               addLog,
                               setPendingHandSelection,
+                              setPendingGraveyardSelection,
+                              setShowGraveyardViewer,
                             };
                             const { activateTrigger } = require('./engine/triggerEngine');
                             activateTrigger(trigger, triggerContext);
@@ -2409,6 +2431,8 @@ export default function MagicSpiritGame() {
                               p2Life,
                               addLog,
                               setPendingHandSelection,
+                              setPendingGraveyardSelection,
+                              setShowGraveyardViewer,
                             };
                             const { activateTrigger } = require('./engine/triggerEngine');
                             activateTrigger(trigger, triggerContext);
@@ -2509,8 +2533,19 @@ export default function MagicSpiritGame() {
             </div>
             <div style={{ fontSize: '12px', marginBottom: '4px' }}>SP: {p1ActiveSP}/{p1ActiveSP + p1RestedSP}</div>
             <SPTokens active={p1ActiveSP} rested={p1RestedSP} max={MAX_SP} />
-            <div style={{ fontSize: '11px', marginTop: '8px', color: '#888' }}>
-              デッキ: {p1Deck.length} | 墓地: {p1Graveyard.length}
+            <div style={{ fontSize: '11px', marginTop: '8px', color: '#888', display: 'flex', gap: '8px' }}>
+              <span>デッキ: {p1Deck.length}</span>
+              <span
+                onClick={() => p1Graveyard.length > 0 && setShowGraveyardViewer({ player: 1 })}
+                style={{
+                  cursor: p1Graveyard.length > 0 ? 'pointer' : 'default',
+                  color: p1Graveyard.length > 0 ? '#6b9eff' : '#888',
+                  textDecoration: p1Graveyard.length > 0 ? 'underline' : 'none',
+                }}
+                title={p1Graveyard.length > 0 ? 'クリックして墓地を閲覧' : '墓地にカードがありません'}
+              >
+                墓地: {p1Graveyard.length}
+              </span>
             </div>
           </div>
 
@@ -2636,6 +2671,221 @@ export default function MagicSpiritGame() {
         </div>
         </div>
       </div>
+
+      {/* 墓地閲覧モーダル */}
+      {showGraveyardViewer && (
+        <div
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: 'rgba(0,0,0,0.85)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 1000,
+          }}
+          onClick={() => {
+            setShowGraveyardViewer(null);
+            setPendingGraveyardSelectedCard(null);
+          }}
+        >
+          <div
+            style={{
+              background: 'linear-gradient(135deg, #1a1a2e, #16213e)',
+              borderRadius: '12px',
+              padding: '20px',
+              maxWidth: '90vw',
+              maxHeight: '80vh',
+              overflow: 'hidden',
+              display: 'flex',
+              flexDirection: 'column',
+              border: '2px solid #444',
+              boxShadow: '0 0 30px rgba(0,0,0,0.8)',
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+              <h3 style={{ margin: 0, color: showGraveyardViewer.player === 1 ? '#4da6ff' : '#ff6b6b' }}>
+                💀 {showGraveyardViewer.player === 1 ? 'プレイヤー1' : 'プレイヤー2'}の墓地
+                ({(showGraveyardViewer.player === 1 ? p1Graveyard : p2Graveyard).length}枚)
+              </h3>
+              <button
+                onClick={() => {
+                  setShowGraveyardViewer(null);
+                  setPendingGraveyardSelectedCard(null);
+                }}
+                style={{
+                  background: '#ff4444',
+                  border: 'none',
+                  borderRadius: '4px',
+                  color: 'white',
+                  padding: '6px 12px',
+                  cursor: 'pointer',
+                  fontSize: '14px',
+                }}
+              >
+                ✕ 閉じる
+              </button>
+            </div>
+
+            {/* 墓地選択モード中のメッセージ */}
+            {pendingGraveyardSelection && (
+              <div style={{
+                background: 'rgba(156, 107, 255, 0.2)',
+                border: '1px solid #9c6bff',
+                borderRadius: '8px',
+                padding: '10px',
+                marginBottom: '12px',
+                textAlign: 'center',
+              }}>
+                <div style={{ color: '#9c6bff', fontWeight: 'bold', marginBottom: '4px' }}>
+                  {pendingGraveyardSelection.message}
+                </div>
+                {pendingGraveyardSelectedCard && (
+                  <div style={{ display: 'flex', gap: '8px', justifyContent: 'center', marginTop: '8px' }}>
+                    <button
+                      onClick={() => {
+                        if (pendingGraveyardSelection.callback) {
+                          pendingGraveyardSelection.callback(pendingGraveyardSelectedCard);
+                        }
+                        setPendingGraveyardSelection(null);
+                        setPendingGraveyardSelectedCard(null);
+                        setShowGraveyardViewer(null);
+                      }}
+                      style={{
+                        background: 'linear-gradient(135deg, #4caf50, #66bb6a)',
+                        border: 'none',
+                        borderRadius: '4px',
+                        color: 'white',
+                        padding: '8px 16px',
+                        cursor: 'pointer',
+                        fontWeight: 'bold',
+                      }}
+                    >
+                      ✓ 【{pendingGraveyardSelectedCard.name}】を選択
+                    </button>
+                    <button
+                      onClick={() => setPendingGraveyardSelectedCard(null)}
+                      style={{
+                        background: 'linear-gradient(135deg, #666, #888)',
+                        border: 'none',
+                        borderRadius: '4px',
+                        color: 'white',
+                        padding: '8px 16px',
+                        cursor: 'pointer',
+                      }}
+                    >
+                      選択解除
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* カード一覧 */}
+            <div style={{
+              display: 'flex',
+              flexWrap: 'wrap',
+              gap: '12px',
+              overflowY: 'auto',
+              maxHeight: '60vh',
+              padding: '8px',
+              justifyContent: 'center',
+            }}>
+              {(showGraveyardViewer.player === 1 ? p1Graveyard : p2Graveyard).length === 0 ? (
+                <div style={{ color: '#888', padding: '40px', textAlign: 'center' }}>
+                  墓地にカードがありません
+                </div>
+              ) : (
+                (showGraveyardViewer.player === 1 ? p1Graveyard : p2Graveyard).map((card, index) => {
+                  const isSelectable = pendingGraveyardSelection
+                    ? (!pendingGraveyardSelection.filter || pendingGraveyardSelection.filter(card))
+                    : false;
+                  const isSelected = pendingGraveyardSelectedCard?.uniqueId === card.uniqueId;
+
+                  // この墓地カードに発動可能なトリガーがあるか確認
+                  const graveyardTriggers = (() => {
+                    if (showGraveyardViewer.player !== currentPlayer) return [];
+                    if (phase !== 2) return []; // メインフェイズのみ
+                    const triggers = parseCardTriggers(card);
+                    return triggers.filter((t) => {
+                      if (t.type !== TRIGGER_TYPES.ON_MAIN_PHASE_FROM_GRAVEYARD) return false;
+                      if (t.costCheck) {
+                        const context = { currentPlayer, p1ActiveSP, p2ActiveSP };
+                        if (!t.costCheck(context)) return false;
+                      }
+                      // モンスターの場合、場に空きがあるか確認
+                      if (card.type === 'monster') {
+                        const field = currentPlayer === 1 ? p1Field : p2Field;
+                        if (!field.some((slot) => slot === null)) return false;
+                      }
+                      return true;
+                    });
+                  })();
+                  const hasActivatableTrigger = graveyardTriggers.length > 0;
+
+                  return (
+                    <div
+                      key={card.uniqueId || index}
+                      style={{
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'center',
+                        gap: '4px',
+                      }}
+                    >
+                      <div
+                        onClick={() => {
+                          if (pendingGraveyardSelection && isSelectable) {
+                            setPendingGraveyardSelectedCard(isSelected ? null : card);
+                          }
+                        }}
+                        style={{
+                          cursor: (pendingGraveyardSelection && isSelectable) ? 'pointer' : 'default',
+                          border: isSelected ? '3px solid #9c6bff' :
+                                  hasActivatableTrigger ? '2px solid #ffd700' :
+                                  (pendingGraveyardSelection && !isSelectable) ? '2px solid #444' : 'none',
+                          borderRadius: '8px',
+                          padding: '2px',
+                          opacity: (pendingGraveyardSelection && !isSelectable) ? 0.5 : 1,
+                          transform: isSelected ? 'scale(1.05)' : 'scale(1)',
+                          transition: 'all 0.2s',
+                        }}
+                      >
+                        <Card card={card} small />
+                      </div>
+                      {/* 墓地発動ボタン */}
+                      {hasActivatableTrigger && !pendingGraveyardSelection && (
+                        <button
+                          onClick={() => {
+                            activateGraveyardCard(card);
+                            setShowGraveyardViewer(null);
+                          }}
+                          style={{
+                            background: 'linear-gradient(135deg, #6b4e9e, #8b6bb8)',
+                            border: 'none',
+                            borderRadius: '4px',
+                            color: 'white',
+                            padding: '4px 8px',
+                            cursor: 'pointer',
+                            fontSize: '11px',
+                            whiteSpace: 'nowrap',
+                          }}
+                        >
+                          💀 発動
+                        </button>
+                      )}
+                    </div>
+                  );
+                })
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
