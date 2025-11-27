@@ -1236,22 +1236,31 @@ export default function MagicSpiritGame() {
     const currentHand = currentPlayer === 1 ? p1Hand : p2Hand;
     if (!currentHand.find(c => c.uniqueId === card.uniqueId)) return;
 
-    // 手札選択待ち状態の場合
+    // 手札選択待ち状態の場合：カードを選択状態にするだけ（決定は別ボタン）
     if (pendingHandSelection) {
       // フィルターがある場合はチェック
       if (pendingHandSelection.filter && !pendingHandSelection.filter(card)) {
         addLog('そのカードは選択できません', 'damage');
         return;
       }
-      // コールバックを実行
-      pendingHandSelection.callback(card);
-      setPendingHandSelection(null);
+      // 選択状態を切り替え（同じカードをクリックで選択解除）
+      setSelectedHandCard(selectedHandCard?.uniqueId === card.uniqueId ? null : card);
       return;
     }
 
     setSelectedHandCard(selectedHandCard?.uniqueId === card.uniqueId ? null : card);
     setSelectedFieldMonster(null);
     setAttackingMonster(null);
+  };
+
+  // 手札選択を確定
+  const confirmHandSelection = () => {
+    if (!pendingHandSelection || !selectedHandCard) return;
+
+    // コールバックを実行
+    pendingHandSelection.callback(selectedHandCard);
+    setPendingHandSelection(null);
+    setSelectedHandCard(null);
   };
 
   // フィールドスロットクリック
@@ -2044,20 +2053,47 @@ export default function MagicSpiritGame() {
           {/* 手札選択モード */}
           {pendingHandSelection && (
             <div style={{
-              background: 'linear-gradient(135deg, #ff6b6b 0%, #ff8e53 100%)',
+              background: selectedHandCard
+                ? 'linear-gradient(135deg, #4caf50 0%, #66bb6a 100%)'
+                : 'linear-gradient(135deg, #ff6b6b 0%, #ff8e53 100%)',
               padding: '16px 24px',
               borderRadius: '12px',
               textAlign: 'center',
-              boxShadow: '0 4px 20px rgba(255,107,107,0.4)',
-              animation: 'pulse 1.5s infinite',
+              boxShadow: selectedHandCard
+                ? '0 4px 20px rgba(76,175,80,0.4)'
+                : '0 4px 20px rgba(255,107,107,0.4)',
               marginBottom: '12px',
             }}>
               <div style={{ fontSize: '16px', fontWeight: 'bold', color: '#fff', marginBottom: '8px' }}>
                 {pendingHandSelection.message}
               </div>
-              <div style={{ fontSize: '12px', color: '#ffe0e0' }}>
-                手札からカードをクリックして選択してください
-              </div>
+              {selectedHandCard ? (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', alignItems: 'center' }}>
+                  <div style={{ fontSize: '14px', color: '#fff' }}>
+                    選択中: <strong>{selectedHandCard.name}</strong>
+                  </div>
+                  <button
+                    onClick={confirmHandSelection}
+                    style={{
+                      background: 'linear-gradient(135deg, #fff 0%, #e0e0e0 100%)',
+                      color: '#333',
+                      border: 'none',
+                      padding: '10px 32px',
+                      borderRadius: '8px',
+                      fontSize: '14px',
+                      fontWeight: 'bold',
+                      cursor: 'pointer',
+                      boxShadow: '0 2px 8px rgba(0,0,0,0.2)',
+                    }}
+                  >
+                    ✓ 決定
+                  </button>
+                </div>
+              ) : (
+                <div style={{ fontSize: '12px', color: '#ffe0e0' }}>
+                  手札からカードをクリックして選択してください
+                </div>
+              )}
             </div>
           )}
 
