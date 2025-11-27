@@ -193,7 +193,7 @@ export const futureCardTriggers = {
       activationType: ACTIVATION_TYPES.AUTOMATIC,
       description: '1枚ドロー後、手札1枚をデッキの下に戻す',
       effect: (context) => {
-        const { currentPlayer, p1Hand, p2Hand, setP1Deck, setP2Deck, addLog } = context;
+        const { currentPlayer, p1Hand, p2Hand, setP1Deck, setP2Deck, setP1Hand, setP2Hand, addLog, setPendingHandSelection } = context;
 
         // 1枚ドロー
         const drawnCards = drawCards(context, 1);
@@ -201,21 +201,25 @@ export const futureCardTriggers = {
         if (drawnCards.length > 0) {
           addLog(`${drawnCards[0].name}をドローした`, 'info');
 
-          // 手札を確認
+          // 手札を確認（ドロー後の手札）
           const hand = currentPlayer === 1 ? p1Hand : p2Hand;
           const setDeck = currentPlayer === 1 ? setP1Deck : setP2Deck;
+          const setHand = currentPlayer === 1 ? setP1Hand : setP2Hand;
 
-          if (hand.length > 0) {
-            // TODO: ここでは最後のカードをデッキの下に戻す
-            // 実際にはUIで選択させる必要がある
-            const cardToReturn = hand[hand.length - 1];
+          // ドロー後の手札が1枚以上あれば選択させる
+          if (hand.length + drawnCards.length > 0) {
+            addLog('デッキの下に戻すカードを手札から選択してください', 'info');
 
-            // 手札から削除してデッキの下に追加
-            const setHand = currentPlayer === 1 ? context.setP1Hand : context.setP2Hand;
-            setHand((prev) => prev.filter((c) => c.uniqueId !== cardToReturn.uniqueId));
-            setDeck((prev) => [...prev, cardToReturn]);
-
-            addLog(`${cardToReturn.name}をデッキの下に戻した`, 'info');
+            // 手札選択モードに入る
+            setPendingHandSelection({
+              message: 'デッキの下に戻すカードを選択',
+              callback: (selectedCard) => {
+                // 手札から削除してデッキの下に追加
+                setHand((prev) => prev.filter((c) => c.uniqueId !== selectedCard.uniqueId));
+                setDeck((prev) => [...prev, selectedCard]);
+                addLog(`${selectedCard.name}をデッキの下に戻した`, 'info');
+              },
+            });
           }
         }
       },

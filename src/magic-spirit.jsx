@@ -94,6 +94,7 @@ export default function MagicSpiritGame() {
   const [attackingMonster, setAttackingMonster] = useState(null);
   const [chargeUsedThisTurn, setChargeUsedThisTurn] = useState(false);
   const [selectedFieldCardInfo, setSelectedFieldCardInfo] = useState(null); // フィールド/フェイズカード情報表示用
+  const [pendingHandSelection, setPendingHandSelection] = useState(null); // 手札選択待ち状態 { message, callback, filter? }
 
   // デッキ選択状態
   const [p1SelectedDeck, setP1SelectedDeck] = useState('random');
@@ -153,6 +154,7 @@ export default function MagicSpiritGame() {
     setAttackingMonster(null);
     setChargeUsedThisTurn(false);
     setSelectedFieldCardInfo(null);
+    setPendingHandSelection(null);
 
     // トリガーシステムをクリア
     clearAllTriggers();
@@ -240,6 +242,7 @@ export default function MagicSpiritGame() {
       p1Life,
       p2Life,
       addLog,
+      setPendingHandSelection,
     };
 
     switch (phaseIndex) {
@@ -760,6 +763,7 @@ export default function MagicSpiritGame() {
         p1RestedSP,
         p2RestedSP,
         addLog,
+        setPendingHandSelection,
       };
       fireTrigger(TRIGGER_TYPES.ON_SUMMON, triggerContext);
 
@@ -1231,7 +1235,20 @@ export default function MagicSpiritGame() {
     // 現在のプレイヤーの手札かどうかチェック
     const currentHand = currentPlayer === 1 ? p1Hand : p2Hand;
     if (!currentHand.find(c => c.uniqueId === card.uniqueId)) return;
-    
+
+    // 手札選択待ち状態の場合
+    if (pendingHandSelection) {
+      // フィルターがある場合はチェック
+      if (pendingHandSelection.filter && !pendingHandSelection.filter(card)) {
+        addLog('そのカードは選択できません', 'damage');
+        return;
+      }
+      // コールバックを実行
+      pendingHandSelection.callback(card);
+      setPendingHandSelection(null);
+      return;
+    }
+
     setSelectedHandCard(selectedHandCard?.uniqueId === card.uniqueId ? null : card);
     setSelectedFieldMonster(null);
     setAttackingMonster(null);
@@ -1239,6 +1256,9 @@ export default function MagicSpiritGame() {
 
   // フィールドスロットクリック
   const handleFieldSlotClick = (slotIndex, playerNum) => {
+    // 手札選択待ち中は操作不可
+    if (pendingHandSelection) return;
+
     // 現在のプレイヤーの場か相手の場かを判定
     const isMyField = playerNum === currentPlayer;
 
@@ -1363,6 +1383,11 @@ export default function MagicSpiritGame() {
 
   // 次のフェイズへ
   const nextPhase = () => {
+    // 手札選択待ち中はフェイズ進行不可
+    if (pendingHandSelection) {
+      addLog('手札を選択してください', 'damage');
+      return;
+    }
     if (phase === 2) {
       setPhase(3);
       setSelectedHandCard(null);
@@ -1438,6 +1463,7 @@ export default function MagicSpiritGame() {
       setP1Life, setP2Life,
       card,
       addLog,
+      setPendingHandSelection,
     };
 
     try {
@@ -2015,6 +2041,26 @@ export default function MagicSpiritGame() {
             ))}
           </div>
 
+          {/* 手札選択モード */}
+          {pendingHandSelection && (
+            <div style={{
+              background: 'linear-gradient(135deg, #ff6b6b 0%, #ff8e53 100%)',
+              padding: '16px 24px',
+              borderRadius: '12px',
+              textAlign: 'center',
+              boxShadow: '0 4px 20px rgba(255,107,107,0.4)',
+              animation: 'pulse 1.5s infinite',
+              marginBottom: '12px',
+            }}>
+              <div style={{ fontSize: '16px', fontWeight: 'bold', color: '#fff', marginBottom: '8px' }}>
+                {pendingHandSelection.message}
+              </div>
+              <div style={{ fontSize: '12px', color: '#ffe0e0' }}>
+                手札からカードをクリックして選択してください
+              </div>
+            </div>
+          )}
+
           {/* アクションボタン */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
             {/* 技発動ボタン（メインフェイズ） */}
@@ -2087,6 +2133,7 @@ export default function MagicSpiritGame() {
                               p1Life,
                               p2Life,
                               addLog,
+                              setPendingHandSelection,
                             };
                             const { activateTrigger } = require('./engine/triggerEngine');
                             activateTrigger(trigger, triggerContext);
@@ -2178,6 +2225,7 @@ export default function MagicSpiritGame() {
                               p1Life,
                               p2Life,
                               addLog,
+                              setPendingHandSelection,
                             };
                             const { activateTrigger } = require('./engine/triggerEngine');
                             activateTrigger(trigger, triggerContext);
