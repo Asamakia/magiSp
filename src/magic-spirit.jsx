@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   INITIAL_LIFE,
   INITIAL_SP,
@@ -40,6 +40,20 @@ import {
   CHAIN_POINTS,
   CHAIN_POINT_NAMES,
 } from './engine/keywordAbilities';
+import {
+  getStrategy,
+  createAIGameState,
+  executeAIMainPhaseAction,
+  executeAIBattlePhaseAction,
+  handleAIHandSelection,
+  handleAIMonsterTarget,
+  handleAIGraveyardSelection,
+  handleAIDeckReview,
+  handleAIChainConfirmation,
+  getSummonableCards as aiGetSummonableCards,
+  getUsableMagicCards as aiGetUsableMagicCards,
+  AI_DELAY,
+} from './engine/ai';
 import styles from './styles/gameStyles';
 import Card from './components/Card';
 import FieldMonster from './components/FieldMonster';
@@ -134,6 +148,14 @@ export default function MagicSpiritGame() {
   // デッキ選択状態
   const [p1SelectedDeck, setP1SelectedDeck] = useState('random');
   const [p2SelectedDeck, setP2SelectedDeck] = useState('random');
+
+  // AIプレイヤー設定
+  const [p1PlayerType, setP1PlayerType] = useState('human'); // 'human' | 'ai'
+  const [p2PlayerType, setP2PlayerType] = useState('human'); // 'human' | 'ai'
+  const [p1AIDifficulty, setP1AIDifficulty] = useState('normal'); // 'easy' | 'normal' | 'hard'
+  const [p2AIDifficulty, setP2AIDifficulty] = useState('normal'); // 'easy' | 'normal' | 'hard'
+  const [aiAttackedMonsters, setAiAttackedMonsters] = useState(new Set()); // AIが攻撃済みのモンスター
+  const prevPhaseRef = useRef(phase); // 前回のフェイズを追跡
 
   // ログ追加関数
   const addLog = useCallback((message, type = 'info') => {
@@ -1667,6 +1689,171 @@ export default function MagicSpiritGame() {
     }
   }, [phase, gameState, processPhase]);
 
+  // バトルフェイズ開始時にAI攻撃済みモンスターをリセット（別useEffectで管理）
+  useEffect(() => {
+    // フェイズが3（バトルフェイズ）に変わったときのみリセット
+    if (phase === 3 && prevPhaseRef.current !== 3) {
+      setAiAttackedMonsters(new Set());
+    }
+    prevPhaseRef.current = phase;
+  }, [phase]);
+
+  // AIターン実行
+  useEffect(() => {
+    if (gameState !== 'playing') return;
+
+    // AIプレイヤー判定用ヘルパー
+    const isPlayerAI = (player) =>
+      (player === 1 && p1PlayerType === 'ai') ||
+      (player === 2 && p2PlayerType === 'ai');
+
+    // 特殊ケース: チェーン確認（相手ターンでも発生するため最優先でチェック）
+    if (chainConfirmation) {
+      const askingPlayer = chainConfirmation.askingPlayer;
+      if (isPlayerAI(askingPlayer)) {
+        const difficulty = askingPlayer === 1 ? p1AIDifficulty : p2AIDifficulty;
+        const strategy = getStrategy(difficulty);
+
+        const gameStateData = {
+          phase, turn, isFirstTurn,
+          p1Life, p2Life,
+          p1Hand, p2Hand,
+          p1Field, p2Field,
+          p1Graveyard, p2Graveyard,
+          p1Deck, p2Deck,
+          p1ActiveSP, p2ActiveSP,
+          p1RestedSP, p2RestedSP,
+          p1FieldCard, p2FieldCard,
+          p1PhaseCard, p2PhaseCard,
+        };
+        const aiGameState = createAIGameState(askingPlayer, gameStateData);
+
+        const availableSetsunaCards = getActivatableSetsunaMagics(
+          askingPlayer === 1 ? p1Hand : p2Hand,
+          askingPlayer === 1 ? p1ActiveSP : p2ActiveSP
+        );
+
+        const timeoutId = setTimeout(() => {
+          handleAIChainConfirmation(
+            chainConfirmation,
+            availableSetsunaCards,
+            aiGameState,
+            strategy,
+            { skipChainConfirmation, activateSetsunaInChain }
+          );
+        }, AI_DELAY.LONG);
+        return () => clearTimeout(timeoutId);
+      }
+      return; // 人間プレイヤーがチェーン確認中
+    }
+
+    // 通常ターン: 現在のプレイヤーがAIか判定
+    if (!isPlayerAI(currentPlayer)) return;
+
+    const difficulty = currentPlayer === 1 ? p1AIDifficulty : p2AIDifficulty;
+    const strategy = getStrategy(difficulty);
+
+    const gameStateData = {
+      phase, turn, isFirstTurn,
+      p1Life, p2Life,
+      p1Hand, p2Hand,
+      p1Field, p2Field,
+      p1Graveyard, p2Graveyard,
+      p1Deck, p2Deck,
+      p1ActiveSP, p2ActiveSP,
+      p1RestedSP, p2RestedSP,
+      p1FieldCard, p2FieldCard,
+      p1PhaseCard, p2PhaseCard,
+    };
+    const aiGameState = createAIGameState(currentPlayer, gameStateData);
+
+    // 特殊ケース: 手札選択
+    if (pendingHandSelection) {
+      const timeoutId = setTimeout(() => {
+        handleAIHandSelection(pendingHandSelection, aiGameState, strategy);
+        setPendingHandSelection(null);
+        setPendingSelectedCard(null);
+      }, AI_DELAY.MEDIUM);
+      return () => clearTimeout(timeoutId);
+    }
+
+    // 特殊ケース: モンスターターゲット選択
+    if (pendingMonsterTarget) {
+      const timeoutId = setTimeout(() => {
+        handleAIMonsterTarget(pendingMonsterTarget, aiGameState, strategy);
+        setPendingMonsterTarget(null);
+        setPendingSelectedMonsterIndex(null);
+      }, AI_DELAY.MEDIUM);
+      return () => clearTimeout(timeoutId);
+    }
+
+    // 特殊ケース: 墓地選択
+    if (pendingGraveyardSelection) {
+      const timeoutId = setTimeout(() => {
+        handleAIGraveyardSelection(pendingGraveyardSelection, aiGameState, strategy);
+        setPendingGraveyardSelection(null);
+        setPendingGraveyardSelectedCard(null);
+      }, AI_DELAY.MEDIUM);
+      return () => clearTimeout(timeoutId);
+    }
+
+    // 特殊ケース: デッキ確認
+    if (pendingDeckReview) {
+      const timeoutId = setTimeout(() => {
+        handleAIDeckReview(pendingDeckReview, aiGameState, strategy);
+        setPendingDeckReview(null);
+      }, AI_DELAY.MEDIUM);
+      return () => clearTimeout(timeoutId);
+    }
+
+    // メインフェイズ
+    if (phase === 2) {
+      const timeoutId = setTimeout(() => {
+        const actions = {
+          summonCard: (card, slot) => summonCard(card, slot),
+          executeSkill: (monsterIndex, skillType) => executeSkill(monsterIndex, skillType),
+          activateMagicCard: (card) => {
+            // 魔法カードの発動処理を直接実行
+            if (card && card.type === 'magic') {
+              summonCard(card, 0);
+            }
+          },
+          activateTrigger: (trigger) => {
+            // トリガー発動ロジック（簡易実装）
+            addLog(`AI: トリガー発動`, 'info');
+          },
+          nextPhase: () => nextPhase(),
+        };
+
+        executeAIMainPhaseAction(aiGameState, actions, strategy, {});
+      }, AI_DELAY.MEDIUM);
+      return () => clearTimeout(timeoutId);
+    }
+
+    // バトルフェイズ
+    if (phase === 3) {
+      const timeoutId = setTimeout(() => {
+        const actions = {
+          attack: (attackerIndex, targetIndex) => attack(attackerIndex, targetIndex),
+          nextPhase: () => nextPhase(),
+        };
+
+        const result = executeAIBattlePhaseAction(aiGameState, actions, strategy, aiAttackedMonsters);
+        setAiAttackedMonsters(result.attackedMonsters);
+      }, AI_DELAY.MEDIUM);
+      return () => clearTimeout(timeoutId);
+    }
+  }, [
+    gameState, phase, currentPlayer, turn, isFirstTurn,
+    p1PlayerType, p2PlayerType, p1AIDifficulty, p2AIDifficulty,
+    p1Life, p2Life, p1Hand, p2Hand, p1Field, p2Field,
+    p1Graveyard, p2Graveyard, p1Deck, p2Deck,
+    p1ActiveSP, p2ActiveSP, p1RestedSP, p2RestedSP,
+    p1FieldCard, p2FieldCard, p1PhaseCard, p2PhaseCard,
+    pendingHandSelection, pendingMonsterTarget, pendingGraveyardSelection, pendingDeckReview,
+    chainConfirmation, aiAttackedMonsters,
+  ]);
+
   // ハンドカードクリック
   const handleHandCardClick = (card) => {
     if (phase !== 2) return;
@@ -2195,6 +2382,121 @@ export default function MagicSpiritGame() {
                   <span style={{ color: '#888', fontSize: '11px', maxWidth: '180px', textAlign: 'center' }}>
                     {getDeckOptions().find(d => d.id === p2SelectedDeck)?.description}
                   </span>
+                </div>
+              </div>
+
+              {/* AIプレイヤー設定UI */}
+              <div style={{
+                display: 'flex',
+                gap: '40px',
+                marginBottom: '16px',
+              }}>
+                {/* プレイヤー1のAI設定 */}
+                <div style={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  gap: '8px',
+                  padding: '12px',
+                  background: 'rgba(107, 158, 255, 0.1)',
+                  borderRadius: '8px',
+                  border: '1px solid rgba(107, 158, 255, 0.3)',
+                  minWidth: '160px',
+                }}>
+                  <label style={{ color: '#6b9eff', fontSize: '14px', fontWeight: 'bold' }}>
+                    プレイヤー1 操作
+                  </label>
+                  <select
+                    value={p1PlayerType}
+                    onChange={(e) => setP1PlayerType(e.target.value)}
+                    style={{
+                      padding: '6px 12px',
+                      fontSize: '14px',
+                      borderRadius: '6px',
+                      border: '2px solid #6b9eff',
+                      background: '#1a1a2e',
+                      color: '#fff',
+                      cursor: 'pointer',
+                      width: '100%',
+                    }}
+                  >
+                    <option value="human">人間</option>
+                    <option value="ai">AI</option>
+                  </select>
+                  {p1PlayerType === 'ai' && (
+                    <select
+                      value={p1AIDifficulty}
+                      onChange={(e) => setP1AIDifficulty(e.target.value)}
+                      style={{
+                        padding: '6px 12px',
+                        fontSize: '13px',
+                        borderRadius: '6px',
+                        border: '1px solid #6b9eff',
+                        background: '#1a1a2e',
+                        color: '#fff',
+                        cursor: 'pointer',
+                        width: '100%',
+                      }}
+                    >
+                      <option value="easy">かんたん</option>
+                      <option value="normal">ふつう</option>
+                      <option value="hard">むずかしい</option>
+                    </select>
+                  )}
+                </div>
+
+                {/* プレイヤー2のAI設定 */}
+                <div style={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  gap: '8px',
+                  padding: '12px',
+                  background: 'rgba(255, 107, 107, 0.1)',
+                  borderRadius: '8px',
+                  border: '1px solid rgba(255, 107, 107, 0.3)',
+                  minWidth: '160px',
+                }}>
+                  <label style={{ color: '#ff6b6b', fontSize: '14px', fontWeight: 'bold' }}>
+                    プレイヤー2 操作
+                  </label>
+                  <select
+                    value={p2PlayerType}
+                    onChange={(e) => setP2PlayerType(e.target.value)}
+                    style={{
+                      padding: '6px 12px',
+                      fontSize: '14px',
+                      borderRadius: '6px',
+                      border: '2px solid #ff6b6b',
+                      background: '#1a1a2e',
+                      color: '#fff',
+                      cursor: 'pointer',
+                      width: '100%',
+                    }}
+                  >
+                    <option value="human">人間</option>
+                    <option value="ai">AI</option>
+                  </select>
+                  {p2PlayerType === 'ai' && (
+                    <select
+                      value={p2AIDifficulty}
+                      onChange={(e) => setP2AIDifficulty(e.target.value)}
+                      style={{
+                        padding: '6px 12px',
+                        fontSize: '13px',
+                        borderRadius: '6px',
+                        border: '1px solid #ff6b6b',
+                        background: '#1a1a2e',
+                        color: '#fff',
+                        cursor: 'pointer',
+                        width: '100%',
+                      }}
+                    >
+                      <option value="easy">かんたん</option>
+                      <option value="normal">ふつう</option>
+                      <option value="hard">むずかしい</option>
+                    </select>
+                  )}
                 </div>
               </div>
 
