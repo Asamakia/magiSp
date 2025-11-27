@@ -768,19 +768,21 @@ export const waterCardTriggers = {
     },
     {
       type: TRIGGER_TYPES.ON_END_PHASE_SELF,
-      activationType: ACTIVATION_TYPES.OPTIONAL,
+      activationType: ACTIVATION_TYPES.AUTOMATIC,
       description: 'エンドフェイズ: 相手モンスター1体の攻撃力-300',
       effect: (context) => {
-        const { p2Field, addLog } = context;
+        const { currentPlayer, p1Field, p2Field, addLog } = context;
 
-        const opponentMonsters = p2Field.filter((m) => m !== null);
+        // currentPlayerに基づいて相手フィールドを取得
+        const opponentField = currentPlayer === 1 ? p2Field : p1Field;
+        const opponentMonsters = opponentField.filter((m) => m !== null);
         if (opponentMonsters.length === 0) {
           addLog('氷猫の聖域の効果: 相手フィールドにモンスターがいません', 'info');
           return;
         }
 
         // 最初のモンスターをターゲット（UIで選択させるべきだが、簡略化）
-        const targetIndex = p2Field.findIndex((m) => m !== null);
+        const targetIndex = opponentField.findIndex((m) => m !== null);
         if (targetIndex !== -1) {
           modifyAttack(context, -300, targetIndex, true, false);
           addLog('氷猫の聖域の効果: 相手モンスターの攻撃力-300', 'info');
