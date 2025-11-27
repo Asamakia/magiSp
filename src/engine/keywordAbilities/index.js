@@ -79,8 +79,21 @@ export function hasKeyword(card, keyword) {
   const keywordWithBrackets = `【${keyword}】`;
 
   // CSVの「キーワード能力」フィールドをチェック
-  const keywordField = card.keyword || '';
-  if (keywordField.includes(keywordWithBrackets)) return true;
+  // card.keyword は配列形式（cardManager.jsで変換済み）または文字列形式
+  const keywordField = card.keyword;
+  if (keywordField) {
+    if (Array.isArray(keywordField)) {
+      // 配列の場合: 【】なしのキーワードで検索
+      if (keywordField.includes(keyword)) return true;
+    } else if (typeof keywordField === 'string') {
+      // 文字列の場合: 【】ありで検索
+      if (keywordField.includes(keywordWithBrackets)) return true;
+    }
+  }
+
+  // keywordText（表示用の元のテキスト）もチェック
+  const keywordText = card.keywordText || '';
+  if (keywordText.includes(keywordWithBrackets)) return true;
 
   // 効果テキスト内のキーワードもチェック
   const effectText = card.effect || '';
