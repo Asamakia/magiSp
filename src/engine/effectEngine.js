@@ -239,13 +239,18 @@ export const executeEffect = (effect, context) => {
         }
         addLog(`相手に${value}ダメージ！`, 'damage');
       } else if (target === 'opponent_monster') {
-        // 相手モンスターへのダメージ（簡易実装：ランダムな相手モンスター）
+        // 相手モンスターへのダメージ（選択式）
         const opponentField = currentPlayer === 1 ? p2Field : p1Field;
         const setOpponentField = currentPlayer === 1 ? setP2Field : setP1Field;
-        const monsters = opponentField.filter(m => m !== null);
+        const monstersWithIndex = opponentField
+          .map((m, idx) => ({ monster: m, index: idx }))
+          .filter(item => item.monster !== null);
 
-        if (monsters.length > 0) {
-          const targetMonster = monsters[0]; // 最初のモンスターに
+        if (monstersWithIndex.length === 0) {
+          addLog(`対象のモンスターがいません`, 'info');
+        } else if (monstersWithIndex.length === 1) {
+          // モンスターが1体のみの場合は自動選択
+          const { monster: targetMonster } = monstersWithIndex[0];
           setOpponentField(prev => prev.map(m => {
             if (m && m.uniqueId === targetMonster.uniqueId) {
               const newHp = Math.max(0, m.currentHp - value);
@@ -255,7 +260,35 @@ export const executeEffect = (effect, context) => {
             return m;
           }));
         } else {
-          addLog(`対象のモンスターがいません`, 'info');
+          // 複数モンスターがいる場合は選択UI起動
+          const { setPendingMonsterTarget } = context;
+          if (setPendingMonsterTarget) {
+            setPendingMonsterTarget({
+              message: `${value}ダメージを与えるモンスターを選択`,
+              targetPlayer: 'opponent',
+              callback: (selectedIndex) => {
+                setOpponentField(prev => prev.map((m, idx) => {
+                  if (idx === selectedIndex && m) {
+                    const newHp = Math.max(0, m.currentHp - value);
+                    addLog(`${m.name}に${value}ダメージ！（残りHP: ${newHp}）`, 'damage');
+                    return { ...m, currentHp: newHp };
+                  }
+                  return m;
+                }));
+              },
+            });
+          } else {
+            // フォールバック：setPendingMonsterTargetがない場合は最初のモンスター
+            const { monster: targetMonster } = monstersWithIndex[0];
+            setOpponentField(prev => prev.map(m => {
+              if (m && m.uniqueId === targetMonster.uniqueId) {
+                const newHp = Math.max(0, m.currentHp - value);
+                addLog(`${m.name}に${value}ダメージ！（残りHP: ${newHp}）`, 'damage');
+                return { ...m, currentHp: newHp };
+              }
+              return m;
+            }));
+          }
         }
       }
       return true;
