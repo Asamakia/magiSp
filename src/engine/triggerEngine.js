@@ -476,6 +476,18 @@ export const fireTrigger = (triggerType, context) => {
     });
   }
 
+  // フェイズ関連の「_OPPONENT」トリガーはオーナーがターンプレイヤーと異なる場合のみ発動
+  // （「相手のエンドフェイズ時」= 相手ターンのエンドフェイズ時）
+  const phaseOpponentTriggers = [
+    TRIGGER_TYPES.ON_OPPONENT_END_PHASE,
+  ];
+
+  if (phaseOpponentTriggers.includes(triggerType)) {
+    automaticTriggers = automaticTriggers.filter((trigger) => {
+      return trigger.owner !== context.currentPlayer;
+    });
+  }
+
   if (automaticTriggers.length === 0) {
     return;
   }
