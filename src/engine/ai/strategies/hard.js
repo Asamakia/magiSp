@@ -132,14 +132,14 @@ export const hardStrategy = {
         );
         targetMonster = withBasic[0];
       } else {
-        // 基本技がなくてもチャージ（将来の上級技のため）
+        // 上級技のみ持つモンスター（基本技なし）にもチャージ
         noChargeMonsters.sort((a, b) =>
           (b.monster.currentAttack || b.monster.attack || 0) - (a.monster.currentAttack || a.monster.attack || 0)
         );
         targetMonster = noChargeMonsters[0];
       }
     } else if (oneChargeMonsters.length > 0) {
-      // 上級技がなくても、チャージ1のモンスターに追加チャージ
+      // チャージ1のモンスターに追加チャージ（上級技のため）
       oneChargeMonsters.sort((a, b) =>
         (b.monster.currentAttack || b.monster.attack || 0) - (a.monster.currentAttack || a.monster.attack || 0)
       );
@@ -148,9 +148,14 @@ export const hardStrategy = {
 
     if (!targetMonster) return null;
 
-    // チャージに使うカードの選択
+    // チャージに使うカードはモンスターと同じ属性のものを選択
+    const targetAttribute = targetMonster.monster.attribute;
+    const sameAttributeCards = chargeableCards.filter(card => card.attribute === targetAttribute);
+
+    if (sameAttributeCards.length === 0) return null; // 同属性カードがなければチャージしない
+
     // コストが低いカードを優先するが、召喚に使いたいカードは温存
-    const sortedCards = [...chargeableCards].sort((a, b) => {
+    const sortedCards = [...sameAttributeCards].sort((a, b) => {
       // 魔法カードやフィールドカードを優先（モンスターは温存）
       if (a.type !== 'monster' && b.type === 'monster') return -1;
       if (a.type === 'monster' && b.type !== 'monster') return 1;

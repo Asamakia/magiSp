@@ -126,14 +126,16 @@ export function getEmptySlots(gameState) {
 
 /**
  * チャージ可能なモンスターを取得
- * チャージ枚数が2未満のモンスターを返す
+ * チャージ枚数が2未満で、かつ技を持っているモンスターを返す
  */
 export function getChargeableMonsters(gameState) {
   const chargeableMonsters = [];
   gameState.myField.forEach((monster, index) => {
     if (!monster) return;
     const charges = monster.charges?.length || 0;
-    if (charges < 2) {
+    // 技を持っていないモンスターにはチャージしない
+    const hasSkill = monster.basicSkill || monster.advancedSkill;
+    if (charges < 2 && hasSkill) {
       chargeableMonsters.push({ monsterIndex: index, monster, currentCharges: charges });
     }
   });

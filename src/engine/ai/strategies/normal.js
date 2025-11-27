@@ -107,8 +107,14 @@ export const normalStrategy = {
 
     if (!targetMonster) return null;
 
-    // チャージに使うカードはコストが低いものを優先（貴重なカードを温存）
-    const sortedCards = [...chargeableCards].sort((a, b) => (a.cost || 0) - (b.cost || 0));
+    // チャージに使うカードはモンスターと同じ属性のものを選択
+    const targetAttribute = targetMonster.monster.attribute;
+    const sameAttributeCards = chargeableCards.filter(card => card.attribute === targetAttribute);
+
+    if (sameAttributeCards.length === 0) return null; // 同属性カードがなければチャージしない
+
+    // コストが低いものを優先（貴重なカードを温存）
+    const sortedCards = [...sameAttributeCards].sort((a, b) => (a.cost || 0) - (b.cost || 0));
     const cardToCharge = sortedCards[0];
 
     return {
