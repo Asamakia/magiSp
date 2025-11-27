@@ -5,7 +5,7 @@ import styles from '../styles/gameStyles';
 // ========================================
 // フィールドモンスターコンポーネント
 // ========================================
-const FieldMonster = ({ monster, onClick, selected, canAttack, isTarget, isValidTarget, onMouseEnter, onMouseLeave }) => {
+const FieldMonster = ({ monster, onClick, selected, canAttack, isTarget, isValidTarget, onMouseEnter, onMouseLeave, atkModifier = 0, hpModifier = 0 }) => {
   if (!monster) {
     return (
       <div
@@ -162,8 +162,28 @@ const FieldMonster = ({ monster, onClick, selected, canAttack, isTarget, isValid
       </div>
 
       <div style={{ display: 'flex', gap: '8px', fontSize: '10px', fontWeight: 'bold' }}>
-        <span style={{ color: '#ff6b6b' }}>⚔️{monster.currentAttack}</span>
-        <span style={{ color: '#6bff6b' }}>❤️{monster.currentHp}</span>
+        <span style={{
+          color: atkModifier > 0 ? '#4cff4c' : atkModifier < 0 ? '#ff4c4c' : '#ff6b6b',
+          textShadow: atkModifier !== 0 ? `0 0 4px ${atkModifier > 0 ? '#4cff4c' : '#ff4c4c'}` : 'none',
+        }}>
+          ⚔️{monster.currentAttack + atkModifier}
+          {atkModifier !== 0 && (
+            <span style={{ fontSize: '8px', marginLeft: '1px' }}>
+              ({atkModifier > 0 ? '+' : ''}{atkModifier})
+            </span>
+          )}
+        </span>
+        <span style={{
+          color: hpModifier > 0 ? '#4cff4c' : hpModifier < 0 ? '#ff4c4c' : '#6bff6b',
+          textShadow: hpModifier !== 0 ? `0 0 4px ${hpModifier > 0 ? '#4cff4c' : '#ff4c4c'}` : 'none',
+        }}>
+          ❤️{monster.currentHp}
+          {hpModifier !== 0 && (
+            <span style={{ fontSize: '8px', marginLeft: '1px' }}>
+              ({hpModifier > 0 ? '+' : ''}{hpModifier})
+            </span>
+          )}
+        </span>
       </div>
     </div>
   );

@@ -2141,11 +2141,43 @@ export default function MagicSpiritGame() {
                     カテゴリ: {hoveredCard.categoryText}
                   </div>
                 )}
-                {(hoveredCard.type === 'monster' || hoveredCard.currentHp !== undefined) && (
-                  <div style={{ fontSize: '11px', color: '#ccc', marginBottom: '8px' }}>
-                    ⚔️ {hoveredCard.currentAttack || hoveredCard.attack} | ❤️ {hoveredCard.currentHp !== undefined ? `${hoveredCard.currentHp}/${hoveredCard.maxHP || hoveredCard.hp}` : hoveredCard.hp}
-                  </div>
-                )}
+                {(hoveredCard.type === 'monster' || hoveredCard.currentHp !== undefined) && (() => {
+                  // 常時効果による修正値を計算
+                  const effectContext = {
+                    currentPlayer,
+                    effectOwner: hoveredCard.owner || currentPlayer,
+                    p1Field,
+                    p2Field,
+                    p1Life,
+                    p2Life,
+                  };
+                  const atkMod = hoveredCard.currentAttack !== undefined
+                    ? continuousEffectEngine.calculateAttackModifier(hoveredCard, effectContext)
+                    : 0;
+                  const hpMod = hoveredCard.currentHp !== undefined
+                    ? continuousEffectEngine.calculateHPModifier(hoveredCard, effectContext)
+                    : 0;
+                  const baseAtk = hoveredCard.currentAttack || hoveredCard.attack;
+                  const effectiveAtk = baseAtk + atkMod;
+
+                  return (
+                    <div style={{ fontSize: '11px', color: '#ccc', marginBottom: '8px' }}>
+                      <span style={{
+                        color: atkMod > 0 ? '#4cff4c' : atkMod < 0 ? '#ff4c4c' : '#ccc',
+                      }}>
+                        ⚔️ {effectiveAtk}
+                        {atkMod !== 0 && ` (${atkMod > 0 ? '+' : ''}${atkMod})`}
+                      </span>
+                      {' | '}
+                      <span style={{
+                        color: hpMod > 0 ? '#4cff4c' : hpMod < 0 ? '#ff4c4c' : '#ccc',
+                      }}>
+                        ❤️ {hoveredCard.currentHp !== undefined ? `${hoveredCard.currentHp}/${hoveredCard.maxHP || hoveredCard.hp}` : hoveredCard.hp}
+                        {hpMod !== 0 && ` (${hpMod > 0 ? '+' : ''}${hpMod})`}
+                      </span>
+                    </div>
+                  );
+                })()}
                 <div style={{
                   fontSize: '11px',
                   color: '#e0e0e0',
@@ -2248,6 +2280,21 @@ export default function MagicSpiritGame() {
               const field = currentPlayer === 1 ? p1Field : p2Field;
               const monster = field[selectedFieldMonster];
               if (!monster) return null;
+
+              // 常時効果による修正値を計算
+              const effectContext = {
+                currentPlayer,
+                effectOwner: currentPlayer,
+                p1Field,
+                p2Field,
+                p1Life,
+                p2Life,
+              };
+              const atkMod = continuousEffectEngine.calculateAttackModifier(monster, effectContext);
+              const hpMod = continuousEffectEngine.calculateHPModifier(monster, effectContext);
+              const baseAtk = monster.currentAttack || monster.attack;
+              const effectiveAtk = baseAtk + atkMod;
+
               return (
                 <div>
                   <div style={{ fontSize: '13px', fontWeight: 'bold', marginBottom: '8px', color: currentPlayer === 1 ? '#4da6ff' : '#ff8a8a' }}>
@@ -2257,7 +2304,19 @@ export default function MagicSpiritGame() {
                     属性: {monster.attribute}
                   </div>
                   <div style={{ fontSize: '12px', color: '#ccc', marginBottom: '8px' }}>
-                    ⚔️ {monster.currentAttack || monster.attack} | ❤️ {monster.currentHP}/{monster.maxHP || monster.hp}
+                    <span style={{
+                      color: atkMod > 0 ? '#4cff4c' : atkMod < 0 ? '#ff4c4c' : '#ccc',
+                    }}>
+                      ⚔️ {effectiveAtk}
+                      {atkMod !== 0 && ` (${atkMod > 0 ? '+' : ''}${atkMod})`}
+                    </span>
+                    {' | '}
+                    <span style={{
+                      color: hpMod > 0 ? '#4cff4c' : hpMod < 0 ? '#ff4c4c' : '#ccc',
+                    }}>
+                      ❤️ {monster.currentHP}/{monster.maxHP || monster.hp}
+                      {hpMod !== 0 && ` (${hpMod > 0 ? '+' : ''}${hpMod})`}
+                    </span>
                     {monster.charges && monster.charges.length > 0 && (
                       <span style={{ marginLeft: '8px', color: '#4caf50' }}>
                         ⚡ チャージ: {monster.charges.length}
@@ -2531,19 +2590,35 @@ export default function MagicSpiritGame() {
             </div>
             {/* モンスターゾーン */}
             <div style={styles.monsterZone}>
-              {p2Field.map((monster, i) => (
-                <FieldMonster
-                  key={i}
-                  monster={monster}
-                  onClick={() => handleFieldSlotClick(i, 2)}
-                  selected={selectedFieldMonster === i && currentPlayer === 2}
-                  canAttack={currentPlayer === 2 && phase === 3 && monster?.canAttack}
-                  isTarget={currentPlayer === 1 && phase === 3 && attackingMonster !== null}
-                  isValidTarget={currentPlayer === 2 && phase === 2 && selectedHandCard && selectedHandCard.type === 'monster' && !monster}
-                  onMouseEnter={monster ? () => setHoveredCard({ ...monster, owner: 2 }) : undefined}
-                  onMouseLeave={monster ? () => setHoveredCard(null) : undefined}
-                />
-              ))}
+              {p2Field.map((monster, i) => {
+                // 常時効果による修正値を計算
+                const effectContext = {
+                  currentPlayer,
+                  effectOwner: 2,
+                  p1Field,
+                  p2Field,
+                  p1Life,
+                  p2Life,
+                };
+                const atkMod = monster ? continuousEffectEngine.calculateAttackModifier(monster, effectContext) : 0;
+                const hpMod = monster ? continuousEffectEngine.calculateHPModifier(monster, effectContext) : 0;
+
+                return (
+                  <FieldMonster
+                    key={i}
+                    monster={monster}
+                    onClick={() => handleFieldSlotClick(i, 2)}
+                    selected={selectedFieldMonster === i && currentPlayer === 2}
+                    canAttack={currentPlayer === 2 && phase === 3 && monster?.canAttack}
+                    isTarget={currentPlayer === 1 && phase === 3 && attackingMonster !== null}
+                    isValidTarget={currentPlayer === 2 && phase === 2 && selectedHandCard && selectedHandCard.type === 'monster' && !monster}
+                    onMouseEnter={monster ? () => setHoveredCard({ ...monster, owner: 2 }) : undefined}
+                    onMouseLeave={monster ? () => setHoveredCard(null) : undefined}
+                    atkModifier={atkMod}
+                    hpModifier={hpMod}
+                  />
+                );
+              })}
             </div>
           </div>
 
@@ -2979,19 +3054,35 @@ export default function MagicSpiritGame() {
           <div style={styles.fieldArea}>
             {/* モンスターゾーン */}
             <div style={styles.monsterZone}>
-              {p1Field.map((monster, i) => (
-                <FieldMonster
-                  key={i}
-                  monster={monster}
-                  onClick={() => handleFieldSlotClick(i, 1)}
-                  selected={selectedFieldMonster === i && currentPlayer === 1}
-                  canAttack={currentPlayer === 1 && phase === 3 && monster?.canAttack}
-                  isTarget={currentPlayer === 2 && phase === 3 && attackingMonster !== null}
-                  isValidTarget={currentPlayer === 1 && phase === 2 && selectedHandCard && selectedHandCard.type === 'monster' && !monster}
-                  onMouseEnter={monster ? () => setHoveredCard({ ...monster, owner: 1 }) : undefined}
-                  onMouseLeave={monster ? () => setHoveredCard(null) : undefined}
-                />
-              ))}
+              {p1Field.map((monster, i) => {
+                // 常時効果による修正値を計算
+                const effectContext = {
+                  currentPlayer,
+                  effectOwner: 1,
+                  p1Field,
+                  p2Field,
+                  p1Life,
+                  p2Life,
+                };
+                const atkMod = monster ? continuousEffectEngine.calculateAttackModifier(monster, effectContext) : 0;
+                const hpMod = monster ? continuousEffectEngine.calculateHPModifier(monster, effectContext) : 0;
+
+                return (
+                  <FieldMonster
+                    key={i}
+                    monster={monster}
+                    onClick={() => handleFieldSlotClick(i, 1)}
+                    selected={selectedFieldMonster === i && currentPlayer === 1}
+                    canAttack={currentPlayer === 1 && phase === 3 && monster?.canAttack}
+                    isTarget={currentPlayer === 2 && phase === 3 && attackingMonster !== null}
+                    isValidTarget={currentPlayer === 1 && phase === 2 && selectedHandCard && selectedHandCard.type === 'monster' && !monster}
+                    onMouseEnter={monster ? () => setHoveredCard({ ...monster, owner: 1 }) : undefined}
+                    onMouseLeave={monster ? () => setHoveredCard(null) : undefined}
+                    atkModifier={atkMod}
+                    hpModifier={hpMod}
+                  />
+                );
+              })}
             </div>
             {/* 手札 */}
             <div style={styles.handArea}>
