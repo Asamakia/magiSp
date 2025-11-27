@@ -1,14 +1,23 @@
 # 状態異常システム設計書
 
 作成日: 2025-11-27
-バージョン: 1.0
+バージョン: 1.1（状態異常リスト更新）
 
 ## 1. 概要
 
 ### 1.1 目的
-モンスターカードに付与される一時的な状態（眠り、凍結、行動不能、守護など）を管理するシステムを設計する。
+モンスターカードおよびプレイヤーに付与される一時的な状態（眠り、凍結、雷撃、毒など）を管理するシステムを設計する。
 
-### 1.2 既存システムとの関係
+### 1.2 対象の分類
+
+状態異常は**付与対象**によって2種類に分かれる：
+
+| 対象 | 管理方法 | 例 |
+|------|---------|-----|
+| **モンスター** | monster.statusEffects配列 | 眠り、凍結、雷撃、濡れ、守護 |
+| **プレイヤー** | playerState.statusEffects配列 | 毒 |
+
+### 1.3 既存システムとの関係
 
 ```
 ┌─────────────────────────────────────────────────────────┐
@@ -38,22 +47,27 @@
 
 ## 2. 状態異常の種類
 
-### 2.1 カードリストから確認された状態異常
+### 2.1 モンスターに付与される状態異常
 
 | 状態異常 | 内部ID | 効果 | 解除条件 | 使用カード例 |
 |---------|--------|------|---------|-------------|
-| 眠り | `sleep` | 行動不能、効果無効 | ターン開始時50%で解除 or 次のターン終了時 | アクア・メイデン |
-| 凍結 | `freeze` | 攻撃力半減、行動不能 | 次のターン開始時50%で解除 | 深海のクラーケン、ブリザード系 |
-| 行動不能 | `stun` | 攻撃・効果使用不可 | 指定ターン後解除 | シャドウ・バインド、檻の牢獄 |
-| 守護 | `guard` | 1度だけダメージ半減 | ダメージを受けた時消費 | 虹の守護竜、鎖の守護者 |
-| 効果無効 | `silence` | 効果が発動しない | 指定ターン後解除 | 檻の中の歌姫 |
+| 眠り | `sleep` | 行動不能、効果無効 | ターン開始時50%で解除 or 次のターン終了時 | アクア・メイデン (C0000039) |
+| 凍結 | `freeze` | 攻撃力半減、行動不能 | 次のターン開始時50%で解除 | 深海のクラーケン (C0000043)、ブリザード系 |
+| 雷撃 | `thunder` | 攻撃力-500、技不能 | 次のターン終了時 | 雷嵐龍サンダーストーム・レックス (C0000327)、嵐の雷撃獣 (C0000329) |
+| 濡れ | `wet` | 受けるダメージ2倍 | 次のターン終了時 | 水漏れのリリカ (C0000233) |
+| 行動不能 | `stun` | 攻撃・効果使用不可 | 指定ターン後解除 | シャドウ・バインド (C0000075)、檻の牢獄 (C0000135) |
+| 守護 | `guard` | 1度だけダメージ半減 | ダメージを受けた時消費 | 虹の守護竜 (C0000060)、鎖の守護者 (C0000131) |
+| 効果無効 | `silence` | 効果が発動しない | 指定ターン後解除 | 檻の中の歌姫 (C0000130) |
+| 覚醒 | `awakened` | 攻撃力上昇（カード依存） | ターン終了時 | 紅蓮の覚醒 (C0000033) |
+| 深蝕 | `corrode` | エンドフェイズに攻撃力減少 | なし（永続） | 【深蝕】キーワード |
 
-### 2.2 キーワード能力から追加される状態異常
+### 2.2 プレイヤーに付与される状態異常
 
-| 状態異常 | 内部ID | 効果 | 解除条件 | 関連キーワード |
-|---------|--------|------|---------|---------------|
-| 毒 | `poison` | エンドフェイズに固定ダメージ | なし（破壊まで継続） | 【毒侵】 |
-| 深蝕 | `corrode` | エンドフェイズに攻撃力減少 | なし（破壊まで継続） | 【深蝕】 |
+| 状態異常 | 内部ID | 効果 | 解除条件 | 使用カード例 |
+|---------|--------|------|---------|-------------|
+| 毒 | `poison` | 毎ターン終了時100ダメージ | なし（永続） | 毒使いカムラ (C0000281)、酸毒竜 (C0000283)、白蛇の牙 (C0000284) |
+
+※ 【毒侵】キーワード: 「このカードが相手**プレイヤー**にダメージを与えた時、相手を毒状態にする」
 
 ## 3. データ構造
 
@@ -90,14 +104,32 @@ const monster = {
 };
 ```
 
-### 3.2 状態異常タイプ定義
+### 3.2 プレイヤーの状態異常配列
+
+```javascript
+// ゲーム状態に追加
+const [p1StatusEffects, setP1StatusEffects] = useState([]);
+const [p2StatusEffects, setP2StatusEffects] = useState([]);
+
+// プレイヤー状態異常オブジェクト
+const playerStatusEffect = {
+  id: 'poison_1701234567890',     // 一意のID
+  type: 'poison',                  // 状態異常タイプ
+  source: 'C0000281',              // 付与元カードID
+  sourceName: '毒使いカムラ',
+  appliedTurn: 5,                  // 付与されたターン
+  value: 100,                      // 効果値（毒ダメージ量）
+};
+```
+
+### 3.3 状態異常タイプ定義
 
 ```javascript
 // src/engine/statusEffects/statusTypes.js
 
 export const STATUS_EFFECT_TYPES = {
   // ========================================
-  // 行動制限系
+  // 行動制限系（モンスター）
   // ========================================
 
   /**
@@ -117,6 +149,14 @@ export const STATUS_EFFECT_TYPES = {
   FREEZE: 'freeze',
 
   /**
+   * 雷撃
+   * - 攻撃力-500
+   * - 技不能（基本技、上級技使用不可）
+   * - 次のターン終了時に解除
+   */
+  THUNDER: 'thunder',
+
+  /**
    * 行動不能（スタン）
    * - 攻撃不可
    * - 効果発動不可
@@ -125,7 +165,7 @@ export const STATUS_EFFECT_TYPES = {
   STUN: 'stun',
 
   // ========================================
-  // 効果制限系
+  // 効果制限系（モンスター）
   // ========================================
 
   /**
@@ -137,7 +177,18 @@ export const STATUS_EFFECT_TYPES = {
   SILENCE: 'silence',
 
   // ========================================
-  // 防御系
+  // 被ダメージ増加系（モンスター）
+  // ========================================
+
+  /**
+   * 濡れ
+   * - 受けるダメージ2倍
+   * - 次のターン終了時に解除
+   */
+  WET: 'wet',
+
+  // ========================================
+  // 防御系（モンスター）
   // ========================================
 
   /**
@@ -155,26 +206,26 @@ export const STATUS_EFFECT_TYPES = {
   INVINCIBLE: 'invincible',
 
   // ========================================
-  // ダメージ系
+  // 継続ダメージ/デバフ系（モンスター）
   // ========================================
-
-  /**
-   * 毒
-   * - エンドフェイズに固定ダメージ
-   * - 解除されるまで継続
-   */
-  POISON: 'poison',
 
   /**
    * 深蝕
    * - エンドフェイズに攻撃力減少
-   * - 解除されるまで継続
+   * - 解除されるまで継続（永続）
    */
   CORRODE: 'corrode',
 
   // ========================================
-  // バフ系（正の状態異常）
+  // バフ系（モンスター - 正の状態異常）
   // ========================================
+
+  /**
+   * 覚醒
+   * - 攻撃力が上昇（カードにより効果値異なる）
+   * - ターン終了時に解除
+   */
+  AWAKENED: 'awakened',
 
   /**
    * 攻撃力上昇（一時的）
@@ -189,20 +240,56 @@ export const STATUS_EFFECT_TYPES = {
    * - 指定ターン後に解除
    */
   HP_UP: 'hp_up',
+
+  // ========================================
+  // プレイヤー状態異常
+  // ========================================
+
+  /**
+   * 毒（プレイヤー）
+   * - 毎ターン終了時に固定ダメージ（100）
+   * - 解除されるまで継続（永続）
+   */
+  POISON: 'poison',
+};
+
+/**
+ * 状態異常の対象を判定
+ */
+export const STATUS_EFFECT_TARGETS = {
+  MONSTER: 'monster',
+  PLAYER: 'player',
+};
+
+/**
+ * 状態異常がどの対象に付与されるか
+ */
+export const getStatusEffectTarget = (statusType) => {
+  switch (statusType) {
+    case STATUS_EFFECT_TYPES.POISON:
+      return STATUS_EFFECT_TARGETS.PLAYER;
+    default:
+      return STATUS_EFFECT_TARGETS.MONSTER;
+  }
 };
 ```
 
-### 3.3 状態異常メタデータ
+### 3.4 状態異常メタデータ
 
 ```javascript
 // src/engine/statusEffects/statusTypes.js
 
 export const STATUS_EFFECT_METADATA = {
+  // ========================================
+  // モンスター状態異常
+  // ========================================
+
   [STATUS_EFFECT_TYPES.SLEEP]: {
     displayName: '眠り',
     icon: '💤',
     color: '#9966cc',
     category: 'debuff',
+    target: 'monster',
     effects: {
       canAttack: false,
       canUseSkill: false,
@@ -216,6 +303,7 @@ export const STATUS_EFFECT_METADATA = {
     icon: '❄️',
     color: '#00bfff',
     category: 'debuff',
+    target: 'monster',
     effects: {
       canAttack: false,
       attackModifier: 0.5, // 攻撃力50%
@@ -223,11 +311,35 @@ export const STATUS_EFFECT_METADATA = {
     defaultDuration: 1,
     defaultRemoveChance: 0.5,
   },
+  [STATUS_EFFECT_TYPES.THUNDER]: {
+    displayName: '雷撃',
+    icon: '⚡',
+    color: '#ffd700',
+    category: 'debuff',
+    target: 'monster',
+    effects: {
+      attackModifier: -500, // 攻撃力-500（固定値）
+      canUseSkill: false,
+    },
+    defaultDuration: 1,
+  },
+  [STATUS_EFFECT_TYPES.WET]: {
+    displayName: '濡れ',
+    icon: '💧',
+    color: '#1e90ff',
+    category: 'debuff',
+    target: 'monster',
+    effects: {
+      damageMultiplier: 2.0, // 受けるダメージ2倍
+    },
+    defaultDuration: 1,
+  },
   [STATUS_EFFECT_TYPES.STUN]: {
     displayName: '行動不能',
-    icon: '⚡',
-    color: '#ffcc00',
+    icon: '🚫',
+    color: '#ff6347',
     category: 'debuff',
+    target: 'monster',
     effects: {
       canAttack: false,
       canUseSkill: false,
@@ -239,6 +351,7 @@ export const STATUS_EFFECT_METADATA = {
     icon: '🔇',
     color: '#888888',
     category: 'debuff',
+    target: 'monster',
     effects: {
       canUseSkill: false,
       canUseTrigger: false,
@@ -250,29 +363,59 @@ export const STATUS_EFFECT_METADATA = {
     icon: '🛡️',
     color: '#4a90d9',
     category: 'buff',
+    target: 'monster',
     effects: {
       damageReduction: 0.5, // 50%軽減
     },
     maxUsage: 1,
     removeOnUse: true,
   },
-  [STATUS_EFFECT_TYPES.POISON]: {
-    displayName: '毒',
-    icon: '☠️',
-    color: '#9932cc',
-    category: 'debuff',
-    effects: {
-      endPhaseDamage: true,
-    },
-    defaultDuration: -1, // 永続
-  },
   [STATUS_EFFECT_TYPES.CORRODE]: {
     displayName: '深蝕',
     icon: '🦠',
     color: '#556b2f',
     category: 'debuff',
+    target: 'monster',
     effects: {
       endPhaseAtkDown: true,
+    },
+    defaultDuration: -1, // 永続
+  },
+  [STATUS_EFFECT_TYPES.AWAKENED]: {
+    displayName: '覚醒',
+    icon: '🔥',
+    color: '#ff4500',
+    category: 'buff',
+    target: 'monster',
+    effects: {
+      attackModifier: 0, // カードにより異なる、valueで指定
+    },
+    defaultDuration: 0, // ターン終了時まで
+  },
+  [STATUS_EFFECT_TYPES.ATK_UP]: {
+    displayName: '攻撃力上昇',
+    icon: '⬆️',
+    color: '#32cd32',
+    category: 'buff',
+    target: 'monster',
+    effects: {
+      attackModifier: 0, // valueで指定
+    },
+    defaultDuration: 1,
+  },
+
+  // ========================================
+  // プレイヤー状態異常
+  // ========================================
+
+  [STATUS_EFFECT_TYPES.POISON]: {
+    displayName: '毒',
+    icon: '☠️',
+    color: '#9932cc',
+    category: 'debuff',
+    target: 'player',
+    effects: {
+      endPhaseDamage: 100, // 毎ターン100ダメージ
     },
     defaultDuration: -1, // 永続
   },
@@ -411,23 +554,100 @@ class StatusEffectEngine {
   /**
    * 攻撃力修正を計算
    * @param {Object} monster - 対象モンスター
-   * @returns {number} 修正倍率（1.0 = 変化なし）
+   * @returns {Object} { multiplier: number, flatModifier: number }
    */
   getAttackModifier(monster) {
-    let modifier = 1.0;
+    let multiplier = 1.0;
+    let flatModifier = 0;
 
     // 凍結: 50%
     if (this.hasStatus(monster, STATUS_EFFECT_TYPES.FREEZE)) {
-      modifier *= 0.5;
+      multiplier *= 0.5;
+    }
+
+    // 雷撃: -500（固定値）
+    if (this.hasStatus(monster, STATUS_EFFECT_TYPES.THUNDER)) {
+      flatModifier -= 500;
+    }
+
+    // 覚醒: 効果値分上昇
+    const awakened = monster.statusEffects?.find(s => s.type === STATUS_EFFECT_TYPES.AWAKENED);
+    if (awakened) {
+      flatModifier += awakened.value;
     }
 
     // ATK_UP: バフ値を加算
     const atkUp = monster.statusEffects?.find(s => s.type === STATUS_EFFECT_TYPES.ATK_UP);
     if (atkUp) {
-      modifier += atkUp.value / monster.attack; // 実数値からの変換
+      flatModifier += atkUp.value;
     }
 
-    return modifier;
+    return { multiplier, flatModifier };
+  }
+
+  /**
+   * 被ダメージ倍率を計算
+   * @param {Object} monster - 対象モンスター
+   * @returns {number} ダメージ倍率（1.0 = 変化なし）
+   */
+  getDamageMultiplier(monster) {
+    let multiplier = 1.0;
+
+    // 濡れ: ダメージ2倍
+    if (this.hasStatus(monster, STATUS_EFFECT_TYPES.WET)) {
+      multiplier *= 2.0;
+    }
+
+    return multiplier;
+  }
+
+  // ========================================
+  // プレイヤー状態異常
+  // ========================================
+
+  /**
+   * プレイヤーに状態異常を付与
+   * @param {number} player - プレイヤー番号 (1 or 2)
+   * @param {string} statusType - 状態異常タイプ
+   * @param {Object} options - オプション
+   * @param {Object} context - ゲームコンテキスト
+   */
+  applyPlayerStatus(player, statusType, options, context) {
+    const { setP1StatusEffects, setP2StatusEffects, addLog } = context;
+    const setStatusEffects = player === 1 ? setP1StatusEffects : setP2StatusEffects;
+
+    const statusEffect = {
+      id: `${statusType}_${Date.now()}`,
+      type: statusType,
+      source: options.source,
+      sourceName: options.sourceName,
+      appliedTurn: options.currentTurn,
+      value: options.value || STATUS_EFFECT_METADATA[statusType]?.effects?.endPhaseDamage || 0,
+    };
+
+    setStatusEffects(prev => [...prev, statusEffect]);
+    const meta = STATUS_EFFECT_METADATA[statusType];
+    addLog(`プレイヤー${player}に${meta.displayName}を付与！`, 'info');
+  }
+
+  /**
+   * プレイヤーの状態異常を処理（エンドフェイズ）
+   * @param {number} player - プレイヤー番号 (1 or 2)
+   * @param {Array} statusEffects - プレイヤーの状態異常配列
+   * @param {Object} context - ゲームコンテキスト
+   */
+  processPlayerEndPhase(player, statusEffects, context) {
+    const { setP1Life, setP2Life, p1Life, p2Life, addLog } = context;
+    const setLife = player === 1 ? setP1Life : setP2Life;
+    const currentLife = player === 1 ? p1Life : p2Life;
+
+    statusEffects.forEach(status => {
+      if (status.type === STATUS_EFFECT_TYPES.POISON) {
+        const damage = status.value;
+        setLife(prev => Math.max(0, prev - damage));
+        addLog(`プレイヤー${player}は毒で${damage}ダメージ！`, 'damage');
+      }
+    });
   }
 
   /**
