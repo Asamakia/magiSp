@@ -90,7 +90,7 @@ export const fireCardEffects = {
    * 基本技：チャージを消費してデッキから【ビースト・狸】モンスター1体を手札に加える
    */
   C0000163: (skillText, context) => {
-    if (skillText.includes('基本技')) {
+    if (context.skillType === 'basic') {
       return searchCard(context, (card) => {
         return hasCategory(card, '【ビースト・狸】');
       }) !== null;

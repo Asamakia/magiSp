@@ -37,7 +37,7 @@ export const futureCardEffects = {
     }
 
     // 基本技
-    if (skillText.includes('基本技')) {
+    if (context.skillType === 'basic') {
       const milledCards = millDeck(context, 1);
       if (milledCards.length === 0) {
         return false;
@@ -119,7 +119,7 @@ export const futureCardEffects = {
       p1Deck, p2Deck,
     } = context;
 
-    if (skillText.includes('基本技')) {
+    if (context.skillType === 'basic') {
       const currentHand = currentPlayer === 1 ? p1Hand : p2Hand;
       const setHand = currentPlayer === 1 ? setP1Hand : setP2Hand;
       const currentDeck = currentPlayer === 1 ? p1Deck : p2Deck;
@@ -396,7 +396,7 @@ export const futureCardEffects = {
       monsterIndex,
     } = context;
 
-    if (skillText.includes('基本技')) {
+    if (context.skillType === 'basic') {
       const currentDeck = currentPlayer === 1 ? p1Deck : p2Deck;
       const setDeck = currentPlayer === 1 ? setP1Deck : setP2Deck;
       const currentField = currentPlayer === 1 ? p1Field : p2Field;
@@ -481,7 +481,7 @@ export const futureCardEffects = {
       setP1Hand, setP2Hand,
     } = context;
 
-    if (skillText.includes('基本技')) {
+    if (context.skillType === 'basic') {
       const currentField = currentPlayer === 1 ? p1Field : p2Field;
       const currentDeck = currentPlayer === 1 ? p1Deck : p2Deck;
       const setDeck = currentPlayer === 1 ? setP1Deck : setP2Deck;

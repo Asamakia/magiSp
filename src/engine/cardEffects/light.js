@@ -34,7 +34,7 @@ export const lightCardEffects = {
    * 基本技：場にいる光属性モンスター1体の攻撃力をターン終了時まで600アップ
    */
   C0000060: (skillText, context) => {
-    if (skillText.includes('基本技')) {
+    if (context.skillType === 'basic') {
       return modifyAttack(context, 600, 0, false, false);
     }
     return false;

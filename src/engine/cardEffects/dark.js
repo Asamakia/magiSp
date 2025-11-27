@@ -28,7 +28,7 @@ export const darkCardEffects = {
       setP1Field, setP2Field,
     } = context;
 
-    if (skillText.includes('基本技')) {
+    if (context.skillType === 'basic') {
       const currentGraveyard = currentPlayer === 1 ? p1Graveyard : p2Graveyard;
       const setGraveyard = currentPlayer === 1 ? setP1Graveyard : setP2Graveyard;
       const currentField = currentPlayer === 1 ? p1Field : p2Field;

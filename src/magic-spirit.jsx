@@ -726,6 +726,7 @@ export default function MagicSpiritGame() {
     const context = {
       currentPlayer,
       monsterIndex,
+      skillType, // 'basic' or 'advanced'
       setP1Life,
       setP2Life,
       setP1Field,
