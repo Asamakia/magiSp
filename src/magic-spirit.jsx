@@ -1047,109 +1047,6 @@ export default function MagicSpiritGame() {
     return true; // 確認中
   }, [currentPlayer, canNonActivePlayerUseSetsuna, addLog]);
 
-  // チェーン確認をスキップ（発動しない）
-  const skipChainConfirmation = useCallback(() => {
-    if (!chainConfirmation) return;
-
-    const { pendingAction } = chainConfirmation;
-    setChainConfirmation(null);
-
-    // 保留中のアクションを実行
-    if (pendingAction.type === 'attack') {
-      executeAttack(pendingAction.attackerIndex, pendingAction.targetIndex);
-    } else if (pendingAction.type === 'battleStart') {
-      // バトルフェイズへ進行
-      setPhase(3);
-      setSelectedHandCard(null);
-    }
-  }, [chainConfirmation, executeAttack]);
-
-  // チェーン確認で刹那詠唱を発動する
-  const activateSetsunaInChain = useCallback((card) => {
-    if (!chainConfirmation || !card) return;
-
-    const { pendingAction, askingPlayer } = chainConfirmation;
-
-    // 刹那詠唱を発動（currentPlayerを一時的にaskingPlayerに変更して処理）
-    const setsunaCost = getSetsunaCost(card);
-    const activeSP = askingPlayer === 1 ? p1ActiveSP : p2ActiveSP;
-
-    if (activeSP < setsunaCost) {
-      addLog(`SPが足りません！（刹那詠唱コスト: ${setsunaCost}, 現在: ${activeSP}）`, 'damage');
-      return;
-    }
-
-    // SPを消費
-    if (askingPlayer === 1) {
-      setP1ActiveSP(prev => prev - setsunaCost);
-      setP1RestedSP(prev => prev + setsunaCost);
-      setP1Hand(prev => prev.filter(c => c.uniqueId !== card.uniqueId));
-      setP1Graveyard(prev => [...prev, card]);
-    } else {
-      setP2ActiveSP(prev => prev - setsunaCost);
-      setP2RestedSP(prev => prev + setsunaCost);
-      setP2Hand(prev => prev.filter(c => c.uniqueId !== card.uniqueId));
-      setP2Graveyard(prev => [...prev, card]);
-    }
-
-    addLog(`プレイヤー${askingPlayer}: 【刹那詠唱】${card.name}を発動！（コスト${card.cost}+1=${setsunaCost}）`, 'info');
-
-    // 魔法効果を実行
-    if (card.effect) {
-      const context = {
-        currentPlayer: askingPlayer,
-        monsterIndex: null,
-        setP1Life,
-        setP2Life,
-        setP1Field,
-        setP2Field,
-        setP1Hand,
-        setP2Hand,
-        setP1Deck,
-        setP2Deck,
-        setP1Graveyard,
-        setP2Graveyard,
-        p1Field,
-        p2Field,
-        p1Hand,
-        p2Hand,
-        p1Deck,
-        p2Deck,
-        p1Graveyard,
-        p2Graveyard,
-        addLog,
-      };
-      executeSkillEffects(card.effect, context);
-    }
-
-    // Phase A: 1回のみなので確認終了
-    setChainConfirmation(null);
-    setSetsunaPendingCard(null);
-
-    // 保留中のアクションを実行
-    if (pendingAction.type === 'attack') {
-      // 少し遅延して攻撃を実行（効果の反映を待つ）
-      setTimeout(() => {
-        executeAttack(pendingAction.attackerIndex, pendingAction.targetIndex);
-      }, 100);
-    } else if (pendingAction.type === 'battleStart') {
-      // 少し遅延してバトルフェイズへ進行（効果の反映を待つ）
-      setTimeout(() => {
-        setPhase(3);
-        setSelectedHandCard(null);
-      }, 100);
-    }
-  }, [chainConfirmation, p1ActiveSP, p2ActiveSP, p1Field, p2Field, p1Hand, p2Hand,
-      p1Deck, p2Deck, p1Graveyard, p2Graveyard, addLog, executeAttack]);
-
-  // チェーン確認をキャンセル（攻撃自体をキャンセル）
-  const cancelChainAndAction = useCallback(() => {
-    setChainConfirmation(null);
-    setSetsunaPendingCard(null);
-    setAttackingMonster(null);
-    addLog('行動がキャンセルされました', 'info');
-  }, [addLog]);
-
   // =============================================================================
   // 攻撃処理（チェーン確認後に実行される内部関数）
   // =============================================================================
@@ -1192,16 +1089,16 @@ export default function MagicSpiritGame() {
 
       const damage = effectiveAttackerAtk;
       const counterDamage = Math.floor(effectiveTargetAtk * COUNTER_ATTACK_RATE);
-      
+
       addLog(`${attacker.name}が${target.name}を攻撃！`, 'info');
-      
+
       // ダメージ処理（新しいオブジェクトを作成）
       const newTargetHp = target.currentHp - damage;
       const newAttackerHp = attacker.currentHp - counterDamage;
-      
+
       addLog(`${target.name}に${damage}ダメージ！`, 'damage');
       addLog(`反撃で${attacker.name}に${counterDamage}ダメージ！`, 'damage');
-      
+
       // 相手フィールドの更新
       if (currentPlayer === 1) {
         // プレイヤー1が攻撃 → 相手はプレイヤー2
@@ -1421,19 +1318,19 @@ export default function MagicSpiritGame() {
       const hasOpponentMonster = opponentField.some(m => m !== null);
       let damage = effectiveAttackerAtk; // 常時効果による修正を適用
       const opponentFieldCard = currentPlayer === 1 ? p2FieldCard : p1FieldCard;
-      
+
       if (hasOpponentMonster) {
         damage = Math.floor(damage * 0.5);
         addLog(`相手の場にモンスターがいるためダメージ半減`, 'info');
       }
-      
+
       if (opponentFieldCard) {
         damage = Math.floor(damage * 0.75);
         addLog(`フィールドカードによりダメージ75%`, 'info');
       }
-      
+
       addLog(`${attacker.name}がダイレクトアタック！${damage}ダメージ！`, 'damage');
-      
+
       if (currentPlayer === 1) {
         setP2Life(prev => Math.max(0, prev - damage));
         setP1Field(prev => {
@@ -1450,10 +1347,113 @@ export default function MagicSpiritGame() {
         });
       }
     }
-    
+
     setAttackingMonster(null);
     setSelectedFieldMonster(null);
-  }, [currentPlayer, p1Field, p2Field, p1FieldCard, p2FieldCard, addLog]);
+  }, [currentPlayer, p1Field, p2Field, p1FieldCard, p2FieldCard, p1Life, p2Life, p1Hand, p2Hand, p1Deck, p2Deck, p1Graveyard, p2Graveyard, addLog]);
+
+  // チェーン確認をスキップ（発動しない）
+  const skipChainConfirmation = useCallback(() => {
+    if (!chainConfirmation) return;
+
+    const { pendingAction } = chainConfirmation;
+    setChainConfirmation(null);
+
+    // 保留中のアクションを実行
+    if (pendingAction.type === 'attack') {
+      executeAttack(pendingAction.attackerIndex, pendingAction.targetIndex);
+    } else if (pendingAction.type === 'battleStart') {
+      // バトルフェイズへ進行
+      setPhase(3);
+      setSelectedHandCard(null);
+    }
+  }, [chainConfirmation, executeAttack]);
+
+  // チェーン確認で刹那詠唱を発動する
+  const activateSetsunaInChain = useCallback((card) => {
+    if (!chainConfirmation || !card) return;
+
+    const { pendingAction, askingPlayer } = chainConfirmation;
+
+    // 刹那詠唱を発動（currentPlayerを一時的にaskingPlayerに変更して処理）
+    const setsunaCost = getSetsunaCost(card);
+    const activeSP = askingPlayer === 1 ? p1ActiveSP : p2ActiveSP;
+
+    if (activeSP < setsunaCost) {
+      addLog(`SPが足りません！（刹那詠唱コスト: ${setsunaCost}, 現在: ${activeSP}）`, 'damage');
+      return;
+    }
+
+    // SPを消費
+    if (askingPlayer === 1) {
+      setP1ActiveSP(prev => prev - setsunaCost);
+      setP1RestedSP(prev => prev + setsunaCost);
+      setP1Hand(prev => prev.filter(c => c.uniqueId !== card.uniqueId));
+      setP1Graveyard(prev => [...prev, card]);
+    } else {
+      setP2ActiveSP(prev => prev - setsunaCost);
+      setP2RestedSP(prev => prev + setsunaCost);
+      setP2Hand(prev => prev.filter(c => c.uniqueId !== card.uniqueId));
+      setP2Graveyard(prev => [...prev, card]);
+    }
+
+    addLog(`プレイヤー${askingPlayer}: 【刹那詠唱】${card.name}を発動！（コスト${card.cost}+1=${setsunaCost}）`, 'info');
+
+    // 魔法効果を実行
+    if (card.effect) {
+      const context = {
+        currentPlayer: askingPlayer,
+        monsterIndex: null,
+        setP1Life,
+        setP2Life,
+        setP1Field,
+        setP2Field,
+        setP1Hand,
+        setP2Hand,
+        setP1Deck,
+        setP2Deck,
+        setP1Graveyard,
+        setP2Graveyard,
+        p1Field,
+        p2Field,
+        p1Hand,
+        p2Hand,
+        p1Deck,
+        p2Deck,
+        p1Graveyard,
+        p2Graveyard,
+        addLog,
+      };
+      executeSkillEffects(card.effect, context);
+    }
+
+    // Phase A: 1回のみなので確認終了
+    setChainConfirmation(null);
+    setSetsunaPendingCard(null);
+
+    // 保留中のアクションを実行
+    if (pendingAction.type === 'attack') {
+      // 少し遅延して攻撃を実行（効果の反映を待つ）
+      setTimeout(() => {
+        executeAttack(pendingAction.attackerIndex, pendingAction.targetIndex);
+      }, 100);
+    } else if (pendingAction.type === 'battleStart') {
+      // 少し遅延してバトルフェイズへ進行（効果の反映を待つ）
+      setTimeout(() => {
+        setPhase(3);
+        setSelectedHandCard(null);
+      }, 100);
+    }
+  }, [chainConfirmation, p1ActiveSP, p2ActiveSP, p1Field, p2Field, p1Hand, p2Hand,
+      p1Deck, p2Deck, p1Graveyard, p2Graveyard, addLog, executeAttack]);
+
+  // チェーン確認をキャンセル（攻撃自体をキャンセル）
+  const cancelChainAndAction = useCallback(() => {
+    setChainConfirmation(null);
+    setSetsunaPendingCard(null);
+    setAttackingMonster(null);
+    addLog('行動がキャンセルされました', 'info');
+  }, [addLog]);
 
   // =============================================================================
   // 攻撃開始（チェーン確認を挟む公開API）
