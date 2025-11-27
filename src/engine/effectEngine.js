@@ -77,7 +77,8 @@ export const parseEffect = (effectText) => {
   }
 
   // ダメージ効果（相手モンスター）
-  const monsterDamageMatch = effectText.match(/相手(?:の)?モンスター.{0,10}(\d+)ダメージ/);
+  // .{0,10}? を非貪欲マッチにして、数字の前で止まるようにする
+  const monsterDamageMatch = effectText.match(/相手(?:の)?モンスター.{0,10}?(\d+)ダメージ/);
   if (monsterDamageMatch) {
     effects.push({
       type: EFFECT_TYPES.DAMAGE,
