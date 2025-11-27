@@ -114,7 +114,7 @@ Currently a **prototype version** with local 2-player gameplay.
   - **UI display**: Status icons on field monsters (FieldMonster.jsx)
   - **New deck**: 氷眠の檻 (Ice Sleep Prison) - freeze/sleep control deck
   - **6 cards implemented**: C0000039 (sleep), C0000144/145/150/157/199 (freeze)
-- **2025-11-27 (skillType Context & Ice Deck Effects)**: Skill type judgment system fix and ice deck card implementations ⭐⭐ **NEW**
+- **2025-11-27 (skillType Context & Ice Deck Effects)**: Skill type judgment system fix and ice deck card implementations ⭐⭐
   - **skillType context parameter**: Added `context.skillType` ('basic' | 'advanced') to effect context
   - **Deprecated pattern fix**: Changed `skillText.includes('基本技')` → `context.skillType === 'basic'`
   - Fixed across all attribute files: fire.js, water.js, light.js, dark.js, future.js
@@ -125,6 +125,15 @@ Currently a **prototype version** with local 2-player gameplay.
     - C0000142 ブリザードマスター: デッキ選択UI対応 (複数候補から選択可能)
     - C0000046 泡沫の精霊: 基本技修正 (skillType判定に変更)
     - C0000144 ブリザードキャット・フロスト: 基本技実装 (ATK半分ダメージ)
+- **2025-11-27 (AI Player System)**: Comprehensive AI player system implemented ⭐⭐⭐⭐⭐ **NEW**
+  - **AI system foundation** (`src/engine/ai/`) with ~1,015 lines of new code
+  - **3 difficulty levels**: Easy (かんたん), Normal (ふつう), Hard (むずかしい)
+  - **Per-player AI control**: P1 and P2 can each be set to human or AI independently
+  - **Title screen AI settings UI**: Player type and difficulty selection
+  - **Strategy pattern architecture**: Extensible decision-making system
+  - **Special case handling**: Hand selection, monster target, graveyard selection, deck review, chain confirmation
+  - **AI vs AI auto-battle**: Full automated gameplay support
+  - **Documentation**: `src/ルール/ai-player-system-design.md` (~1,400 lines)
 
 ---
 
@@ -195,12 +204,21 @@ Currently a **prototype version** with local 2-player gameplay.
 │   │   │       └── phaseCards.js # Phase card effects (183 lines)
 │   │   ├── keywordAbilities/   # Keyword ability system (~250 lines) ⭐⭐
 │   │   │   └── index.js          # Keyword definitions, chain points, helpers
-│   │   └── statusEffects/      # Status effect system (~580 lines) ⭐⭐ NEW
-│   │       ├── index.js          # Main exports
-│   │       ├── statusTypes.js    # Status type definitions and metadata
-│   │       └── statusEngine.js   # Main status effect engine
+│   │   ├── statusEffects/      # Status effect system (~580 lines) ⭐⭐
+│   │   │   ├── index.js          # Main exports
+│   │   │   ├── statusTypes.js    # Status type definitions and metadata
+│   │   │   └── statusEngine.js   # Main status effect engine
+│   │   └── ai/                 # AI player system (~1015 lines) ⭐⭐⭐⭐⭐ NEW
+│   │       ├── index.js          # Main exports (~50 lines)
+│   │       ├── aiController.js   # AI controller (~430 lines)
+│   │       └── strategies/       # Strategy implementations
+│   │           ├── index.js      # Strategy selector (~30 lines)
+│   │           ├── base.js       # Base strategy (random) (~190 lines)
+│   │           ├── easy.js       # Easy AI (~55 lines)
+│   │           ├── normal.js     # Normal AI (~115 lines)
+│   │           └── hard.js       # Hard AI (~145 lines)
 │   │
-│   ├── ルール/                  # Documentation (~9500 lines total)
+│   ├── ルール/                  # Documentation (~11000 lines total)
 │   │   ├── Game Rules (日本語) - 3 files (~260 lines)
 │   │   │   ├── マジックスピリット 公式ルール仕様書 ver2.3.txt (~130 lines)
 │   │   │   ├── マジックスピリット - デッキ構築とコストバランス.txt (86 lines)
@@ -220,8 +238,10 @@ Currently a **prototype version** with local 2-player gameplay.
 │   │   ├── Keyword Abilities Documentation - 2 files (~530 lines) ⭐⭐
 │   │   │   ├── keyword-abilities.md (~450 lines) - Keyword ability list and progress
 │   │   │   └── chain-system-design.md (~280 lines) - Chain point system design
-│   │   └── Status Effect System Documentation - 1 file (~1050 lines) ⭐⭐ NEW
-│   │       └── status-effect-system-design.md (~1050 lines) - System design
+│   │   ├── Status Effect System Documentation - 1 file (~1050 lines) ⭐⭐
+│   │   │   └── status-effect-system-design.md (~1050 lines) - System design
+│   │   └── AI Player System Documentation - 1 file (~1400 lines) ⭐⭐⭐⭐⭐ NEW
+│   │       └── ai-player-system-design.md (~1400 lines) - AI system design
 │   │
 │   ├── index.js                # React entry point
 │   ├── App.css                 # App styling
@@ -314,7 +334,7 @@ Currently a **prototype version** with local 2-player gameplay.
 - State-based effect system (vs event-driven trigger system)
 - Comprehensive coverage of 常時 effects
 
-**`src/engine/keywordAbilities/`** (Keyword ability system - ~250 lines) ⭐⭐ **NEW**
+**`src/engine/keywordAbilities/`** (Keyword ability system - ~250 lines) ⭐⭐
 - **index.js**: Keyword ability definitions, judgment functions, chain point system
 - `KEYWORD_ABILITIES`: 14 keyword ability definitions
 - `hasKeyword()`, `getCardKeywords()`: Keyword judgment functions
@@ -322,6 +342,21 @@ Currently a **prototype version** with local 2-player gameplay.
 - `CHAIN_POINTS`, `CHAIN_POINT_NAMES`: Chain point definitions
 - `createStackItem()`, `resolveStack()`: Stack management for Phase B preparation
 - Hybrid architecture: integrates with trigger/continuous effect systems
+
+**`src/engine/ai/`** (AI player system - ~1015 lines) ⭐⭐⭐⭐⭐ **NEW**
+- **aiController.js**: Main AI controller (~430 lines)
+  - `createAIGameState()`: Game state snapshot for AI
+  - `executeAIMainPhaseAction()`: Main phase AI logic
+  - `executeAIBattlePhaseAction()`: Battle phase AI logic
+  - `handleAIHandSelection()`, `handleAIMonsterTarget()`, `handleAIGraveyardSelection()`: Special case handlers
+  - `handleAIDeckReview()`, `handleAIChainConfirmation()`: Additional handlers
+- **strategies/**: Strategy pattern implementations
+  - `base.js`: Base strategy (random decisions)
+  - `easy.js`: Easy AI (30% skip summon, 70% direct attack)
+  - `normal.js`: Normal AI (cost efficiency, HP targeting)
+  - `hard.js`: Hard AI (field awareness, damage efficiency)
+- **index.js**: Exports all AI functions and strategies
+- Uses strategy pattern for extensible decision-making
 
 **`src/utils/cardManager.js`** (Card data manager - 253 lines)
 - CSV parser for 433 cards
@@ -353,12 +388,12 @@ Currently a **prototype version** with local 2-player gameplay.
   - Stage progression rules
   - Phase card activation timing
 
-*Development Roadmaps - 2 files, 1100 lines:*
-- **magic-spirit-roadmap-updated.txt** (851 lines) ⭐ **Current roadmap**
+*Development Roadmaps - 2 files, ~1200 lines:*
+- **magic-spirit-roadmap-updated.txt** (~950 lines) ⭐ **Current roadmap**
   - Complete development history
   - Phase-by-phase implementation status
-  - Current progress: Phase 6 (Trigger System) completed
-  - Future development plans
+  - Current progress: Phase 8 (AI Player System) completed
+  - Total progress: 87%
 - **magic-spirit-roadmap.txt** (249 lines): Legacy roadmap (archived)
 
 *Code Architecture - 1 file, 433 lines:*
@@ -1450,7 +1485,7 @@ console.log('Executing effect:', type, value, target);
 ### Current Limitations
 
 1. **Card effects**: Many are simplified or not fully implemented
-2. **AI opponent**: No computer opponent, requires 2 human players
+2. ~~**AI opponent**: No computer opponent, requires 2 human players~~ ✅ **RESOLVED** - AI player system implemented (2025-11-27)
 3. **Deck building**: Basic deck selection available; full deck customization not yet implemented
 4. **Multiplayer**: Local only, no online play
 5. **Mobile support**: Designed for desktop, may not work well on mobile
@@ -1472,18 +1507,23 @@ console.log('Executing effect:', type, value, target);
 5. ✅ **~~Deck selection~~**: COMPLETED - Basic deck selection feature (2025-11-26)
    - Predefined deck selection UI on title screen
    - 433 cards available in card pool
-6. **Remaining card effects**: Implement effects for remaining cards (433 total - 108 implemented)
-7. **Remaining card triggers**: Implement triggers for remaining cards (433 total - 220 implemented)
-8. **Card data format**: Convert CSV to JSON for better structure and validation
-9. **State management**: Consider Context API or Redux for complex state
-10. **TypeScript**: Add type safety to entire codebase
-11. **Backend**: Add server for online multiplayer
-12. **Full deck builder UI**: Allow complete custom deck creation (currently only predefined decks)
-13. **Card images**: Replace placeholder emojis with actual artwork
-14. **Animations**: Add GSAP or Framer Motion for smooth transitions
-15. **Mobile responsive**: Add mobile-friendly layouts
-16. **Testing**: Add comprehensive unit and integration tests for card effects and triggers
-17. **Effect/Trigger testing framework**: Automated tests for all card effects and triggers
+6. ✅ **~~AI player system~~**: COMPLETED - Comprehensive AI system implemented (2025-11-27)
+   - 3 difficulty levels (Easy, Normal, Hard)
+   - Per-player AI/human control
+   - Strategy pattern for extensible decision-making
+   - ~1,015 lines of new AI code
+7. **Remaining card effects**: Implement effects for remaining cards (433 total - 108 implemented)
+8. **Remaining card triggers**: Implement triggers for remaining cards (433 total - 220 implemented)
+9. **Card data format**: Convert CSV to JSON for better structure and validation
+10. **State management**: Consider Context API or Redux for complex state
+11. **TypeScript**: Add type safety to entire codebase
+12. **Backend**: Add server for online multiplayer
+13. **Full deck builder UI**: Allow complete custom deck creation (currently only predefined decks)
+14. **Card images**: Replace placeholder emojis with actual artwork
+15. **Animations**: Add GSAP or Framer Motion for smooth transitions
+16. **Mobile responsive**: Add mobile-friendly layouts
+17. **Testing**: Add comprehensive unit and integration tests for card effects and triggers
+18. **Effect/Trigger testing framework**: Automated tests for all card effects and triggers
 
 ---
 
@@ -1728,6 +1768,6 @@ This is suitable for expansion into a full game or as a learning project for Rea
 
 ---
 
-**Document Version**: 4.4
-**Last Updated**: 2025-11-27 (Status effect system implementation)
+**Document Version**: 4.5
+**Last Updated**: 2025-11-27 (AI player system implementation)
 **For**: Magic Spirit (magiSp) Repository
