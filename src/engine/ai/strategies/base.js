@@ -60,6 +60,18 @@ export const baseStrategy = {
   },
 
   /**
+   * チャージするカードとモンスターを選択
+   * @param {Array} chargeableCards - チャージに使用可能なカード一覧
+   * @param {Array} chargeableMonsters - チャージ可能なモンスター一覧 [{monsterIndex, monster, currentCharges}]
+   * @param {Object} gameState - ゲーム状態
+   * @returns {Object|null} { card, monsterIndex } （nullの場合はチャージしない）
+   */
+  chooseCharge(chargeableCards, chargeableMonsters, gameState) {
+    // デフォルト: チャージしない
+    return null;
+  },
+
+  /**
    * 発動するトリガーを選択
    * @param {Array} activatableTriggers - 発動可能なトリガー一覧
    * @param {Object} gameState - ゲーム状態

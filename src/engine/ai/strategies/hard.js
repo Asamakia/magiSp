@@ -102,6 +102,69 @@ export const hardStrategy = {
     return null;
   },
 
+  // 戦略的なチャージ判断
+  chooseCharge(chargeableCards, chargeableMonsters, gameState) {
+    if (chargeableCards.length === 0 || chargeableMonsters.length === 0) return null;
+
+    // チャージが0のモンスター
+    const noChargeMonsters = chargeableMonsters.filter(m => m.currentCharges === 0);
+    // チャージが1のモンスター
+    const oneChargeMonsters = chargeableMonsters.filter(m => m.currentCharges === 1);
+
+    let targetMonster = null;
+
+    // 上級技を持つモンスターで、チャージが1のものを優先（すぐ上級技が使える）
+    const oneChargeWithAdvanced = oneChargeMonsters.filter(m => m.monster.advancedSkill);
+    if (oneChargeWithAdvanced.length > 0) {
+      // 攻撃力が高いものを選択
+      oneChargeWithAdvanced.sort((a, b) =>
+        (b.monster.currentAttack || b.monster.attack || 0) - (a.monster.currentAttack || a.monster.attack || 0)
+      );
+      targetMonster = oneChargeWithAdvanced[0];
+    } else if (noChargeMonsters.length > 0) {
+      // チャージ0のモンスターから選択
+      // 基本技を持つモンスターを優先
+      const withBasic = noChargeMonsters.filter(m => m.monster.basicSkill);
+      if (withBasic.length > 0) {
+        // 攻撃力が高いものを選択
+        withBasic.sort((a, b) =>
+          (b.monster.currentAttack || b.monster.attack || 0) - (a.monster.currentAttack || a.monster.attack || 0)
+        );
+        targetMonster = withBasic[0];
+      } else {
+        // 基本技がなくてもチャージ（将来の上級技のため）
+        noChargeMonsters.sort((a, b) =>
+          (b.monster.currentAttack || b.monster.attack || 0) - (a.monster.currentAttack || a.monster.attack || 0)
+        );
+        targetMonster = noChargeMonsters[0];
+      }
+    } else if (oneChargeMonsters.length > 0) {
+      // 上級技がなくても、チャージ1のモンスターに追加チャージ
+      oneChargeMonsters.sort((a, b) =>
+        (b.monster.currentAttack || b.monster.attack || 0) - (a.monster.currentAttack || a.monster.attack || 0)
+      );
+      targetMonster = oneChargeMonsters[0];
+    }
+
+    if (!targetMonster) return null;
+
+    // チャージに使うカードの選択
+    // コストが低いカードを優先するが、召喚に使いたいカードは温存
+    const sortedCards = [...chargeableCards].sort((a, b) => {
+      // 魔法カードやフィールドカードを優先（モンスターは温存）
+      if (a.type !== 'monster' && b.type === 'monster') return -1;
+      if (a.type === 'monster' && b.type !== 'monster') return 1;
+      // 同じタイプならコストが低いものを優先
+      return (a.cost || 0) - (b.cost || 0);
+    });
+    const cardToCharge = sortedCards[0];
+
+    return {
+      card: cardToCharge,
+      monsterIndex: targetMonster.monsterIndex,
+    };
+  },
+
   // トリガーを積極的に発動
   chooseTrigger(activatableTriggers, gameState) {
     if (activatableTriggers.length === 0) return null;
