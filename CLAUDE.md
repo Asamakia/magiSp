@@ -77,12 +77,18 @@ Currently a **prototype version** with local 2-player gameplay.
   - 45 cards with continuous effects (23 field cards + 22 monster cards)
   - Phase card stage-based effects support
   - ~2736 lines of new implementation code
-- **2025-11-27 (Hand Selection System & Trigger Fix)**: Player hand selection UI and ON_SUMMON trigger scope fix ⭐ **NEW**
+- **2025-11-27 (Hand Selection System & Trigger Fix)**: Player hand selection UI and ON_SUMMON trigger scope fix ⭐
   - Hand selection system for effects requiring player choice (e.g., ソラリア)
   - Two-step confirmation: click to select, click area to confirm
   - Separate `pendingSelectedCard` state to prevent normal actions during selection
   - **ON_SUMMON trigger scope fix**: Now fires only for the summoned card itself
   - Previously ON_SUMMON fired for all summons; now correctly scoped to owning card
+- **2025-11-27 (Cost Reduction & Category Fix)**: Summon cost modifier display and category comparison fix ⭐ **NEW**
+  - Hand cards now display modified cost with color coding (green=reduced, red=increased)
+  - Tooltip shows original cost and modifier source
+  - Added `hasCategory()` helper function for normalized category comparison
+  - Fixed category comparison across 10 files (cardEffects/, cardTriggers/, effectEngine.js, etc.)
+  - Phase card continuous effects (e.g., エクラシアの時空炉) now work correctly
 
 ---
 
@@ -103,7 +109,7 @@ Currently a **prototype version** with local 2-player gameplay.
 │   │
 │   ├── utils/                  # Utility functions
 │   │   ├── constants.js        # Game constants (30 lines)
-│   │   ├── helpers.js          # Helper functions (108 lines)
+│   │   ├── helpers.js          # Helper functions (125 lines)
 │   │   └── cardManager.js      # Card data management (253 lines)
 │   │
 │   ├── components/             # UI Components
@@ -633,9 +639,9 @@ The effect helper library provides 9 reusable functions for common card effect p
 - **`MagicSpiritGame`** (in `src/magic-spirit.jsx`): Root game component with all game state and logic
 
 **UI Components** (in `src/components/`):
-1. **`Card.jsx`** (195 lines): Renders individual cards in hand/deck
-   - Props: card, onClick, selected, small, faceDown, inHand, disabled
-   - Displays cost, name, stats, skills, forbidden markers
+1. **`Card.jsx`** (187 lines): Renders individual cards in hand/deck
+   - Props: card, onClick, selected, small, faceDown, inHand, disabled, modifiedCost, costModifierSource
+   - Displays cost (with color coding for modifiers), name, stats, skills, forbidden markers
 
 2. **`FieldMonster.jsx`** (166 lines): Renders monsters on field
    - Props: monster, onClick, selected, canAttack, isTarget, isValidTarget
@@ -1005,6 +1011,7 @@ const atkMod = continuousEffectEngine.calculateAttackModifier(monster, context);
 const hpMod = continuousEffectEngine.calculateHPModifier(monster, context);
 const reduction = continuousEffectEngine.calculateDamageReduction(target, 'battle', context);
 const costMod = continuousEffectEngine.calculateSummonCostModifier(card, summoner, context);
+const { modifier, sources } = continuousEffectEngine.getSummonCostModifierDetails(card, summoner, context);
 const magicCostMod = continuousEffectEngine.calculateMagicCostModifier(magicCard, caster, context);
 
 // Restriction checks
@@ -1400,7 +1407,9 @@ Before considering a feature complete:
 **Helper Functions**: `src/utils/helpers.js`
 - shuffle()
 - createDeck()
+- hasCategory() - カテゴリ判定（【】を自動正規化）
 - createMonsterInstance()
+- createDeckFromPrebuilt()
 
 **Effect System**: `src/engine/` ⭐⭐
 - **effectEngine.js**: Generic effect types and parser
@@ -1547,6 +1556,6 @@ This is suitable for expansion into a full game or as a learning project for Rea
 
 ---
 
-**Document Version**: 4.0
-**Last Updated**: 2025-11-27 (Hand selection system & ON_SUMMON trigger fix)
+**Document Version**: 4.1
+**Last Updated**: 2025-11-27 (Cost reduction display & category comparison fix)
 **For**: Magic Spirit (magiSp) Repository
