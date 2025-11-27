@@ -592,3 +592,204 @@ export const selectAndRecoverFromGraveyard = (context, filter = null) => {
     true // 自分の墓地
   );
 };
+
+// ========================================
+// 状態異常関連ヘルパー
+// ========================================
+
+import { statusEffectEngine, getStatusDisplayName } from './statusEffects';
+
+/**
+ * 相手モンスター1体に状態異常を付与（選択UI）
+ * @param {Object} context - ゲームコンテキスト
+ * @param {string} statusType - 状態異常タイプ（STATUS_EFFECT_TYPES）
+ * @param {Object} options - オプション（duration, removeChance, value等）
+ * @param {string} sourceName - 発動源の名前（ログ用）
+ * @returns {boolean} 成功したかどうか
+ */
+export const selectAndApplyStatusToOpponent = (context, statusType, options = {}, sourceName = '') => {
+  const {
+    currentPlayer,
+    p1Field, p2Field,
+    setP1Field, setP2Field,
+    addLog,
+  } = context;
+
+  const opponentField = currentPlayer === 1 ? p2Field : p1Field;
+  const setOpponentField = currentPlayer === 1 ? setP2Field : setP1Field;
+
+  // 相手モンスターがいるスロットを取得
+  const validTargets = opponentField
+    .map((m, idx) => m ? idx : -1)
+    .filter(idx => idx !== -1);
+
+  if (validTargets.length === 0) {
+    addLog('相手の場にモンスターがいません', 'info');
+    return false;
+  }
+
+  // 1体しかいない場合は自動選択
+  if (validTargets.length === 1) {
+    const targetIdx = validTargets[0];
+    setOpponentField(prev => prev.map((m, idx) => {
+      if (idx === targetIdx && m) {
+        const result = statusEffectEngine.applyStatus(m, statusType, {
+          ...options,
+          source: sourceName,
+          sourceName: sourceName,
+        });
+        if (result.success) {
+          addLog(`${m.name}を${getStatusDisplayName(statusType)}にした！`, 'damage');
+        }
+        return { ...m };
+      }
+      return m;
+    }));
+    return true;
+  }
+
+  // 複数いる場合は最初のモンスターを選択（TODO: 選択UI実装）
+  // 現時点では最初の相手モンスターに付与
+  const targetIdx = validTargets[0];
+  setOpponentField(prev => prev.map((m, idx) => {
+    if (idx === targetIdx && m) {
+      const result = statusEffectEngine.applyStatus(m, statusType, {
+        ...options,
+        source: sourceName,
+        sourceName: sourceName,
+      });
+      if (result.success) {
+        addLog(`${m.name}を${getStatusDisplayName(statusType)}にした！`, 'damage');
+      }
+      return { ...m };
+    }
+    return m;
+  }));
+  return true;
+};
+
+/**
+ * 指定したインデックスの相手モンスターに状態異常を付与
+ * @param {Object} context - ゲームコンテキスト
+ * @param {number} targetIndex - 対象のモンスターインデックス
+ * @param {string} statusType - 状態異常タイプ
+ * @param {Object} options - オプション
+ * @param {string} sourceName - 発動源の名前
+ * @returns {boolean} 成功したかどうか
+ */
+export const applyStatusToOpponentMonster = (context, targetIndex, statusType, options = {}, sourceName = '') => {
+  const {
+    currentPlayer,
+    p1Field, p2Field,
+    setP1Field, setP2Field,
+    addLog,
+  } = context;
+
+  const opponentField = currentPlayer === 1 ? p2Field : p1Field;
+  const setOpponentField = currentPlayer === 1 ? setP2Field : setP1Field;
+
+  const target = opponentField[targetIndex];
+  if (!target) {
+    addLog('対象のモンスターが存在しません', 'info');
+    return false;
+  }
+
+  setOpponentField(prev => prev.map((m, idx) => {
+    if (idx === targetIndex && m) {
+      const result = statusEffectEngine.applyStatus(m, statusType, {
+        ...options,
+        source: sourceName,
+        sourceName: sourceName,
+      });
+      if (result.success) {
+        addLog(`${m.name}を${getStatusDisplayName(statusType)}にした！`, 'damage');
+      }
+      return { ...m };
+    }
+    return m;
+  }));
+  return true;
+};
+
+/**
+ * 相手の全モンスターに状態異常を付与
+ * @param {Object} context - ゲームコンテキスト
+ * @param {string} statusType - 状態異常タイプ
+ * @param {Object} options - オプション
+ * @param {string} sourceName - 発動源の名前
+ * @returns {number} 付与したモンスター数
+ */
+export const applyStatusToAllOpponentMonsters = (context, statusType, options = {}, sourceName = '') => {
+  const {
+    currentPlayer,
+    p1Field, p2Field,
+    setP1Field, setP2Field,
+    addLog,
+  } = context;
+
+  const opponentField = currentPlayer === 1 ? p2Field : p1Field;
+  const setOpponentField = currentPlayer === 1 ? setP2Field : setP1Field;
+
+  let count = 0;
+
+  setOpponentField(prev => prev.map(m => {
+    if (m) {
+      const result = statusEffectEngine.applyStatus(m, statusType, {
+        ...options,
+        source: sourceName,
+        sourceName: sourceName,
+      });
+      if (result.success) {
+        count++;
+        addLog(`${m.name}を${getStatusDisplayName(statusType)}にした！`, 'damage');
+      }
+      return { ...m };
+    }
+    return m;
+  }));
+
+  return count;
+};
+
+/**
+ * 自分のモンスターに状態異常を付与
+ * @param {Object} context - ゲームコンテキスト
+ * @param {number} targetIndex - 対象のモンスターインデックス
+ * @param {string} statusType - 状態異常タイプ
+ * @param {Object} options - オプション
+ * @param {string} sourceName - 発動源の名前
+ * @returns {boolean} 成功したかどうか
+ */
+export const applyStatusToOwnMonster = (context, targetIndex, statusType, options = {}, sourceName = '') => {
+  const {
+    currentPlayer,
+    p1Field, p2Field,
+    setP1Field, setP2Field,
+    addLog,
+  } = context;
+
+  const ownField = currentPlayer === 1 ? p1Field : p2Field;
+  const setOwnField = currentPlayer === 1 ? setP1Field : setP2Field;
+
+  const target = ownField[targetIndex];
+  if (!target) {
+    addLog('対象のモンスターが存在しません', 'info');
+    return false;
+  }
+
+  setOwnField(prev => prev.map((m, idx) => {
+    if (idx === targetIndex && m) {
+      const result = statusEffectEngine.applyStatus(m, statusType, {
+        ...options,
+        source: sourceName,
+        sourceName: sourceName,
+      });
+      if (result.success) {
+        addLog(`${m.name}を${getStatusDisplayName(statusType)}にした！`, 'info');
+      }
+      return { ...m };
+    }
+    return m;
+  }));
+  return true;
+};

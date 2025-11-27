@@ -8,7 +8,9 @@ import {
   searchCard,
   reviveFromGraveyard,
   modifyAttack,
+  applyStatusToOpponentMonster,
 } from '../effectHelpers';
+import { STATUS_EFFECT_TYPES } from '../statusEffects';
 
 /**
  * 水属性カードの固有効果
@@ -180,6 +182,122 @@ export const waterCardEffects = {
       }
     }
     return false;
+  },
+
+  /**
+   * C0000150: 氷の吐息
+   * 相手モンスター1体の攻撃力を800下げ、ターン終了時まで「凍結（攻撃力半減＋行動不能）」にする
+   * 相手はターン開始時にSP1支払いで解除可能
+   */
+  C0000150: (skillText, context) => {
+    const {
+      addLog,
+      currentPlayer,
+      p1Field, p2Field,
+      setP1Field, setP2Field,
+      setPendingTargetSelection,
+    } = context;
+
+    const opponentField = currentPlayer === 1 ? p2Field : p1Field;
+    const setOpponentField = currentPlayer === 1 ? setP2Field : setP1Field;
+
+    // 対象となる相手モンスターを取得
+    const validTargets = opponentField
+      .map((m, idx) => ({ monster: m, index: idx }))
+      .filter(({ monster }) => monster !== null);
+
+    if (validTargets.length === 0) {
+      addLog('相手フィールドにモンスターがいません', 'info');
+      return false;
+    }
+
+    // 1体のみの場合は自動選択
+    if (validTargets.length === 1) {
+      const targetIndex = validTargets[0].index;
+      const targetMonster = validTargets[0].monster;
+
+      // ATK-800を適用
+      setOpponentField(prev => {
+        const newField = [...prev];
+        if (newField[targetIndex]) {
+          const newAtk = Math.max(0, newField[targetIndex].currentAttack - 800);
+          newField[targetIndex] = {
+            ...newField[targetIndex],
+            currentAttack: newAtk,
+          };
+        }
+        return newField;
+      });
+      addLog(`${targetMonster.name}の攻撃力を800ダウン`, 'damage');
+
+      // 凍結を付与（duration: 0 = ターン終了時まで、sp1Remove: SP1で解除可能）
+      applyStatusToOpponentMonster(context, targetIndex, STATUS_EFFECT_TYPES.FREEZE, {
+        duration: 0, // ターン終了時に自動解除
+        removeChance: 0, // 確率解除なし
+        sp1Remove: true, // SP1支払いで解除可能フラグ
+      }, '氷の吐息');
+
+      return true;
+    }
+
+    // 複数体の場合は選択UI表示
+    if (setPendingTargetSelection) {
+      setPendingTargetSelection({
+        message: '凍結を与える相手モンスターを選択してください',
+        targetType: 'opponent_monster',
+        callback: (selectedIndex) => {
+          const targetMonster = opponentField[selectedIndex];
+          if (!targetMonster) return;
+
+          // ATK-800を適用
+          setOpponentField(prev => {
+            const newField = [...prev];
+            if (newField[selectedIndex]) {
+              const newAtk = Math.max(0, newField[selectedIndex].currentAttack - 800);
+              newField[selectedIndex] = {
+                ...newField[selectedIndex],
+                currentAttack: newAtk,
+              };
+            }
+            return newField;
+          });
+          addLog(`${targetMonster.name}の攻撃力を800ダウン`, 'damage');
+
+          // 凍結を付与
+          applyStatusToOpponentMonster(context, selectedIndex, STATUS_EFFECT_TYPES.FREEZE, {
+            duration: 0,
+            removeChance: 0,
+            sp1Remove: true,
+          }, '氷の吐息');
+        },
+      });
+      return true;
+    }
+
+    // setPendingTargetSelectionがない場合は最初の対象を選択
+    const targetIndex = validTargets[0].index;
+    const targetMonster = validTargets[0].monster;
+
+    setOpponentField(prev => {
+      const newField = [...prev];
+      if (newField[targetIndex]) {
+        const newAtk = Math.max(0, newField[targetIndex].currentAttack - 800);
+        newField[targetIndex] = {
+          ...newField[targetIndex],
+          currentAttack: newAtk,
+        };
+      }
+      return newField;
+    });
+    addLog(`${targetMonster.name}の攻撃力を800ダウン`, 'damage');
+
+    applyStatusToOpponentMonster(context, targetIndex, STATUS_EFFECT_TYPES.FREEZE, {
+      duration: 0,
+      removeChance: 0,
+      sp1Remove: true,
+    }, '氷の吐息');
+
+    return true;
   },
 
   // 他の水属性カードを追加...
