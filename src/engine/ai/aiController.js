@@ -9,6 +9,7 @@
  */
 
 import { getStrategy } from './strategies';
+import { statusEffectEngine } from '../statusEffects';
 
 /**
  * AI思考の遅延時間（ミリ秒）
@@ -144,10 +145,16 @@ export function getUsableSkills(gameState) {
 
 /**
  * 攻撃可能なモンスターのインデックスを取得
+ * canAttackフラグと状態異常（凍結、眠り等）の両方をチェック
  */
 export function getAttackableMonsters(gameState) {
   return gameState.myField
-    .map((m, i) => (m && m.canAttack) ? i : -1)
+    .map((m, i) => {
+      if (!m || !m.canAttack) return -1;
+      // 状態異常による攻撃不可をチェック（凍結、眠り、行動不能）
+      if (!statusEffectEngine.canAttack(m)) return -1;
+      return i;
+    })
     .filter(i => i >= 0);
 }
 
@@ -278,7 +285,8 @@ export function executeAIBattlePhaseAction(gameState, actions, strategy, attacke
   const attackerIndex = attackOrder[0];
   const attacker = gameState.myField[attackerIndex];
 
-  if (attacker && attacker.canAttack) {
+  // canAttackフラグと状態異常の両方をチェック
+  if (attacker && attacker.canAttack && statusEffectEngine.canAttack(attacker)) {
     const validTargets = getValidAttackTargets(gameState);
     const target = strategy.chooseAttackTarget(validTargets, attacker, gameState);
 
@@ -288,7 +296,16 @@ export function executeAIBattlePhaseAction(gameState, actions, strategy, attacke
     return { action: 'attack', attackedMonsters };
   }
 
-  // 攻撃できない場合は終了
+  // 攻撃できない場合（状態異常含む）は攻撃済みとしてマーク
+  if (attacker) {
+    attackedMonsters.add(attackerIndex);
+    // まだ他に攻撃可能なモンスターがいる可能性があるので継続
+    if (attackOrder.length > 1) {
+      return { action: 'skip', attackedMonsters };
+    }
+  }
+
+  // 攻撃できるモンスターがいない場合は終了
   nextPhase();
   return { action: 'end', attackedMonsters };
 }
