@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   INITIAL_LIFE,
   INITIAL_SP,
@@ -155,6 +155,7 @@ export default function MagicSpiritGame() {
   const [p1AIDifficulty, setP1AIDifficulty] = useState('normal'); // 'easy' | 'normal' | 'hard'
   const [p2AIDifficulty, setP2AIDifficulty] = useState('normal'); // 'easy' | 'normal' | 'hard'
   const [aiAttackedMonsters, setAiAttackedMonsters] = useState(new Set()); // AIが攻撃済みのモンスター
+  const prevPhaseRef = useRef(phase); // 前回のフェイズを追跡
 
   // ログ追加関数
   const addLog = useCallback((message, type = 'info') => {
@@ -1688,6 +1689,15 @@ export default function MagicSpiritGame() {
     }
   }, [phase, gameState, processPhase]);
 
+  // バトルフェイズ開始時にAI攻撃済みモンスターをリセット（別useEffectで管理）
+  useEffect(() => {
+    // フェイズが3（バトルフェイズ）に変わったときのみリセット
+    if (phase === 3 && prevPhaseRef.current !== 3) {
+      setAiAttackedMonsters(new Set());
+    }
+    prevPhaseRef.current = phase;
+  }, [phase]);
+
   // AIターン実行
   useEffect(() => {
     if (gameState !== 'playing') return;
@@ -1696,11 +1706,6 @@ export default function MagicSpiritGame() {
     const isPlayerAI = (player) =>
       (player === 1 && p1PlayerType === 'ai') ||
       (player === 2 && p2PlayerType === 'ai');
-
-    // バトルフェイズ開始時にAI攻撃済みモンスターをリセット
-    if (phase === 3) {
-      setAiAttackedMonsters(new Set());
-    }
 
     // 特殊ケース: チェーン確認（相手ターンでも発生するため最優先でチェック）
     if (chainConfirmation) {
