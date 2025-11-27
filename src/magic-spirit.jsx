@@ -37,6 +37,7 @@ import Card from './components/Card';
 import FieldMonster from './components/FieldMonster';
 import SPTokens from './components/SPTokens';
 import GameLog from './components/GameLog';
+import DeckReviewModal from './components/DeckReviewModal';
 
 // ========================================
 // 効果テキストから基本技・上級技を除外するヘルパー関数
@@ -101,6 +102,7 @@ export default function MagicSpiritGame() {
   const [showGraveyardViewer, setShowGraveyardViewer] = useState(null); // 墓地閲覧モーダル { player: 1|2 }
   const [pendingGraveyardSelection, setPendingGraveyardSelection] = useState(null); // 墓地選択待ち { message, callback, filter? }
   const [pendingGraveyardSelectedCard, setPendingGraveyardSelectedCard] = useState(null); // 墓地選択中のカード
+  const [pendingDeckReview, setPendingDeckReview] = useState(null); // デッキトップ確認モーダル { cards, title, message, allowReorder, onConfirm, onCancel, selectMode, onSelect }
 
   // デッキ選択状態
   const [p1SelectedDeck, setP1SelectedDeck] = useState('random');
@@ -190,6 +192,7 @@ export default function MagicSpiritGame() {
     setSelectedFieldCardInfo(null);
     setPendingHandSelection(null);
     setPendingSelectedCard(null);
+    setPendingDeckReview(null);
 
     // トリガーシステムをクリア
     clearAllTriggers();
@@ -280,6 +283,7 @@ export default function MagicSpiritGame() {
       setPendingHandSelection,
       setPendingGraveyardSelection,
       setShowGraveyardViewer,
+      setPendingDeckReview,
     };
 
     switch (phaseIndex) {
@@ -833,6 +837,7 @@ export default function MagicSpiritGame() {
         setPendingHandSelection,
         setPendingGraveyardSelection,
         setShowGraveyardViewer,
+        setPendingDeckReview,
       };
       fireTrigger(TRIGGER_TYPES.ON_SUMMON, triggerContext);
 
@@ -1565,6 +1570,7 @@ export default function MagicSpiritGame() {
       setPendingHandSelection,
       setPendingGraveyardSelection,
       setShowGraveyardViewer,
+      setPendingDeckReview,
     };
 
     try {
@@ -2339,6 +2345,7 @@ export default function MagicSpiritGame() {
                               setPendingHandSelection,
                               setPendingGraveyardSelection,
                               setShowGraveyardViewer,
+                              setPendingDeckReview,
                             };
                             const { activateTrigger } = require('./engine/triggerEngine');
                             activateTrigger(trigger, triggerContext);
@@ -2433,6 +2440,7 @@ export default function MagicSpiritGame() {
                               setPendingHandSelection,
                               setPendingGraveyardSelection,
                               setShowGraveyardViewer,
+                              setPendingDeckReview,
                             };
                             const { activateTrigger } = require('./engine/triggerEngine');
                             activateTrigger(trigger, triggerContext);
@@ -2885,6 +2893,29 @@ export default function MagicSpiritGame() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* デッキトップ確認モーダル */}
+      {pendingDeckReview && (
+        <DeckReviewModal
+          cards={pendingDeckReview.cards}
+          title={pendingDeckReview.title}
+          message={pendingDeckReview.message}
+          allowReorder={pendingDeckReview.allowReorder}
+          onConfirm={pendingDeckReview.onConfirm ? (reorderedCards) => {
+            pendingDeckReview.onConfirm(reorderedCards);
+            setPendingDeckReview(null);
+          } : () => setPendingDeckReview(null)}
+          onCancel={pendingDeckReview.onCancel ? () => {
+            pendingDeckReview.onCancel();
+            setPendingDeckReview(null);
+          } : null}
+          selectMode={pendingDeckReview.selectMode}
+          onSelect={pendingDeckReview.onSelect ? (selectedCards, remainingCards) => {
+            pendingDeckReview.onSelect(selectedCards, remainingCards);
+            setPendingDeckReview(null);
+          } : null}
+        />
       )}
     </div>
   );
