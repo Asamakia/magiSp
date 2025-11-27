@@ -81,6 +81,48 @@ export const normalStrategy = {
     return null;
   },
 
+  // チャージ判断（攻撃力が高いモンスターを優先）
+  chooseCharge(chargeableCards, chargeableMonsters, gameState) {
+    if (chargeableCards.length === 0 || chargeableMonsters.length === 0) return null;
+
+    // チャージが0のモンスターを優先（基本技を使えるようにする）
+    const noChargeMonsters = chargeableMonsters.filter(m => m.currentCharges === 0);
+    // チャージが1のモンスターも考慮（上級技を使えるようにする）
+    const oneChargeMonsters = chargeableMonsters.filter(m => m.currentCharges === 1);
+
+    let targetMonster = null;
+
+    // まずはチャージ0のモンスターから攻撃力が高いものを選択
+    if (noChargeMonsters.length > 0) {
+      noChargeMonsters.sort((a, b) => (b.monster.currentAttack || b.monster.attack || 0) - (a.monster.currentAttack || a.monster.attack || 0));
+      targetMonster = noChargeMonsters[0];
+    } else if (oneChargeMonsters.length > 0) {
+      // チャージ1のモンスターから上級技を持つものを優先
+      const withAdvanced = oneChargeMonsters.filter(m => m.monster.advancedSkill);
+      if (withAdvanced.length > 0) {
+        withAdvanced.sort((a, b) => (b.monster.currentAttack || b.monster.attack || 0) - (a.monster.currentAttack || a.monster.attack || 0));
+        targetMonster = withAdvanced[0];
+      }
+    }
+
+    if (!targetMonster) return null;
+
+    // チャージに使うカードはモンスターと同じ属性のものを選択
+    const targetAttribute = targetMonster.monster.attribute;
+    const sameAttributeCards = chargeableCards.filter(card => card.attribute === targetAttribute);
+
+    if (sameAttributeCards.length === 0) return null; // 同属性カードがなければチャージしない
+
+    // コストが低いものを優先（貴重なカードを温存）
+    const sortedCards = [...sameAttributeCards].sort((a, b) => (a.cost || 0) - (b.cost || 0));
+    const cardToCharge = sortedCards[0];
+
+    return {
+      card: cardToCharge,
+      monsterIndex: targetMonster.monsterIndex,
+    };
+  },
+
   // トリガーは50%の確率で発動
   chooseTrigger(activatableTriggers, gameState) {
     if (activatableTriggers.length === 0) return null;

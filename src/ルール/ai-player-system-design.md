@@ -248,6 +248,18 @@ export const baseStrategy = {
   },
 
   /**
+   * チャージするカードとモンスターを選択
+   * @param {Array} chargeableCards - チャージに使用可能なカード一覧
+   * @param {Array} chargeableMonsters - チャージ可能なモンスター一覧 [{monsterIndex, monster, currentCharges}]
+   * @param {AIGameState} gameState - ゲーム状態
+   * @returns {Object|null} { card, monsterIndex } （nullの場合はチャージしない）
+   */
+  chooseCharge(chargeableCards, chargeableMonsters, gameState) {
+    // デフォルト: チャージしない
+    return null;
+  },
+
+  /**
    * 発動するトリガーを選択
    * @param {Array} activatableTriggers - 発動可能なトリガー一覧
    * @param {AIGameState} gameState - ゲーム状態
@@ -373,12 +385,17 @@ function shuffleArray(array) {
 | 項目 | Easy（かんたん） | Normal（ふつう） | Hard（むずかしい） |
 |------|-----------------|-----------------|-------------------|
 | 召喚判断 | 30%スキップ、ランダム | コスト効率優先 | フィールド状況考慮 |
+| チャージ | チャージしない | 攻撃力高いモンスター優先、コスト低いカード使用 | 上級技持ち優先、魔法/フィールドカード優先 |
 | 攻撃対象 | 70%直接攻撃優先 | HP低い敵優先、倒せる敵を狙う | ダメージ効率最大化 |
 | 基本技 | 使用しない | 30%使用 | 60%使用 |
 | 上級技 | 使用しない | 常に使用 | 常に使用 |
 | トリガー | 使用しない | 50%使用 | 80%使用 |
 | 刹那詠唱 | 使用しない | 使用しない | 状況判断で使用 |
 | 魔法カード | 使用しない | 30%使用 | 50%使用 |
+
+**チャージ条件**:
+- 技を持っていないモンスターにはチャージしない
+- チャージカードはモンスターと同じ属性のものに限定
 
 #### Easy（かんたん）
 
@@ -490,10 +507,52 @@ export const normalStrategy = {
 
     return null;
   },
+
+  // チャージ判断（攻撃力が高いモンスターを優先）
+  chooseCharge(chargeableCards, chargeableMonsters, gameState) {
+    if (chargeableCards.length === 0 || chargeableMonsters.length === 0) return null;
+
+    // チャージが0のモンスターを優先（基本技を使えるようにする）
+    const noChargeMonsters = chargeableMonsters.filter(m => m.currentCharges === 0);
+    // チャージが1のモンスターも考慮（上級技を使えるようにする）
+    const oneChargeMonsters = chargeableMonsters.filter(m => m.currentCharges === 1);
+
+    let targetMonster = null;
+
+    // まずはチャージ0のモンスターから攻撃力が高いものを選択
+    if (noChargeMonsters.length > 0) {
+      noChargeMonsters.sort((a, b) => (b.monster.currentAttack || b.monster.attack || 0) - (a.monster.currentAttack || a.monster.attack || 0));
+      targetMonster = noChargeMonsters[0];
+    } else if (oneChargeMonsters.length > 0) {
+      // チャージ1のモンスターから上級技を持つものを優先
+      const withAdvanced = oneChargeMonsters.filter(m => m.monster.advancedSkill);
+      if (withAdvanced.length > 0) {
+        withAdvanced.sort((a, b) => (b.monster.currentAttack || b.monster.attack || 0) - (a.monster.currentAttack || a.monster.attack || 0));
+        targetMonster = withAdvanced[0];
+      }
+    }
+
+    if (!targetMonster) return null;
+
+    // チャージに使うカードはモンスターと同じ属性のものを選択
+    const targetAttribute = targetMonster.monster.attribute;
+    const sameAttributeCards = chargeableCards.filter(card => card.attribute === targetAttribute);
+
+    if (sameAttributeCards.length === 0) return null; // 同属性カードがなければチャージしない
+
+    // コストが低いものを優先（貴重なカードを温存）
+    const sortedCards = [...sameAttributeCards].sort((a, b) => (a.cost || 0) - (b.cost || 0));
+    const cardToCharge = sortedCards[0];
+
+    return {
+      card: cardToCharge,
+      monsterIndex: targetMonster.monsterIndex,
+    };
+  },
 };
 ```
 
-#### Hard（むずかしい）- 将来拡張
+#### Hard（むずかしい）
 
 ```javascript
 // src/engine/ai/strategies/hard.js
@@ -503,24 +562,106 @@ import { normalStrategy } from './normal';
 
 /**
  * Hard AI ストラテジー
- * - シナジーを考慮した召喚
+ * - フィールド状況を考慮した召喚
  * - ダメージ期待値を最大化する攻撃
  * - トリガー・刹那詠唱を積極的に使用
- * - 相手のカードを予測した行動
+ * - 戦略的なチャージ判断
  */
 export const hardStrategy = {
   ...normalStrategy, // Normal をベースに拡張
 
-  // TODO: シナジー評価による召喚判断
+  // フィールド状況を考慮した召喚
   chooseSummon(summonableCards, gameState) {
-    // 将来実装: カード間シナジーを評価
+    if (summonableCards.length === 0) return null;
+
+    const myMonsterCount = gameState.myField.filter(m => m).length;
+    const opponentMonsterCount = gameState.opponentField.filter(m => m).length;
+
+    // 相手より少ない場合は攻撃力が高いカードを優先
+    if (myMonsterCount < opponentMonsterCount) {
+      const sorted = [...summonableCards].sort((a, b) => (b.attack || 0) - (a.attack || 0));
+      return sorted[0];
+    }
+
     return normalStrategy.chooseSummon(summonableCards, gameState);
   },
 
-  // TODO: ダメージ期待値計算
-  chooseAttackTarget(validTargets, attacker, gameState) {
-    // 将来実装: 全パターンのダメージ期待値を計算
-    return normalStrategy.chooseAttackTarget(validTargets, attacker, gameState);
+  // スキルを積極的に使用
+  chooseSkill(usableSkills, gameState) {
+    if (usableSkills.length === 0) return null;
+
+    // 上級技があれば必ず使用
+    const advancedSkills = usableSkills.filter(s => s.skillType === 'advanced');
+    if (advancedSkills.length > 0) {
+      return advancedSkills[0];
+    }
+
+    // 基本技は60%の確率で使用
+    if (Math.random() < 0.6) {
+      return usableSkills[0];
+    }
+
+    return null;
+  },
+
+  // 戦略的なチャージ判断
+  chooseCharge(chargeableCards, chargeableMonsters, gameState) {
+    if (chargeableCards.length === 0 || chargeableMonsters.length === 0) return null;
+
+    const noChargeMonsters = chargeableMonsters.filter(m => m.currentCharges === 0);
+    const oneChargeMonsters = chargeableMonsters.filter(m => m.currentCharges === 1);
+
+    let targetMonster = null;
+
+    // 上級技を持つモンスターで、チャージが1のものを優先（すぐ上級技が使える）
+    const oneChargeWithAdvanced = oneChargeMonsters.filter(m => m.monster.advancedSkill);
+    if (oneChargeWithAdvanced.length > 0) {
+      oneChargeWithAdvanced.sort((a, b) =>
+        (b.monster.currentAttack || b.monster.attack || 0) - (a.monster.currentAttack || a.monster.attack || 0)
+      );
+      targetMonster = oneChargeWithAdvanced[0];
+    } else if (noChargeMonsters.length > 0) {
+      // 基本技を持つモンスターを優先
+      const withBasic = noChargeMonsters.filter(m => m.monster.basicSkill);
+      if (withBasic.length > 0) {
+        withBasic.sort((a, b) =>
+          (b.monster.currentAttack || b.monster.attack || 0) - (a.monster.currentAttack || a.monster.attack || 0)
+        );
+        targetMonster = withBasic[0];
+      } else {
+        // 上級技のみ持つモンスターにもチャージ
+        noChargeMonsters.sort((a, b) =>
+          (b.monster.currentAttack || b.monster.attack || 0) - (a.monster.currentAttack || a.monster.attack || 0)
+        );
+        targetMonster = noChargeMonsters[0];
+      }
+    } else if (oneChargeMonsters.length > 0) {
+      oneChargeMonsters.sort((a, b) =>
+        (b.monster.currentAttack || b.monster.attack || 0) - (a.monster.currentAttack || a.monster.attack || 0)
+      );
+      targetMonster = oneChargeMonsters[0];
+    }
+
+    if (!targetMonster) return null;
+
+    // チャージに使うカードはモンスターと同じ属性のものを選択
+    const targetAttribute = targetMonster.monster.attribute;
+    const sameAttributeCards = chargeableCards.filter(card => card.attribute === targetAttribute);
+
+    if (sameAttributeCards.length === 0) return null;
+
+    // 魔法カードやフィールドカードを優先（モンスターは温存）
+    const sortedCards = [...sameAttributeCards].sort((a, b) => {
+      if (a.type !== 'monster' && b.type === 'monster') return -1;
+      if (a.type === 'monster' && b.type !== 'monster') return 1;
+      return (a.cost || 0) - (b.cost || 0);
+    });
+    const cardToCharge = sortedCards[0];
+
+    return {
+      card: cardToCharge,
+      monsterIndex: targetMonster.monsterIndex,
+    };
   },
 
   // 刹那詠唱を積極的に使用
@@ -534,8 +675,49 @@ export const hardStrategy = {
       const endangered = myMonsters.some(m => m.currentHp <= attackDamage);
 
       if (endangered) {
-        return availableSetsunaCards[0]; // 最初の刹那カードを使用
+        const damageSetsuna = availableSetsunaCards.find(c =>
+          c.effect?.includes('ダメージ') || c.effect?.includes('破壊')
+        );
+        if (damageSetsuna) return damageSetsuna;
       }
+    }
+
+    // バトル開始時は50%で発動
+    if (chainContext.type === 'battleStart') {
+      if (Math.random() < 0.5 && availableSetsunaCards.length > 0) {
+        return availableSetsunaCards[0];
+      }
+    }
+
+    return null;
+  },
+
+  // トリガーを積極的に発動（80%）
+  chooseTrigger(activatableTriggers, gameState) {
+    if (activatableTriggers.length === 0) return null;
+    if (Math.random() < 0.8) {
+      return activatableTriggers[0];
+    }
+    return null;
+  },
+
+  // 魔法カードを状況に応じて使用（50%）
+  chooseMagicCard(usableMagicCards, gameState) {
+    if (usableMagicCards.length === 0) return null;
+
+    // ダメージ系・回復系を優先
+    const priorityCards = usableMagicCards.filter(c =>
+      c.effect?.includes('ダメージ') ||
+      c.effect?.includes('回復') ||
+      c.effect?.includes('ドロー')
+    );
+
+    if (priorityCards.length > 0) {
+      return priorityCards[0];
+    }
+
+    if (Math.random() < 0.5) {
+      return usableMagicCards[0];
     }
 
     return null;
@@ -631,6 +813,34 @@ export function getEmptySlots(gameState) {
   return gameState.myField
     .map((m, i) => m === null ? i : -1)
     .filter(i => i >= 0);
+}
+
+/**
+ * チャージ可能なモンスターを取得
+ * チャージ枚数が2未満で、かつ技を持っているモンスターを返す
+ */
+export function getChargeableMonsters(gameState) {
+  const chargeableMonsters = [];
+  gameState.myField.forEach((monster, index) => {
+    if (!monster) return;
+    const charges = monster.charges?.length || 0;
+    // 技を持っていないモンスターにはチャージしない
+    const hasSkill = monster.basicSkill || monster.advancedSkill;
+    if (charges < 2 && hasSkill) {
+      chargeableMonsters.push({ monsterIndex: index, monster, currentCharges: charges });
+    }
+  });
+  return chargeableMonsters;
+}
+
+/**
+ * チャージに使用可能なカードを取得
+ * モンスター、魔法、フィールドカードがチャージ可能
+ */
+export function getChargeableCards(gameState) {
+  return gameState.myHand.filter(card => {
+    return card.type === 'monster' || card.type === 'magic' || card.type === 'field';
+  });
 }
 
 /**
@@ -1395,10 +1605,11 @@ if (selectMode && onSelect && result.selectedCards) {
 |-----------|------|---------|
 | 1.0 | 2025-11-27 | 初版作成 |
 | 1.1 | 2025-11-27 | 実装完了、バトルフェイズ修正、デッキ確認修正 |
+| 1.2 | 2025-11-27 | チャージ機能追加（Normal/Hard）、属性チェック・技チェック条件追加 |
 
 ---
 
-**ドキュメントバージョン**: 1.1
+**ドキュメントバージョン**: 1.2
 **作成日**: 2025-11-27
 **最終更新**: 2025-11-27
 **対象**: Magic Spirit AIプレイヤーシステム

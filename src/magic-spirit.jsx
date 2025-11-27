@@ -1829,10 +1829,13 @@ export default function MagicSpiritGame() {
             // トリガー発動ロジック（簡易実装）
             addLog(`AI: トリガー発動`, 'info');
           },
+          chargeCard: (card, monsterIndex) => chargeCard(card, monsterIndex),
           nextPhase: () => nextPhase(),
         };
 
-        executeAIMainPhaseAction(aiGameState, actions, strategy, {});
+        executeAIMainPhaseAction(aiGameState, actions, strategy, {
+          chargeUsedThisTurn,
+        });
       }, AI_DELAY.MEDIUM);
       return () => clearTimeout(timeoutId);
     }
@@ -1858,7 +1861,7 @@ export default function MagicSpiritGame() {
     p1ActiveSP, p2ActiveSP, p1RestedSP, p2RestedSP,
     p1FieldCard, p2FieldCard, p1PhaseCard, p2PhaseCard,
     pendingHandSelection, pendingMonsterTarget, pendingGraveyardSelection, pendingDeckReview,
-    chainConfirmation, aiAttackedMonsters,
+    chainConfirmation, aiAttackedMonsters, chargeUsedThisTurn,
   ]);
 
   // ハンドカードクリック
