@@ -898,10 +898,13 @@ export default function MagicSpiritGame() {
       const initialEffectText = getPhaseCardStageText(card, 0);
       if (initialEffectText) {
         addLog(`【初期効果】: ${initialEffectText}`, 'info');
-        // 初期効果はトリガーシステムで処理されるものが多い（【自分エンドフェイズ時】など）
-        // 即時効果の場合は executeSkillEffects で実行可能
-        // executeSkillEffects(initialEffectText, context, card.id);
       }
+
+      // フェイズカードのトリガーを登録
+      registerCardTriggers(initializedPhaseCard, currentPlayer, null);
+
+      // 【発動時】トリガーを発火
+      fireTrigger(TRIGGER_TYPES.ON_PHASE_CARD_ACTIVATE, context);
 
       return true;
     }
