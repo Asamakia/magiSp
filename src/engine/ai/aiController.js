@@ -385,8 +385,9 @@ export function handleAIDeckReview(pendingDeckReview, gameState, strategy) {
 
   const result = strategy.chooseFromDeckReview(cards, { selectMode }, gameState);
 
-  if (selectMode && onSelect && result.selectedCard) {
-    onSelect(result.selectedCard);
+  if (selectMode && onSelect && result.selectedCards) {
+    // onSelect(selectedCards, remainingCards) の形式で呼び出し
+    onSelect(result.selectedCards, result.remainingCards);
     return true;
   }
 

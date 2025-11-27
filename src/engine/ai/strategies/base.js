@@ -139,7 +139,11 @@ export const baseStrategy = {
    */
   chooseFromDeckReview(cards, options, gameState) {
     if (options.selectMode && cards.length > 0) {
-      return { selectedCard: randomPick(cards) };
+      // 選択するカードをランダムに1枚選ぶ
+      const selectedCard = randomPick(cards);
+      const selectedCards = [selectedCard];
+      const remainingCards = cards.filter(c => c.uniqueId !== selectedCard.uniqueId);
+      return { selectedCards, remainingCards };
     }
     // 並び替えはそのまま
     return { reorderedCards: cards };
