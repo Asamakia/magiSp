@@ -71,6 +71,7 @@ export const primitiveCardTriggers = {
           uniqueId: `${card.id}_split_${Date.now()}`,
           attack: Math.floor(card.attack / 2),
           currentAttack: Math.floor(card.attack / 2),
+          owner: currentPlayer, // 常時効果のターゲット判定用
         };
 
         const newField = [...currentField];
@@ -118,6 +119,7 @@ export const primitiveCardTriggers = {
           currentHp: 100,
           category: '【プラント】【スライム】',
           canAttack: false,
+          owner: currentPlayer, // 常時効果のターゲット判定用
         };
 
         const newField = [...currentField];
@@ -251,14 +253,6 @@ export const primitiveCardTriggers = {
           return false;
         }
 
-        // 復活処理
-        const revivedCard = {
-          ...card,
-          hasRevived: true,
-          currentHp: card.hp,
-          effectDisabled: true,
-        };
-
         const {
           currentPlayer,
           p1Field,
@@ -267,6 +261,15 @@ export const primitiveCardTriggers = {
           setP2Field,
           slotIndex,
         } = context;
+
+        // 復活処理
+        const revivedCard = {
+          ...card,
+          hasRevived: true,
+          currentHp: card.hp,
+          effectDisabled: true,
+          owner: currentPlayer, // 常時効果のターゲット判定用（再設定）
+        };
 
         const currentField = currentPlayer === 1 ? p1Field : p2Field;
         const setField = currentPlayer === 1 ? setP1Field : setP2Field;

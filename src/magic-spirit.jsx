@@ -720,6 +720,7 @@ export default function MagicSpiritGame() {
 
       const monsterInstance = createMonsterInstance(card);
       monsterInstance.canAttack = false; // 召喚ターンは攻撃不可
+      monsterInstance.owner = currentPlayer; // 常時効果のターゲット判定用
 
       // フィールドにモンスターを配置
       if (currentPlayer === 1) {
@@ -911,31 +912,35 @@ export default function MagicSpiritGame() {
     }
 
     if (card.type === 'field') {
+      // フィールドカードにowner情報を追加
+      const fieldCardInstance = { ...card, owner: currentPlayer };
+
       if (currentPlayer === 1) {
-        setP1FieldCard(card);
+        setP1FieldCard(fieldCardInstance);
         setP1Hand(prev => prev.filter(c => c.uniqueId !== card.uniqueId));
         setP1ActiveSP(prev => prev - card.cost);
         setP1RestedSP(prev => prev + card.cost);
       } else {
-        setP2FieldCard(card);
+        setP2FieldCard(fieldCardInstance);
         setP2Hand(prev => prev.filter(c => c.uniqueId !== card.uniqueId));
         setP2ActiveSP(prev => prev - card.cost);
         setP2RestedSP(prev => prev + card.cost);
       }
 
       // 常時効果を登録
-      continuousEffectEngine.register(card, currentPlayer);
+      continuousEffectEngine.register(fieldCardInstance, currentPlayer);
 
       addLog(`プレイヤー${currentPlayer}: ${card.name}を設置！`, 'info');
       return true;
     }
 
     if (card.type === 'phasecard') {
-      // フェイズカードに段階情報とチャージ配列を追加
+      // フェイズカードに段階情報とチャージ配列とowner情報を追加
       const initializedPhaseCard = {
         ...card,
         stage: 0,           // 初期段階
         charges: [],        // チャージされたカード
+        owner: currentPlayer, // 常時効果のターゲット判定用
       };
 
       if (currentPlayer === 1) {
