@@ -864,6 +864,7 @@ export default function MagicSpiritGame() {
       // フェイズカードの初期効果を実行
       const context = {
         currentPlayer,
+        card: initializedPhaseCard, // 発動元のフェイズカード（トリガーフィルタリング用）
         monsterIndex: null,
         setP1Life,
         setP2Life,
