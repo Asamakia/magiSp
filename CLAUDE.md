@@ -34,18 +34,18 @@ Currently a **prototype version** with local 2-player gameplay.
   - Added dedicated magic card activation button for clearer UX
   - Separated magic card activation from phase transition logic
 - **2025-11-26 (Phase 6 - Trigger System)**: Comprehensive trigger system implemented ⭐
-  - 26 generic trigger types (reduced from 51 specific types)
+  - 27 generic trigger types (reduced from 51 specific types)
   - Automatic vs optional trigger distinction
   - Card-bound UI integration (triggers shown with skills)
   - Priority-based trigger execution
   - Turn-based usage flags and lifecycle management
   - ~1230 lines of new trigger infrastructure
-  - **220 cards with trigger implementations across 7 attributes** (~7500 lines)
+  - **221 cards with trigger implementations across 7 attributes** (~7600 lines)
     - Fire (炎): 33 cards (819 lines)
     - Water (水): 37 cards (1122 lines) - includes 3 graveyard triggers
     - Light (光): 47 cards (1309 lines)
     - Dark (闇): 45 cards (1591 lines)
-    - Future (未来): 12 cards (504 lines)
+    - Future (未来): 13 cards (~600 lines) - includes ON_LEAVE_FIELD trigger
     - Primitive (原始): 28 cards (1306 lines)
     - Neutral (なし): 18 cards (758 lines) - includes graveyard/field/phase card triggers
 - **2025-11-26 (Graveyard Triggers)**: Graveyard trigger system implemented ⭐
@@ -218,8 +218,8 @@ Currently a **prototype version** with local 2-player gameplay.
 - Central registry in `index.js`
 - Template file for new card effects
 
-**`src/engine/triggerTypes.js`** (Trigger type definitions - 372 lines) ⭐ **NEW**
-- 26 generic trigger types (召喚時, 破壊時, フェイズ, etc.)
+**`src/engine/triggerTypes.js`** (Trigger type definitions - 380 lines) ⭐ **NEW**
+- 27 generic trigger types (召喚時, 破壊時, 場を離れる時, フェイズ, etc.)
 - Activation types: AUTOMATIC vs OPTIONAL
 - Priority system (HIGHEST, HIGH, NORMAL, LOW, LOWEST)
 - Helper functions for trigger metadata
@@ -1287,8 +1287,8 @@ console.log('Executing effect:', type, value, target);
    - Effect helper library with 9 reusable functions
    - Hybrid approach: generic + card-specific effects
 4. ✅ **~~Trigger system~~**: COMPLETED - Comprehensive trigger system implemented (2025-11-26)
-   - 220 cards with triggers across 7 attributes (~7270 lines)
-   - 26 generic trigger types with automatic/optional distinction
+   - 221 cards with triggers across 7 attributes (~7600 lines)
+   - 27 generic trigger types with automatic/optional distinction
    - Priority-based execution and turn-based lifecycle management
 5. ✅ **~~Deck selection~~**: COMPLETED - Basic deck selection feature (2025-11-26)
    - Predefined deck selection UI on title screen

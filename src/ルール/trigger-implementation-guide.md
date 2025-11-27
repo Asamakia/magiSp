@@ -117,10 +117,11 @@ export const TRIGGER_TYPES = {
   // ... その他の召喚時トリガー
 
   // ========================================
-  // 破壊時トリガー (7種類)
+  // 破壊時トリガー (8種類)
   // ========================================
   ON_DESTROY_SELF: 'on_destroy_self', // 【自壊時】
   ON_SELF_BREAK: 'on_self_break', // 【自破壊時】（自壊時と同じ）
+  ON_LEAVE_FIELD: 'on_leave_field', // 【場を離れる時】（破壊、手札戻し、デッキ戻し等全て）
   ON_DRAGON_DESTROYED: 'on_dragon_destroyed', // 【ドラゴンが破壊された時】
   ON_LIGHT_BEFORE_DESTROY: 'on_light_before_destroy', // 【光属性モンスターが破壊される時】
   // ... その他の破壊時トリガー
@@ -583,7 +584,7 @@ const destroyMonster = (targetIndex, isOpponent = false) => {
   if (!monster) return;
 
   // ✨【自壊時】トリガーの発火
-  fireTrigger(TRIGGER_TYPES.ON_DESTROY_SELF, {
+  const destroyContext = {
     destroyedCard: monster,
     slotIndex: targetIndex,
     isOpponent,
@@ -598,7 +599,12 @@ const destroyMonster = (targetIndex, isOpponent = false) => {
     setP1Graveyard, setP2Graveyard,
     // ヘルパー
     addLog,
-  });
+  };
+  fireTrigger(TRIGGER_TYPES.ON_DESTROY_SELF, destroyContext);
+
+  // ✨【場を離れる時】トリガーの発火
+  // 破壊、手札戻し、デッキ戻しなど全ての場離れで発動
+  fireLeaveFieldTrigger(monster, destroyContext, 'destroy');
 
   // ✨ トリガーの削除
   clearCardTriggers(monster.uniqueId);
