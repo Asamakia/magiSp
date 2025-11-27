@@ -32,6 +32,7 @@ import {
   getNextStageDescription,
 } from './engine/phaseCardEffects';
 import { continuousEffectEngine } from './engine/continuousEffects';
+import { statusEffectEngine, STATUS_EFFECT_TYPES, getStatusDisplayName } from './engine/statusEffects';
 import {
   isSetsunaMagic,
   getSetsunaCost,
@@ -96,6 +97,10 @@ export default function MagicSpiritGame() {
   const [p2RestedSP, setP2RestedSP] = useState(0);
   const [p2FieldCard, setP2FieldCard] = useState(null);
   const [p2PhaseCard, setP2PhaseCard] = useState(null);
+
+  // プレイヤー状態異常（毒など）
+  const [p1StatusEffects, setP1StatusEffects] = useState([]);
+  const [p2StatusEffects, setP2StatusEffects] = useState([]);
 
   // UI状態
   const [selectedHandCard, setSelectedHandCard] = useState(null);
@@ -220,6 +225,11 @@ export default function MagicSpiritGame() {
     // 常時効果システムをクリア
     continuousEffectEngine.clear();
 
+    // 状態異常システムをクリア
+    statusEffectEngine.clear();
+    setP1StatusEffects([]);
+    setP2StatusEffects([]);
+
     setGameState('playing');
     addLog('ゲーム開始！先攻プレイヤー1のターン', 'info');
   }, [addLog, allCards, p1SelectedDeck, p2SelectedDeck]);
@@ -322,6 +332,18 @@ export default function MagicSpiritGame() {
         player.setField(prev => prev.map(m => m ? { ...m, canAttack: true } : null));
         setChargeUsedThisTurn(false);
 
+        // 状態異常のターン開始時処理（眠り・凍結の解除判定）
+        player.setField(prev => prev.map(m => {
+          if (!m) return null;
+          const result = statusEffectEngine.processTurnStart(m);
+          if (result.removedEffects.length > 0) {
+            result.removedEffects.forEach(effect => {
+              addLog(`${m.name}の${getStatusDisplayName(effect.type)}が解除された！`, 'info');
+            });
+          }
+          return result.monster;
+        }));
+
         // ターン開始時トリガーを発火
         fireTrigger(TRIGGER_TYPES.ON_TURN_START_SELF, triggerContext);
 
@@ -387,6 +409,37 @@ export default function MagicSpiritGame() {
           });
         }
 
+        // 状態異常のエンドフェイズ処理（深蝕による攻撃力減少、持続時間減少）
+        player.setField(prev => prev.map(m => {
+          if (!m) return null;
+          const result = statusEffectEngine.processEndPhase(m);
+          // 深蝕による攻撃力減少ログ
+          if (result.atkReduction > 0) {
+            addLog(`${m.name}は深蝕により攻撃力が${result.atkReduction}減少！`, 'damage');
+          }
+          // 持続時間終了で解除されたエフェクトのログ
+          if (result.removedEffects.length > 0) {
+            result.removedEffects.forEach(effect => {
+              addLog(`${m.name}の${getStatusDisplayName(effect.type)}が解除された！`, 'info');
+            });
+          }
+          return result.monster;
+        }));
+
+        // プレイヤー状態異常のエンドフェイズ処理（毒ダメージ等）
+        const playerStatusEffects = currentPlayer === 1 ? p1StatusEffects : p2StatusEffects;
+        const poisonResult = statusEffectEngine.processPlayerEndPhase(playerStatusEffects);
+        if (poisonResult.damage > 0) {
+          player.setLife(prev => Math.max(0, prev - poisonResult.damage));
+          addLog(`プレイヤー${currentPlayer}は毒により${poisonResult.damage}ダメージ！`, 'damage');
+        }
+        // プレイヤー状態異常の更新（持続時間減少）
+        if (currentPlayer === 1) {
+          setP1StatusEffects(poisonResult.effects);
+        } else {
+          setP2StatusEffects(poisonResult.effects);
+        }
+
         // ターン終了時に使用済みフラグをリセット
         resetTurnFlags();
         continuousEffectEngine.resetTurnFlags();
@@ -404,7 +457,7 @@ export default function MagicSpiritGame() {
         break;
     }
   }, [currentPlayer, isFirstTurn, p1Field, p2Field, p1Hand, p2Hand, p1Deck, p2Deck,
-      p1Graveyard, p2Graveyard, p1Life, p2Life, addLog]);
+      p1Graveyard, p2Graveyard, p1Life, p2Life, p1StatusEffects, p2StatusEffects, addLog]);
 
   // チャージ処理
   const chargeCard = useCallback((card, monsterIndex) => {
@@ -606,6 +659,13 @@ export default function MagicSpiritGame() {
 
     if (!monster) {
       addLog('モンスターが存在しません', 'damage');
+      return false;
+    }
+
+    // 状態異常による技使用制限をチェック（眠り、雷撃、効果無効）
+    if (!statusEffectEngine.canUseSkill(monster)) {
+      const statusName = statusEffectEngine.getBlockingStatusName(monster, 'skill');
+      addLog(`${monster.name}は${statusName}により技を使用できません！`, 'damage');
       return false;
     }
 
@@ -1084,26 +1144,51 @@ export default function MagicSpiritGame() {
       return;
     }
 
+    // 状態異常による攻撃制限をチェック（眠り、凍結、行動不能）
+    if (!statusEffectEngine.canAttack(attacker)) {
+      const statusName = statusEffectEngine.getBlockingStatusName(attacker, 'attack');
+      addLog(`${attacker.name}は${statusName}により攻撃できません！`, 'damage');
+      return;
+    }
+
     const target = opponentField[targetIndex];
 
     // 常時効果による攻撃力修正を計算
     const attackerAtkMod = continuousEffectEngine.calculateAttackModifier(attacker, effectContext);
-    const effectiveAttackerAtk = attacker.currentAttack + attackerAtkMod;
+    // 状態異常による攻撃力修正を計算（凍結-50%、雷撃-500）
+    const attackerStatusMod = statusEffectEngine.getAttackModifier(attacker);
+    const effectiveAttackerAtk = Math.max(0, attacker.currentAttack + attackerAtkMod + attackerStatusMod);
 
     if (target) {
       // モンスター攻撃
       const targetAtkMod = continuousEffectEngine.calculateAttackModifier(target, { ...effectContext, effectOwner: currentPlayer === 1 ? 2 : 1 });
-      const effectiveTargetAtk = target.currentAttack + targetAtkMod;
+      const targetStatusMod = statusEffectEngine.getAttackModifier(target);
+      const effectiveTargetAtk = Math.max(0, target.currentAttack + targetAtkMod + targetStatusMod);
 
-      const damage = effectiveAttackerAtk;
+      let damage = effectiveAttackerAtk;
+      // 状態異常による被ダメージ倍率（濡れ: 2倍）
+      const damageMultiplier = statusEffectEngine.getDamageMultiplier(target);
+      damage = Math.floor(damage * damageMultiplier);
+      // 状態異常による軽減（守護: 50%）
+      const { reduction, usedGuard, updatedMonster: targetAfterGuard } = statusEffectEngine.calculateDamageReduction(target, damage);
+      damage = Math.max(0, damage - reduction);
+
       const counterDamage = Math.floor(effectiveTargetAtk * COUNTER_ATTACK_RATE);
 
       addLog(`${attacker.name}が${target.name}を攻撃！`, 'info');
 
       // ダメージ処理（新しいオブジェクトを作成）
-      const newTargetHp = target.currentHp - damage;
+      // 守護を使用した場合、更新されたモンスターを使用
+      const targetForDamage = usedGuard ? targetAfterGuard : target;
+      const newTargetHp = targetForDamage.currentHp - damage;
       const newAttackerHp = attacker.currentHp - counterDamage;
 
+      if (damageMultiplier > 1) {
+        addLog(`${target.name}は濡れ状態でダメージ増加！`, 'info');
+      }
+      if (usedGuard) {
+        addLog(`${target.name}の守護でダメージ軽減！`, 'info');
+      }
       addLog(`${target.name}に${damage}ダメージ！`, 'damage');
       addLog(`反撃で${attacker.name}に${counterDamage}ダメージ！`, 'damage');
 
@@ -1157,7 +1242,8 @@ export default function MagicSpiritGame() {
         } else {
           setP2Field(prev => {
             const newField = [...prev];
-            newField[targetIndex] = { ...target, currentHp: newTargetHp };
+            // 守護使用後のモンスター状態を反映
+            newField[targetIndex] = { ...targetForDamage, currentHp: newTargetHp };
             return newField;
           });
         }
@@ -1263,7 +1349,8 @@ export default function MagicSpiritGame() {
         } else {
           setP1Field(prev => {
             const newField = [...prev];
-            newField[targetIndex] = { ...target, currentHp: newTargetHp };
+            // 守護使用後のモンスター状態を反映
+            newField[targetIndex] = { ...targetForDamage, currentHp: newTargetHp };
             return newField;
           });
         }
