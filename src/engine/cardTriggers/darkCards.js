@@ -24,6 +24,7 @@
  */
 
 import { TRIGGER_TYPES, ACTIVATION_TYPES } from '../triggerTypes';
+import { unregisterCardTriggers } from '../triggerEngine';
 import {
   millDeck,
   millOpponentDeck,
@@ -1064,6 +1065,10 @@ export const darkCardTriggers = {
           setP2Deck,
           setP1FieldCard,
           setP2FieldCard,
+          setP1Graveyard,
+          setP2Graveyard,
+          p1FieldCard,
+          p2FieldCard,
           addLog,
           registerCardTriggers,
           continuousEffectEngine,
@@ -1072,6 +1077,8 @@ export const darkCardTriggers = {
         const deck = currentPlayer === 1 ? p1Deck : p2Deck;
         const setDeck = currentPlayer === 1 ? setP1Deck : setP2Deck;
         const setFieldCard = currentPlayer === 1 ? setP1FieldCard : setP2FieldCard;
+        const setGraveyard = currentPlayer === 1 ? setP1Graveyard : setP2Graveyard;
+        const existingFieldCard = currentPlayer === 1 ? p1FieldCard : p2FieldCard;
 
         // デッキから《呪縛の塔・ヴェルナクール》(C0000386)を検索
         const cardIndex = deck.findIndex((card) => card.id === 'C0000386');
@@ -1079,6 +1086,20 @@ export const darkCardTriggers = {
         if (cardIndex === -1) {
           addLog('デッキに《呪縛の塔・ヴェルナクール》がない', 'info');
           return;
+        }
+
+        // 既存のフィールドカードがある場合は墓地に送る
+        if (existingFieldCard) {
+          // 既存カードのトリガーと常時効果を解除
+          if (existingFieldCard.uniqueId) {
+            unregisterCardTriggers(existingFieldCard.uniqueId);
+            if (continuousEffectEngine) {
+              continuousEffectEngine.unregister(existingFieldCard.uniqueId);
+            }
+          }
+          // 墓地に送る
+          setGraveyard((prev) => [...prev, existingFieldCard]);
+          addLog(`${existingFieldCard.name}が墓地に送られた`, 'info');
         }
 
         const fieldCard = { ...deck[cardIndex], owner: currentPlayer, uniqueId: `${deck[cardIndex].id}_${Date.now()}_${Math.random()}` };
