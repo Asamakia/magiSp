@@ -671,6 +671,7 @@ export const waterCardEffects = {
   /**
    * C0000046: 泡沫の精霊
    * 基本技：このカードをリリースすると、次の水属性モンスターの召喚コストを2軽減する
+   * ※ skillTextには「基本技：」プレフィックスが含まれないため、効果テキストで判定
    */
   C0000046: (skillText, context) => {
     const {
@@ -684,7 +685,8 @@ export const waterCardEffects = {
       monsterIndex,
     } = context;
 
-    if (skillText.includes('基本技')) {
+    // 効果テキストで判定（「リリース」と「コスト」を含む場合）
+    if (skillText.includes('リリース') && skillText.includes('コスト')) {
       const currentField = currentPlayer === 1 ? p1Field : p2Field;
       const setField = currentPlayer === 1 ? setP1Field : setP2Field;
       const setGraveyard = currentPlayer === 1 ? setP1Graveyard : setP2Graveyard;
