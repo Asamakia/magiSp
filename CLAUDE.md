@@ -125,8 +125,8 @@ Currently a **prototype version** with local 2-player gameplay.
     - C0000142 ブリザードマスター: デッキ選択UI対応 (複数候補から選択可能)
     - C0000046 泡沫の精霊: 基本技修正 (skillType判定に変更)
     - C0000144 ブリザードキャット・フロスト: 基本技実装 (ATK半分ダメージ)
-- **2025-11-27 (AI Player System)**: Comprehensive AI player system implemented ⭐⭐⭐⭐⭐ **NEW**
-  - **AI system foundation** (`src/engine/ai/`) with ~1,015 lines of new code
+- **2025-11-27 (AI Player System)**: Comprehensive AI player system implemented ⭐⭐⭐⭐⭐
+  - **AI system foundation** (`src/engine/ai/`) with ~1,211 lines of code
   - **3 difficulty levels**: Easy (かんたん), Normal (ふつう), Hard (むずかしい)
   - **Per-player AI control**: P1 and P2 can each be set to human or AI independently
   - **Title screen AI settings UI**: Player type and difficulty selection
@@ -134,6 +134,19 @@ Currently a **prototype version** with local 2-player gameplay.
   - **Special case handling**: Hand selection, monster target, graveyard selection, deck review, chain confirmation
   - **AI vs AI auto-battle**: Full automated gameplay support
   - **Documentation**: `src/ルール/ai-player-system-design.md` (~1,400 lines)
+- **2025-11-27 (AI Charge Mechanics)**: AI charge functionality ⭐
+  - **AI charge decision**: AI can now charge monsters to empower them
+  - **Charge conditions**: Intelligent targeting for charge actions
+- **2025-11-27 (Bug Fixes & Card Implementations)**: Multiple fixes and new card effects ⭐⭐ **NEW**
+  - **Fixed log duplication**: setState callback内のaddLog呼び出しを修正
+  - **Fixed monster removal**: 魔法・技によるダメージでHP0になったモンスターが墓地送りされないバグを修正
+  - **Fixed field card overwrite**: フィールドカード上書き時に既存カードを墓地に送る処理を追加
+  - **Game log expansion**: ログ保持量を拡張（より多くの履歴を表示）
+  - **New card effects implemented**:
+    - C0000393 黒呪・カルヴェリオンの灰嵐 (闇属性魔法)
+    - 魔女エリザヴェット・ヴェイルの基本技
+    - ブリザードキャット・スノウの基本技
+    - フレア・ドラゴンの基本技
 
 ---
 
@@ -150,7 +163,7 @@ Currently a **prototype version** with local 2-player gameplay.
 │
 ├── src/
 │   ├── App.js                  # Main app component (renders MagicSpiritGame)
-│   ├── magic-spirit.jsx        # Main game logic (2482 lines) ⭐
+│   ├── magic-spirit.jsx        # Main game logic (~4300 lines) ⭐
 │   │
 │   ├── utils/                  # Utility functions
 │   │   ├── constants.js        # Game constants (30 lines)
@@ -168,11 +181,11 @@ Currently a **prototype version** with local 2-player gameplay.
 │   │
 │   ├── engine/                 # Game logic engines ⭐⭐
 │   │   ├── effectEngine.js     # Generic effect execution engine (563 lines)
-│   │   ├── effectHelpers.js    # Reusable effect helper functions (445 lines)
+│   │   ├── effectHelpers.js    # Reusable effect helper functions (~920 lines)
 │   │   ├── phaseCardEffects.js # Phase card stage effect parser (200 lines) ⭐ NEW
 │   │   ├── triggerTypes.js     # Trigger type definitions (372 lines) ⭐ NEW
 │   │   ├── triggerEngine.js    # Trigger lifecycle management (716 lines) ⭐ NEW
-│   │   ├── cardEffects/        # Card-specific effect implementations (~1695 lines)
+│   │   ├── cardEffects/        # Card-specific effect implementations (~2850 lines)
 │   │   │   ├── index.js        # Effect registry and exports
 │   │   │   ├── _template.js    # Template for new card effects
 │   │   │   ├── fire.js         # 炎属性 card effects
@@ -182,7 +195,7 @@ Currently a **prototype version** with local 2-player gameplay.
 │   │   │   ├── primitive.js    # 原始属性 card effects
 │   │   │   ├── future.js       # 未来属性 card effects
 │   │   │   └── neutral.js      # なし属性 card effects
-│   │   ├── cardTriggers/       # Card-specific trigger implementations (~7270 lines)
+│   │   ├── cardTriggers/       # Card-specific trigger implementations (~7950 lines)
 │   │   │   ├── fireCards.js      # 炎属性 trigger implementations (33 cards, 819 lines)
 │   │   │   ├── waterCards.js     # 水属性 trigger implementations (37 cards, 1122 lines)
 │   │   │   ├── lightCards.js     # 光属性 trigger implementations (37 cards, 1069 lines)
@@ -208,9 +221,9 @@ Currently a **prototype version** with local 2-player gameplay.
 │   │   │   ├── index.js          # Main exports
 │   │   │   ├── statusTypes.js    # Status type definitions and metadata
 │   │   │   └── statusEngine.js   # Main status effect engine
-│   │   └── ai/                 # AI player system (~1015 lines) ⭐⭐⭐⭐⭐ NEW
+│   │   └── ai/                 # AI player system (~1210 lines) ⭐⭐⭐⭐⭐
 │   │       ├── index.js          # Main exports (~50 lines)
-│   │       ├── aiController.js   # AI controller (~430 lines)
+│   │       ├── aiController.js   # AI controller (~530 lines)
 │   │       └── strategies/       # Strategy implementations
 │   │           ├── index.js      # Strategy selector (~30 lines)
 │   │           ├── base.js       # Base strategy (random) (~190 lines)
@@ -257,7 +270,7 @@ Currently a **prototype version** with local 2-player gameplay.
 
 ### Key Files
 
-**`src/magic-spirit.jsx`** (Main game component - ~2900 lines)
+**`src/magic-spirit.jsx`** (Main game component - ~4300 lines)
 - Game state management (React hooks)
 - Game flow control (phase progression, turn management)
 - Card summoning logic
@@ -271,7 +284,7 @@ Currently a **prototype version** with local 2-player gameplay.
 - Generic effect execution system
 - Delegates to card-specific effects when available
 
-**`src/engine/effectHelpers.js`** (Effect helpers - 446 lines) ⭐⭐ **Most Important**
+**`src/engine/effectHelpers.js`** (Effect helpers - ~920 lines) ⭐⭐ **Most Important**
 - Reusable effect helper functions
 - Common patterns: damage, heal, draw, search, revive, destroy
 - Field/graveyard manipulation utilities
@@ -285,8 +298,8 @@ Currently a **prototype version** with local 2-player gameplay.
 - `getStageName()` / `getStageShortName()` - 段階名ヘルパー
 - `getCurrentStageDescription()` / `getNextStageDescription()` - UI表示用
 
-**`src/engine/cardEffects/`** (Card-specific effects - ~1695 lines) ⭐⭐ **Most Important**
-- 108+ individual card implementations
+**`src/engine/cardEffects/`** (Card-specific effects - ~2850 lines) ⭐⭐ **Most Important**
+- 120+ individual card implementations
 - Organized by attribute (fire, water, light, dark, primitive, future, neutral)
 - Central registry in `index.js`
 - Template file for new card effects
@@ -310,7 +323,7 @@ Currently a **prototype version** with local 2-player gameplay.
   - `_SELF` triggers (ON_END_PHASE_SELF, etc.): fire only when `trigger.owner === currentPlayer`
   - `_OPPONENT` triggers (ON_OPPONENT_END_PHASE): fire only when `trigger.owner !== currentPlayer`
 
-**`src/engine/cardTriggers/`** (Card-specific trigger implementations - ~7300 lines, 221 cards)
+**`src/engine/cardTriggers/`** (Card-specific trigger implementations - ~7950 lines, 225+ cards)
 - **fireCards.js**: 炎属性 triggers (34 cards, ~850 lines) - includes field card ドラゴンの火山
 - **waterCards.js**: 水属性 triggers (37 cards, 1122 lines) - includes 3 graveyard triggers
 - **lightCards.js**: 光属性 triggers (37 cards, 1069 lines)
@@ -343,8 +356,8 @@ Currently a **prototype version** with local 2-player gameplay.
 - `createStackItem()`, `resolveStack()`: Stack management for Phase B preparation
 - Hybrid architecture: integrates with trigger/continuous effect systems
 
-**`src/engine/ai/`** (AI player system - ~1015 lines) ⭐⭐⭐⭐⭐ **NEW**
-- **aiController.js**: Main AI controller (~430 lines)
+**`src/engine/ai/`** (AI player system - ~1210 lines) ⭐⭐⭐⭐⭐
+- **aiController.js**: Main AI controller (~530 lines)
   - `createAIGameState()`: Game state snapshot for AI
   - `executeAIMainPhaseAction()`: Main phase AI logic
   - `executeAIBattlePhaseAction()`: Battle phase AI logic
@@ -495,10 +508,10 @@ The game uses React hooks with extensive state:
 
 ### Working with Game Logic
 
-**Main Game Logic**: Located in `src/magic-spirit.jsx` (2482 lines)
+**Main Game Logic**: Located in `src/magic-spirit.jsx` (~4300 lines)
 **Generic Effect System**: Located in `src/engine/effectEngine.js` (563 lines)
-**Card-Specific Effects**: Located in `src/engine/cardEffects/` (~1695 lines, 108+ cards)
-**Effect Helpers**: Located in `src/engine/effectHelpers.js` (445 lines)
+**Card-Specific Effects**: Located in `src/engine/cardEffects/` (~2850 lines, 120+ cards)
+**Effect Helpers**: Located in `src/engine/effectHelpers.js` (~920 lines)
 **Trigger System**: Located in `src/engine/` - triggerTypes.js, triggerEngine.js, cardTriggers/ ⭐ **NEW**
 **Card Management**: Located in `src/utils/cardManager.js` (253 lines)
 
@@ -568,15 +581,16 @@ Card Effect Execution Flow:
 
 **Three-Tier Effect System**:
 
-1. **Card-Specific Effects** (`src/engine/cardEffects/*.js`) - **108+ cards**
+1. **Card-Specific Effects** (`src/engine/cardEffects/*.js`) - **120+ cards**
    - Custom implementations for complex/unique cards
    - Organized by attribute (fire, water, light, dark, etc.)
    - Full control over effect behavior
    - Examples: C0000028 (炎竜母フレイマ), C0000161 (灯魔龍ランプデビル)
 
-2. **Effect Helpers** (`src/engine/effectHelpers.js`) - **9 helper functions**
+2. **Effect Helpers** (`src/engine/effectHelpers.js`) - **15+ helper functions**
    - Reusable patterns used by card-specific effects
    - Fully implemented: millDeck, conditionalDamage, searchCard, reviveFromGraveyard, destroyMonster, drawCards, healLife, modifyAttack, modifyHP
+   - Status effect helpers: selectAndApplyStatusToOpponent, applyStatusToOpponentMonster, applyStatusToAllOpponentMonsters, applyStatusToOwnMonster
 
 3. **Generic Effects** (`src/engine/effectEngine.js`) - **13 effect types**
    - ✅ DAMAGE: Direct damage to opponent
@@ -1512,8 +1526,8 @@ console.log('Executing effect:', type, value, target);
    - Per-player AI/human control
    - Strategy pattern for extensible decision-making
    - ~1,015 lines of new AI code
-7. **Remaining card effects**: Implement effects for remaining cards (433 total - 108 implemented)
-8. **Remaining card triggers**: Implement triggers for remaining cards (433 total - 220 implemented)
+7. **Remaining card effects**: Implement effects for remaining cards (433 total - 120+ implemented)
+8. **Remaining card triggers**: Implement triggers for remaining cards (433 total - 225+ implemented)
 9. **Card data format**: Convert CSV to JSON for better structure and validation
 10. **State management**: Consider Context API or Redux for complex state
 11. **TypeScript**: Add type safety to entire codebase
@@ -1763,11 +1777,18 @@ The Japanese text throughout suggests this may be for a Japanese audience or is 
   - Predefined deck selection UI on title screen
 - **2025-11-26 (Info Panel Fix)**: Fixed skill text duplication in info panel
   - Removed duplicate 基本技/上級技 display
+- **2025-11-27 (AI System & Bug Fixes)**: AI enhancements and critical bug fixes
+  - AI charge mechanics (monsters can now charge)
+  - Fixed log duplication in setState callbacks
+  - Fixed monster graveyard handling for magic/skill damage
+  - Fixed field card overwrite (existing card → graveyard)
+  - Game log history expansion
+  - New card effects: 黒呪・カルヴェリオンの灰嵐, エリザヴェット・ヴェイル, ブリザードキャット・スノウ, フレア・ドラゴン
 
 This is suitable for expansion into a full game or as a learning project for React and game development concepts.
 
 ---
 
-**Document Version**: 4.5
-**Last Updated**: 2025-11-27 (AI player system implementation)
+**Document Version**: 4.6
+**Last Updated**: 2025-11-27 (Bug fixes, new card implementations, AI charge mechanics)
 **For**: Magic Spirit (magiSp) Repository
