@@ -20,6 +20,17 @@ Magic Spiritにおいて、プレイヤー1およびプレイヤー2それぞれ
 3. **段階的実装**: ランダム→ヒューリスティック→高度AIへ段階的に拡張
 4. **callback活用**: 既存のcallback方式を利用してAIアクションを実行
 
+### 1.4 実装状況
+
+| 機能 | 状態 |
+|------|------|
+| プレイヤータイプ切り替え | ✅ 実装済み |
+| 難易度設定UI | ✅ 実装済み |
+| メインフェイズAI | ✅ 実装済み |
+| バトルフェイズAI | ✅ 実装済み |
+| 特殊ケース処理 | ✅ 実装済み |
+| デッキ専用AI | ⏳ 将来対応 |
+
 ---
 
 ## 2. システムアーキテクチャ
@@ -84,30 +95,26 @@ Magic Spiritにおいて、プレイヤー1およびプレイヤー2それぞれ
 └─────────────────────────────────────────────────────────────────┘
 ```
 
-### 2.2 ファイル構成
+### 2.2 ファイル構成（実装済み）
 
 ```
 src/
-├── magic-spirit.jsx          # 既存（最小限の追加のみ）
+├── magic-spirit.jsx          # 既存 + AI統合 (~2900行)
 │
 └── engine/
-    └── ai/                   # 新規ディレクトリ
-        ├── index.js          # エクスポート (~30行)
-        ├── aiController.js   # メインAIコントローラー (~250行)
-        ├── aiEvaluator.js    # 評価エンジン (~200行, 将来拡張)
+    └── ai/                   # AIシステム
+        ├── index.js          # エクスポート (~50行)
+        ├── aiController.js   # メインAIコントローラー (~430行)
         │
         └── strategies/       # ストラテジー群
-            ├── index.js      # ストラテジー取得 (~50行)
-            ├── base.js       # ベースストラテジー（ランダム）(~100行)
-            ├── easy.js       # 簡易AI (~50行)
-            ├── normal.js     # 中級AI (~100行)
-            ├── hard.js       # 上級AI (~150行, 将来拡張)
+            ├── index.js      # ストラテジー取得 (~30行)
+            ├── base.js       # ベースストラテジー（ランダム）(~190行)
+            ├── easy.js       # 簡易AI (~55行)
+            ├── normal.js     # 中級AI (~115行)
+            ├── hard.js       # 上級AI (~145行)
             │
             └── deckStrategies/  # デッキ専用（将来拡張）
-                ├── index.js
-                ├── dragon.js
-                ├── iceSleep.js
-                └── ...
+                └── (未実装)
 ```
 
 ---
@@ -361,6 +368,18 @@ function shuffleArray(array) {
 
 ### 4.2 難易度別ストラテジー
 
+#### 難易度比較表
+
+| 項目 | Easy（かんたん） | Normal（ふつう） | Hard（むずかしい） |
+|------|-----------------|-----------------|-------------------|
+| 召喚判断 | 30%スキップ、ランダム | コスト効率優先 | フィールド状況考慮 |
+| 攻撃対象 | 70%直接攻撃優先 | HP低い敵優先、倒せる敵を狙う | ダメージ効率最大化 |
+| 基本技 | 使用しない | 30%使用 | 60%使用 |
+| 上級技 | 使用しない | 常に使用 | 常に使用 |
+| トリガー | 使用しない | 50%使用 | 80%使用 |
+| 刹那詠唱 | 使用しない | 使用しない | 状況判断で使用 |
+| 魔法カード | 使用しない | 30%使用 | 50%使用 |
+
 #### Easy（かんたん）
 
 ```javascript
@@ -370,28 +389,29 @@ import { baseStrategy, randomPick } from './base';
 
 /**
  * Easy AI ストラテジー
- * - ランダムに1枚だけ召喚
- * - 攻撃は直接攻撃優先
- * - スキル・トリガーは使用しない
+ * - 30%の確率で召喚スキップ
+ * - 攻撃は70%で直接攻撃優先
+ * - スキル・トリガー・刹那・魔法は使用しない
  */
 export const easyStrategy = {
   ...baseStrategy,
 
-  // 1枚だけランダム召喚
+  // 30%の確率で召喚スキップ
   chooseSummon(summonableCards, gameState) {
     if (summonableCards.length === 0) return null;
-    // 50%の確率で召喚しない
-    if (Math.random() < 0.5) return null;
+    if (Math.random() < 0.3) return null;
     return randomPick(summonableCards);
   },
 
-  // 直接攻撃を優先
+  // 70%で直接攻撃優先
   chooseAttackTarget(validTargets, attacker, gameState) {
     if (validTargets.includes('direct')) {
       return Math.random() < 0.7 ? 'direct' : randomPick(validTargets);
     }
     return randomPick(validTargets);
   },
+
+  // スキル・トリガー・刹那・魔法は使用しない（baseStrategyのデフォルト）
 };
 ```
 
@@ -1175,59 +1195,61 @@ export function getStrategy(difficulty, deckStrategyId = null) {
 
 ## 8. 実装フェーズ
 
-### Phase 1: 基盤構築
+### Phase 1: 基盤構築 ✅ 完了
 
-| タスク | 内容 |
-|-------|------|
-| ファイル作成 | `src/engine/ai/` ディレクトリ構造 |
-| state追加 | p1/p2PlayerType, p1/p2AIDifficulty |
-| UI追加 | タイトル画面のプレイヤー設定 |
-| 基本フック | AIターン検出フック |
+| タスク | 内容 | 状態 |
+|-------|------|------|
+| ファイル作成 | `src/engine/ai/` ディレクトリ構造 | ✅ |
+| state追加 | p1/p2PlayerType, p1/p2AIDifficulty | ✅ |
+| UI追加 | タイトル画面のプレイヤー設定 | ✅ |
+| 基本フック | AIターン検出フック | ✅ |
 
-### Phase 2: ベースAI（ランダム）
+### Phase 2: ベースAI（ランダム） ✅ 完了
 
-| タスク | 内容 |
-|-------|------|
-| baseStrategy | 全メソッドをランダムで実装 |
-| aiController | 基本的なターン実行ロジック |
-| 統合テスト | AI vs 人間で動作確認 |
+| タスク | 内容 | 状態 |
+|-------|------|------|
+| baseStrategy | 全メソッドをランダムで実装 | ✅ |
+| aiController | 基本的なターン実行ロジック | ✅ |
+| 統合テスト | AI vs 人間で動作確認 | ✅ |
 
-### Phase 3: 特殊ケース対応
+### Phase 3: 特殊ケース対応 ✅ 完了
 
-| タスク | 内容 |
-|-------|------|
-| 手札選択 | pendingHandSelection のAI処理 |
-| ターゲット選択 | pendingMonsterTarget のAI処理 |
-| 墓地選択 | pendingGraveyardSelection のAI処理 |
-| チェーン確認 | chainConfirmation のAI処理 |
+| タスク | 内容 | 状態 |
+|-------|------|------|
+| 手札選択 | pendingHandSelection のAI処理 | ✅ |
+| ターゲット選択 | pendingMonsterTarget のAI処理 | ✅ |
+| 墓地選択 | pendingGraveyardSelection のAI処理 | ✅ |
+| デッキ確認 | pendingDeckReview のAI処理 | ✅ |
+| チェーン確認 | chainConfirmation のAI処理 | ✅ |
 
-### Phase 4: 難易度別AI
+### Phase 4: 難易度別AI ✅ 完了
 
-| タスク | 内容 |
-|-------|------|
-| easyStrategy | ランダム寄りの簡易AI |
-| normalStrategy | ヒューリスティックAI |
-| hardStrategy | 将来拡張用の枠組み |
+| タスク | 内容 | 状態 |
+|-------|------|------|
+| easyStrategy | ランダム寄りの簡易AI | ✅ |
+| normalStrategy | ヒューリスティックAI | ✅ |
+| hardStrategy | 上級AI（基本ロジック） | ✅ |
 
-### Phase 5: 調整・拡張
+### Phase 5: 調整・拡張 ⏳ 将来対応
 
-| タスク | 内容 |
-|-------|------|
-| AI思考演出 | 「考え中...」表示 |
-| バランス調整 | 難易度ごとの強さ調整 |
-| デッキ専用AI | 将来拡張の基盤 |
+| タスク | 内容 | 状態 |
+|-------|------|------|
+| AI思考演出 | 「考え中...」表示 | ⏳ |
+| バランス調整 | 難易度ごとの強さ調整 | ⏳ |
+| デッキ専用AI | 将来拡張の基盤 | ⏳ |
+| 評価エンジン | aiEvaluator.js | ⏳ |
 
 ---
 
 ## 9. 既存コードへの影響まとめ
 
-### 変更が必要なファイル
+### 変更したファイル
 
 | ファイル | 変更内容 | 影響度 |
 |---------|---------|-------|
-| `magic-spirit.jsx` | state追加(4行)、useEffect追加(1つ)、UI追加 | 軽微 |
+| `magic-spirit.jsx` | state追加(6行)、useRef追加、useEffect追加(2つ)、UI追加 | 軽微 |
 
-### 変更が不要なファイル
+### 変更なしのファイル
 
 - `src/engine/effectEngine.js`
 - `src/engine/effectHelpers.js`
@@ -1238,21 +1260,21 @@ export function getStrategy(difficulty, deckStrategyId = null) {
 - `src/utils/`
 - `src/styles/`
 
-### 新規作成ファイル
+### 新規作成ファイル（実装済み）
 
 ```
 src/engine/ai/
-├── index.js              (~30行)
-├── aiController.js       (~250行)
+├── index.js              (~50行)
+├── aiController.js       (~430行)
 └── strategies/
-    ├── index.js          (~50行)
-    ├── base.js           (~150行)
-    ├── easy.js           (~50行)
-    ├── normal.js         (~100行)
-    └── hard.js           (~50行, 将来拡張)
+    ├── index.js          (~30行)
+    ├── base.js           (~190行)
+    ├── easy.js           (~55行)
+    ├── normal.js         (~115行)
+    └── hard.js           (~145行)
 ```
 
-**総追加行数**: 約680行（新規ファイル）+ 約100行（magic-spirit.jsx追加）
+**総追加行数**: 約1,015行（新規ファイル）+ 約180行（magic-spirit.jsx追加）
 
 ---
 
@@ -1303,6 +1325,80 @@ src/engine/ai/
 
 ---
 
-**ドキュメントバージョン**: 1.0
+## 11. 修正履歴・既知の問題
+
+### 11.1 修正済みの問題
+
+#### バトルフェイズ停止問題 (2025-11-27)
+
+**症状**: AIがバトルフェイズで停止し、攻撃を行わない
+
+**原因**:
+- `setAiAttackedMonsters(new Set())` がAI useEffect内で毎回実行される
+- `aiAttackedMonsters` が依存配列に含まれるため無限リセットループが発生
+
+**修正**:
+```javascript
+// 別のuseEffectでフェイズ変更時のみリセット
+const prevPhaseRef = useRef(phase);
+
+useEffect(() => {
+  if (phase === 3 && prevPhaseRef.current !== 3) {
+    setAiAttackedMonsters(new Set());
+  }
+  prevPhaseRef.current = phase;
+}, [phase]);
+```
+
+#### デッキ確認処理エラー (2025-11-27)
+
+**症状**: 「星辰の魔導術師」等のデッキ確認効果でエラー発生
+```
+TypeError: Cannot read properties of undefined (reading '0')
+```
+
+**原因**:
+- `onSelect` は `(selectedCards, remainingCards)` の2つの配列を期待
+- `handleAIDeckReview` が単一カードを渡していた
+
+**修正**:
+```javascript
+// base.js - chooseFromDeckReview
+if (options.selectMode && cards.length > 0) {
+  const selectedCard = randomPick(cards);
+  const selectedCards = [selectedCard];
+  const remainingCards = cards.filter(c => c.uniqueId !== selectedCard.uniqueId);
+  return { selectedCards, remainingCards };
+}
+
+// aiController.js - handleAIDeckReview
+if (selectMode && onSelect && result.selectedCards) {
+  onSelect(result.selectedCards, result.remainingCards);
+  return true;
+}
+```
+
+### 11.2 既知の制限事項
+
+| 項目 | 説明 |
+|------|------|
+| デッキ専用AI | 未実装。将来拡張予定 |
+| 評価エンジン | aiEvaluator.js は未実装 |
+| Hard AI | ベースロジックは実装済み。シナジー評価等は将来拡張 |
+| チェーン対応 | 刹那詠唱の基本対応のみ。複雑なチェーン未対応 |
+
+---
+
+## 付録C: 変更ログ
+
+| バージョン | 日付 | 変更内容 |
+|-----------|------|---------|
+| 1.0 | 2025-11-27 | 初版作成 |
+| 1.1 | 2025-11-27 | 実装完了、バトルフェイズ修正、デッキ確認修正 |
+
+---
+
+**ドキュメントバージョン**: 1.1
 **作成日**: 2025-11-27
+**最終更新**: 2025-11-27
 **対象**: Magic Spirit AIプレイヤーシステム
