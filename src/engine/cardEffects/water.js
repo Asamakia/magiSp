@@ -679,18 +679,28 @@ export const waterCardEffects = {
       p1Field, p2Field,
       setP1Field, setP2Field,
       setP1Graveyard, setP2Graveyard,
+      p1Hand, p2Hand,
+      setP1Hand, setP2Hand,
       monsterIndex,
-      setNextWaterCostReduction,
     } = context;
 
     if (skillText.includes('基本技')) {
       const currentField = currentPlayer === 1 ? p1Field : p2Field;
       const setField = currentPlayer === 1 ? setP1Field : setP2Field;
       const setGraveyard = currentPlayer === 1 ? setP1Graveyard : setP2Graveyard;
+      const hand = currentPlayer === 1 ? p1Hand : p2Hand;
+      const setHand = currentPlayer === 1 ? setP1Hand : setP2Hand;
 
       const monster = currentField[monsterIndex];
       if (!monster) {
         addLog('対象のモンスターが存在しません', 'info');
+        return false;
+      }
+
+      // 手札に水属性モンスターがいるかチェック
+      const waterMonsters = hand.filter(c => c.type === 'monster' && c.attribute === '水');
+      if (waterMonsters.length === 0) {
+        addLog('手札に水属性モンスターがいないため発動できません', 'info');
         return false;
       }
 
@@ -703,15 +713,19 @@ export const waterCardEffects = {
       setGraveyard(prev => [...prev, monster]);
       addLog(`${monster.name}をリリース！`, 'info');
 
-      // 次の水属性召喚コスト軽減フラグを設定
-      // この機能は magic-spirit.jsx で処理する必要があります
-      if (setNextWaterCostReduction) {
-        setNextWaterCostReduction(2);
-        addLog('次の水属性モンスターの召喚コストが2軽減！', 'heal');
-      } else {
-        // フォールバック: コンテキストにセッターがない場合
-        addLog('次の水属性モンスターの召喚コストが2軽減（要実装）', 'info');
-      }
+      // 手札のすべての水属性モンスターにコスト軽減を付与（次の1体のみ使用）
+      setHand(prev => prev.map(c => {
+        if (c.type === 'monster' && c.attribute === '水') {
+          return {
+            ...c,
+            tempCostModifier: (c.tempCostModifier || 0) - 2,
+            tempCostModifierSource: '泡沫の精霊',
+            tempCostModifierOneTime: true, // 次の1体のみフラグ
+          };
+        }
+        return c;
+      }));
+      addLog('次の水属性モンスターの召喚コストが2軽減！', 'heal');
 
       return true;
     }

@@ -805,13 +805,24 @@ export default function MagicSpiritGame() {
       monsterInstance.owner = currentPlayer; // 常時効果のターゲット判定用
 
       // フィールドにモンスターを配置
+      // 「次の1体のみ」のコスト軽減を使用した場合、他のカードからリセット
+      const usedOneTimeModifier = card.tempCostModifierOneTime && card.tempCostModifier;
+      const oneTimeSource = usedOneTimeModifier ? card.tempCostModifierSource : null;
+
       if (currentPlayer === 1) {
         setP1Field(prev => {
           const newField = [...prev];
           newField[slotIndex] = monsterInstance;
           return newField;
         });
-        setP1Hand(prev => prev.filter(c => c.uniqueId !== card.uniqueId));
+        // 手札からカードを削除し、同じソースの「次の1体のみ」軽減をリセット
+        setP1Hand(prev => prev.filter(c => c.uniqueId !== card.uniqueId).map(c => {
+          if (oneTimeSource && c.tempCostModifierOneTime && c.tempCostModifierSource === oneTimeSource) {
+            const { tempCostModifier, tempCostModifierSource, tempCostModifierOneTime, ...rest } = c;
+            return rest;
+          }
+          return c;
+        }));
         setP1ActiveSP(prev => prev - actualCost);
         setP1RestedSP(prev => prev + actualCost);
       } else {
@@ -820,7 +831,14 @@ export default function MagicSpiritGame() {
           newField[slotIndex] = monsterInstance;
           return newField;
         });
-        setP2Hand(prev => prev.filter(c => c.uniqueId !== card.uniqueId));
+        // 手札からカードを削除し、同じソースの「次の1体のみ」軽減をリセット
+        setP2Hand(prev => prev.filter(c => c.uniqueId !== card.uniqueId).map(c => {
+          if (oneTimeSource && c.tempCostModifierOneTime && c.tempCostModifierSource === oneTimeSource) {
+            const { tempCostModifier, tempCostModifierSource, tempCostModifierOneTime, ...rest } = c;
+            return rest;
+          }
+          return c;
+        }));
         setP2ActiveSP(prev => prev - actualCost);
         setP2RestedSP(prev => prev + actualCost);
       }
