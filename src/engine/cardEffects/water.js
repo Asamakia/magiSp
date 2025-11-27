@@ -298,11 +298,19 @@ export const waterCardEffects = {
       return true;
     }
 
-    setOpponentField(prev => prev.map(m => {
+    // ダメージ計算とログ出力を先に実行
+    const damageResults = opponentField.map(m => {
       if (m) {
         const newHp = Math.max(0, m.currentHp - damage);
         addLog(`${m.name}に${damage}ダメージ（残りHP: ${newHp}）`, 'damage');
-        return { ...m, currentHp: newHp };
+        return { monster: m, newHp };
+      }
+      return null;
+    });
+
+    setOpponentField(prev => prev.map((m, idx) => {
+      if (m && damageResults[idx]) {
+        return { ...m, currentHp: damageResults[idx].newHp };
       }
       return m;
     }));
