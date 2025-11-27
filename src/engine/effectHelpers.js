@@ -443,3 +443,150 @@ export const modifyHP = (context, amount, targetIndex = null, isOpponent = false
   }));
   return true;
 };
+
+/**
+ * 墓地からカードを選択させる（モーダルUI表示）
+ * @param {Object} context - ゲームコンテキスト
+ * @param {string} message - 選択を促すメッセージ
+ * @param {Function} filter - カードをフィルタリングする条件関数 (card) => boolean
+ * @param {Function} callback - 選択完了時のコールバック (selectedCard) => void
+ * @param {boolean} ownGraveyard - 自分の墓地か（デフォルトtrue、falseで相手の墓地）
+ * @returns {boolean} 選択UIを開始したかどうか
+ */
+export const selectFromGraveyard = (context, message, filter, callback, ownGraveyard = true) => {
+  const {
+    currentPlayer,
+    p1Graveyard, p2Graveyard,
+    setPendingGraveyardSelection,
+    setShowGraveyardViewer,
+    addLog,
+  } = context;
+
+  // 墓地選択機能がコンテキストに含まれていない場合
+  if (!setPendingGraveyardSelection || !setShowGraveyardViewer) {
+    addLog('墓地選択機能が利用できません', 'info');
+    return false;
+  }
+
+  const targetPlayer = ownGraveyard ? currentPlayer : (currentPlayer === 1 ? 2 : 1);
+  const graveyard = targetPlayer === 1 ? p1Graveyard : p2Graveyard;
+
+  // 条件を満たすカードがあるか確認
+  const selectableCards = filter ? graveyard.filter(filter) : graveyard;
+  if (selectableCards.length === 0) {
+    addLog('選択可能なカードが墓地にありません', 'info');
+    return false;
+  }
+
+  // 墓地選択UIを開始
+  setPendingGraveyardSelection({
+    message,
+    filter,
+    callback,
+  });
+  setShowGraveyardViewer({ player: targetPlayer });
+
+  return true;
+};
+
+/**
+ * 墓地からモンスターを蘇生（選択UI付き）
+ * @param {Object} context - ゲームコンテキスト
+ * @param {Function} filter - カードをフィルタリングする条件関数
+ * @param {boolean} weakened - 弱体化状態で蘇生するか（攻撃力/HP半減）
+ * @returns {boolean} 蘇生UIを開始したかどうか
+ */
+export const selectAndReviveFromGraveyard = (context, filter = null, weakened = false) => {
+  const {
+    currentPlayer,
+    p1Field, p2Field,
+    setP1Field, setP2Field,
+    setP1Graveyard, setP2Graveyard,
+    addLog,
+  } = context;
+
+  const field = currentPlayer === 1 ? p1Field : p2Field;
+  const setField = currentPlayer === 1 ? setP1Field : setP2Field;
+  const setGraveyard = currentPlayer === 1 ? setP1Graveyard : setP2Graveyard;
+
+  // 空きスロットを確認
+  const emptySlotIndex = field.findIndex(slot => slot === null);
+  if (emptySlotIndex === -1) {
+    addLog('フィールドに空きがありません', 'info');
+    return false;
+  }
+
+  // モンスターカードのみ、かつ追加フィルター
+  const monsterFilter = (card) => {
+    if (card.type !== 'monster') return false;
+    if (filter && !filter(card)) return false;
+    return true;
+  };
+
+  return selectFromGraveyard(
+    context,
+    '蘇生するモンスターを選択してください',
+    monsterFilter,
+    (selectedCard) => {
+      // 墓地から取り除く
+      setGraveyard(prev => prev.filter(c => c.uniqueId !== selectedCard.uniqueId));
+
+      // フィールドに配置
+      const revivedMonster = {
+        ...selectedCard,
+        attack: weakened ? Math.floor(selectedCard.attack / 2) : selectedCard.attack,
+        hp: weakened ? Math.floor(selectedCard.hp / 2) : selectedCard.hp,
+        currentHp: weakened ? Math.floor(selectedCard.hp / 2) : selectedCard.hp,
+        canAttack: false,
+        charges: [],
+      };
+
+      setField(prev => {
+        const newField = [...prev];
+        const slot = newField.findIndex(s => s === null);
+        if (slot !== -1) {
+          newField[slot] = revivedMonster;
+        }
+        return newField;
+      });
+
+      const weakenedText = weakened ? '（弱体化状態）' : '';
+      addLog(`墓地から「${selectedCard.name}」を蘇生！${weakenedText}`, 'info');
+    },
+    true // 自分の墓地
+  );
+};
+
+/**
+ * 墓地からカードを手札に回収（選択UI付き）
+ * @param {Object} context - ゲームコンテキスト
+ * @param {Function} filter - カードをフィルタリングする条件関数
+ * @returns {boolean} 回収UIを開始したかどうか
+ */
+export const selectAndRecoverFromGraveyard = (context, filter = null) => {
+  const {
+    currentPlayer,
+    setP1Hand, setP2Hand,
+    setP1Graveyard, setP2Graveyard,
+    addLog,
+  } = context;
+
+  const setHand = currentPlayer === 1 ? setP1Hand : setP2Hand;
+  const setGraveyard = currentPlayer === 1 ? setP1Graveyard : setP2Graveyard;
+
+  return selectFromGraveyard(
+    context,
+    '手札に加えるカードを選択してください',
+    filter,
+    (selectedCard) => {
+      // 墓地から取り除く
+      setGraveyard(prev => prev.filter(c => c.uniqueId !== selectedCard.uniqueId));
+
+      // 手札に加える
+      setHand(prev => [...prev, selectedCard]);
+
+      addLog(`墓地から「${selectedCard.name}」を手札に加えた`, 'info');
+    },
+    true // 自分の墓地
+  );
+};
