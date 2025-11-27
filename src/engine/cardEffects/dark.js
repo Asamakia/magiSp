@@ -297,5 +297,74 @@ export const darkCardEffects = {
     return false;
   },
 
+  /**
+   * C0000393: 黒呪・カルヴェリオンの灰嵐
+   * 相手フィールド全体に1500ダメージを与え、次のターン終了時まで相手モンスターの攻撃力を500下げる。
+   * 場に《呪縛の塔・ヴェルナクール》がある場合、このカードのダメージを2000に変更。
+   */
+  C0000393: (skillText, context) => {
+    const {
+      addLog,
+      currentPlayer,
+      p1Field,
+      p2Field,
+      setP1Field,
+      setP2Field,
+      p1FieldCard,
+      p2FieldCard,
+      p1Graveyard,
+      p2Graveyard,
+      setP1Graveyard,
+      setP2Graveyard,
+    } = context;
+
+    const opponentField = currentPlayer === 1 ? p2Field : p1Field;
+    const setOpponentField = currentPlayer === 1 ? setP2Field : setP1Field;
+    const opponentGraveyard = currentPlayer === 1 ? p2Graveyard : p1Graveyard;
+    const setOpponentGraveyard = currentPlayer === 1 ? setP2Graveyard : setP1Graveyard;
+    const myFieldCard = currentPlayer === 1 ? p1FieldCard : p2FieldCard;
+
+    // 《呪縛の塔・ヴェルナクール》があるかチェック
+    const hasVernacool = myFieldCard && myFieldCard.id === 'C0000386';
+    const damage = hasVernacool ? 2000 : 1500;
+
+    if (hasVernacool) {
+      addLog('《呪縛の塔・ヴェルナクール》の効果でダメージが2000に変更！', 'info');
+    }
+
+    const destroyedMonsters = [];
+    const survivingMonsters = [];
+
+    // 相手フィールド全体にダメージ
+    const newOpponentField = opponentField.map((monster, index) => {
+      if (!monster) return null;
+
+      const newHp = monster.currentHp - damage;
+      addLog(`${monster.name}に${damage}ダメージ！`, 'damage');
+
+      if (newHp <= 0) {
+        destroyedMonsters.push(monster);
+        addLog(`${monster.name}は破壊された！`, 'damage');
+        return null;
+      } else {
+        // 生き残ったモンスターの攻撃力を500下げる
+        const newAttack = Math.max(0, (monster.currentAttack || monster.attack) - 500);
+        addLog(`${monster.name}の攻撃力が500下がった！（${monster.currentAttack || monster.attack}→${newAttack}）`, 'info');
+        survivingMonsters.push({ ...monster, currentHp: newHp, currentAttack: newAttack });
+        return { ...monster, currentHp: newHp, currentAttack: newAttack };
+      }
+    });
+
+    // フィールド更新
+    setOpponentField(newOpponentField);
+
+    // 破壊されたモンスターを墓地に送る
+    if (destroyedMonsters.length > 0) {
+      setOpponentGraveyard((prev) => [...prev, ...destroyedMonsters]);
+    }
+
+    return true;
+  },
+
   // 他の闇属性カードを追加...
 };
