@@ -239,6 +239,174 @@
 
 ---
 
+## 実装アーキテクチャ
+
+### 設計方針: ハイブリッド方式
+
+既存システム（トリガー、継続効果）を最大限活用し、キーワード能力の定義・判定のみを新規モジュールで管理する。
+
+### ファイル構成
+
+```
+src/engine/
+├── keywordAbilities/
+│   ├── index.js            # キーワード定義・判定関数・ヘルパー
+│   └── statusEffects.js    # 状態異常（毒、凍結等）の共通管理
+│
+├── triggerEngine.js        # 既存（トリガー型キーワード追加）
+├── cardTriggers/           # 既存（カード個別トリガー）
+├── continuousEffects/      # 既存（継続効果型キーワード追加）
+├── effectEngine.js         # 既存
+└── effectHelpers.js        # 既存
+
+src/
+├── magic-spirit.jsx        # ゲームフロー型キーワード統合
+├── utils/helpers.js        # デッキ構築検証（禁忌カード）
+└── components/Card.jsx     # キーワードアイコン表示
+```
+
+### 実装方式の分類
+
+| キーワード | 実装方式 | 実装先 | 備考 |
+|-----------|----------|--------|------|
+| 【刹那詠唱】 | game_flow | magic-spirit.jsx | 相手ターン発動UI |
+| 【禁忌カード】 | deck_building | helpers.js | デッキ検証 |
+| 【死触】 | trigger | triggerEngine + cardTriggers | ON_DEAL_DAMAGE |
+| 【毒侵】 | trigger | triggerEngine + statusEffects | ON_DEAL_PLAYER_DAMAGE |
+| 【深蝕】 | continuous | continuousEffects | END_PHASE_EFFECT |
+| 【魔障壁】 | continuous | continuousEffects | MAGIC_NEGATION 拡張 |
+| 【残魂】 | trigger | triggerEngine + cardTriggers | ON_DESTROY_SELF |
+| 【変幻身】 | action | magic-spirit.jsx | 変身アクションUI |
+| 【犠現】 | summon_cost | magic-spirit.jsx | 召喚コスト計算 |
+| 【魂結】 | trigger | cardTriggers + 状態管理 | ON_SUMMON + リンク状態 |
+| 【覚醒】 | state | statusEffects | 覚醒フラグ管理 |
+| 【壮麗】 | action | magic-spirit.jsx + cardEffects | 手札捨てアクション |
+| 【威圧吼】 | trigger | cardTriggers | ON_ATTACK |
+| 【未来予知】 | trigger | cardTriggers | ON_TURN_START |
+
+---
+
+## keywordAbilities/index.js 設計
+
+```javascript
+// キーワード能力の定義
+export const KEYWORD_ABILITIES = {
+  SETSUNA_EISHO: '刹那詠唱',
+  KINKI_CARD: '禁忌カード',
+  HENGENMI: '変幻身',
+  SOUREI: '壮麗',
+  KONKETSU: '魂結',
+  DOKUSHIN: '毒侵',
+  SHINSYOKU: '深蝕',
+  SHISHOKU: '死触',
+  MASHOUHEKI: '魔障壁',
+  ZANKON: '残魂',
+  GIGEN: '犠現',
+  KAKUSEI: '覚醒',
+  IATSUKO: '威圧吼',
+  MIRAI_YOCHI: '未来予知',
+};
+
+// カードがキーワードを持つか判定
+export function hasKeyword(card, keyword) {
+  if (!card) return false;
+
+  // CSVの「キーワード能力」フィールドをチェック
+  const keywordField = card.keyword || '';
+  if (keywordField.includes(`【${keyword}】`)) return true;
+
+  // 効果テキスト内のキーワードもチェック
+  const effectText = card.effect || '';
+  if (effectText.includes(`【${keyword}】`)) return true;
+
+  return false;
+}
+
+// キーワード能力一覧を取得
+export function getCardKeywords(card) {
+  const keywords = [];
+  for (const [key, value] of Object.entries(KEYWORD_ABILITIES)) {
+    if (hasKeyword(card, value)) {
+      keywords.push(value);
+    }
+  }
+  return keywords;
+}
+```
+
+---
+
+## statusEffects.js 設計
+
+```javascript
+// 状態異常タイプ
+export const STATUS_EFFECTS = {
+  // プレイヤー状態
+  POISON: 'poison',           // 毒: 毎ターン終了時100ダメージ
+
+  // モンスター状態
+  FROZEN: 'frozen',           // 凍結: 攻撃力半減+行動不能
+  PARALYZED: 'paralyzed',     // 行動不能
+  THUNDER: 'thunder',         // 雷撃: 攻撃力-500、技不能
+  AWAKENED: 'awakened',       // 覚醒状態
+};
+
+// 状態異常の効果定義
+export const STATUS_EFFECT_DEFINITIONS = {
+  [STATUS_EFFECTS.POISON]: {
+    type: 'player',
+    onEndPhase: (context) => { /* 100ダメージ */ },
+    stackable: true,
+  },
+  [STATUS_EFFECTS.FROZEN]: {
+    type: 'monster',
+    attackModifier: 0.5,
+    canAct: false,
+    onTurnStart: { removeChance: 0.5 },
+  },
+};
+
+// 状態付与・除去・チェック関数
+export function applyStatus(target, status, source) { ... }
+export function removeStatus(target, status) { ... }
+export function hasStatus(target, status) { ... }
+export function processEndPhaseStatus(context) { ... }
+```
+
+---
+
+## 実装順序
+
+### Step 1: 基盤構築
+1. `keywordAbilities/index.js` 作成
+   - KEYWORD_ABILITIES 定義
+   - hasKeyword() 関数
+   - getCardKeywords() 関数
+
+### Step 2: 【刹那詠唱】実装
+1. magic-spirit.jsx に相手ターン発動ロジック追加
+   - 相手ターン中の刹那詠唱カード検出
+   - コスト+1の計算
+   - 発動UI（ボタン、カード選択）
+   - 発動処理
+
+### Step 3: 状態異常システム構築
+1. `keywordAbilities/statusEffects.js` 作成
+   - STATUS_EFFECTS 定義
+   - 状態管理関数
+   - エンドフェイズ処理
+
+### Step 4: 【毒侵】【死触】実装
+1. triggerEngine.js に新トリガータイプ追加
+   - ON_DEAL_DAMAGE（モンスターへダメージ時）
+   - ON_DEAL_PLAYER_DAMAGE（プレイヤーへダメージ時）
+2. cardTriggers に個別実装
+
+### Step 5: 以降のキーワード
+- Phase 2, 3, 4 のキーワードを順次実装
+
+---
+
 ## 実装時の共通事項
 
 ### 必要なシステム拡張
@@ -246,27 +414,19 @@
 2. **キーワード能力判定**: カードがキーワードを持つかの判定関数
 3. **UI拡張**: キーワード能力発動ボタン、状態表示
 
-### ファイル構成案
-```
-src/engine/
-├── keywordAbilities/
-│   ├── index.js           # キーワード能力レジストリ
-│   ├── types.js           # キーワード能力タイプ定義
-│   ├── setsunaeisho.js    # 【刹那詠唱】
-│   ├── kinkiCard.js       # 【禁忌カード】
-│   ├── hengenmi.js        # 【変幻身】
-│   ├── sourei.js          # 【壮麗】
-│   ├── konketsu.js        # 【魂結】
-│   ├── dokushin.js        # 【毒侵】
-│   ├── shinsyoku.js       # 【深蝕】
-│   ├── shishoku.js        # 【死触】
-│   ├── mashouheki.js      # 【魔障壁】
-│   ├── zankon.js          # 【残魂】
-│   ├── gigen.js           # 【犠現】
-│   ├── kakusei.js         # 【覚醒】
-│   ├── iatsuko.js         # 【威圧吼】
-│   └── miraiyochi.js      # 【未来予知】
-```
+### 既存システムとの連携ポイント
+
+**triggerEngine.js との連携**:
+- 【死触】【毒侵】【残魂】【魂結】【威圧吼】【未来予知】
+- 新トリガータイプの追加が必要な場合あり
+
+**continuousEffects との連携**:
+- 【深蝕】【魔障壁】
+- 既存の MAGIC_NEGATION を拡張
+
+**magic-spirit.jsx との連携**:
+- 【刹那詠唱】【変幻身】【犠現】【壮麗】
+- ゲームフローやUIの変更が必要
 
 ---
 
@@ -275,3 +435,4 @@ src/engine/
 | 日付 | 更新内容 |
 |------|----------|
 | 2025-11-27 | 初版作成、14種類のキーワード能力を洗い出し |
+| 2025-11-27 | ハイブリッド方式の実装アーキテクチャを追加 |
