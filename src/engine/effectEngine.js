@@ -2,6 +2,8 @@
 // 効果実行エンジン
 // ========================================
 
+import { hasCategory } from '../utils/helpers';
+
 // 効果タイプの定義
 export const EFFECT_TYPES = {
   DAMAGE: 'damage',
@@ -365,13 +367,13 @@ export const executeEffect = (effect, context) => {
           // 《名称》形式 - カード名の部分一致
           return card.name.includes(normalizedSearch.term);
         } else if (normalizedSearch.type === 'category') {
-          // ［カテゴリ］形式 - カテゴリの完全一致または部分一致
-          return card.category && card.category.includes(normalizedSearch.term);
+          // ［カテゴリ］形式 - カテゴリの一致（hasCategory使用）
+          return hasCategory(card, normalizedSearch.term);
         } else {
           // その他 - 名前、カテゴリ、属性で検索
           return (
             card.name.includes(normalizedSearch.term) ||
-            (card.category && card.category.includes(normalizedSearch.term)) ||
+            hasCategory(card, normalizedSearch.term) ||
             card.attribute === normalizedSearch.term
           );
         }
@@ -405,13 +407,13 @@ export const executeEffect = (effect, context) => {
           // 《名称》形式 - カード名の部分一致
           return card.name.includes(normalizedRevive.term);
         } else if (normalizedRevive.type === 'category') {
-          // ［カテゴリ］形式 - カテゴリの完全一致または部分一致
-          return card.category && card.category.includes(normalizedRevive.term);
+          // ［カテゴリ］形式 - カテゴリの一致（hasCategory使用）
+          return hasCategory(card, normalizedRevive.term);
         } else {
           // その他 - 名前、カテゴリ、属性で検索
           return (
             card.name.includes(normalizedRevive.term) ||
-            (card.category && card.category.includes(normalizedRevive.term)) ||
+            hasCategory(card, normalizedRevive.term) ||
             card.attribute === normalizedRevive.term
           );
         }

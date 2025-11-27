@@ -10,6 +10,7 @@ import {
   healLife,
   modifyAttack,
 } from '../effectHelpers';
+import { hasCategory } from '../../utils/helpers';
 
 /**
  * 光属性カードの固有効果
@@ -99,7 +100,7 @@ export const lightCardEffects = {
       const plantCard = currentDeck.find(card =>
         card.type === 'monster' &&
         card.cost <= 3 &&
-        card.category && card.category.includes('【プラント】')
+        hasCategory(card, '【プラント】')
       );
 
       if (plantCard) {
@@ -135,7 +136,7 @@ export const lightCardEffects = {
   C0000214: (skillText, context) => {
     if (skillText.includes('【召喚時】')) {
       return reviveFromGraveyard(context, (card) => {
-        return card.category && card.category.includes('【プラント】');
+        return hasCategory(card, '【プラント】');
       }, true);
     }
     return false;

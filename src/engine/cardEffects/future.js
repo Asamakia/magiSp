@@ -16,6 +16,7 @@ import {
   modifyHP,
 } from '../effectHelpers';
 import { fireLeaveFieldTrigger } from '../triggerEngine';
+import { hasCategory } from '../../utils/helpers';
 
 /**
  * 未来属性カードの固有効果
@@ -489,7 +490,7 @@ export const futureCardEffects = {
       // 場に「エクラリア」モンスターがいるか確認
       const hasEclaria = currentField.some(monster =>
         monster !== null &&
-        (monster.name.includes('エクラリア') || monster.category?.includes('【エクラリア】'))
+        (monster.name.includes('エクラリア') || hasCategory(monster, '【エクラリア】'))
       );
 
       if (!hasEclaria) {

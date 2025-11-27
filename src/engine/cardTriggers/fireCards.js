@@ -16,6 +16,7 @@ import {
   destroyMonster,
   modifyAttack,
 } from '../effectHelpers';
+import { hasCategory } from '../../utils/helpers';
 
 /**
  * 炎属性カードのトリガー定義
@@ -78,8 +79,7 @@ export const fireCardTriggers = {
       effect: (context) => {
         const found = searchCard(context, (card) => {
           return card.type === 'monster' &&
-                 card.category &&
-                 card.category.includes('【ドラゴン】');
+                 hasCategory(card, '【ドラゴン】');
         });
 
         if (!found) {
@@ -119,8 +119,7 @@ export const fireCardTriggers = {
       effect: (context) => {
         const success = reviveFromGraveyard(context, (card) => {
           return card.type === 'monster' &&
-                 card.category &&
-                 card.category.includes('【ドラゴン】');
+                 hasCategory(card, '【ドラゴン】');
         }, true); // true = weakened (half attack)
 
         if (!success) {
@@ -156,8 +155,7 @@ export const fireCardTriggers = {
         const hasDragon = field.some((monster, idx) =>
           monster &&
           idx !== monsterIndex &&
-          monster.category &&
-          monster.category.includes('【ドラゴン】')
+          hasCategory(monster, '【ドラゴン】')
         );
 
         if (hasDragon) {
@@ -332,8 +330,7 @@ export const fireCardTriggers = {
       effect: (context) => {
         const success = reviveFromGraveyard(context, (card) => {
           return card.type === 'monster' &&
-                 card.category &&
-                 card.category.includes('【マグマフォージ】');
+                 hasCategory(card, '【マグマフォージ】');
         }, true);
 
         if (!success) {
@@ -428,8 +425,7 @@ export const fireCardTriggers = {
         const magmaForgeCount = field.filter((monster, idx) =>
           monster &&
           idx !== monsterIndex &&
-          monster.category &&
-          monster.category.includes('【マグマフォージ】')
+          hasCategory(monster, '【マグマフォージ】')
         ).length;
 
         if (magmaForgeCount > 0) {

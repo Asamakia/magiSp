@@ -48,6 +48,24 @@ export const createDeck = (cardPool = []) => {
 };
 
 /**
+ * カードが特定のカテゴリを持っているか判定
+ * カテゴリ名の【】は自動的に除去して比較する
+ * @param {Object} card - カードオブジェクト
+ * @param {string} categoryName - カテゴリ名（【】付きでも可）
+ * @returns {boolean} カテゴリを持っている場合true
+ */
+export const hasCategory = (card, categoryName) => {
+  if (!card || !card.category) return false;
+  // 【】を除去して正規化
+  const normalized = categoryName.replace(/【|】/g, '');
+  if (Array.isArray(card.category)) {
+    return card.category.includes(normalized);
+  }
+  // 文字列の場合（古い形式への対応）
+  return card.category.includes(normalized) || card.category.includes(categoryName);
+};
+
+/**
  * モンスターインスタンスを生成
  * @param {Object} card - カードデータ
  * @returns {Object} モンスターインスタンス

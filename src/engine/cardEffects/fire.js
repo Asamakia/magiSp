@@ -10,6 +10,7 @@ import {
   drawCards,
   modifyAttack,
 } from '../effectHelpers';
+import { hasCategory } from '../../utils/helpers';
 
 /**
  * 炎属性カードの固有効果
@@ -22,7 +23,7 @@ export const fireCardEffects = {
   C0000028: (skillText, context) => {
     if (skillText.includes('【召喚時】')) {
       return reviveFromGraveyard(context, (card) => {
-        return card.category && card.category.includes('【ドラゴン】');
+        return hasCategory(card, '【ドラゴン】');
       }, true); // 攻撃力半減
     }
     return false;
@@ -91,7 +92,7 @@ export const fireCardEffects = {
   C0000163: (skillText, context) => {
     if (skillText.includes('基本技')) {
       return searchCard(context, (card) => {
-        return card.category && card.category.includes('【ビースト・狸】');
+        return hasCategory(card, '【ビースト・狸】');
       }) !== null;
     }
     return false;
@@ -115,7 +116,7 @@ export const fireCardEffects = {
   C0000167: (skillText, context) => {
     if (skillText.includes('【召喚時】')) {
       return reviveFromGraveyard(context, (card) => {
-        return card.category && card.category.includes('【マグマフォージ】');
+        return hasCategory(card, '【マグマフォージ】');
       }, true);
     }
     return false;
