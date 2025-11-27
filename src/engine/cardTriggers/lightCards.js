@@ -48,19 +48,21 @@ export const lightCardTriggers = {
   C0000056: [
     {
       type: TRIGGER_TYPES.ON_END_PHASE_SELF,
-      activationType: ACTIVATION_TYPES.OPTIONAL,
+      activationType: ACTIVATION_TYPES.AUTOMATIC,
       description: 'エンドフェイズ: 相手モンスター1体の攻撃力-200',
       effect: (context) => {
-        const { p2Field, addLog } = context;
+        const { currentPlayer, p1Field, p2Field, addLog } = context;
 
-        const opponentMonsters = p2Field.filter((m) => m !== null);
+        // currentPlayerに基づいて相手フィールドを取得
+        const opponentField = currentPlayer === 1 ? p2Field : p1Field;
+        const opponentMonsters = opponentField.filter((m) => m !== null);
         if (opponentMonsters.length === 0) {
           addLog('輝聖女ルミナスの効果: 相手フィールドにモンスターがいません', 'info');
           return;
         }
 
         // 最初のモンスターをターゲット
-        const targetIndex = p2Field.findIndex((m) => m !== null);
+        const targetIndex = opponentField.findIndex((m) => m !== null);
         if (targetIndex !== -1) {
           modifyAttack(context, -200, targetIndex, true, false);
           addLog('輝聖女ルミナスの効果: 相手モンスターの攻撃力-200', 'info');
@@ -530,11 +532,12 @@ export const lightCardTriggers = {
     },
     {
       type: TRIGGER_TYPES.ON_END_PHASE_SELF,
-      activationType: ACTIVATION_TYPES.OPTIONAL,
+      activationType: ACTIVATION_TYPES.AUTOMATIC,
       description: 'エンドフェイズ: 光属性3体以上で相手攻撃力-500と500回復',
       effect: (context) => {
         const { currentPlayer, p1Field, p2Field, addLog } = context;
         const field = currentPlayer === 1 ? p1Field : p2Field;
+        const opponentField = currentPlayer === 1 ? p2Field : p1Field;
 
         const lightCount = field.filter((monster) =>
           monster && monster.attribute === '光'
@@ -542,7 +545,7 @@ export const lightCardTriggers = {
 
         if (lightCount >= 3) {
           // 相手モンスター1体の攻撃力を500ダウン
-          const targetIndex = p2Field.findIndex((m) => m !== null);
+          const targetIndex = opponentField.findIndex((m) => m !== null);
           if (targetIndex !== -1) {
             modifyAttack(context, -500, targetIndex, true, false);
           }
