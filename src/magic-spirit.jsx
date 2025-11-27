@@ -157,9 +157,16 @@ export default function MagicSpiritGame() {
   const [aiAttackedMonsters, setAiAttackedMonsters] = useState(new Set()); // AIが攻撃済みのモンスター
   const prevPhaseRef = useRef(phase); // 前回のフェイズを追跡
 
-  // ログ追加関数
+  // ログ追加関数（最大100件保持）
   const addLog = useCallback((message, type = 'info') => {
-    setLogs(prev => [...prev, { message, type, time: Date.now() }]);
+    setLogs(prev => {
+      const newLogs = [...prev, { message, type, time: Date.now() }];
+      // 100件を超えたら古いログを削除
+      if (newLogs.length > 100) {
+        return newLogs.slice(-100);
+      }
+      return newLogs;
+    });
   }, []);
 
   // カードのコスト修正情報を取得（手札表示用）
