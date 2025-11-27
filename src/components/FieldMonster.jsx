@@ -6,7 +6,7 @@ import { getStatusIcon, getStatusDisplayName } from '../engine/statusEffects';
 // ========================================
 // フィールドモンスターコンポーネント
 // ========================================
-const FieldMonster = ({ monster, onClick, selected, canAttack, isTarget, isValidTarget, onMouseEnter, onMouseLeave, atkModifier = 0, hpModifier = 0 }) => {
+const FieldMonster = ({ monster, onClick, selected, canAttack, isTarget, isValidTarget, isTargetSelectable, isTargetSelected, onMouseEnter, onMouseLeave, atkModifier = 0, hpModifier = 0 }) => {
   if (!monster) {
     return (
       <div
@@ -34,18 +34,22 @@ const FieldMonster = ({ monster, onClick, selected, canAttack, isTarget, isValid
       onMouseLeave={onMouseLeave}
       style={{
         ...styles.cardSlot,
-        border: selected ? '3px solid #ffd700' : isTarget ? '3px solid #ff4444' : '2px solid rgba(107,76,230,0.6)',
+        border: isTargetSelected ? '3px solid #4caf50' : isTargetSelectable ? '3px solid #e91e63' : selected ? '3px solid #ffd700' : isTarget ? '3px solid #ff4444' : '2px solid rgba(107,76,230,0.6)',
         background: colors.bg,
-        cursor: 'pointer',
+        cursor: isTargetSelectable || isTargetSelected ? 'pointer' : 'pointer',
         flexDirection: 'column',
         padding: '4px',
         position: 'relative',
-        boxShadow: selected
-          ? `0 0 20px ${colors.glow}, 0 0 30px rgba(255,215,0,0.5)`
-          : canAttack
-            ? `0 0 15px ${colors.glow}`
-            : 'none',
-        animation: canAttack ? 'pulse 2s infinite' : 'none',
+        boxShadow: isTargetSelected
+          ? '0 0 20px #4caf50, 0 0 30px rgba(76,175,80,0.5)'
+          : isTargetSelectable
+            ? '0 0 15px #e91e63, 0 0 25px rgba(233,30,99,0.4)'
+            : selected
+              ? `0 0 20px ${colors.glow}, 0 0 30px rgba(255,215,0,0.5)`
+              : canAttack
+                ? `0 0 15px ${colors.glow}`
+                : 'none',
+        animation: isTargetSelectable ? 'pulse 1.5s infinite' : canAttack ? 'pulse 2s infinite' : 'none',
       }}
     >
       {/* 攻撃可能インジケーター */}

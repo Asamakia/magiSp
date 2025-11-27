@@ -115,6 +115,8 @@ export default function MagicSpiritGame() {
   const [pendingGraveyardSelection, setPendingGraveyardSelection] = useState(null); // 墓地選択待ち { message, callback, filter? }
   const [pendingGraveyardSelectedCard, setPendingGraveyardSelectedCard] = useState(null); // 墓地選択中のカード
   const [pendingDeckReview, setPendingDeckReview] = useState(null); // デッキトップ確認モーダル { cards, title, message, allowReorder, onConfirm, onCancel, selectMode, onSelect }
+  const [pendingMonsterTarget, setPendingMonsterTarget] = useState(null); // モンスターターゲット選択 { message, callback, targetPlayer: 'opponent'|'self'|'both' }
+  const [pendingSelectedMonsterIndex, setPendingSelectedMonsterIndex] = useState(null); // 選択中のモンスタースロット
 
   // 刹那詠唱状態
   const [setsunaPendingActivation, setSetsunaPendingActivation] = useState(false); // 刹那詠唱カード選択モード
@@ -754,6 +756,7 @@ export default function MagicSpiritGame() {
       p1RestedSP,
       p2RestedSP,
       addLog,
+      setPendingMonsterTarget,
     };
 
     // カードIDを渡して効果を実行（カード固有処理がある場合は優先）
@@ -763,7 +766,7 @@ export default function MagicSpiritGame() {
       p1ActiveSP, p2ActiveSP, p1RestedSP, p2RestedSP,
       addLog, setP1Life, setP2Life, setP1Field, setP2Field, setP1Hand, setP2Hand,
       setP1Deck, setP2Deck, setP1Graveyard, setP2Graveyard,
-      setP1ActiveSP, setP2ActiveSP, setP1RestedSP, setP2RestedSP]);
+      setP1ActiveSP, setP2ActiveSP, setP1RestedSP, setP2RestedSP, setPendingMonsterTarget]);
 
   // カード召喚
   const summonCard = useCallback((card, slotIndex) => {
@@ -927,6 +930,7 @@ export default function MagicSpiritGame() {
           p1RestedSP,
           p2RestedSP,
           addLog,
+          setPendingMonsterTarget,
         };
         // カードIDを渡して効果を実行
         executeSkillEffects(card.effect, context, card.id);
@@ -1017,6 +1021,7 @@ export default function MagicSpiritGame() {
           p2Graveyard,
           addLog,
           setPendingDeckReview,
+          setPendingMonsterTarget,
         };
         executeSkillEffects(card.effect, context, card.id);
       }
@@ -1572,6 +1577,7 @@ export default function MagicSpiritGame() {
         p2Graveyard,
         addLog,
         setPendingDeckReview,
+        setPendingMonsterTarget,
       };
       executeSkillEffects(card.effect, context, card.id);
     }
@@ -1705,6 +1711,20 @@ export default function MagicSpiritGame() {
   const handleFieldSlotClick = (slotIndex, playerNum) => {
     // 手札選択待ち中は操作不可
     if (pendingHandSelection) return;
+
+    // モンスターターゲット選択モード
+    if (pendingMonsterTarget) {
+      const isMyField = playerNum === currentPlayer;
+      const targetField = pendingMonsterTarget.targetPlayer === 'opponent'
+        ? (currentPlayer === 1 ? p2Field : p1Field)
+        : (currentPlayer === 1 ? p1Field : p2Field);
+      const isValidField = pendingMonsterTarget.targetPlayer === 'opponent' ? !isMyField : isMyField;
+
+      if (isValidField && targetField[slotIndex]) {
+        setPendingSelectedMonsterIndex(slotIndex);
+      }
+      return;
+    }
 
     // 現在のプレイヤーの場か相手の場かを判定
     const isMyField = playerNum === currentPlayer;
@@ -1955,6 +1975,7 @@ export default function MagicSpiritGame() {
         p2Graveyard,
         addLog,
         setPendingDeckReview,
+        setPendingMonsterTarget,
       };
       executeSkillEffects(card.effect, context, card.id);
     }
@@ -1965,7 +1986,7 @@ export default function MagicSpiritGame() {
 
     return true;
   }, [currentPlayer, p1ActiveSP, p2ActiveSP, p1Field, p2Field, p1Hand, p2Hand,
-      p1Deck, p2Deck, p1Graveyard, p2Graveyard, addLog]);
+      p1Deck, p2Deck, p1Graveyard, p2Graveyard, addLog, setPendingMonsterTarget]);
 
   // 刹那詠唱モードを開始
   const startSetsunaMagicMode = useCallback(() => {
@@ -2757,6 +2778,8 @@ export default function MagicSpiritGame() {
                     canAttack={currentPlayer === 2 && phase === 3 && monster?.canAttack}
                     isTarget={currentPlayer === 1 && phase === 3 && attackingMonster !== null}
                     isValidTarget={currentPlayer === 2 && phase === 2 && selectedHandCard && selectedHandCard.type === 'monster' && !monster}
+                    isTargetSelectable={pendingMonsterTarget && ((pendingMonsterTarget.targetPlayer === 'opponent' && currentPlayer === 1) || (pendingMonsterTarget.targetPlayer === 'self' && currentPlayer === 2)) && monster}
+                    isTargetSelected={pendingMonsterTarget && ((pendingMonsterTarget.targetPlayer === 'opponent' && currentPlayer === 1) || (pendingMonsterTarget.targetPlayer === 'self' && currentPlayer === 2)) && pendingSelectedMonsterIndex === i}
                     onMouseEnter={monster ? () => setHoveredCard({ ...monster, owner: 2 }) : undefined}
                     onMouseLeave={monster ? () => setHoveredCard(null) : undefined}
                     atkModifier={atkMod}
@@ -2903,6 +2926,54 @@ export default function MagicSpiritGame() {
               ) : (
                 <div style={{ fontSize: '12px', color: '#ffe0e0' }}>
                   手札からカードをクリックして選択してください
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* モンスターターゲット選択モード */}
+          {pendingMonsterTarget && (
+            <div
+              onClick={pendingSelectedMonsterIndex !== null ? () => {
+                pendingMonsterTarget.callback(pendingSelectedMonsterIndex);
+                setPendingMonsterTarget(null);
+                setPendingSelectedMonsterIndex(null);
+              } : undefined}
+              style={{
+                background: pendingSelectedMonsterIndex !== null
+                  ? 'linear-gradient(135deg, #4caf50 0%, #66bb6a 100%)'
+                  : 'linear-gradient(135deg, #e91e63 0%, #f06292 100%)',
+                padding: '16px 24px',
+                borderRadius: '12px',
+                textAlign: 'center',
+                boxShadow: pendingSelectedMonsterIndex !== null
+                  ? '0 4px 20px rgba(76,175,80,0.4)'
+                  : '0 4px 20px rgba(233,30,99,0.4)',
+                marginBottom: '12px',
+                cursor: pendingSelectedMonsterIndex !== null ? 'pointer' : 'default',
+                transition: 'all 0.2s ease',
+              }}
+            >
+              <div style={{ fontSize: '16px', fontWeight: 'bold', color: '#fff', marginBottom: '8px' }}>
+                {pendingMonsterTarget.message}
+              </div>
+              {pendingSelectedMonsterIndex !== null ? (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', alignItems: 'center' }}>
+                  <div style={{ fontSize: '14px', color: '#fff' }}>
+                    選択中: <strong>{
+                      (pendingMonsterTarget.targetPlayer === 'opponent'
+                        ? (currentPlayer === 1 ? p2Field : p1Field)
+                        : (currentPlayer === 1 ? p1Field : p2Field)
+                      )[pendingSelectedMonsterIndex]?.name
+                    }</strong>
+                  </div>
+                  <div style={{ fontSize: '12px', color: '#e0ffe0' }}>
+                    👆 クリックで決定
+                  </div>
+                </div>
+              ) : (
+                <div style={{ fontSize: '12px', color: '#ffe0e0' }}>
+                  {pendingMonsterTarget.targetPlayer === 'opponent' ? '相手' : '自分'}のフィールドからモンスターを選択
                 </div>
               )}
             </div>
@@ -3221,6 +3292,8 @@ export default function MagicSpiritGame() {
                     canAttack={currentPlayer === 1 && phase === 3 && monster?.canAttack}
                     isTarget={currentPlayer === 2 && phase === 3 && attackingMonster !== null}
                     isValidTarget={currentPlayer === 1 && phase === 2 && selectedHandCard && selectedHandCard.type === 'monster' && !monster}
+                    isTargetSelectable={pendingMonsterTarget && ((pendingMonsterTarget.targetPlayer === 'opponent' && currentPlayer === 2) || (pendingMonsterTarget.targetPlayer === 'self' && currentPlayer === 1)) && monster}
+                    isTargetSelected={pendingMonsterTarget && ((pendingMonsterTarget.targetPlayer === 'opponent' && currentPlayer === 2) || (pendingMonsterTarget.targetPlayer === 'self' && currentPlayer === 1)) && pendingSelectedMonsterIndex === i}
                     onMouseEnter={monster ? () => setHoveredCard({ ...monster, owner: 1 }) : undefined}
                     onMouseLeave={monster ? () => setHoveredCard(null) : undefined}
                     atkModifier={atkMod}
