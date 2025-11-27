@@ -17,6 +17,105 @@ import { hasCategory } from '../../utils/helpers';
  */
 export const fireCardEffects = {
   /**
+   * C0000021: フレア・ドラゴン
+   * 基本技：自身の攻撃力の半分のダメージを相手モンスター1体に与える
+   */
+  C0000021: (skillText, context) => {
+    const {
+      addLog,
+      currentPlayer,
+      monsterIndex,
+      p1Field, p2Field,
+      setP1Field, setP2Field,
+      setPendingTargetSelection,
+    } = context;
+
+    if (context.skillType === 'basic') {
+      const currentField = currentPlayer === 1 ? p1Field : p2Field;
+      const opponentField = currentPlayer === 1 ? p2Field : p1Field;
+      const setOpponentField = currentPlayer === 1 ? setP2Field : setP1Field;
+
+      const monster = currentField[monsterIndex];
+      if (!monster) {
+        addLog('モンスターが存在しません', 'damage');
+        return false;
+      }
+
+      // ダメージ量 = 攻撃力の半分
+      const damage = Math.floor(monster.attack / 2);
+
+      // 相手フィールドのモンスターをチェック
+      const validTargets = opponentField
+        .map((m, idx) => ({ monster: m, index: idx }))
+        .filter(t => t.monster !== null);
+
+      if (validTargets.length === 0) {
+        addLog('相手フィールドにモンスターがいません', 'info');
+        return false;
+      }
+
+      // 1体のみの場合は自動選択
+      if (validTargets.length === 1) {
+        const target = validTargets[0];
+        setOpponentField(prev => prev.map((m, idx) => {
+          if (idx === target.index && m) {
+            const newHp = m.currentHp - damage;
+            addLog(`${monster.name}の基本技: ${m.name}に${damage}ダメージ！`, 'damage');
+            if (newHp <= 0) {
+              addLog(`${m.name}は破壊された！`, 'damage');
+              return null;
+            }
+            return { ...m, currentHp: newHp };
+          }
+          return m;
+        }));
+        return true;
+      }
+
+      // 複数の場合はターゲット選択UI
+      if (setPendingTargetSelection) {
+        setPendingTargetSelection({
+          message: `${damage}ダメージを与える相手モンスターを選択`,
+          validTargets: validTargets.map(t => t.index),
+          isOpponent: true,
+          callback: (targetIndex) => {
+            setOpponentField(prev => prev.map((m, idx) => {
+              if (idx === targetIndex && m) {
+                const newHp = m.currentHp - damage;
+                addLog(`${monster.name}の基本技: ${m.name}に${damage}ダメージ！`, 'damage');
+                if (newHp <= 0) {
+                  addLog(`${m.name}は破壊された！`, 'damage');
+                  return null;
+                }
+                return { ...m, currentHp: newHp };
+              }
+              return m;
+            }));
+          },
+        });
+        return true;
+      }
+
+      // フォールバック: 最初のターゲットを選択
+      const target = validTargets[0];
+      setOpponentField(prev => prev.map((m, idx) => {
+        if (idx === target.index && m) {
+          const newHp = m.currentHp - damage;
+          addLog(`${monster.name}の基本技: ${m.name}に${damage}ダメージ！`, 'damage');
+          if (newHp <= 0) {
+            addLog(`${m.name}は破壊された！`, 'damage');
+            return null;
+          }
+          return { ...m, currentHp: newHp };
+        }
+        return m;
+      }));
+      return true;
+    }
+    return false;
+  },
+
+  /**
    * C0000028: 炎竜母フレイマ
    * 【召喚時】墓地の［ドラゴン］モンスター1体を攻撃力半減で場に戻す
    */
