@@ -446,14 +446,67 @@ export const waterCardTriggers = {
       activationType: ACTIVATION_TYPES.AUTOMATIC,
       description: '召喚時: 《ブリザード》/《猫》魔法をサーチ',
       effect: (context) => {
-        const found = searchCard(context, (card) => {
-          return card.type === 'magic' &&
-                 (card.name.includes('ブリザード') || card.name.includes('猫'));
-        });
+        const {
+          currentPlayer, p1Deck, p2Deck, setP1Deck, setP2Deck,
+          setP1Hand, setP2Hand, addLog, setPendingDeckReview,
+        } = context;
 
-        if (!found) {
-          context.addLog('ブリザードマスターの効果: 対象カードが見つかりませんでした', 'info');
+        const deck = currentPlayer === 1 ? p1Deck : p2Deck;
+        const setDeck = currentPlayer === 1 ? setP1Deck : setP2Deck;
+        const setHand = currentPlayer === 1 ? setP1Hand : setP2Hand;
+
+        // 対象カードをフィルタ
+        const targetFilter = (card) =>
+          card.type === 'magic' &&
+          (card.name.includes('ブリザード') || card.name.includes('猫'));
+
+        const matchingCards = deck.filter(targetFilter);
+
+        if (matchingCards.length === 0) {
+          addLog('ブリザードマスターの効果: 対象カードが見つかりませんでした', 'info');
+          return;
         }
+
+        // 1枚のみの場合は自動選択
+        if (matchingCards.length === 1) {
+          const targetCard = matchingCards[0];
+          setDeck(prev => prev.filter(c => c.uniqueId !== targetCard.uniqueId));
+          setHand(prev => [...prev, targetCard]);
+          addLog(`ブリザードマスターの効果: ${targetCard.name}を手札に加えた！`, 'heal');
+          return;
+        }
+
+        // 複数ある場合はデッキ選択UIを表示
+        if (setPendingDeckReview) {
+          setPendingDeckReview({
+            cards: matchingCards,
+            title: 'ブリザードマスターの効果',
+            message: '手札に加える《ブリザード》または《猫》魔法カードを1枚選択してください',
+            allowReorder: false,
+            selectMode: {
+              enabled: true,
+              count: 1,
+            },
+            onSelect: (selectedCards, remainingCards) => {
+              if (selectedCards.length > 0) {
+                const selectedCard = selectedCards[0];
+                setDeck(prev => prev.filter(c => c.uniqueId !== selectedCard.uniqueId));
+                setHand(prev => [...prev, selectedCard]);
+                addLog(`ブリザードマスターの効果: ${selectedCard.name}を手札に加えた！`, 'heal');
+              }
+            },
+            onCancel: () => {
+              addLog('ブリザードマスターの効果: キャンセルしました', 'info');
+            },
+          });
+          return;
+        }
+
+        // フォールバック: 最初のカードを選択
+        const targetCard = matchingCards[0];
+        setDeck(prev => prev.filter(c => c.uniqueId !== targetCard.uniqueId));
+        setHand(prev => [...prev, targetCard]);
+        addLog(`ブリザードマスターの効果: ${targetCard.name}を手札に加えた！`, 'heal');
       },
     },
   ],
