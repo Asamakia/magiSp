@@ -183,3 +183,66 @@ export function validateKinkiCards(deck) {
 
   return { valid, count, message };
 }
+
+// =============================================================================
+// チェーンポイントシステム（刹那詠唱の発動タイミング）
+// =============================================================================
+
+/**
+ * チェーンポイントの種類
+ * 刹那詠唱カードが発動可能なタイミングを定義
+ */
+export const CHAIN_POINTS = {
+  BATTLE_START: 'battle_start',       // バトルフェイズ開始時
+  ATTACK_DECLARATION: 'attack_declaration', // 攻撃宣言時
+  SUMMON: 'summon',                   // 召喚時（将来実装）
+  MAGIC_ACTIVATION: 'magic_activation', // 魔法発動時（将来実装）
+};
+
+/**
+ * チェーンポイントの表示名
+ */
+export const CHAIN_POINT_NAMES = {
+  [CHAIN_POINTS.BATTLE_START]: 'バトルフェイズ開始',
+  [CHAIN_POINTS.ATTACK_DECLARATION]: '攻撃宣言',
+  [CHAIN_POINTS.SUMMON]: '召喚',
+  [CHAIN_POINTS.MAGIC_ACTIVATION]: '魔法発動',
+};
+
+/**
+ * スタックアイテムを作成
+ * @param {Object} card - 発動するカード
+ * @param {number} player - 発動プレイヤー（1 or 2）
+ * @param {string} chainPoint - チェーンポイント種類
+ * @param {Object} context - 追加コンテキスト（攻撃者情報など）
+ * @returns {Object} スタックアイテム
+ */
+export function createStackItem(card, player, chainPoint, context = {}) {
+  return {
+    id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+    card,
+    player,
+    chainPoint,
+    context,
+    timestamp: Date.now(),
+  };
+}
+
+/**
+ * スタックを解決（現在は1枚のみ、将来はLIFO）
+ * @param {Object[]} stack - スタック配列
+ * @param {Function} resolveEffect - 効果解決関数
+ * @returns {Object[]} 解決後の空スタック
+ */
+export function resolveStack(stack, resolveEffect) {
+  // Phase A: 1枚のみなので先頭を解決
+  // Phase B: 逆順（LIFO）で解決
+  const toResolve = [...stack].reverse();
+
+  for (const item of toResolve) {
+    resolveEffect(item);
+  }
+
+  return []; // スタックをクリア
+}
+

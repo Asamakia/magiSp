@@ -36,6 +36,8 @@ import {
   isSetsunaMagic,
   getSetsunaCost,
   getActivatableSetsunaMagics,
+  CHAIN_POINTS,
+  CHAIN_POINT_NAMES,
 } from './engine/keywordAbilities';
 import styles from './styles/gameStyles';
 import Card from './components/Card';
@@ -112,6 +114,15 @@ export default function MagicSpiritGame() {
   // 刹那詠唱状態
   const [setsunaPendingActivation, setSetsunaPendingActivation] = useState(false); // 刹那詠唱カード選択モード
   const [setsunaPendingCard, setSetsunaPendingCard] = useState(null); // 選択された刹那詠唱カード
+
+  // チェーンポイントシステム状態（刹那詠唱の発動タイミング制御）
+  const [chainConfirmation, setChainConfirmation] = useState(null);
+  // chainConfirmation = {
+  //   chainPoint: CHAIN_POINTS.ATTACK_DECLARATION | CHAIN_POINTS.BATTLE_START,
+  //   askingPlayer: 1 | 2,  // 確認中のプレイヤー
+  //   pendingAction: { type: 'attack', attackerIndex, targetIndex } | { type: 'battleStart' },
+  //   context: {},  // 追加コンテキスト（攻撃者情報など）
+  // }
 
   // デッキ選択状態
   const [p1SelectedDeck, setP1SelectedDeck] = useState('random');
@@ -1001,8 +1012,149 @@ export default function MagicSpiritGame() {
       setP1ActiveSP, setP1RestedSP, setP2ActiveSP, setP2RestedSP, setP1FieldCard, setP2FieldCard,
       setP1PhaseCard, setP2PhaseCard]);
 
-  // 攻撃処理
-  const attack = useCallback((attackerIndex, targetIndex) => {
+  // =============================================================================
+  // チェーンポイントシステム（刹那詠唱の発動タイミング）
+  // =============================================================================
+
+  // 非アクティブプレイヤーが刹那詠唱可能かチェック
+  const canNonActivePlayerUseSetsuna = useCallback(() => {
+    const nonActivePlayer = currentPlayer === 1 ? 2 : 1;
+    const hand = nonActivePlayer === 1 ? p1Hand : p2Hand;
+    const activeSP = nonActivePlayer === 1 ? p1ActiveSP : p2ActiveSP;
+    return getActivatableSetsunaMagics(hand, activeSP).length > 0;
+  }, [currentPlayer, p1Hand, p2Hand, p1ActiveSP, p2ActiveSP]);
+
+  // チェーンポイントで確認を開始
+  const startChainConfirmation = useCallback((chainPoint, pendingAction, context = {}) => {
+    const nonActivePlayer = currentPlayer === 1 ? 2 : 1;
+
+    // 刹那詠唱可能なカードがなければスキップ
+    if (!canNonActivePlayerUseSetsuna()) {
+      return false; // 確認不要、すぐに実行可能
+    }
+
+    // チェーン確認状態を設定
+    setChainConfirmation({
+      chainPoint,
+      askingPlayer: nonActivePlayer,
+      pendingAction,
+      context,
+    });
+
+    const pointName = CHAIN_POINT_NAMES[chainPoint] || chainPoint;
+    addLog(`【${pointName}】プレイヤー${nonActivePlayer}、刹那詠唱を発動しますか？`, 'info');
+
+    return true; // 確認中
+  }, [currentPlayer, canNonActivePlayerUseSetsuna, addLog]);
+
+  // チェーン確認をスキップ（発動しない）
+  const skipChainConfirmation = useCallback(() => {
+    if (!chainConfirmation) return;
+
+    const { pendingAction } = chainConfirmation;
+    setChainConfirmation(null);
+
+    // 保留中のアクションを実行
+    if (pendingAction.type === 'attack') {
+      executeAttack(pendingAction.attackerIndex, pendingAction.targetIndex);
+    } else if (pendingAction.type === 'battleStart') {
+      // バトルフェイズへ進行
+      setPhase(3);
+      setSelectedHandCard(null);
+    }
+  }, [chainConfirmation, executeAttack]);
+
+  // チェーン確認で刹那詠唱を発動する
+  const activateSetsunaInChain = useCallback((card) => {
+    if (!chainConfirmation || !card) return;
+
+    const { pendingAction, askingPlayer } = chainConfirmation;
+
+    // 刹那詠唱を発動（currentPlayerを一時的にaskingPlayerに変更して処理）
+    const setsunaCost = getSetsunaCost(card);
+    const activeSP = askingPlayer === 1 ? p1ActiveSP : p2ActiveSP;
+
+    if (activeSP < setsunaCost) {
+      addLog(`SPが足りません！（刹那詠唱コスト: ${setsunaCost}, 現在: ${activeSP}）`, 'damage');
+      return;
+    }
+
+    // SPを消費
+    if (askingPlayer === 1) {
+      setP1ActiveSP(prev => prev - setsunaCost);
+      setP1RestedSP(prev => prev + setsunaCost);
+      setP1Hand(prev => prev.filter(c => c.uniqueId !== card.uniqueId));
+      setP1Graveyard(prev => [...prev, card]);
+    } else {
+      setP2ActiveSP(prev => prev - setsunaCost);
+      setP2RestedSP(prev => prev + setsunaCost);
+      setP2Hand(prev => prev.filter(c => c.uniqueId !== card.uniqueId));
+      setP2Graveyard(prev => [...prev, card]);
+    }
+
+    addLog(`プレイヤー${askingPlayer}: 【刹那詠唱】${card.name}を発動！（コスト${card.cost}+1=${setsunaCost}）`, 'info');
+
+    // 魔法効果を実行
+    if (card.effect) {
+      const context = {
+        currentPlayer: askingPlayer,
+        monsterIndex: null,
+        setP1Life,
+        setP2Life,
+        setP1Field,
+        setP2Field,
+        setP1Hand,
+        setP2Hand,
+        setP1Deck,
+        setP2Deck,
+        setP1Graveyard,
+        setP2Graveyard,
+        p1Field,
+        p2Field,
+        p1Hand,
+        p2Hand,
+        p1Deck,
+        p2Deck,
+        p1Graveyard,
+        p2Graveyard,
+        addLog,
+      };
+      executeSkillEffects(card.effect, context);
+    }
+
+    // Phase A: 1回のみなので確認終了
+    setChainConfirmation(null);
+    setSetsunaPendingCard(null);
+
+    // 保留中のアクションを実行
+    if (pendingAction.type === 'attack') {
+      // 少し遅延して攻撃を実行（効果の反映を待つ）
+      setTimeout(() => {
+        executeAttack(pendingAction.attackerIndex, pendingAction.targetIndex);
+      }, 100);
+    } else if (pendingAction.type === 'battleStart') {
+      // 少し遅延してバトルフェイズへ進行（効果の反映を待つ）
+      setTimeout(() => {
+        setPhase(3);
+        setSelectedHandCard(null);
+      }, 100);
+    }
+  }, [chainConfirmation, p1ActiveSP, p2ActiveSP, p1Field, p2Field, p1Hand, p2Hand,
+      p1Deck, p2Deck, p1Graveyard, p2Graveyard, addLog, executeAttack]);
+
+  // チェーン確認をキャンセル（攻撃自体をキャンセル）
+  const cancelChainAndAction = useCallback(() => {
+    setChainConfirmation(null);
+    setSetsunaPendingCard(null);
+    setAttackingMonster(null);
+    addLog('行動がキャンセルされました', 'info');
+  }, [addLog]);
+
+  // =============================================================================
+  // 攻撃処理（チェーン確認後に実行される内部関数）
+  // =============================================================================
+
+  const executeAttack = useCallback((attackerIndex, targetIndex) => {
     // 現在のプレイヤーと相手のフィールドを直接取得
     const playerField = currentPlayer === 1 ? p1Field : p2Field;
     const opponentField = currentPlayer === 1 ? p2Field : p1Field;
@@ -1303,6 +1455,39 @@ export default function MagicSpiritGame() {
     setSelectedFieldMonster(null);
   }, [currentPlayer, p1Field, p2Field, p1FieldCard, p2FieldCard, addLog]);
 
+  // =============================================================================
+  // 攻撃開始（チェーン確認を挟む公開API）
+  // =============================================================================
+
+  const attack = useCallback((attackerIndex, targetIndex) => {
+    // チェーン確認中の場合は無視
+    if (chainConfirmation) {
+      addLog('チェーン確認中です', 'info');
+      return;
+    }
+
+    // 基本的なバリデーション
+    const playerField = currentPlayer === 1 ? p1Field : p2Field;
+    const attacker = playerField[attackerIndex];
+    if (!attacker || !attacker.canAttack) {
+      addLog('このモンスターは攻撃できません', 'damage');
+      return;
+    }
+
+    // 攻撃宣言時のチェーンポイントを開始
+    const needsConfirmation = startChainConfirmation(
+      CHAIN_POINTS.ATTACK_DECLARATION,
+      { type: 'attack', attackerIndex, targetIndex },
+      { attacker }
+    );
+
+    if (!needsConfirmation) {
+      // チェーン確認不要（相手が刹那詠唱を持っていない）→ 直接攻撃実行
+      executeAttack(attackerIndex, targetIndex);
+    }
+    // needsConfirmation === true の場合、確認UIが表示される
+  }, [chainConfirmation, currentPlayer, p1Field, p2Field, startChainConfirmation, executeAttack, addLog]);
+
   // 勝敗判定
   useEffect(() => {
     if (gameState !== 'playing') return;
@@ -1501,14 +1686,36 @@ export default function MagicSpiritGame() {
       addLog('手札を選択してください', 'damage');
       return;
     }
+    // チェーン確認中はフェイズ進行不可
+    if (chainConfirmation) {
+      addLog('チェーン確認中です', 'info');
+      return;
+    }
     if (phase === 2) {
-      setPhase(3);
-      setSelectedHandCard(null);
+      // バトルフェイズ開始時のチェーンポイント
+      const needsConfirmation = startChainConfirmation(
+        CHAIN_POINTS.BATTLE_START,
+        { type: 'battleStart' },
+        {}
+      );
+
+      if (!needsConfirmation) {
+        // チェーン確認不要 → 直接バトルフェイズへ
+        setPhase(3);
+        setSelectedHandCard(null);
+      }
+      // needsConfirmation === true の場合、確認後にproceedToBattlePhaseが呼ばれる
     } else if (phase === 3) {
       setPhase(4);
       processPhase(4);
     }
   };
+
+  // バトルフェイズへ進行（チェーン確認完了後に呼ばれる）
+  const proceedToBattlePhase = useCallback(() => {
+    setPhase(3);
+    setSelectedHandCard(null);
+  }, []);
 
   // 魔法カード発動
   const useMagicCard = () => {
@@ -3203,6 +3410,206 @@ export default function MagicSpiritGame() {
             setPendingDeckReview(null);
           } : null}
         />
+      )}
+
+      {/* チェーン確認ダイアログ（刹那詠唱の発動タイミング） */}
+      {chainConfirmation && (
+        <div
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: 'rgba(0,0,0,0.85)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 1100,
+          }}
+        >
+          <div
+            style={{
+              background: 'linear-gradient(135deg, #1a1a2e, #16213e)',
+              borderRadius: '16px',
+              padding: '24px',
+              maxWidth: '600px',
+              width: '90vw',
+              border: '3px solid #9c6bff',
+              boxShadow: '0 0 40px rgba(156, 107, 255, 0.5)',
+            }}
+          >
+            {/* ヘッダー */}
+            <div style={{ textAlign: 'center', marginBottom: '20px' }}>
+              <h2 style={{
+                margin: 0,
+                color: '#9c6bff',
+                fontSize: '1.5rem',
+                textShadow: '0 0 10px rgba(156, 107, 255, 0.5)',
+              }}>
+                ⚡ 【刹那詠唱】チェーン確認
+              </h2>
+              <p style={{
+                margin: '8px 0 0 0',
+                color: '#aaa',
+                fontSize: '0.9rem'
+              }}>
+                {CHAIN_POINT_NAMES[chainConfirmation.chainPoint]}時
+              </p>
+            </div>
+
+            {/* 対象プレイヤー表示 */}
+            <div style={{
+              textAlign: 'center',
+              marginBottom: '16px',
+              color: chainConfirmation.askingPlayer === 1 ? '#4da6ff' : '#ff6b6b',
+              fontWeight: 'bold',
+              fontSize: '1.2rem',
+            }}>
+              プレイヤー{chainConfirmation.askingPlayer}、刹那詠唱を発動しますか？
+            </div>
+
+            {/* 攻撃情報表示（攻撃宣言時の場合） */}
+            {chainConfirmation.context?.attacker && (
+              <div style={{
+                background: 'rgba(255,100,100,0.15)',
+                border: '1px solid rgba(255,100,100,0.3)',
+                borderRadius: '8px',
+                padding: '12px',
+                marginBottom: '16px',
+                textAlign: 'center',
+              }}>
+                <span style={{ color: '#ff6b6b' }}>⚔️ 攻撃宣言: </span>
+                <span style={{ color: '#fff', fontWeight: 'bold' }}>
+                  {chainConfirmation.context.attacker.name}
+                </span>
+              </div>
+            )}
+
+            {/* 発動可能なカード一覧 */}
+            <div style={{ marginBottom: '16px' }}>
+              <div style={{ color: '#aaa', fontSize: '0.85rem', marginBottom: '8px' }}>
+                発動可能な刹那詠唱カード:
+              </div>
+              <div style={{
+                display: 'flex',
+                flexWrap: 'wrap',
+                gap: '8px',
+                maxHeight: '200px',
+                overflowY: 'auto',
+                padding: '4px',
+              }}>
+                {getActivatableSetsunaMagics(
+                  chainConfirmation.askingPlayer === 1 ? p1Hand : p2Hand,
+                  chainConfirmation.askingPlayer === 1 ? p1ActiveSP : p2ActiveSP
+                ).map(card => (
+                  <div
+                    key={card.uniqueId}
+                    onClick={() => setSetsunaPendingCard(
+                      setsunaPendingCard?.uniqueId === card.uniqueId ? null : card
+                    )}
+                    style={{
+                      background: setsunaPendingCard?.uniqueId === card.uniqueId
+                        ? 'linear-gradient(135deg, #9c6bff, #7b4bd4)'
+                        : 'linear-gradient(135deg, #2a2a4a, #1a1a3a)',
+                      border: setsunaPendingCard?.uniqueId === card.uniqueId
+                        ? '2px solid #fff'
+                        : '1px solid #555',
+                      borderRadius: '8px',
+                      padding: '10px 14px',
+                      cursor: 'pointer',
+                      transition: 'all 0.2s',
+                      minWidth: '120px',
+                      textAlign: 'center',
+                    }}
+                  >
+                    <div style={{
+                      color: '#fff',
+                      fontWeight: 'bold',
+                      fontSize: '0.9rem',
+                      marginBottom: '4px',
+                    }}>
+                      {card.name}
+                    </div>
+                    <div style={{
+                      color: '#ffd700',
+                      fontSize: '0.75rem',
+                    }}>
+                      コスト: {getSetsunaCost(card)}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* 選択中のカード詳細 */}
+            {setsunaPendingCard && (
+              <div style={{
+                background: 'rgba(156, 107, 255, 0.15)',
+                border: '1px solid rgba(156, 107, 255, 0.4)',
+                borderRadius: '8px',
+                padding: '12px',
+                marginBottom: '16px',
+              }}>
+                <div style={{
+                  color: '#9c6bff',
+                  fontWeight: 'bold',
+                  marginBottom: '6px',
+                }}>
+                  選択中: {setsunaPendingCard.name}
+                </div>
+                <div style={{
+                  color: '#ccc',
+                  fontSize: '0.85rem',
+                  lineHeight: '1.4',
+                }}>
+                  {setsunaPendingCard.effect}
+                </div>
+              </div>
+            )}
+
+            {/* アクションボタン */}
+            <div style={{
+              display: 'flex',
+              gap: '12px',
+              justifyContent: 'center',
+              marginTop: '20px',
+            }}>
+              {setsunaPendingCard && (
+                <button
+                  onClick={() => activateSetsunaInChain(setsunaPendingCard)}
+                  style={{
+                    background: 'linear-gradient(135deg, #9c6bff, #7b4bd4)',
+                    border: 'none',
+                    borderRadius: '8px',
+                    color: 'white',
+                    padding: '12px 24px',
+                    cursor: 'pointer',
+                    fontSize: '1rem',
+                    fontWeight: 'bold',
+                    boxShadow: '0 0 15px rgba(156, 107, 255, 0.4)',
+                  }}
+                >
+                  ⚡ {setsunaPendingCard.name}を発動
+                </button>
+              )}
+              <button
+                onClick={skipChainConfirmation}
+                style={{
+                  background: 'linear-gradient(135deg, #555, #333)',
+                  border: '1px solid #666',
+                  borderRadius: '8px',
+                  color: '#ccc',
+                  padding: '12px 24px',
+                  cursor: 'pointer',
+                  fontSize: '1rem',
+                }}
+              >
+                発動しない
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

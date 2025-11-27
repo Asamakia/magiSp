@@ -22,12 +22,16 @@
 - **実装状況**: [x] 実装完了 (2025-11-27)
 - **実装優先度**: Phase 1（ルール明記済み）
 - **実装ファイル**:
-  - `src/engine/keywordAbilities/index.js` - isSetsunaMagic(), getSetsunaCost(), getActivatableSetsunaMagics()
-  - `src/magic-spirit.jsx` - 刹那詠唱UI、activateSetsunaMagic()
+  - `src/engine/keywordAbilities/index.js` - isSetsunaMagic(), getSetsunaCost(), getActivatableSetsunaMagics(), CHAIN_POINTS, createStackItem()
+  - `src/magic-spirit.jsx` - チェーン確認システム、刹那詠唱UI
 - **実装メモ**:
-  - 相手ターン中に「刹那詠唱」ボタンが表示される
+  - チェーンポイントシステムによる発動タイミング制御
+    - **バトルフェイズ開始時**: メイン→バトルフェイズ移行時に確認
+    - **攻撃宣言時**: モンスター攻撃宣言時に確認
+  - 非アクティブプレイヤーに確認ダイアログが表示される
   - コスト計算: 通常コスト + 1 SP
-  - 発動可能な刹那詠唱カードを選択して発動
+  - Phase A実装: 1チェーン（相互チェーンなし）
+  - Phase B（将来）: スタック構造準備済み（LIFO順解決対応）
 
 ### 2. 【禁忌カード】
 - **対象**: 全カード種類（モンスター、魔法、フィールド）
@@ -440,4 +444,5 @@ export function processEndPhaseStatus(context) { ... }
 |------|----------|
 | 2025-11-27 | 初版作成、14種類のキーワード能力を洗い出し |
 | 2025-11-27 | ハイブリッド方式の実装アーキテクチャを追加 |
-| 2025-11-27 | 【刹那詠唱】実装完了 |
+| 2025-11-27 | 【刹那詠唱】基本実装完了 |
+| 2025-11-27 | 【刹那詠唱】チェーンポイントシステム実装（バトル開始・攻撃宣言時確認ダイアログ） |
