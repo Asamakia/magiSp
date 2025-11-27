@@ -774,6 +774,70 @@ export const waterCardEffects = {
   },
 
   /**
+   * C0000145: ブリザードキャット・スノウ
+   * 基本技：相手の場にいるモンスター1体を指定し、その効果をターン終了時まで無効化。
+   */
+  C0000145: (skillText, context) => {
+    const {
+      addLog,
+      currentPlayer,
+      p1Field, p2Field,
+      setP2Field, setP1Field,
+      setPendingTargetSelection,
+    } = context;
+
+    if (context.skillType === 'basic') {
+      const opponentField = currentPlayer === 1 ? p2Field : p1Field;
+      const setOpponentField = currentPlayer === 1 ? setP2Field : setP1Field;
+
+      // 相手フィールドのモンスターをチェック
+      const validTargets = opponentField
+        .map((m, idx) => ({ monster: m, index: idx }))
+        .filter(t => t.monster !== null);
+
+      if (validTargets.length === 0) {
+        addLog('相手フィールドにモンスターがいません', 'info');
+        return false;
+      }
+
+      const applySilence = (targetIndex) => {
+        const targetMonster = opponentField[targetIndex];
+        if (!targetMonster) return;
+
+        // SILENCE（効果無効）を付与（ターン終了時まで = duration: 0）
+        applyStatusToOpponentMonster(context, targetIndex, STATUS_EFFECT_TYPES.SILENCE, {
+          duration: 0, // ターン終了時まで
+        }, 'ブリザードキャット・スノウ');
+        addLog(`${targetMonster.name}の効果をターン終了時まで無効化！`, 'info');
+      };
+
+      // 1体のみの場合は自動選択
+      if (validTargets.length === 1) {
+        applySilence(validTargets[0].index);
+        return true;
+      }
+
+      // 複数の場合はターゲット選択UI
+      if (setPendingTargetSelection) {
+        setPendingTargetSelection({
+          message: '効果を無効化する相手モンスターを選択',
+          validTargets: validTargets.map(t => t.index),
+          isOpponent: true,
+          callback: (targetIndex) => {
+            applySilence(targetIndex);
+          },
+        });
+        return true;
+      }
+
+      // フォールバック: 最初のターゲット
+      applySilence(validTargets[0].index);
+      return true;
+    }
+    return false;
+  },
+
+  /**
    * C0000144: ブリザードキャット・フロスト
    * 基本技：自身の攻撃力の半分のダメージを相手モンスター1体に与える。
    */
