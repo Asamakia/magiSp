@@ -93,6 +93,13 @@ export const TRIGGER_TYPES = {
    */
   ON_OPPONENT_MONSTER_DESTROYED: 'on_opponent_monster_destroyed',
 
+  /**
+   * このカードが場を離れる時
+   * 【場を離れる時】
+   * 破壊、手札戻し、デッキ戻し、除外など全てで発動
+   */
+  ON_LEAVE_FIELD: 'on_leave_field',
+
   // ========================================
   // フェイズトリガー (Phase Triggers)
   // ========================================
@@ -330,6 +337,11 @@ export const TRIGGER_TYPE_METADATA = {
   },
   [TRIGGER_TYPES.ON_DESTROY_SELF]: {
     displayName: '破壊時',
+    defaultActivation: ACTIVATION_TYPES.AUTOMATIC,
+    category: 'destroy',
+  },
+  [TRIGGER_TYPES.ON_LEAVE_FIELD]: {
+    displayName: '場を離れる時',
     defaultActivation: ACTIVATION_TYPES.AUTOMATIC,
     category: 'destroy',
   },

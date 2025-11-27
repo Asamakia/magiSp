@@ -284,6 +284,74 @@ C0000072: ルミナスの聖域
 
 ---
 
+### 【場を離れる時】
+
+- **トリガータイプ**: `TRIGGER_TYPES.ON_LEAVE_FIELD`
+- **使用頻度**: 1回（C0000278）
+- **優先度**: ★★☆☆☆
+- **発動タイミング**: このカードが場を離れる直前
+- **発動条件**: 以下のいずれかで場を離れる時:
+  - 破壊されて墓地に送られる
+  - 効果で手札に戻される
+  - 効果でデッキに戻される
+  - 効果で除外される
+- **効果範囲**: 墓地回収、デッキ戻しなど
+- **実装箇所**: `attack()` 関数内の破壊処理、効果による場離れ処理
+- **注意点**:
+  - **【自壊時】との違い**: 【自壊時】は破壊時のみ。【場を離れる時】は全ての場離れで発動
+  - 墓地送り/手札戻し/デッキ戻し**前**に発動
+  - `fireLeaveFieldTrigger()` を使用
+  - コンテキストに `leavingCard` と `leaveReason` を含む
+
+**使用例**:
+```
+C0000278: 灯守の少女
+【場を離れる時】自分の墓地の「未来属性」カード1枚をデッキに戻す。
+```
+
+**実装パターン**:
+```javascript
+// attack() 内の破壊処理
+if (newTargetHp <= 0) {
+  // 【自壊時】トリガー発火
+  fireTrigger(TRIGGER_TYPES.ON_DESTROY_SELF, destroyContext);
+
+  // 【場を離れる時】トリガー発火
+  fireLeaveFieldTrigger(target, destroyContext, 'destroy');
+
+  // トリガー登録を解除
+  unregisterCardTriggers(target.uniqueId);
+
+  // 墓地に送る
+  // ...
+}
+
+// cardTriggers/futureCards.js の例
+C0000278: [
+  {
+    type: TRIGGER_TYPES.ON_LEAVE_FIELD,
+    activationType: ACTIVATION_TYPES.AUTOMATIC,
+    description: '場を離れる時、墓地の未来属性カード1枚をデッキに戻す',
+    effect: (context) => {
+      const { graveyard, setGraveyard, setDeck, addLog, leavingCard } = context;
+
+      // 墓地から未来属性カードを探す（自分自身は除外）
+      const futureCard = graveyard.find(
+        (card) => card.attribute === '未来' && card.uniqueId !== leavingCard?.uniqueId
+      );
+
+      if (futureCard) {
+        setGraveyard(prev => prev.filter(c => c.uniqueId !== futureCard.uniqueId));
+        setDeck(prev => [...prev, futureCard]);
+        addLog(`${futureCard.name}を墓地からデッキに戻した`, 'info');
+      }
+    },
+  },
+],
+```
+
+---
+
 ## フェイズトリガー
 
 ### 【自分エンドフェイズ時】

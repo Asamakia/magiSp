@@ -278,6 +278,18 @@ export const parseCardTriggers = (card) => {
     });
   }
 
+  // 【場を離れる時】パターン
+  if (effectText.includes('【場を離れる時】')) {
+    triggers.push({
+      type: TRIGGER_TYPES.ON_LEAVE_FIELD,
+      activationType: ACTIVATION_TYPES.AUTOMATIC,
+      description: '場を離れる時効果',
+      effect: (context) => {
+        context.addLog(`${card.name}の場を離れる時効果を発動！`, 'info');
+      },
+    });
+  }
+
   // 【自分メインフェイズ時】パターン
   if (effectText.includes('【自分メインフェイズ時】')) {
     triggers.push({
@@ -362,6 +374,59 @@ export const clearAllTriggers = () => {
 // ========================================
 // 自動発動トリガーの発火
 // ========================================
+
+/**
+ * 「場を離れる時」トリガーを発火
+ * 破壊、手札戻し、デッキ戻し、除外など全てで発動
+ * @param {object} card - 場を離れるカード
+ * @param {object} context - ゲームコンテキスト
+ * @param {string} reason - 離れる理由 ('destroy', 'return_to_hand', 'return_to_deck', 'exile')
+ */
+export const fireLeaveFieldTrigger = (card, context, reason = 'destroy') => {
+  if (!card || !card.uniqueId) {
+    return;
+  }
+
+  const triggers = globalRegistry.get(TRIGGER_TYPES.ON_LEAVE_FIELD);
+
+  if (!triggers || triggers.length === 0) {
+    return;
+  }
+
+  // このカードのトリガーのみをフィルター
+  const cardTriggers = triggers.filter((trigger) => {
+    return trigger.cardId === card.uniqueId && trigger.activationType === ACTIVATION_TYPES.AUTOMATIC;
+  });
+
+  if (cardTriggers.length === 0) {
+    return;
+  }
+
+  // コンテキストに離れる理由を追加
+  const leaveContext = {
+    ...context,
+    leavingCard: card,
+    leaveReason: reason,
+  };
+
+  // 各トリガーを実行
+  cardTriggers.forEach((trigger) => {
+    try {
+      // 条件チェック
+      if (trigger.condition && !trigger.condition(leaveContext)) {
+        return;
+      }
+
+      // 効果実行
+      if (typeof trigger.effect === 'function') {
+        trigger.effect(leaveContext);
+      }
+    } catch (error) {
+      console.error(`場を離れるトリガー実行エラー: ${trigger.cardName}`, error);
+      context.addLog(`${trigger.cardName}の効果実行中にエラーが発生しました`, 'damage');
+    }
+  });
+};
 
 /**
  * 特定のトリガータイプを発火（自動発動のみ）

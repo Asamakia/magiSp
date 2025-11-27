@@ -487,6 +487,224 @@ export const futureCardTriggers = {
       },
     },
   ],
+
+  /**
+   * C0000278: 灯守の少女
+   * 【召喚時】自分のデッキ上1枚を見て、それが「未来属性」カードなら手札に、違えばデッキ下に。
+   * 【場を離れる時】自分の墓地の「未来属性」カード1枚をデッキに戻す。
+   */
+  C0000278: [
+    {
+      type: TRIGGER_TYPES.ON_SUMMON,
+      activationType: ACTIVATION_TYPES.AUTOMATIC,
+      description: 'デッキ上1枚を確認、未来属性なら手札に、違えばデッキ下に',
+      effect: (context) => {
+        const {
+          currentPlayer,
+          p1Deck,
+          p2Deck,
+          setP1Deck,
+          setP2Deck,
+          setP1Hand,
+          setP2Hand,
+          addLog,
+        } = context;
+
+        const deck = currentPlayer === 1 ? p1Deck : p2Deck;
+        const setDeck = currentPlayer === 1 ? setP1Deck : setP2Deck;
+        const setHand = currentPlayer === 1 ? setP1Hand : setP2Hand;
+
+        if (deck.length === 0) {
+          addLog('デッキにカードがありません', 'info');
+          return;
+        }
+
+        // デッキトップ1枚を確認
+        const topCard = deck[0];
+        addLog(`デッキトップを確認: ${topCard.name}`, 'info');
+
+        if (topCard.attribute === '未来') {
+          // 未来属性なら手札に加える
+          setDeck((prev) => prev.slice(1));
+          setHand((prev) => [...prev, topCard]);
+          addLog(`${topCard.name}は未来属性！手札に加えた`, 'info');
+        } else {
+          // 未来属性でなければデッキの下に戻す
+          setDeck((prev) => {
+            const newDeck = prev.slice(1);
+            return [...newDeck, topCard];
+          });
+          addLog(`${topCard.name}は未来属性ではない。デッキの下に戻した`, 'info');
+        }
+      },
+    },
+    {
+      type: TRIGGER_TYPES.ON_LEAVE_FIELD,
+      activationType: ACTIVATION_TYPES.AUTOMATIC,
+      description: '場を離れる時、墓地の未来属性カード1枚をデッキに戻す',
+      effect: (context) => {
+        const {
+          currentPlayer,
+          p1Graveyard,
+          p2Graveyard,
+          setP1Graveyard,
+          setP2Graveyard,
+          setP1Deck,
+          setP2Deck,
+          addLog,
+          leavingCard,
+        } = context;
+
+        const graveyard = currentPlayer === 1 ? p1Graveyard : p2Graveyard;
+        const setGraveyard = currentPlayer === 1 ? setP1Graveyard : setP2Graveyard;
+        const setDeck = currentPlayer === 1 ? setP1Deck : setP2Deck;
+
+        // 墓地から未来属性カードを探す（自分自身は除外）
+        const futureCard = graveyard.find(
+          (card) => card.attribute === '未来' && card.uniqueId !== leavingCard?.uniqueId
+        );
+
+        if (futureCard) {
+          // 墓地から削除してデッキに戻す
+          setGraveyard((prev) => prev.filter((c) => c.uniqueId !== futureCard.uniqueId));
+          setDeck((prev) => [...prev, futureCard]);
+          addLog(`灯守の少女の効果: ${futureCard.name}を墓地からデッキに戻した`, 'info');
+        } else {
+          addLog('墓地に未来属性カードがない', 'info');
+        }
+      },
+    },
+  ],
+
+  /**
+   * C0000267: 星翼の飛舟エクラオン
+   * 【召喚時】自分のデッキ上3枚を見て、未来モンスター1枚を手札に加え、残りを好きな順番で戻す。
+   * 場を離れる時、相手プレイヤーに600ダメージ。
+   */
+  C0000267: [
+    {
+      type: TRIGGER_TYPES.ON_SUMMON,
+      activationType: ACTIVATION_TYPES.AUTOMATIC,
+      description: 'デッキ上3枚を見て、未来モンスター1枚を手札に加える',
+      effect: (context) => {
+        const {
+          currentPlayer,
+          p1Deck,
+          p2Deck,
+          setP1Deck,
+          setP2Deck,
+          setP1Hand,
+          setP2Hand,
+          addLog,
+        } = context;
+
+        const deck = currentPlayer === 1 ? p1Deck : p2Deck;
+        const setDeck = currentPlayer === 1 ? setP1Deck : setP2Deck;
+        const setHand = currentPlayer === 1 ? setP1Hand : setP2Hand;
+
+        if (deck.length === 0) {
+          addLog('デッキにカードがありません', 'info');
+          return;
+        }
+
+        // デッキ上3枚を確認
+        const topCards = deck.slice(0, Math.min(3, deck.length));
+        addLog(`デッキ上${topCards.length}枚を確認: ${topCards.map((c) => c.name).join(', ')}`, 'info');
+
+        // 未来属性モンスターを探す
+        const futureMonster = topCards.find(
+          (card) => card.attribute === '未来' && card.type === 'monster'
+        );
+
+        if (futureMonster) {
+          // 未来モンスターを手札に加える
+          setHand((prev) => [...prev, futureMonster]);
+          // 残りをデッキに戻す（元の順番で。本来は好きな順番だがUI未実装）
+          const remaining = topCards.filter((c) => c.uniqueId !== futureMonster.uniqueId);
+          setDeck((prev) => {
+            const deckWithoutTop = prev.slice(topCards.length);
+            return [...remaining, ...deckWithoutTop];
+          });
+          addLog(`${futureMonster.name}を手札に加え、残りをデッキに戻した`, 'info');
+        } else {
+          // 未来モンスターがいない場合、全てそのまま戻す
+          addLog('未来属性モンスターがいなかった。カードをデッキに戻した', 'info');
+        }
+      },
+    },
+    {
+      type: TRIGGER_TYPES.ON_LEAVE_FIELD,
+      activationType: ACTIVATION_TYPES.AUTOMATIC,
+      description: '場を離れる時、相手に600ダメージ',
+      effect: (context) => {
+        const { currentPlayer, setP1Life, setP2Life, addLog } = context;
+
+        // 相手にダメージ
+        if (currentPlayer === 1) {
+          setP2Life((prev) => Math.max(0, prev - 600));
+        } else {
+          setP1Life((prev) => Math.max(0, prev - 600));
+        }
+        addLog('星翼の飛舟エクラオンの効果: 相手に600ダメージ！', 'damage');
+      },
+    },
+  ],
+
+  /**
+   * C0000274: 星辰の魔導術師
+   * 【召喚時】自分のデッキ上2枚を見て、1枚を手札に加え、残りをデッキ下に戻す。
+   */
+  C0000274: [
+    {
+      type: TRIGGER_TYPES.ON_SUMMON,
+      activationType: ACTIVATION_TYPES.AUTOMATIC,
+      description: 'デッキ上2枚を見て、1枚を手札に加え、残りをデッキ下に戻す',
+      effect: (context) => {
+        const {
+          currentPlayer,
+          p1Deck,
+          p2Deck,
+          setP1Deck,
+          setP2Deck,
+          setP1Hand,
+          setP2Hand,
+          addLog,
+        } = context;
+
+        const deck = currentPlayer === 1 ? p1Deck : p2Deck;
+        const setDeck = currentPlayer === 1 ? setP1Deck : setP2Deck;
+        const setHand = currentPlayer === 1 ? setP1Hand : setP2Hand;
+
+        if (deck.length === 0) {
+          addLog('デッキにカードがありません', 'info');
+          return;
+        }
+
+        // デッキ上2枚を確認
+        const topCards = deck.slice(0, Math.min(2, deck.length));
+        addLog(`デッキ上${topCards.length}枚を確認: ${topCards.map((c) => c.name).join(', ')}`, 'info');
+
+        if (topCards.length === 1) {
+          // 1枚しかない場合、その1枚を手札に
+          setHand((prev) => [...prev, topCards[0]]);
+          setDeck((prev) => prev.slice(1));
+          addLog(`${topCards[0].name}を手札に加えた`, 'info');
+        } else {
+          // 2枚ある場合、最初の1枚を手札に、残りをデッキ下に
+          // 本来はプレイヤーが選択するがUI未実装のため最初の1枚を選択
+          const cardToHand = topCards[0];
+          const cardToBottom = topCards[1];
+
+          setHand((prev) => [...prev, cardToHand]);
+          setDeck((prev) => {
+            const deckWithoutTop = prev.slice(2);
+            return [...deckWithoutTop, cardToBottom];
+          });
+          addLog(`${cardToHand.name}を手札に加え、${cardToBottom.name}をデッキの下に戻した`, 'info');
+        }
+      },
+    },
+  ],
 };
 
 /**

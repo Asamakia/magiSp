@@ -15,6 +15,7 @@ import {
   registerCardTriggers,
   unregisterCardTriggers,
   fireTrigger,
+  fireLeaveFieldTrigger,
   clearAllTriggers,
   resetTurnFlags,
   getCardMainPhaseTriggers,
@@ -994,6 +995,8 @@ export default function MagicSpiritGame() {
             addLog,
           };
           fireTrigger(TRIGGER_TYPES.ON_DESTROY_SELF, destroyContext);
+          // 場を離れる時トリガーを発火
+          fireLeaveFieldTrigger(target, destroyContext, 'destroy');
 
           // トリガー登録を解除
           unregisterCardTriggers(target.uniqueId);
@@ -1014,7 +1017,7 @@ export default function MagicSpiritGame() {
             return newField;
           });
         }
-        
+
         // 自分のフィールドの更新
         if (newAttackerHp <= 0) {
           // 破壊時トリガーを発火（破壊される前）
@@ -1045,6 +1048,8 @@ export default function MagicSpiritGame() {
             addLog,
           };
           fireTrigger(TRIGGER_TYPES.ON_DESTROY_SELF, destroyContext);
+          // 場を離れる時トリガーを発火
+          fireLeaveFieldTrigger(attacker, destroyContext, 'destroy');
 
           // トリガー登録を解除
           unregisterCardTriggers(attacker.uniqueId);
@@ -1096,6 +1101,8 @@ export default function MagicSpiritGame() {
             addLog,
           };
           fireTrigger(TRIGGER_TYPES.ON_DESTROY_SELF, destroyContext);
+          // 場を離れる時トリガーを発火
+          fireLeaveFieldTrigger(target, destroyContext, 'destroy');
 
           // トリガー登録を解除
           unregisterCardTriggers(target.uniqueId);
@@ -1147,6 +1154,8 @@ export default function MagicSpiritGame() {
             addLog,
           };
           fireTrigger(TRIGGER_TYPES.ON_DESTROY_SELF, destroyContext);
+          // 場を離れる時トリガーを発火
+          fireLeaveFieldTrigger(attacker, destroyContext, 'destroy');
 
           // トリガー登録を解除
           unregisterCardTriggers(attacker.uniqueId);
