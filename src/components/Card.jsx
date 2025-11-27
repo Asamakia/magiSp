@@ -4,7 +4,7 @@ import { ATTRIBUTE_COLORS, TYPE_ICONS } from '../utils/constants';
 // ========================================
 // カードコンポーネント
 // ========================================
-const Card = ({ card, onClick, selected, small, faceDown, inHand, disabled, modifiedCost, costModifierSource }) => {
+const Card = ({ card, onClick, selected, small, faceDown, inHand, disabled, modifiedCost, costModifierSource, onMouseEnter, onMouseLeave }) => {
   if (!card) return null;
 
   const colors = ATTRIBUTE_COLORS[card.attribute] || ATTRIBUTE_COLORS['なし'];
@@ -46,7 +46,7 @@ const Card = ({ card, onClick, selected, small, faceDown, inHand, disabled, modi
   }
 
   return (
-    <div style={cardStyle} onClick={disabled ? null : onClick}>
+    <div style={cardStyle} onClick={disabled ? null : onClick} onMouseEnter={onMouseEnter} onMouseLeave={onMouseLeave}>
       {/* コスト表示 */}
       {(() => {
         const actualCost = modifiedCost !== undefined ? modifiedCost : card.cost;
