@@ -921,3 +921,48 @@ export const applyStatusToOwnMonster = (context, targetIndex, statusType, option
   }));
   return true;
 };
+
+/**
+ * 相手フィールドの全モンスターに一時的な攻撃力ダウンを付与
+ * エンドフェイズ回数で解除される（「次のターン終了時まで」= 2）
+ * @param {Object} context - ゲームコンテキスト
+ * @param {number} value - 攻撃力ダウン値（正の値で指定）
+ * @param {number} endPhases - 何回のエンドフェイズ後に解除されるか（「次のターン終了時まで」= 2）
+ * @param {string} sourceName - 発動源の名前
+ * @returns {number} 付与に成功したモンスター数
+ */
+export const applyTemporaryAtkDownToAllOpponents = (context, value, endPhases, sourceName = '') => {
+  const {
+    currentPlayer,
+    p1Field, p2Field,
+    setP1Field, setP2Field,
+    addLog,
+  } = context;
+
+  // ステータスタイプをインポート
+  const { STATUS_EFFECT_TYPES } = require('./statusEffects');
+
+  const opponentField = currentPlayer === 1 ? p2Field : p1Field;
+  const setOpponentField = currentPlayer === 1 ? setP2Field : setP1Field;
+
+  let count = 0;
+
+  setOpponentField(prev => prev.map(m => {
+    if (m) {
+      const result = statusEffectEngine.applyStatus(m, STATUS_EFFECT_TYPES.ATK_DOWN, {
+        value: value,
+        expiresAfterEndPhases: endPhases,
+        source: sourceName,
+        sourceName: sourceName,
+      });
+      if (result.success) {
+        count++;
+        addLog(`${m.name}の攻撃力が${value}下がった！（${endPhases === 2 ? '次のターン終了時まで' : `${endPhases}エンドフェイズ後まで`}）`, 'info');
+      }
+      return { ...m };
+    }
+    return m;
+  }));
+
+  return count;
+};

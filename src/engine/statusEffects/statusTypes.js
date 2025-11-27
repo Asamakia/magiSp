@@ -123,6 +123,13 @@ export const STATUS_EFFECT_TYPES = {
    */
   HP_UP: 'hp_up',
 
+  /**
+   * 攻撃力低下（一時的）
+   * - 攻撃力が低下
+   * - エンドフェイズ回数で解除（expiresAfterEndPhases）
+   */
+  ATK_DOWN: 'atk_down',
+
   // ========================================
   // プレイヤー状態異常
   // ========================================
@@ -303,6 +310,18 @@ export const STATUS_EFFECT_METADATA = {
       hpFlatModifier: 0, // valueで指定
     },
     defaultDuration: 1,
+  },
+  [STATUS_EFFECT_TYPES.ATK_DOWN]: {
+    displayName: '攻撃力低下',
+    icon: '⬇️',
+    color: '#ff6666',
+    category: 'debuff',
+    target: 'monster',
+    effects: {
+      attackFlatModifier: 0, // valueで指定（負の値）
+    },
+    // expiresAfterEndPhasesで管理（durationは使用しない）
+    defaultDuration: -1,
   },
 
   // ========================================
