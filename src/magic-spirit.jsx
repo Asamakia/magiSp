@@ -32,6 +32,11 @@ import {
   getNextStageDescription,
 } from './engine/phaseCardEffects';
 import { continuousEffectEngine } from './engine/continuousEffects';
+import {
+  isSetsunaMagic,
+  getSetsunaCost,
+  getActivatableSetsunaMagics,
+} from './engine/keywordAbilities';
 import styles from './styles/gameStyles';
 import Card from './components/Card';
 import FieldMonster from './components/FieldMonster';
@@ -103,6 +108,10 @@ export default function MagicSpiritGame() {
   const [pendingGraveyardSelection, setPendingGraveyardSelection] = useState(null); // 墓地選択待ち { message, callback, filter? }
   const [pendingGraveyardSelectedCard, setPendingGraveyardSelectedCard] = useState(null); // 墓地選択中のカード
   const [pendingDeckReview, setPendingDeckReview] = useState(null); // デッキトップ確認モーダル { cards, title, message, allowReorder, onConfirm, onCancel, selectMode, onSelect }
+
+  // 刹那詠唱状態
+  const [setsunaPendingActivation, setSetsunaPendingActivation] = useState(false); // 刹那詠唱カード選択モード
+  const [setsunaPendingCard, setSetsunaPendingCard] = useState(null); // 選択された刹那詠唱カード
 
   // デッキ選択状態
   const [p1SelectedDeck, setP1SelectedDeck] = useState('random');
@@ -1509,6 +1518,122 @@ export default function MagicSpiritGame() {
     }
   };
 
+  // ========================================
+  // 刹那詠唱システム
+  // ========================================
+
+  // 相手ターン中に刹那詠唱を発動可能か判定
+  const canUseSetsunaMagic = useCallback(() => {
+    // 非アクティブプレイヤー（相手ターン中の自分）の手札とSPをチェック
+    const nonActivePlayer = currentPlayer === 1 ? 2 : 1;
+    const hand = nonActivePlayer === 1 ? p1Hand : p2Hand;
+    const activeSP = nonActivePlayer === 1 ? p1ActiveSP : p2ActiveSP;
+
+    const activatableCards = getActivatableSetsunaMagics(hand, activeSP);
+    return activatableCards.length > 0;
+  }, [currentPlayer, p1Hand, p2Hand, p1ActiveSP, p2ActiveSP]);
+
+  // 刹那詠唱発動可能カード一覧を取得
+  const getSetsunaMagicsForNonActivePlayer = useCallback(() => {
+    const nonActivePlayer = currentPlayer === 1 ? 2 : 1;
+    const hand = nonActivePlayer === 1 ? p1Hand : p2Hand;
+    const activeSP = nonActivePlayer === 1 ? p1ActiveSP : p2ActiveSP;
+
+    return getActivatableSetsunaMagics(hand, activeSP);
+  }, [currentPlayer, p1Hand, p2Hand, p1ActiveSP, p2ActiveSP]);
+
+  // 刹那詠唱カードを発動
+  const activateSetsunaMagic = useCallback((card) => {
+    if (!card || !isSetsunaMagic(card)) {
+      addLog('刹那詠唱カードではありません', 'damage');
+      return false;
+    }
+
+    // 発動するプレイヤーは非アクティブプレイヤー
+    const castingPlayer = currentPlayer === 1 ? 2 : 1;
+    const setsunaCost = getSetsunaCost(card);
+    const activeSP = castingPlayer === 1 ? p1ActiveSP : p2ActiveSP;
+
+    if (activeSP < setsunaCost) {
+      addLog(`SPが足りません！（刹那詠唱コスト: ${setsunaCost}, 現在: ${activeSP}）`, 'damage');
+      return false;
+    }
+
+    // SPを消費
+    if (castingPlayer === 1) {
+      setP1ActiveSP(prev => prev - setsunaCost);
+      setP1RestedSP(prev => prev + setsunaCost);
+      setP1Hand(prev => prev.filter(c => c.uniqueId !== card.uniqueId));
+      setP1Graveyard(prev => [...prev, card]);
+    } else {
+      setP2ActiveSP(prev => prev - setsunaCost);
+      setP2RestedSP(prev => prev + setsunaCost);
+      setP2Hand(prev => prev.filter(c => c.uniqueId !== card.uniqueId));
+      setP2Graveyard(prev => [...prev, card]);
+    }
+
+    addLog(`プレイヤー${castingPlayer}: 【刹那詠唱】${card.name}を発動！（コスト${card.cost}+1=${setsunaCost}）`, 'info');
+
+    // 魔法効果を実行（castingPlayer を currentPlayer として渡す）
+    if (card.effect) {
+      const context = {
+        currentPlayer: castingPlayer, // 発動者を currentPlayer として設定
+        monsterIndex: null,
+        setP1Life,
+        setP2Life,
+        setP1Field,
+        setP2Field,
+        setP1Hand,
+        setP2Hand,
+        setP1Deck,
+        setP2Deck,
+        setP1Graveyard,
+        setP2Graveyard,
+        p1Field,
+        p2Field,
+        p1Hand,
+        p2Hand,
+        p1Deck,
+        p2Deck,
+        p1Graveyard,
+        p2Graveyard,
+        addLog,
+      };
+      executeSkillEffects(card.effect, context);
+    }
+
+    // UI状態をリセット
+    setSetsunaPendingActivation(false);
+    setSetsunaPendingCard(null);
+
+    return true;
+  }, [currentPlayer, p1ActiveSP, p2ActiveSP, p1Field, p2Field, p1Hand, p2Hand,
+      p1Deck, p2Deck, p1Graveyard, p2Graveyard, addLog]);
+
+  // 刹那詠唱モードを開始
+  const startSetsunaMagicMode = useCallback(() => {
+    setSetsunaPendingActivation(true);
+    setSetsunaPendingCard(null);
+    addLog('刹那詠唱カードを選択してください', 'info');
+  }, [addLog]);
+
+  // 刹那詠唱モードをキャンセル
+  const cancelSetsunaMagicMode = useCallback(() => {
+    setSetsunaPendingActivation(false);
+    setSetsunaPendingCard(null);
+  }, []);
+
+  // 刹那詠唱カードを選択
+  const selectSetsunaMagicCard = useCallback((card) => {
+    if (setsunaPendingCard && setsunaPendingCard.uniqueId === card.uniqueId) {
+      // 同じカードをクリックしたら発動
+      activateSetsunaMagic(card);
+    } else {
+      // カードを選択状態に
+      setSetsunaPendingCard(card);
+    }
+  }, [setsunaPendingCard, activateSetsunaMagic]);
+
   // 墓地発動可能なカードを取得
   const getActivatableGraveyardCards = () => {
     const graveyard = currentPlayer === 1 ? p1Graveyard : p2Graveyard;
@@ -2088,6 +2213,87 @@ export default function MagicSpiritGame() {
 
           {/* フィールド */}
           <div style={styles.fieldArea}>
+            {/* 刹那詠唱UI（プレイヤー2が相手ターン中に使用） */}
+            {currentPlayer === 1 && setsunaPendingActivation && (
+              <div style={{
+                background: 'linear-gradient(135deg, #1a1a3a 0%, #2a1a4a 100%)',
+                border: '2px solid #9c6bff',
+                borderRadius: '8px',
+                padding: '12px',
+                marginBottom: '8px',
+                boxShadow: '0 0 15px rgba(156, 107, 255, 0.4)',
+              }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                  <span style={{ fontSize: '14px', color: '#9c6bff', fontWeight: 'bold' }}>⚡ 刹那詠唱カードを選択</span>
+                  <button
+                    onClick={cancelSetsunaMagicMode}
+                    style={{
+                      background: '#444',
+                      color: '#fff',
+                      border: 'none',
+                      borderRadius: '4px',
+                      padding: '4px 8px',
+                      cursor: 'pointer',
+                      fontSize: '12px',
+                    }}
+                  >
+                    キャンセル
+                  </button>
+                </div>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+                  {getSetsunaMagicsForNonActivePlayer().map(card => (
+                    <Card
+                      key={card.uniqueId}
+                      card={card}
+                      onClick={() => selectSetsunaMagicCard(card)}
+                      selected={setsunaPendingCard?.uniqueId === card.uniqueId}
+                      inHand
+                      small
+                    />
+                  ))}
+                </div>
+                {setsunaPendingCard && (
+                  <div style={{ marginTop: '8px', textAlign: 'center' }}>
+                    <button
+                      onClick={() => activateSetsunaMagic(setsunaPendingCard)}
+                      style={{
+                        background: 'linear-gradient(135deg, #9c6bff 0%, #7b4fd9 100%)',
+                        color: '#fff',
+                        border: 'none',
+                        borderRadius: '6px',
+                        padding: '8px 16px',
+                        cursor: 'pointer',
+                        fontWeight: 'bold',
+                        boxShadow: '0 0 10px rgba(156, 107, 255, 0.5)',
+                      }}
+                    >
+                      {setsunaPendingCard.name} を発動（コスト{getSetsunaCost(setsunaPendingCard)}）
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
+            {/* 刹那詠唱ボタン（プレイヤー2用、プレイヤー1のターン中） */}
+            {currentPlayer === 1 && !setsunaPendingActivation && canUseSetsunaMagic() && (
+              <div style={{ marginBottom: '8px', textAlign: 'center' }}>
+                <button
+                  onClick={startSetsunaMagicMode}
+                  style={{
+                    background: 'linear-gradient(135deg, #9c6bff 0%, #7b4fd9 100%)',
+                    color: '#fff',
+                    border: 'none',
+                    borderRadius: '6px',
+                    padding: '8px 16px',
+                    cursor: 'pointer',
+                    fontWeight: 'bold',
+                    boxShadow: '0 0 10px rgba(156, 107, 255, 0.5)',
+                    animation: 'pulse 2s infinite',
+                  }}
+                >
+                  ⚡ 刹那詠唱
+                </button>
+              </div>
+            )}
             {/* 手札（プレイヤー2のターンなら表示、それ以外は裏向き） */}
             <div style={{ ...styles.handArea, minHeight: '80px' }}>
               {p2Hand.map((card, i) => {
@@ -2595,6 +2801,87 @@ export default function MagicSpiritGame() {
                 );
               })}
             </div>
+            {/* 刹那詠唱ボタン（プレイヤー1用、プレイヤー2のターン中） */}
+            {currentPlayer === 2 && !setsunaPendingActivation && canUseSetsunaMagic() && (
+              <div style={{ marginTop: '8px', textAlign: 'center' }}>
+                <button
+                  onClick={startSetsunaMagicMode}
+                  style={{
+                    background: 'linear-gradient(135deg, #4da6ff 0%, #3d8bdb 100%)',
+                    color: '#fff',
+                    border: 'none',
+                    borderRadius: '6px',
+                    padding: '8px 16px',
+                    cursor: 'pointer',
+                    fontWeight: 'bold',
+                    boxShadow: '0 0 10px rgba(77, 166, 255, 0.5)',
+                    animation: 'pulse 2s infinite',
+                  }}
+                >
+                  ⚡ 刹那詠唱
+                </button>
+              </div>
+            )}
+            {/* 刹那詠唱UI（プレイヤー1が相手ターン中に使用） */}
+            {currentPlayer === 2 && setsunaPendingActivation && (
+              <div style={{
+                background: 'linear-gradient(135deg, #1a2a3a 0%, #1a3a4a 100%)',
+                border: '2px solid #4da6ff',
+                borderRadius: '8px',
+                padding: '12px',
+                marginTop: '8px',
+                boxShadow: '0 0 15px rgba(77, 166, 255, 0.4)',
+              }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                  <span style={{ fontSize: '14px', color: '#4da6ff', fontWeight: 'bold' }}>⚡ 刹那詠唱カードを選択</span>
+                  <button
+                    onClick={cancelSetsunaMagicMode}
+                    style={{
+                      background: '#444',
+                      color: '#fff',
+                      border: 'none',
+                      borderRadius: '4px',
+                      padding: '4px 8px',
+                      cursor: 'pointer',
+                      fontSize: '12px',
+                    }}
+                  >
+                    キャンセル
+                  </button>
+                </div>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+                  {getSetsunaMagicsForNonActivePlayer().map(card => (
+                    <Card
+                      key={card.uniqueId}
+                      card={card}
+                      onClick={() => selectSetsunaMagicCard(card)}
+                      selected={setsunaPendingCard?.uniqueId === card.uniqueId}
+                      inHand
+                      small
+                    />
+                  ))}
+                </div>
+                {setsunaPendingCard && (
+                  <div style={{ marginTop: '8px', textAlign: 'center' }}>
+                    <button
+                      onClick={() => activateSetsunaMagic(setsunaPendingCard)}
+                      style={{
+                        background: 'linear-gradient(135deg, #4da6ff 0%, #3d8bdb 100%)',
+                        color: '#fff',
+                        border: 'none',
+                        borderRadius: '6px',
+                        padding: '8px 16px',
+                        cursor: 'pointer',
+                        fontWeight: 'bold',
+                        boxShadow: '0 0 10px rgba(77, 166, 255, 0.5)',
+                      }}
+                    >
+                      {setsunaPendingCard.name} を発動（コスト{getSetsunaCost(setsunaPendingCard)}）
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
 
           {/* フィールドカード・フェイズカード */}
