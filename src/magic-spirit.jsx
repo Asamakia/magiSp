@@ -1011,19 +1011,40 @@ export default function MagicSpiritGame() {
     }
 
     if (card.type === 'magic') {
+      // 魔法カードのコスト軽減を計算
+      const magicCostContext = {
+        currentPlayer,
+        effectOwner: currentPlayer,
+        p1Field,
+        p2Field,
+        p1Life,
+        p2Life,
+      };
+      const magicCostModifier = continuousEffectEngine.calculateMagicCostModifier(card, currentPlayer, magicCostContext);
+      const actualMagicCost = Math.max(0, card.cost + magicCostModifier);
+
+      if (activeSP < actualMagicCost) {
+        addLog(`SPが足りません！（必要: ${actualMagicCost}, 現在: ${activeSP}）`, 'damage');
+        return false;
+      }
+
       if (currentPlayer === 1) {
         setP1Hand(prev => prev.filter(c => c.uniqueId !== card.uniqueId));
-        setP1ActiveSP(prev => prev - card.cost);
-        setP1RestedSP(prev => prev + card.cost);
+        setP1ActiveSP(prev => prev - actualMagicCost);
+        setP1RestedSP(prev => prev + actualMagicCost);
         setP1Graveyard(prev => [...prev, card]);
       } else {
         setP2Hand(prev => prev.filter(c => c.uniqueId !== card.uniqueId));
-        setP2ActiveSP(prev => prev - card.cost);
-        setP2RestedSP(prev => prev + card.cost);
+        setP2ActiveSP(prev => prev - actualMagicCost);
+        setP2RestedSP(prev => prev + actualMagicCost);
         setP2Graveyard(prev => [...prev, card]);
       }
-      
-      addLog(`プレイヤー${currentPlayer}: ${card.name}を発動！`, 'info');
+
+      if (magicCostModifier !== 0) {
+        addLog(`プレイヤー${currentPlayer}: ${card.name}を発動！（コスト${card.cost}→${actualMagicCost}）`, 'info');
+      } else {
+        addLog(`プレイヤー${currentPlayer}: ${card.name}を発動！`, 'info');
+      }
 
       // 魔法効果を実行
       if (card.effect) {
@@ -1298,6 +1319,8 @@ export default function MagicSpiritGame() {
             setP2Deck,
             setP1Graveyard,
             setP2Graveyard,
+            setP1FieldCard,
+            setP2FieldCard,
             p1Field,
             p2Field,
             p1Hand,
@@ -1306,9 +1329,13 @@ export default function MagicSpiritGame() {
             p2Deck,
             p1Graveyard,
             p2Graveyard,
+            p1FieldCard,
+            p2FieldCard,
             p1Life,
             p2Life,
             addLog,
+            registerCardTriggers,
+            continuousEffectEngine,
           };
           fireTrigger(TRIGGER_TYPES.ON_DESTROY_SELF, destroyContext);
           // 場を離れる時トリガーを発火
@@ -1352,6 +1379,8 @@ export default function MagicSpiritGame() {
             setP2Deck,
             setP1Graveyard,
             setP2Graveyard,
+            setP1FieldCard,
+            setP2FieldCard,
             p1Field,
             p2Field,
             p1Hand,
@@ -1360,9 +1389,13 @@ export default function MagicSpiritGame() {
             p2Deck,
             p1Graveyard,
             p2Graveyard,
+            p1FieldCard,
+            p2FieldCard,
             p1Life,
             p2Life,
             addLog,
+            registerCardTriggers,
+            continuousEffectEngine,
           };
           fireTrigger(TRIGGER_TYPES.ON_DESTROY_SELF, destroyContext);
           // 場を離れる時トリガーを発火
@@ -1405,6 +1438,8 @@ export default function MagicSpiritGame() {
             setP2Deck,
             setP1Graveyard,
             setP2Graveyard,
+            setP1FieldCard,
+            setP2FieldCard,
             p1Field,
             p2Field,
             p1Hand,
@@ -1413,9 +1448,13 @@ export default function MagicSpiritGame() {
             p2Deck,
             p1Graveyard,
             p2Graveyard,
+            p1FieldCard,
+            p2FieldCard,
             p1Life,
             p2Life,
             addLog,
+            registerCardTriggers,
+            continuousEffectEngine,
           };
           fireTrigger(TRIGGER_TYPES.ON_DESTROY_SELF, destroyContext);
           // 場を離れる時トリガーを発火
@@ -1459,6 +1498,8 @@ export default function MagicSpiritGame() {
             setP2Deck,
             setP1Graveyard,
             setP2Graveyard,
+            setP1FieldCard,
+            setP2FieldCard,
             p1Field,
             p2Field,
             p1Hand,
@@ -1467,9 +1508,13 @@ export default function MagicSpiritGame() {
             p2Deck,
             p1Graveyard,
             p2Graveyard,
+            p1FieldCard,
+            p2FieldCard,
             p1Life,
             p2Life,
             addLog,
+            registerCardTriggers,
+            continuousEffectEngine,
           };
           fireTrigger(TRIGGER_TYPES.ON_DESTROY_SELF, destroyContext);
           // 場を離れる時トリガーを発火

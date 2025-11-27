@@ -1047,17 +1047,63 @@ export const darkCardTriggers = {
 
   /**
    * C0000384: 魔女エリザヴェット・ヴェイル
-   * 【常時】自分の《黒呪》魔法カードのコストを1軽減（重複不可）。
+   * 【常時】自分の《黒呪》魔法カードのコストを1軽減（重複不可） → continuousEffectsで実装済み
+   * 【破壊時】デッキから《呪縛の塔・ヴェルナクール》を1枚場に出す（コスト不要）
    */
   C0000384: [
     {
-      type: TRIGGER_TYPES.CONTINUOUS,
+      type: TRIGGER_TYPES.ON_DESTROY_SELF,
       activationType: ACTIVATION_TYPES.AUTOMATIC,
-      description: '常時: 黒呪魔法カードコスト-1',
+      description: '破壊時: 《呪縛の塔・ヴェルナクール》をデッキから場に出す',
       effect: (context) => {
-        const { addLog } = context;
-        // Note: Cost modification system not yet implemented
-        addLog('黒呪魔法カードのコストを1軽減！', 'info');
+        const {
+          currentPlayer,
+          p1Deck,
+          p2Deck,
+          setP1Deck,
+          setP2Deck,
+          setP1FieldCard,
+          setP2FieldCard,
+          addLog,
+          registerCardTriggers,
+          continuousEffectEngine,
+        } = context;
+
+        const deck = currentPlayer === 1 ? p1Deck : p2Deck;
+        const setDeck = currentPlayer === 1 ? setP1Deck : setP2Deck;
+        const setFieldCard = currentPlayer === 1 ? setP1FieldCard : setP2FieldCard;
+
+        // デッキから《呪縛の塔・ヴェルナクール》(C0000386)を検索
+        const cardIndex = deck.findIndex((card) => card.id === 'C0000386');
+
+        if (cardIndex === -1) {
+          addLog('デッキに《呪縛の塔・ヴェルナクール》がない', 'info');
+          return;
+        }
+
+        const fieldCard = { ...deck[cardIndex], owner: currentPlayer, uniqueId: `${deck[cardIndex].id}_${Date.now()}_${Math.random()}` };
+
+        // デッキから除去
+        setDeck((prev) => {
+          const newDeck = [...prev];
+          newDeck.splice(cardIndex, 1);
+          return newDeck;
+        });
+
+        // フィールドカードとして配置
+        setFieldCard(fieldCard);
+
+        // トリガーを登録
+        if (registerCardTriggers) {
+          registerCardTriggers(fieldCard, currentPlayer, null);
+        }
+
+        // 常時効果を登録
+        if (continuousEffectEngine) {
+          continuousEffectEngine.register(fieldCard, currentPlayer);
+        }
+
+        addLog(`魔女エリザヴェット・ヴェイルの効果で《呪縛の塔・ヴェルナクール》を場に出した！`, 'info');
       },
     },
   ],
