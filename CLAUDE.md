@@ -89,7 +89,7 @@ Currently a **prototype version** with local 2-player gameplay.
   - Added `hasCategory()` helper function for normalized category comparison
   - Fixed category comparison across 10 files (cardEffects/, cardTriggers/, effectEngine.js, etc.)
   - Phase card continuous effects (e.g., エクラシアの時空炉) now work correctly
-- **2025-11-27 (Keyword Abilities - Setsuna Eisho)**: Chain point system for 【刹那詠唱】 implemented ⭐⭐ **NEW**
+- **2025-11-27 (Keyword Abilities - Setsuna Eisho)**: Chain point system for 【刹那詠唱】 implemented ⭐⭐
   - Keyword abilities system foundation (`src/engine/keywordAbilities/index.js`)
   - Chain point system for opponent-turn card activation
     - BATTLE_START: Confirmation when entering battle phase
@@ -99,6 +99,13 @@ Currently a **prototype version** with local 2-player gameplay.
   - Phase A implementation: Single chain (no counter-chains)
   - Phase B preparation: Stack structure ready for LIFO resolution
   - Documentation: `src/ルール/chain-system-design.md`, rules updated to ver2.3
+- **2025-11-27 (Phase Trigger Owner Check & Field Card Fix)**: Phase trigger system and continuous effect fixes ⭐ **NEW**
+  - **Phase trigger owner validation**: `_SELF` triggers (ON_END_PHASE_SELF, etc.) now only fire when card owner === turn player
+  - **Opponent phase trigger**: `ON_OPPONENT_END_PHASE` fires when card owner !== turn player
+  - **Monster/card owner property**: Added `owner` property to monsters, field cards, phase cards on summon/placement
+  - **Continuous effect UI display**: Field monsters now show ATK/HP modifiers with color coding (green=buff, red=debuff)
+  - **Field card trigger registration**: Fixed missing `registerCardTriggers()` call for field cards
+  - Fixed: ドラゴンの火山 end phase trigger now fires correctly (only on owner's turn, damages opponent monsters)
 
 ---
 
@@ -246,7 +253,7 @@ Currently a **prototype version** with local 2-player gameplay.
 - Helper functions for trigger metadata
 - Designed for extensibility without hardcoding
 
-**`src/engine/triggerEngine.js`** (Trigger lifecycle engine - 716 lines) ⭐ **NEW**
+**`src/engine/triggerEngine.js`** (Trigger lifecycle engine - ~730 lines) ⭐
 - Global trigger registry system
 - Trigger registration/unregistration (on summon/destroy)
 - Automatic trigger firing (phase-based)
@@ -254,9 +261,12 @@ Currently a **prototype version** with local 2-player gameplay.
 - Manual trigger activation
 - Turn-based usage flag management
 - Priority-based execution ordering
+- **Phase trigger owner validation**:
+  - `_SELF` triggers (ON_END_PHASE_SELF, etc.): fire only when `trigger.owner === currentPlayer`
+  - `_OPPONENT` triggers (ON_OPPONENT_END_PHASE): fire only when `trigger.owner !== currentPlayer`
 
-**`src/engine/cardTriggers/`** (Card-specific trigger implementations - ~7270 lines, 220 cards)
-- **fireCards.js**: 炎属性 triggers (33 cards, 819 lines)
+**`src/engine/cardTriggers/`** (Card-specific trigger implementations - ~7300 lines, 221 cards)
+- **fireCards.js**: 炎属性 triggers (34 cards, ~850 lines) - includes field card ドラゴンの火山
 - **waterCards.js**: 水属性 triggers (37 cards, 1122 lines) - includes 3 graveyard triggers
 - **lightCards.js**: 光属性 triggers (37 cards, 1069 lines)
 - **darkCards.js**: 闇属性 triggers (45 cards, 1591 lines)
@@ -1580,6 +1590,6 @@ This is suitable for expansion into a full game or as a learning project for Rea
 
 ---
 
-**Document Version**: 4.2
-**Last Updated**: 2025-11-27 (Keyword abilities - Setsuna Eisho chain system)
+**Document Version**: 4.3
+**Last Updated**: 2025-11-27 (Phase trigger owner check & field card continuous effect fixes)
 **For**: Magic Spirit (magiSp) Repository
