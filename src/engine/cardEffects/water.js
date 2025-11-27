@@ -18,48 +18,8 @@ import { STATUS_EFFECT_TYPES } from '../statusEffects';
  * 水属性カードの固有効果
  */
 export const waterCardEffects = {
-  /**
-   * C0000142: ブリザードマスター
-   * 【召喚時】デッキから《ブリザード》または《猫》魔法カード1枚を手札に加える
-   */
-  C0000142: (skillText, context) => {
-    if (skillText.includes('【召喚時】')) {
-      return searchCard(context, (card) => {
-        return card.type === 'magic' &&
-               (card.name.includes('ブリザード') || card.name.includes('猫'));
-      }) !== null;
-    }
-    return false;
-  },
-
-  /**
-   * C0000147: ブリザードキャット・シャード
-   * 【召喚時】相手モンスター1体に、場にいる《ブリザードキャット》×500ダメージを与える
-   */
-  C0000147: (skillText, context) => {
-    const {
-      addLog,
-      currentPlayer,
-      p1Field, p2Field,
-    } = context;
-
-    if (skillText.includes('【召喚時】')) {
-      const currentField = currentPlayer === 1 ? p1Field : p2Field;
-      const blizzardCatCount = currentField.filter(m =>
-        m && m.name && m.name.includes('ブリザードキャット')
-      ).length;
-
-      if (blizzardCatCount > 0) {
-        const damage = blizzardCatCount * 500;
-        addLog(`ブリザードキャット×${blizzardCatCount}`, 'info');
-        return conditionalDamage(context, damage, 'opponent_monster', 0);
-      } else {
-        addLog('ブリザードキャットがいません', 'info');
-        return false;
-      }
-    }
-    return false;
-  },
+  // C0000142 (ブリザードマスター) と C0000147 (ブリザードキャット・シャード) は
+  // cardTriggers/waterCards.js に実装済み（召喚時トリガーとして）
 
   /**
    * C0000148: 氷の双尾猫

@@ -33,7 +33,7 @@ export const waterCardTriggers = {
   C0000039: [
     {
       type: TRIGGER_TYPES.ON_SUMMON,
-      activationType: ACTIVATION_TYPES.OPTIONAL,
+      activationType: ACTIVATION_TYPES.AUTOMATIC,
       description: '召喚時: 相手モンスター1体を「眠り」状態に',
       effect: (context) => {
         // 眠り: 次のターン終了時まで行動不能＋効果無効、ターン開始時50%解除
@@ -393,7 +393,7 @@ export const waterCardTriggers = {
   C0000144: [
     {
       type: TRIGGER_TYPES.ON_SUMMON,
-      activationType: ACTIVATION_TYPES.OPTIONAL,
+      activationType: ACTIVATION_TYPES.AUTOMATIC,
       description: '召喚時: 相手モンスター1体を「凍結」',
       effect: (context) => {
         // 凍結: 攻撃力半減＋行動不能、次のターン開始時に50%で解除
@@ -417,7 +417,7 @@ export const waterCardTriggers = {
   C0000145: [
     {
       type: TRIGGER_TYPES.ON_SUMMON,
-      activationType: ACTIVATION_TYPES.OPTIONAL,
+      activationType: ACTIVATION_TYPES.AUTOMATIC,
       description: '召喚時: 相手モンスター1体を「凍結」',
       effect: (context) => {
         // 凍結: 攻撃力半減＋行動不能、次のターン開始時に50%で解除
@@ -462,11 +462,18 @@ export const waterCardTriggers = {
   C0000147: [
     {
       type: TRIGGER_TYPES.ON_SUMMON,
-      activationType: ACTIVATION_TYPES.OPTIONAL,
+      activationType: ACTIVATION_TYPES.AUTOMATIC,
       description: '召喚時: 《ブリザードキャット》×500ダメージ',
       effect: (context) => {
-        const { currentPlayer, p1Field, p2Field, addLog } = context;
+        const {
+          currentPlayer, p1Field, p2Field, addLog,
+          setP1Field, setP2Field, setP1Graveyard, setP2Graveyard,
+          setPendingTargetSelection,
+        } = context;
         const field = currentPlayer === 1 ? p1Field : p2Field;
+        const opponentField = currentPlayer === 1 ? p2Field : p1Field;
+        const setOpponentField = currentPlayer === 1 ? setP2Field : setP1Field;
+        const setOpponentGraveyard = currentPlayer === 1 ? setP2Graveyard : setP1Graveyard;
 
         // 場の《ブリザードキャット》をカウント
         const blizzardCatCount = field.filter((monster) =>
@@ -479,8 +486,59 @@ export const waterCardTriggers = {
         }
 
         const damage = blizzardCatCount * 500;
-        addLog(`ブリザードキャット・シャードの効果: 相手モンスターに${damage}ダメージ（未実装）`, 'info');
-        // TODO: モンスター選択UIが必要
+
+        // 相手モンスターを取得
+        const validTargets = opponentField
+          .map((m, idx) => ({ monster: m, index: idx }))
+          .filter(({ monster }) => monster !== null);
+
+        if (validTargets.length === 0) {
+          addLog('ブリザードキャット・シャードの効果: 相手モンスターがいません', 'info');
+          return;
+        }
+
+        const applyDamage = (targetIndex) => {
+          setOpponentField(prev => {
+            const newField = [...prev];
+            const target = newField[targetIndex];
+            if (target) {
+              const newHp = Math.max(0, target.currentHp - damage);
+              addLog(`${target.name}に${damage}ダメージ！（残りHP: ${newHp}）`, 'damage');
+              if (newHp <= 0) {
+                addLog(`${target.name}が破壊された！`, 'damage');
+                setOpponentGraveyard(prev => [...prev, target]);
+                newField[targetIndex] = null;
+              } else {
+                newField[targetIndex] = { ...target, currentHp: newHp };
+              }
+            }
+            return newField;
+          });
+        };
+
+        // 1体のみの場合は自動選択
+        if (validTargets.length === 1) {
+          addLog(`ブリザードキャット×${blizzardCatCount}で${damage}ダメージ！`, 'info');
+          applyDamage(validTargets[0].index);
+          return;
+        }
+
+        // 複数いる場合は選択UI
+        if (setPendingTargetSelection) {
+          addLog(`ブリザードキャット×${blizzardCatCount}で${damage}ダメージ！対象を選択...`, 'info');
+          setPendingTargetSelection({
+            message: `${damage}ダメージを与える相手モンスターを選択してください`,
+            targetType: 'opponent_monster',
+            callback: (selectedIndex) => {
+              applyDamage(selectedIndex);
+            },
+          });
+          return;
+        }
+
+        // フォールバック
+        addLog(`ブリザードキャット×${blizzardCatCount}で${damage}ダメージ！`, 'info');
+        applyDamage(validTargets[0].index);
       },
     },
   ],
