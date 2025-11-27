@@ -83,12 +83,22 @@ Currently a **prototype version** with local 2-player gameplay.
   - Separate `pendingSelectedCard` state to prevent normal actions during selection
   - **ON_SUMMON trigger scope fix**: Now fires only for the summoned card itself
   - Previously ON_SUMMON fired for all summons; now correctly scoped to owning card
-- **2025-11-27 (Cost Reduction & Category Fix)**: Summon cost modifier display and category comparison fix ⭐ **NEW**
+- **2025-11-27 (Cost Reduction & Category Fix)**: Summon cost modifier display and category comparison fix ⭐
   - Hand cards now display modified cost with color coding (green=reduced, red=increased)
   - Tooltip shows original cost and modifier source
   - Added `hasCategory()` helper function for normalized category comparison
   - Fixed category comparison across 10 files (cardEffects/, cardTriggers/, effectEngine.js, etc.)
   - Phase card continuous effects (e.g., エクラシアの時空炉) now work correctly
+- **2025-11-27 (Keyword Abilities - Setsuna Eisho)**: Chain point system for 【刹那詠唱】 implemented ⭐⭐ **NEW**
+  - Keyword abilities system foundation (`src/engine/keywordAbilities/index.js`)
+  - Chain point system for opponent-turn card activation
+    - BATTLE_START: Confirmation when entering battle phase
+    - ATTACK_DECLARATION: Confirmation when monster attacks
+  - Chain confirmation dialog UI with card selection
+  - Setsuna cost calculation: normal cost + 1 SP
+  - Phase A implementation: Single chain (no counter-chains)
+  - Phase B preparation: Stack structure ready for LIFO resolution
+  - Documentation: `src/ルール/chain-system-design.md`, rules updated to ver2.3
 
 ---
 
@@ -145,22 +155,24 @@ Currently a **prototype version** with local 2-player gameplay.
 │   │   │   ├── futureCards.js    # 未来属性 trigger implementations (12 cards, 504 lines)
 │   │   │   ├── primitiveCards.js # 原始属性 trigger implementations (28 cards, 1306 lines)
 │   │   │   └── neutralCards.js   # なし属性 trigger implementations (18 cards, 758 lines)
-│   │   └── continuousEffects/  # Continuous effect system (~2736 lines) ⭐⭐⭐⭐ NEW
-│   │       ├── index.js          # Main exports (106 lines)
-│   │       ├── effectTypes.js    # Effect type definitions (224 lines)
-│   │       ├── targetTypes.js    # Target type definitions (182 lines)
-│   │       ├── conditionChecker.js # Condition checking (303 lines)
-│   │       ├── valueCalculator.js  # Value calculation (216 lines)
-│   │       ├── effectEngine.js   # Main continuous effect engine (687 lines)
-│   │       └── effectDefinitions/ # Card effect definitions (~1018 lines)
-│   │           ├── index.js      # Definition registry (77 lines)
-│   │           ├── fieldCards.js # Field card effects (23 cards, 390 lines)
-│   │           ├── monsterCards.js # Monster card effects (22 cards, 368 lines)
-│   │           └── phaseCards.js # Phase card effects (183 lines)
+│   │   ├── continuousEffects/  # Continuous effect system (~2736 lines) ⭐⭐⭐⭐
+│   │   │   ├── index.js          # Main exports (106 lines)
+│   │   │   ├── effectTypes.js    # Effect type definitions (224 lines)
+│   │   │   ├── targetTypes.js    # Target type definitions (182 lines)
+│   │   │   ├── conditionChecker.js # Condition checking (303 lines)
+│   │   │   ├── valueCalculator.js  # Value calculation (216 lines)
+│   │   │   ├── effectEngine.js   # Main continuous effect engine (687 lines)
+│   │   │   └── effectDefinitions/ # Card effect definitions (~1018 lines)
+│   │   │       ├── index.js      # Definition registry (77 lines)
+│   │   │       ├── fieldCards.js # Field card effects (23 cards, 390 lines)
+│   │   │       ├── monsterCards.js # Monster card effects (22 cards, 368 lines)
+│   │   │       └── phaseCards.js # Phase card effects (183 lines)
+│   │   └── keywordAbilities/   # Keyword ability system (~250 lines) ⭐⭐ NEW
+│   │       └── index.js          # Keyword definitions, chain points, helpers
 │   │
-│   ├── ルール/                  # Documentation (~8900 lines total)
-│   │   ├── Game Rules (日本語) - 3 files (244 lines)
-│   │   │   ├── マジックスピリット 公式ルール仕様書 ver2.11.txt (114 lines)
+│   ├── ルール/                  # Documentation (~9500 lines total)
+│   │   ├── Game Rules (日本語) - 3 files (~260 lines)
+│   │   │   ├── マジックスピリット 公式ルール仕様書 ver2.3.txt (~130 lines)
 │   │   │   ├── マジックスピリット - デッキ構築とコストバランス.txt (86 lines)
 │   │   │   └── マジックスピリット - フェイズカードルール (ver1.0).txt (44 lines)
 │   │   ├── Development Roadmaps - 2 files (1100 lines)
@@ -173,8 +185,11 @@ Currently a **prototype version** with local 2-player gameplay.
 │   │   │   ├── trigger-specifications.md (941 lines) - Spec details
 │   │   │   ├── trigger-revision-plan.md (823 lines) - Design revision plan
 │   │   │   └── trigger-system-design.md (547 lines) - System design
-│   │   └── Continuous Effect System Documentation - 1 file (1247 lines) ⭐⭐⭐⭐ NEW
-│   │       └── continuous-effect-system-design.md (1247 lines) - System design
+│   │   ├── Continuous Effect System Documentation - 1 file (1247 lines) ⭐⭐⭐⭐
+│   │   │   └── continuous-effect-system-design.md (1247 lines) - System design
+│   │   └── Keyword Abilities Documentation - 2 files (~530 lines) ⭐⭐ NEW
+│   │       ├── keyword-abilities.md (~450 lines) - Keyword ability list and progress
+│   │       └── chain-system-design.md (~280 lines) - Chain point system design
 │   │
 │   ├── index.js                # React entry point
 │   ├── App.css                 # App styling
@@ -190,7 +205,7 @@ Currently a **prototype version** with local 2-player gameplay.
 
 ### Key Files
 
-**`src/magic-spirit.jsx`** (Main game component - 2482 lines)
+**`src/magic-spirit.jsx`** (Main game component - ~2900 lines)
 - Game state management (React hooks)
 - Game flow control (phase progression, turn management)
 - Card summoning logic
@@ -251,7 +266,7 @@ Currently a **prototype version** with local 2-player gameplay.
 - Uses effect helpers for common patterns
 - Comprehensive trigger system covering 220 cards across all attributes
 
-**`src/engine/continuousEffects/`** (Continuous effect system - ~2736 lines, 45 cards) ⭐⭐⭐⭐ **NEW**
+**`src/engine/continuousEffects/`** (Continuous effect system - ~2736 lines, 45 cards) ⭐⭐⭐⭐
 - **effectTypes.js**: 12 continuous effect types (ATK_MODIFIER, DAMAGE_REDUCTION, etc.)
 - **targetTypes.js**: Target type definitions (SELF_CARD, SELF_MONSTERS, etc.)
 - **conditionChecker.js**: Condition checking system (attribute, category, name, life, etc.)
@@ -263,6 +278,15 @@ Currently a **prototype version** with local 2-player gameplay.
   - phaseCards.js: Phase card stage-based effects
 - State-based effect system (vs event-driven trigger system)
 - Comprehensive coverage of 常時 effects
+
+**`src/engine/keywordAbilities/`** (Keyword ability system - ~250 lines) ⭐⭐ **NEW**
+- **index.js**: Keyword ability definitions, judgment functions, chain point system
+- `KEYWORD_ABILITIES`: 14 keyword ability definitions
+- `hasKeyword()`, `getCardKeywords()`: Keyword judgment functions
+- `isSetsunaMagic()`, `getSetsunaCost()`: Setsuna-specific helpers
+- `CHAIN_POINTS`, `CHAIN_POINT_NAMES`: Chain point definitions
+- `createStackItem()`, `resolveStack()`: Stack management for Phase B preparation
+- Hybrid architecture: integrates with trigger/continuous effect systems
 
 **`src/utils/cardManager.js`** (Card data manager - 253 lines)
 - CSV parser for 433 cards
@@ -280,8 +304,8 @@ Currently a **prototype version** with local 2-player gameplay.
 
 **`src/ルール/`** (Documentation directory - ~5356 lines total) 📚
 
-*Game Rules (日本語) - 3 files, 244 lines:*
-- **公式ルール仕様書 ver2.11.txt** (114 lines): Official game rules specification
+*Game Rules (日本語) - 3 files, ~260 lines:*
+- **公式ルール仕様書 ver2.3.txt** (~130 lines): Official game rules specification
   - Core game mechanics and rules
   - Turn structure and phase details
   - Card types and attributes
@@ -1556,6 +1580,6 @@ This is suitable for expansion into a full game or as a learning project for Rea
 
 ---
 
-**Document Version**: 4.1
-**Last Updated**: 2025-11-27 (Cost reduction display & category comparison fix)
+**Document Version**: 4.2
+**Last Updated**: 2025-11-27 (Keyword abilities - Setsuna Eisho chain system)
 **For**: Magic Spirit (magiSp) Repository
