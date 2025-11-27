@@ -927,6 +927,9 @@ export default function MagicSpiritGame() {
         setP2RestedSP(prev => prev + card.cost);
       }
 
+      // トリガーを登録
+      registerCardTriggers(fieldCardInstance, currentPlayer, null);
+
       // 常時効果を登録
       continuousEffectEngine.register(fieldCardInstance, currentPlayer);
 
