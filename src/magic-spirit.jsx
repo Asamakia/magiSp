@@ -1016,6 +1016,7 @@ export default function MagicSpiritGame() {
           p1Graveyard,
           p2Graveyard,
           addLog,
+          setPendingDeckReview,
         };
         executeSkillEffects(card.effect, context, card.id);
       }
@@ -1570,6 +1571,7 @@ export default function MagicSpiritGame() {
         p1Graveyard,
         p2Graveyard,
         addLog,
+        setPendingDeckReview,
       };
       executeSkillEffects(card.effect, context, card.id);
     }
@@ -1952,6 +1954,7 @@ export default function MagicSpiritGame() {
         p1Graveyard,
         p2Graveyard,
         addLog,
+        setPendingDeckReview,
       };
       executeSkillEffects(card.effect, context, card.id);
     }
