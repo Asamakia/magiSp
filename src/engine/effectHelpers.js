@@ -3,6 +3,8 @@
 // カード固有処理で使用する共通処理
 // ========================================
 
+import { statusEffectEngine, getStatusDisplayName } from './statusEffects';
+
 /**
  * デッキの上からカードを墓地に送る（ミル）
  * @param {Object} context - ゲームコンテキスト
@@ -596,8 +598,6 @@ export const selectAndRecoverFromGraveyard = (context, filter = null) => {
 // ========================================
 // 状態異常関連ヘルパー
 // ========================================
-
-import { statusEffectEngine, getStatusDisplayName } from './statusEffects';
 
 /**
  * 相手モンスター1体に状態異常を付与（選択UI）
