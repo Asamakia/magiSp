@@ -95,12 +95,62 @@ export const waterCardTriggers = {
   C0000042: [
     {
       type: TRIGGER_TYPES.ON_SUMMON,
-      activationType: ACTIVATION_TYPES.OPTIONAL,
+      activationType: ACTIVATION_TYPES.AUTOMATIC,
       description: '召喚時: 手札の水属性カード1枚のコスト-1',
       effect: (context) => {
-        const { addLog } = context;
-        addLog('潮の乙女の効果: 手札の水属性カードのコスト軽減（未実装）', 'info');
-        // TODO: コスト軽減システムの実装が必要
+        const {
+          currentPlayer, p1Hand, p2Hand, setP1Hand, setP2Hand,
+          addLog, setPendingHandSelection,
+        } = context;
+
+        const hand = currentPlayer === 1 ? p1Hand : p2Hand;
+        const setHand = currentPlayer === 1 ? setP1Hand : setP2Hand;
+
+        // 水属性カードをフィルタ（自分自身以外）
+        const waterCards = hand.filter(c => c.attribute === '水');
+
+        if (waterCards.length === 0) {
+          addLog('潮の乙女の効果: 手札に水属性カードがありません', 'info');
+          return;
+        }
+
+        // 1枚のみの場合は自動選択
+        if (waterCards.length === 1) {
+          const targetCard = waterCards[0];
+          setHand(prev => prev.map(c =>
+            c.uniqueId === targetCard.uniqueId
+              ? { ...c, tempCostModifier: (c.tempCostModifier || 0) - 1, tempCostModifierSource: '潮の乙女' }
+              : c
+          ));
+          addLog(`潮の乙女の効果: ${targetCard.name}のコストを1軽減！`, 'heal');
+          return;
+        }
+
+        // 複数の場合は選択UI
+        if (setPendingHandSelection) {
+          setPendingHandSelection({
+            message: 'コストを1軽減する水属性カードを選択してください',
+            filter: (card) => card.attribute === '水',
+            callback: (selectedCard) => {
+              setHand(prev => prev.map(c =>
+                c.uniqueId === selectedCard.uniqueId
+                  ? { ...c, tempCostModifier: (c.tempCostModifier || 0) - 1, tempCostModifierSource: '潮の乙女' }
+                  : c
+              ));
+              addLog(`潮の乙女の効果: ${selectedCard.name}のコストを1軽減！`, 'heal');
+            },
+          });
+          return;
+        }
+
+        // フォールバック: 最初の水属性カードを選択
+        const targetCard = waterCards[0];
+        setHand(prev => prev.map(c =>
+          c.uniqueId === targetCard.uniqueId
+            ? { ...c, tempCostModifier: (c.tempCostModifier || 0) - 1, tempCostModifierSource: '潮の乙女' }
+            : c
+        ));
+        addLog(`潮の乙女の効果: ${targetCard.name}のコストを1軽減！`, 'heal');
       },
     },
   ],

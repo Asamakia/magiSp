@@ -154,14 +154,25 @@ export default function MagicSpiritGame() {
       p2Life,
     };
 
+    // 常時効果からのコスト修正
     const { modifier, sources } = continuousEffectEngine.getSummonCostModifierDetails(card, player, context);
 
-    if (modifier === 0) {
+    // カード固有の一時的コスト修正（潮の乙女など）
+    const tempModifier = card.tempCostModifier || 0;
+    const tempSource = card.tempCostModifierSource || null;
+
+    const totalModifier = modifier + tempModifier;
+
+    if (totalModifier === 0) {
       return { modifiedCost: undefined, costModifierSource: undefined };
     }
 
-    const actualCost = Math.max(0, card.cost + modifier);
-    const sourceText = sources.length > 0 ? sources.join(', ') : '常時効果';
+    const actualCost = Math.max(0, card.cost + totalModifier);
+    const allSources = [...sources];
+    if (tempSource) {
+      allSources.push(tempSource);
+    }
+    const sourceText = allSources.length > 0 ? allSources.join(', ') : '効果';
 
     return { modifiedCost: actualCost, costModifierSource: sourceText };
   }, [p1Field, p2Field, p1Life, p2Life]);
@@ -760,10 +771,21 @@ export default function MagicSpiritGame() {
         p1Life,
         p2Life,
       };
+      // 常時効果からのコスト修正
       const { modifier, sources } = continuousEffectEngine.getSummonCostModifierDetails(card, currentPlayer, context);
-      actualCost = Math.max(0, card.cost + modifier);
-      if (modifier !== 0 && sources.length > 0) {
-        costModifierSource = sources.join(', ');
+      // カード固有の一時的コスト修正（潮の乙女など）
+      const tempModifier = card.tempCostModifier || 0;
+      const tempSource = card.tempCostModifierSource || null;
+
+      const totalModifier = modifier + tempModifier;
+      actualCost = Math.max(0, card.cost + totalModifier);
+
+      const allSources = [...sources];
+      if (tempSource) {
+        allSources.push(tempSource);
+      }
+      if (totalModifier !== 0 && allSources.length > 0) {
+        costModifierSource = allSources.join(', ');
       }
     }
 
