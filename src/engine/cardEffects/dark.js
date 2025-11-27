@@ -238,5 +238,64 @@ export const darkCardEffects = {
     return false;
   },
 
+  /**
+   * C0000384: 魔女エリザヴェット・ヴェイル
+   * 基本技: 自分の墓地の《黒呪》魔法カード1枚を手札に戻す（ターンに1度）
+   */
+  C0000384: (skillText, context) => {
+    const {
+      addLog,
+      currentPlayer,
+      p1Graveyard,
+      p2Graveyard,
+      setP1Graveyard,
+      setP2Graveyard,
+      setP1Hand,
+      setP2Hand,
+      setPendingGraveyardSelection,
+    } = context;
+
+    if (context.skillType === 'basic') {
+      const graveyard = currentPlayer === 1 ? p1Graveyard : p2Graveyard;
+      const setGraveyard = currentPlayer === 1 ? setP1Graveyard : setP2Graveyard;
+      const setHand = currentPlayer === 1 ? setP1Hand : setP2Hand;
+
+      // 墓地から《黒呪》魔法カードを検索
+      const blackCurseMagics = graveyard.filter(
+        (card) => card.type === 'magic' && card.name && card.name.includes('黒呪')
+      );
+
+      if (blackCurseMagics.length === 0) {
+        addLog('墓地に《黒呪》魔法カードがありません', 'info');
+        return false;
+      }
+
+      // 複数ある場合は選択UIを表示
+      if (blackCurseMagics.length > 1 && setPendingGraveyardSelection) {
+        setPendingGraveyardSelection({
+          message: '手札に戻す《黒呪》魔法カードを選択',
+          cards: blackCurseMagics,
+          callback: (selectedCard) => {
+            // 墓地から除去
+            setGraveyard((prev) => prev.filter((c) => c.uniqueId !== selectedCard.uniqueId));
+            // 手札に追加
+            setHand((prev) => [...prev, selectedCard]);
+            addLog(`${selectedCard.name}を手札に戻した`, 'info');
+          },
+        });
+        return true;
+      }
+
+      // 1枚だけの場合は自動選択
+      const targetCard = blackCurseMagics[0];
+      setGraveyard((prev) => prev.filter((c) => c.uniqueId !== targetCard.uniqueId));
+      setHand((prev) => [...prev, targetCard]);
+      addLog(`${targetCard.name}を手札に戻した`, 'info');
+      return true;
+    }
+
+    return false;
+  },
+
   // 他の闇属性カードを追加...
 };
