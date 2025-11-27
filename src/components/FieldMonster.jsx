@@ -198,8 +198,6 @@ const FieldMonster = ({ monster, onClick, selected, canAttack, isTarget, isValid
         fontSize: '10px',
         fontWeight: 'bold',
         background: 'rgba(0,0,0,0.5)',
-        borderRadius: '4px',
-        padding: '2px 6px',
       }}>
         <span style={{
           color: atkModifier > 0 ? '#4cff4c' : atkModifier < 0 ? '#ff4c4c' : '#ff6b6b',
