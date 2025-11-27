@@ -16,7 +16,10 @@ import {
   destroyMonster,
   modifyAttack,
   modifyHP,
+  selectAndApplyStatusToOpponent,
+  applyStatusToAllOpponentMonsters,
 } from '../effectHelpers';
+import { STATUS_EFFECT_TYPES } from '../statusEffects';
 
 /**
  * 水属性カードのトリガー定義
@@ -33,9 +36,16 @@ export const waterCardTriggers = {
       activationType: ACTIVATION_TYPES.OPTIONAL,
       description: '召喚時: 相手モンスター1体を「眠り」状態に',
       effect: (context) => {
-        const { addLog } = context;
-        addLog('アクア・メイデンの効果: 相手モンスター1体を「眠り」状態にする（未実装）', 'info');
-        // TODO: 状態異常システムの実装が必要
+        // 眠り: 次のターン終了時まで行動不能＋効果無効、ターン開始時50%解除
+        selectAndApplyStatusToOpponent(
+          context,
+          STATUS_EFFECT_TYPES.SLEEP,
+          {
+            duration: 2, // 次のターン終了時まで
+            removeChance: 0.5, // 50%で解除
+          },
+          'アクア・メイデン'
+        );
       },
     },
   ],
@@ -386,9 +396,16 @@ export const waterCardTriggers = {
       activationType: ACTIVATION_TYPES.OPTIONAL,
       description: '召喚時: 相手モンスター1体を「凍結」',
       effect: (context) => {
-        const { addLog } = context;
-        addLog('ブリザードキャット・フロストの効果: 相手モンスター1体を「凍結」（未実装）', 'info');
-        // TODO: 状態異常システムの実装が必要
+        // 凍結: 攻撃力半減＋行動不能、次のターン開始時に50%で解除
+        selectAndApplyStatusToOpponent(
+          context,
+          STATUS_EFFECT_TYPES.FREEZE,
+          {
+            duration: -1, // 永続（解除判定で消える）
+            removeChance: 0.5, // 50%で解除
+          },
+          'ブリザードキャット・フロスト'
+        );
       },
     },
   ],
@@ -403,9 +420,16 @@ export const waterCardTriggers = {
       activationType: ACTIVATION_TYPES.OPTIONAL,
       description: '召喚時: 相手モンスター1体を「凍結」',
       effect: (context) => {
-        const { addLog } = context;
-        addLog('ブリザードキャット・スノウの効果: 相手モンスター1体を「凍結」（未実装）', 'info');
-        // TODO: 状態異常システムの実装が必要
+        // 凍結: 攻撃力半減＋行動不能、次のターン開始時に50%で解除
+        selectAndApplyStatusToOpponent(
+          context,
+          STATUS_EFFECT_TYPES.FREEZE,
+          {
+            duration: -1, // 永続（解除判定で消える）
+            removeChance: 0.5, // 50%で解除
+          },
+          'ブリザードキャット・スノウ'
+        );
       },
     },
   ],
@@ -581,9 +605,19 @@ export const waterCardTriggers = {
       activationType: ACTIVATION_TYPES.AUTOMATIC,
       description: '召喚時: 相手モンスター全てを「凍結」',
       effect: (context) => {
-        const { addLog } = context;
-        addLog('ブリザードキャット・エターナルの効果: 相手モンスター全てを「凍結」（未実装）', 'info');
-        // TODO: 状態異常システムの実装が必要
+        // 凍結: 攻撃力半減＋行動不能、ターン開始時50%解除
+        const count = applyStatusToAllOpponentMonsters(
+          context,
+          STATUS_EFFECT_TYPES.FREEZE,
+          {
+            duration: -1, // 永続（解除判定で消える）
+            removeChance: 0.5, // 50%で解除
+          },
+          'ブリザードキャット・エターナル'
+        );
+        if (count === 0) {
+          context.addLog('相手の場にモンスターがいません', 'info');
+        }
       },
     },
     {
@@ -611,9 +645,19 @@ export const waterCardTriggers = {
       activationType: ACTIVATION_TYPES.AUTOMATIC,
       description: '発動時: 相手モンスター全体を「凍結」',
       effect: (context) => {
-        const { addLog } = context;
-        addLog('永遠の氷結宮殿の発動時効果: 相手モンスター全体を「凍結」（未実装）', 'info');
-        // TODO: 状態異常システムの実装が必要
+        // 凍結: 攻撃半減＋行動不能、ターン開始時50%解除
+        const count = applyStatusToAllOpponentMonsters(
+          context,
+          STATUS_EFFECT_TYPES.FREEZE,
+          {
+            duration: -1,
+            removeChance: 0.5,
+          },
+          '永遠の氷結宮殿'
+        );
+        if (count === 0) {
+          context.addLog('相手の場にモンスターがいません', 'info');
+        }
       },
     },
     {

@@ -99,13 +99,21 @@ Currently a **prototype version** with local 2-player gameplay.
   - Phase A implementation: Single chain (no counter-chains)
   - Phase B preparation: Stack structure ready for LIFO resolution
   - Documentation: `src/ルール/chain-system-design.md`, rules updated to ver2.3
-- **2025-11-27 (Phase Trigger Owner Check & Field Card Fix)**: Phase trigger system and continuous effect fixes ⭐ **NEW**
+- **2025-11-27 (Phase Trigger Owner Check & Field Card Fix)**: Phase trigger system and continuous effect fixes ⭐
   - **Phase trigger owner validation**: `_SELF` triggers (ON_END_PHASE_SELF, etc.) now only fire when card owner === turn player
   - **Opponent phase trigger**: `ON_OPPONENT_END_PHASE` fires when card owner !== turn player
   - **Monster/card owner property**: Added `owner` property to monsters, field cards, phase cards on summon/placement
   - **Continuous effect UI display**: Field monsters now show ATK/HP modifiers with color coding (green=buff, red=debuff)
   - **Field card trigger registration**: Fixed missing `registerCardTriggers()` call for field cards
   - Fixed: ドラゴンの火山 end phase trigger now fires correctly (only on owner's turn, damages opponent monsters)
+- **2025-11-27 (Status Effect System)**: Comprehensive status effect system implemented ⭐⭐ **NEW**
+  - **Status effect engine** (`src/engine/statusEffects/`) with ~580 lines of new code
+  - **13 status effect types**: SLEEP, FREEZE, THUNDER, WET, STUN, SILENCE, GUARD, INVINCIBLE, CORRODE, AWAKENED, ATK_UP, HP_UP, POISON
+  - **Game integration**: Turn start/end phase processing, attack/skill restrictions, damage calculation
+  - **Status effect helpers** in effectHelpers.js for applying status effects
+  - **UI display**: Status icons on field monsters (FieldMonster.jsx)
+  - **New deck**: 氷眠の檻 (Ice Sleep Prison) - freeze/sleep control deck
+  - **6 cards implemented**: C0000039 (sleep), C0000144/145/150/157/199 (freeze)
 
 ---
 
@@ -174,8 +182,12 @@ Currently a **prototype version** with local 2-player gameplay.
 │   │   │       ├── fieldCards.js # Field card effects (23 cards, 390 lines)
 │   │   │       ├── monsterCards.js # Monster card effects (22 cards, 368 lines)
 │   │   │       └── phaseCards.js # Phase card effects (183 lines)
-│   │   └── keywordAbilities/   # Keyword ability system (~250 lines) ⭐⭐ NEW
-│   │       └── index.js          # Keyword definitions, chain points, helpers
+│   │   ├── keywordAbilities/   # Keyword ability system (~250 lines) ⭐⭐
+│   │   │   └── index.js          # Keyword definitions, chain points, helpers
+│   │   └── statusEffects/      # Status effect system (~580 lines) ⭐⭐ NEW
+│   │       ├── index.js          # Main exports
+│   │       ├── statusTypes.js    # Status type definitions and metadata
+│   │       └── statusEngine.js   # Main status effect engine
 │   │
 │   ├── ルール/                  # Documentation (~9500 lines total)
 │   │   ├── Game Rules (日本語) - 3 files (~260 lines)
@@ -194,9 +206,11 @@ Currently a **prototype version** with local 2-player gameplay.
 │   │   │   └── trigger-system-design.md (547 lines) - System design
 │   │   ├── Continuous Effect System Documentation - 1 file (1247 lines) ⭐⭐⭐⭐
 │   │   │   └── continuous-effect-system-design.md (1247 lines) - System design
-│   │   └── Keyword Abilities Documentation - 2 files (~530 lines) ⭐⭐ NEW
-│   │       ├── keyword-abilities.md (~450 lines) - Keyword ability list and progress
-│   │       └── chain-system-design.md (~280 lines) - Chain point system design
+│   │   ├── Keyword Abilities Documentation - 2 files (~530 lines) ⭐⭐
+│   │   │   ├── keyword-abilities.md (~450 lines) - Keyword ability list and progress
+│   │   │   └── chain-system-design.md (~280 lines) - Chain point system design
+│   │   └── Status Effect System Documentation - 1 file (~1050 lines) ⭐⭐ NEW
+│   │       └── status-effect-system-design.md (~1050 lines) - System design
 │   │
 │   ├── index.js                # React entry point
 │   ├── App.css                 # App styling
@@ -1072,6 +1086,107 @@ const { atkBuff, hpBuff } = continuousEffectEngine.getSummonBuffs(monster, summo
 
 ---
 
+### Working with the Status Effect System ⭐⭐ **NEW**
+
+The status effect system manages temporary status conditions applied to monsters and players.
+
+**Key Difference from Other Systems**:
+- **Triggers**: Event-driven, fire once when event occurs
+- **Continuous Effects**: State-based, continuously apply while card is on field
+- **Status Effects**: Temporary conditions with duration/removal mechanics
+
+**Status Effect Types (13 types)**:
+```javascript
+STATUS_EFFECT_TYPES = {
+  // Debuffs (Monster)
+  SLEEP,      // 眠り - 行動不能、効果無効、50%で解除
+  FREEZE,     // 凍結 - 攻撃力半減、行動不能、50%で解除
+  THUNDER,    // 雷撃 - ATK-500、技不能
+  WET,        // 濡れ - 被ダメージ2倍
+  STUN,       // 行動不能 - 攻撃・効果不可
+  SILENCE,    // 効果無効 - 効果発動不可
+  CORRODE,    // 深蝕 - エンド時ATKダウン
+
+  // Buffs (Monster)
+  GUARD,      // 守護 - ダメージ半減（1回）
+  INVINCIBLE, // 無敵 - ダメージ無効
+  AWAKENED,   // 覚醒 - ATK上昇
+  ATK_UP,     // 攻撃力上昇
+  HP_UP,      // HP上昇
+
+  // Player
+  POISON,     // 毒 - 毎ターン100ダメージ
+};
+```
+
+**Engine API**:
+```javascript
+import { statusEffectEngine, STATUS_EFFECT_TYPES } from './engine/statusEffects';
+
+// Apply/remove status
+const result = statusEffectEngine.applyStatus(monster, STATUS_EFFECT_TYPES.FREEZE, {
+  duration: 1,        // Number of turns (-1 = permanent)
+  removeChance: 0.5,  // Chance to remove at turn start
+  source: 'C0000144',
+  sourceName: 'ブリザードキャット・フロスト',
+});
+statusEffectEngine.removeStatus(monster, STATUS_EFFECT_TYPES.FREEZE);
+
+// Check status
+const canAttack = statusEffectEngine.canAttack(monster);      // boolean
+const canUseSkill = statusEffectEngine.canUseSkill(monster);  // boolean
+const hasFreeze = statusEffectEngine.hasStatus(monster, STATUS_EFFECT_TYPES.FREEZE);
+
+// Get modifiers
+const atkMod = statusEffectEngine.getAttackModifier(monster); // number
+const dmgMult = statusEffectEngine.getDamageMultiplier(monster); // number
+
+// Turn processing
+const { monster: updated, removedEffects } = statusEffectEngine.processTurnStart(monster);
+const { monster: updated, removedEffects, atkReduction } = statusEffectEngine.processEndPhase(monster);
+
+// Damage reduction (Guard)
+const { reduction, usedGuard, updatedMonster } = statusEffectEngine.calculateDamageReduction(monster, damage);
+
+// Clear all (game init)
+statusEffectEngine.clear();
+```
+
+**Status Effect Helpers (effectHelpers.js)**:
+```javascript
+import {
+  selectAndApplyStatusToOpponent,    // UI selection + apply
+  applyStatusToOpponentMonster,      // Apply to specific slot
+  applyStatusToAllOpponentMonsters,  // Apply to all
+  applyStatusToOwnMonster,           // Apply to own monster
+} from './engine/effectHelpers';
+
+// Example: Apply freeze to selected opponent monster
+selectAndApplyStatusToOpponent(context, STATUS_EFFECT_TYPES.FREEZE, {
+  duration: -1,       // Until removed
+  removeChance: 0.5,  // 50% remove at turn start
+}, 'ブリザードキャット・フロスト');
+
+// Example: Apply freeze to all opponent monsters
+applyStatusToAllOpponentMonsters(context, STATUS_EFFECT_TYPES.FREEZE, {
+  duration: -1,
+  removeChance: 0.5,
+}, 'ブリザードキャット・エターナル');
+```
+
+**Integration in magic-spirit.jsx**:
+- **initGame()**: `statusEffectEngine.clear()` - Reset system
+- **processPhase(0)**: `processTurnStart()` - Check removal at turn start
+- **processPhase(4)**: `processEndPhase()` - Apply end phase effects
+- **processPhase(4)**: `processPlayerEndPhase()` - Apply player poison damage
+- **attack()**: `canAttack()` - Check if attack allowed
+- **attack()**: `getAttackModifier()` - Apply ATK modifiers (freeze, etc.)
+- **attack()**: `getDamageMultiplier()` - Apply damage multipliers (wet)
+- **attack()**: `calculateDamageReduction()` - Apply guard
+- **executeSkill()**: `canUseSkill()` - Check if skill allowed
+
+---
+
 ## Development Workflow
 
 ### Available Scripts
@@ -1590,6 +1705,6 @@ This is suitable for expansion into a full game or as a learning project for Rea
 
 ---
 
-**Document Version**: 4.3
-**Last Updated**: 2025-11-27 (Phase trigger owner check & field card continuous effect fixes)
+**Document Version**: 4.4
+**Last Updated**: 2025-11-27 (Status effect system implementation)
 **For**: Magic Spirit (magiSp) Repository

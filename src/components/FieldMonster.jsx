@@ -1,6 +1,7 @@
 import React from 'react';
 import { ATTRIBUTE_COLORS } from '../utils/constants';
 import styles from '../styles/gameStyles';
+import { getStatusIcon, getStatusDisplayName } from '../engine/statusEffects';
 
 // ========================================
 // フィールドモンスターコンポーネント
@@ -85,6 +86,36 @@ const FieldMonster = ({ monster, onClick, selected, canAttack, isTarget, isValid
           color: '#fff',
         }}>
           {monster.charges.length}
+        </div>
+      )}
+
+      {/* 状態異常アイコン */}
+      {monster.statusEffects && monster.statusEffects.length > 0 && (
+        <div style={{
+          position: 'absolute',
+          bottom: '-6px',
+          left: '50%',
+          transform: 'translateX(-50%)',
+          display: 'flex',
+          gap: '2px',
+          background: 'rgba(0,0,0,0.7)',
+          borderRadius: '8px',
+          padding: '2px 4px',
+          zIndex: 10,
+        }}>
+          {monster.statusEffects.map((status, idx) => (
+            <div
+              key={status.id || `${status.type}-${idx}`}
+              title={getStatusDisplayName(status.type)}
+              style={{
+                fontSize: '12px',
+                lineHeight: 1,
+                cursor: 'help',
+              }}
+            >
+              {getStatusIcon(status.type)}
+            </div>
+          ))}
         </div>
       )}
 
