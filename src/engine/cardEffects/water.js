@@ -322,6 +322,7 @@ export const waterCardEffects = {
       setP1Deck, setP2Deck,
       p1Field, p2Field,
       setP1Field, setP2Field,
+      setPendingDeckReview,
     } = context;
 
     const currentDeck = currentPlayer === 1 ? p1Deck : p2Deck;
@@ -336,34 +337,74 @@ export const waterCardEffects = {
       return false;
     }
 
-    // デッキからブリザードキャットを検索
-    const target = currentDeck.find(card =>
+    // デッキからブリザードキャットを検索（条件に合うもの全て）
+    const targetFilter = (card) =>
       card.type === 'monster' &&
       card.cost <= 3 &&
-      card.name && card.name.includes('ブリザードキャット')
-    );
+      card.name && card.name.includes('ブリザードキャット');
 
-    if (!target) {
+    const matchingCards = currentDeck.filter(targetFilter);
+
+    if (matchingCards.length === 0) {
       addLog('条件に合うブリザードキャットがデッキにいません', 'info');
       return false;
     }
 
-    // デッキから取り除いて場に召喚
-    setDeck(prev => prev.filter(c => c.uniqueId !== target.uniqueId));
-    setField(prev => {
-      const newField = [...prev];
-      newField[emptySlotIndex] = {
-        ...target,
-        currentHp: target.hp,
-        currentAttack: target.attack,
-        canAttack: false, // 召喚酔い
-        charges: [],
-        owner: currentPlayer,
-      };
-      return newField;
-    });
+    // 召喚処理を共通化
+    const summonMonster = (target) => {
+      setDeck(prev => prev.filter(c => c.uniqueId !== target.uniqueId));
+      setField(prev => {
+        const newField = [...prev];
+        // 最新の空きスロットを再確認
+        const slotIndex = newField.findIndex(slot => slot === null);
+        if (slotIndex === -1) {
+          addLog('場が満杯で召喚できません', 'info');
+          return prev;
+        }
+        newField[slotIndex] = {
+          ...target,
+          currentHp: target.hp,
+          currentAttack: target.attack,
+          canAttack: false, // 召喚酔い
+          charges: [],
+          owner: currentPlayer,
+        };
+        return newField;
+      });
+      addLog(`ブリザードの呼び声: デッキから「${target.name}」を特殊召喚！`, 'heal');
+    };
 
-    addLog(`デッキから「${target.name}」を特殊召喚！`, 'heal');
+    // 1枚のみの場合は自動選択
+    if (matchingCards.length === 1) {
+      summonMonster(matchingCards[0]);
+      return true;
+    }
+
+    // 複数ある場合はデッキ選択UIを表示
+    if (setPendingDeckReview) {
+      setPendingDeckReview({
+        cards: matchingCards,
+        title: 'ブリザードの呼び声',
+        message: '場に召喚するコスト3以下の《ブリザードキャット》を1体選択してください',
+        allowReorder: false,
+        selectMode: {
+          enabled: true,
+          count: 1,
+        },
+        onSelect: (selectedCards) => {
+          if (selectedCards.length > 0) {
+            summonMonster(selectedCards[0]);
+          }
+        },
+        onCancel: () => {
+          addLog('ブリザードの呼び声: キャンセルしました', 'info');
+        },
+      });
+      return true;
+    }
+
+    // フォールバック: 最初の1枚を選択
+    summonMonster(matchingCards[0]);
     return true;
   },
 

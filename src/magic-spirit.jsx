@@ -1016,8 +1016,9 @@ export default function MagicSpiritGame() {
           p1Graveyard,
           p2Graveyard,
           addLog,
+          setPendingDeckReview,
         };
-        executeSkillEffects(card.effect, context);
+        executeSkillEffects(card.effect, context, card.id);
       }
 
       return true;
@@ -1570,8 +1571,9 @@ export default function MagicSpiritGame() {
         p1Graveyard,
         p2Graveyard,
         addLog,
+        setPendingDeckReview,
       };
-      executeSkillEffects(card.effect, context);
+      executeSkillEffects(card.effect, context, card.id);
     }
 
     // Phase A: 1回のみなので確認終了
@@ -1952,8 +1954,9 @@ export default function MagicSpiritGame() {
         p1Graveyard,
         p2Graveyard,
         addLog,
+        setPendingDeckReview,
       };
-      executeSkillEffects(card.effect, context);
+      executeSkillEffects(card.effect, context, card.id);
     }
 
     // UI状態をリセット
