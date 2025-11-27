@@ -4,6 +4,13 @@
 // ========================================
 
 import { statusEffectEngine, getStatusDisplayName } from './statusEffects';
+import { TRIGGER_TYPES } from './triggerTypes';
+import {
+  fireTrigger,
+  unregisterCardTriggers,
+  fireLeaveFieldTrigger,
+} from './triggerEngine';
+import { continuousEffectEngine } from './continuousEffects';
 
 /**
  * デッキの上からカードを墓地に送る（ミル）
@@ -86,6 +93,77 @@ export const checkAttribute = (card, attribute) => {
 };
 
 /**
+ * モンスター破壊処理（トリガー発火、登録解除、墓地送り）
+ * @param {Object} context - ゲームコンテキスト
+ * @param {Object} monster - 破壊されるモンスター
+ * @param {number} slotIndex - フィールド上のスロットインデックス
+ * @param {number} ownerPlayer - モンスターのオーナー (1 or 2)
+ */
+const handleMonsterDestruction = (context, monster, slotIndex, ownerPlayer) => {
+  const {
+    setP1Life, setP2Life,
+    setP1Field, setP2Field,
+    setP1Hand, setP2Hand,
+    setP1Deck, setP2Deck,
+    setP1Graveyard, setP2Graveyard,
+    p1Field, p2Field,
+    p1Hand, p2Hand,
+    p1Deck, p2Deck,
+    p1Graveyard, p2Graveyard,
+    p1Life, p2Life,
+    addLog,
+  } = context;
+
+  // 破壊時トリガーを発火（破壊される前）
+  const destroyContext = {
+    currentPlayer: ownerPlayer,
+    destroyedCard: monster,
+    destroyedSlotIndex: slotIndex,
+    setP1Life,
+    setP2Life,
+    setP1Field,
+    setP2Field,
+    setP1Hand,
+    setP2Hand,
+    setP1Deck,
+    setP2Deck,
+    setP1Graveyard,
+    setP2Graveyard,
+    p1Field,
+    p2Field,
+    p1Hand,
+    p2Hand,
+    p1Deck,
+    p2Deck,
+    p1Graveyard,
+    p2Graveyard,
+    p1Life,
+    p2Life,
+    addLog,
+  };
+
+  fireTrigger(TRIGGER_TYPES.ON_DESTROY_SELF, destroyContext);
+  fireLeaveFieldTrigger(monster, destroyContext, 'destroy');
+
+  // トリガー登録を解除
+  unregisterCardTriggers(monster.uniqueId);
+  // 常時効果を解除
+  continuousEffectEngine.unregister(monster.uniqueId);
+
+  // フィールドから除去して墓地に送る
+  const setField = ownerPlayer === 1 ? setP1Field : setP2Field;
+  const setGraveyard = ownerPlayer === 1 ? setP1Graveyard : setP2Graveyard;
+
+  setField(prev => {
+    const newField = [...prev];
+    newField[slotIndex] = null;
+    return newField;
+  });
+  setGraveyard(prev => [...prev, monster]);
+  addLog(`${monster.name}は破壊された！`, 'damage');
+};
+
+/**
  * 条件付きダメージ
  * @param {Object} context - ゲームコンテキスト
  * @param {number} damage - ダメージ量
@@ -122,7 +200,7 @@ export const conditionalDamage = (context, damage, target, targetIndex = null) =
       addLog(`自分に${damage}ダメージ`, 'damage');
       return true;
 
-    case 'self_monster':
+    case 'self_monster': {
       const selfField = currentPlayer === 1 ? p1Field : p2Field;
       const setSelfField = currentPlayer === 1 ? setP1Field : setP2Field;
       const selfIndex = targetIndex !== null ? targetIndex : monsterIndex;
@@ -132,36 +210,86 @@ export const conditionalDamage = (context, damage, target, targetIndex = null) =
         return false;
       }
 
-      setSelfField(prev => prev.map((m, idx) => {
-        if (idx === selfIndex && m) {
-          const newHp = Math.max(0, m.currentHp - damage);
-          addLog(`${m.name}に${damage}ダメージ（残りHP: ${newHp}）`, 'damage');
-          return { ...m, currentHp: newHp };
-        }
-        return m;
-      }));
-      return true;
+      const targetMonster = selfField[selfIndex];
+      if (!targetMonster) {
+        addLog('対象のモンスターが存在しません', 'info');
+        return false;
+      }
 
-    case 'opponent_monster':
-      const opponentField = currentPlayer === 1 ? p2Field : p1Field;
-      const setOpponentField = currentPlayer === 1 ? setP2Field : setP1Field;
-      const monsters = opponentField.filter(m => m !== null);
+      const newHp = Math.max(0, targetMonster.currentHp - damage);
+      addLog(`${targetMonster.name}に${damage}ダメージ（残りHP: ${newHp}）`, 'damage');
 
-      if (monsters.length > 0) {
-        const targetMonster = targetIndex !== null ? monsters[targetIndex] : monsters[0];
-        setOpponentField(prev => prev.map(m => {
-          if (m && m.uniqueId === targetMonster.uniqueId) {
-            const newHp = Math.max(0, m.currentHp - damage);
-            addLog(`${m.name}に${damage}ダメージ（残りHP: ${newHp}）`, 'damage');
+      if (newHp <= 0) {
+        // HP 0 以下なら破壊処理
+        handleMonsterDestruction(context, targetMonster, selfIndex, currentPlayer);
+      } else {
+        // HP が残っているなら更新のみ
+        setSelfField(prev => prev.map((m, idx) => {
+          if (idx === selfIndex && m) {
             return { ...m, currentHp: newHp };
           }
           return m;
         }));
-        return true;
+      }
+      return true;
+    }
+
+    case 'opponent_monster': {
+      const opponentPlayer = currentPlayer === 1 ? 2 : 1;
+      const opponentField = currentPlayer === 1 ? p2Field : p1Field;
+      const setOpponentField = currentPlayer === 1 ? setP2Field : setP1Field;
+
+      // targetIndex がスロットインデックスかモンスターインデックスかを判断
+      // targetIndex が null の場合は最初のモンスターを対象
+      let targetMonster = null;
+      let slotIndex = null;
+
+      if (targetIndex !== null) {
+        // targetIndex をスロットインデックスとして扱う
+        if (opponentField[targetIndex]) {
+          targetMonster = opponentField[targetIndex];
+          slotIndex = targetIndex;
+        } else {
+          // スロットが空の場合、モンスターインデックスとして扱う
+          const monsters = opponentField.map((m, idx) => m ? { monster: m, idx } : null).filter(x => x);
+          if (targetIndex < monsters.length) {
+            targetMonster = monsters[targetIndex].monster;
+            slotIndex = monsters[targetIndex].idx;
+          }
+        }
       } else {
+        // 最初のモンスターを対象
+        for (let i = 0; i < opponentField.length; i++) {
+          if (opponentField[i]) {
+            targetMonster = opponentField[i];
+            slotIndex = i;
+            break;
+          }
+        }
+      }
+
+      if (!targetMonster) {
         addLog('対象のモンスターがいません', 'info');
         return false;
       }
+
+      const newHp = Math.max(0, targetMonster.currentHp - damage);
+      addLog(`${targetMonster.name}に${damage}ダメージ（残りHP: ${newHp}）`, 'damage');
+
+      if (newHp <= 0) {
+        // HP 0 以下なら破壊処理
+        handleMonsterDestruction(context, targetMonster, slotIndex, opponentPlayer);
+      } else {
+        // HP が残っているなら更新のみ
+        setOpponentField(prev => prev.map((m, idx) => {
+          if (idx === slotIndex && m) {
+            return { ...m, currentHp: newHp };
+          }
+          return m;
+        }));
+      }
+      return true;
+    }
 
     default:
       addLog('不明な対象です', 'info');
