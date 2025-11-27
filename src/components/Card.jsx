@@ -4,7 +4,7 @@ import { ATTRIBUTE_COLORS, TYPE_ICONS } from '../utils/constants';
 // ========================================
 // カードコンポーネント
 // ========================================
-const Card = ({ card, onClick, selected, small, faceDown, inHand, disabled }) => {
+const Card = ({ card, onClick, selected, small, faceDown, inHand, disabled, modifiedCost, costModifierSource }) => {
   if (!card) return null;
 
   const colors = ATTRIBUTE_COLORS[card.attribute] || ATTRIBUTE_COLORS['なし'];
@@ -48,24 +48,52 @@ const Card = ({ card, onClick, selected, small, faceDown, inHand, disabled }) =>
   return (
     <div style={cardStyle} onClick={disabled ? null : onClick}>
       {/* コスト表示 */}
-      <div style={{
-        position: 'absolute',
-        top: '4px',
-        left: '4px',
-        width: '22px',
-        height: '22px',
-        borderRadius: '50%',
-        background: 'linear-gradient(135deg, #6b4ce6 0%, #9d4ce6 100%)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        fontSize: '12px',
-        fontWeight: 'bold',
-        color: '#fff',
-        boxShadow: '0 2px 8px rgba(0,0,0,0.4)',
-      }}>
-        {card.cost}
-      </div>
+      {(() => {
+        const actualCost = modifiedCost !== undefined ? modifiedCost : card.cost;
+        const isCostReduced = modifiedCost !== undefined && modifiedCost < card.cost;
+        const isCostIncreased = modifiedCost !== undefined && modifiedCost > card.cost;
+        const costDiff = card.cost - actualCost;
+
+        // ツールチップテキスト生成
+        let tooltipText = `コスト: ${card.cost}`;
+        if (isCostReduced && costModifierSource) {
+          tooltipText = `コスト: ${actualCost} (元: ${card.cost})\n${costModifierSource}により-${costDiff}`;
+        } else if (isCostIncreased && costModifierSource) {
+          tooltipText = `コスト: ${actualCost} (元: ${card.cost})\n${costModifierSource}により+${-costDiff}`;
+        }
+
+        return (
+          <div
+            style={{
+              position: 'absolute',
+              top: '4px',
+              left: '4px',
+              width: '22px',
+              height: '22px',
+              borderRadius: '50%',
+              background: isCostReduced
+                ? 'linear-gradient(135deg, #22c55e 0%, #4ade80 100%)'
+                : isCostIncreased
+                  ? 'linear-gradient(135deg, #ef4444 0%, #f87171 100%)'
+                  : 'linear-gradient(135deg, #6b4ce6 0%, #9d4ce6 100%)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: '12px',
+              fontWeight: 'bold',
+              color: '#fff',
+              boxShadow: isCostReduced
+                ? '0 2px 8px rgba(34, 197, 94, 0.6)'
+                : isCostIncreased
+                  ? '0 2px 8px rgba(239, 68, 68, 0.6)'
+                  : '0 2px 8px rgba(0,0,0,0.4)',
+            }}
+            title={tooltipText}
+          >
+            {actualCost}
+          </div>
+        );
+      })()}
 
       {/* 禁忌カード表示 */}
       {card.isForbidden && (

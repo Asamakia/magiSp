@@ -366,6 +366,41 @@ class ContinuousEffectEngine {
   }
 
   /**
+   * 召喚コスト修正の詳細情報を取得
+   * @param {Object} card - 召喚するカード
+   * @param {number} summoner - 召喚するプレイヤー（1 or 2）
+   * @param {Object} context - ゲームコンテキスト
+   * @returns {Object} { modifier: number, sources: string[] }
+   */
+  getSummonCostModifierDetails(card, summoner, context) {
+    let totalModifier = 0;
+    const sources = [];
+
+    for (const [, { card: sourceCard, owner, effects }] of this.activeEffects) {
+      const effectContext = { ...context, effectOwner: owner };
+
+      for (const effect of effects) {
+        if (effect.type !== CONTINUOUS_EFFECT_TYPES.SUMMON_COST_MODIFIER) continue;
+
+        // ターゲットチェック
+        if (effect.target === TARGET_TYPES.SELF_SUMMON && owner !== summoner) continue;
+        if (effect.target === TARGET_TYPES.OPPONENT_SUMMON && owner === summoner) continue;
+
+        // 条件チェック（カードに対して）
+        if (!checkCondition(effect.condition, card, effectContext)) continue;
+
+        const value = effect.value || 0;
+        totalModifier += value;
+        if (sourceCard && sourceCard.name) {
+          sources.push(sourceCard.name);
+        }
+      }
+    }
+
+    return { modifier: totalModifier, sources };
+  }
+
+  /**
    * 魔法カードコスト修正値を計算
    * @param {Object} magicCard - 発動する魔法カード
    * @param {number} caster - 発動するプレイヤー（1 or 2）
