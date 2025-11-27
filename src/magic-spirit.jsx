@@ -107,6 +107,34 @@ export default function MagicSpiritGame() {
     setLogs(prev => [...prev, { message, type, time: Date.now() }]);
   }, []);
 
+  // カードのコスト修正情報を取得（手札表示用）
+  const getModifiedCostInfo = useCallback((card, player) => {
+    // モンスターカードのみコスト軽減対象
+    if (card.type !== 'monster') {
+      return { modifiedCost: undefined, costModifierSource: undefined };
+    }
+
+    const context = {
+      currentPlayer: player,
+      effectOwner: player,
+      p1Field,
+      p2Field,
+      p1Life,
+      p2Life,
+    };
+
+    const { modifier, sources } = continuousEffectEngine.getSummonCostModifierDetails(card, player, context);
+
+    if (modifier === 0) {
+      return { modifiedCost: undefined, costModifierSource: undefined };
+    }
+
+    const actualCost = Math.max(0, card.cost + modifier);
+    const sourceText = sources.length > 0 ? sources.join(', ') : '常時効果';
+
+    return { modifiedCost: actualCost, costModifierSource: sourceText };
+  }, [p1Field, p2Field, p1Life, p2Life]);
+
   // CSVファイルの読み込み
   useEffect(() => {
     const loadCards = async () => {
@@ -513,6 +541,9 @@ export default function MagicSpiritGame() {
     if (newStage >= 3) {
       addLog(`フェイズカード【${phaseCard.name}】は最終段階の効果を発動し、墓地へ送られます`, 'info');
 
+      // フェイズカードの常時効果を解除
+      continuousEffectEngine.unregister(phaseCard.uniqueId);
+
       // フェイズカードとチャージされたカードを全て墓地へ
       const cardsToGraveyard = [
         { ...updatedPhaseCard, charges: [] }, // フェイズカード本体（chargesは分離）
@@ -522,6 +553,9 @@ export default function MagicSpiritGame() {
       setGraveyard(prev => [...prev, ...cardsToGraveyard]);
       setPhaseCard(null);
     } else {
+      // フェイズカードの常時効果を新しい段階に更新
+      continuousEffectEngine.updatePhaseCardStage(updatedPhaseCard, currentPlayer, newStage);
+
       setPhaseCard(updatedPhaseCard);
     }
 
@@ -623,9 +657,28 @@ export default function MagicSpiritGame() {
     // 現在のプレイヤーのSPを直接取得
     const activeSP = currentPlayer === 1 ? p1ActiveSP : p2ActiveSP;
     const field = currentPlayer === 1 ? p1Field : p2Field;
-    
-    if (activeSP < card.cost) {
-      addLog(`SPが足りません！（必要: ${card.cost}, 現在: ${activeSP}）`, 'damage');
+
+    // モンスターカードの場合、コスト軽減を計算
+    let actualCost = card.cost;
+    let costModifierSource = null;
+    if (card.type === 'monster') {
+      const context = {
+        currentPlayer,
+        effectOwner: currentPlayer,
+        p1Field,
+        p2Field,
+        p1Life,
+        p2Life,
+      };
+      const { modifier, sources } = continuousEffectEngine.getSummonCostModifierDetails(card, currentPlayer, context);
+      actualCost = Math.max(0, card.cost + modifier);
+      if (modifier !== 0 && sources.length > 0) {
+        costModifierSource = sources.join(', ');
+      }
+    }
+
+    if (activeSP < actualCost) {
+      addLog(`SPが足りません！（必要: ${actualCost}, 現在: ${activeSP}）`, 'damage');
       return false;
     }
 
@@ -634,10 +687,10 @@ export default function MagicSpiritGame() {
         addLog('そのスロットは使用中です', 'damage');
         return false;
       }
-      
+
       const monsterInstance = createMonsterInstance(card);
       monsterInstance.canAttack = false; // 召喚ターンは攻撃不可
-      
+
       // フィールドにモンスターを配置
       if (currentPlayer === 1) {
         setP1Field(prev => {
@@ -646,8 +699,8 @@ export default function MagicSpiritGame() {
           return newField;
         });
         setP1Hand(prev => prev.filter(c => c.uniqueId !== card.uniqueId));
-        setP1ActiveSP(prev => prev - card.cost);
-        setP1RestedSP(prev => prev + card.cost);
+        setP1ActiveSP(prev => prev - actualCost);
+        setP1RestedSP(prev => prev + actualCost);
       } else {
         setP2Field(prev => {
           const newField = [...prev];
@@ -655,11 +708,16 @@ export default function MagicSpiritGame() {
           return newField;
         });
         setP2Hand(prev => prev.filter(c => c.uniqueId !== card.uniqueId));
-        setP2ActiveSP(prev => prev - card.cost);
-        setP2RestedSP(prev => prev + card.cost);
+        setP2ActiveSP(prev => prev - actualCost);
+        setP2RestedSP(prev => prev + actualCost);
       }
-      
-      addLog(`プレイヤー${currentPlayer}: ${card.name}を召喚！`, 'info');
+
+      // コスト軽減があった場合はログに表示
+      if (costModifierSource && actualCost < card.cost) {
+        addLog(`プレイヤー${currentPlayer}: ${card.name}を召喚！（${costModifierSource}により召喚コスト${card.cost}→${actualCost}）`, 'info');
+      } else {
+        addLog(`プレイヤー${currentPlayer}: ${card.name}を召喚！`, 'info');
+      }
 
       // トリガーを登録
       registerCardTriggers(monsterInstance, currentPlayer, slotIndex);
@@ -904,6 +962,9 @@ export default function MagicSpiritGame() {
       // フェイズカードのトリガーを登録
       registerCardTriggers(initializedPhaseCard, currentPlayer, null);
 
+      // フェイズカードの常時効果を登録（初期段階 stage=0）
+      continuousEffectEngine.registerPhaseCard(initializedPhaseCard, currentPlayer, 0);
+
       // 【発動時】トリガーを発火
       fireTrigger(TRIGGER_TYPES.ON_PHASE_CARD_ACTIVATE, context);
 
@@ -912,7 +973,7 @@ export default function MagicSpiritGame() {
 
     return false;
   }, [currentPlayer, p1ActiveSP, p2ActiveSP, p1Field, p2Field, p1Hand, p2Hand,
-      p1Deck, p2Deck, p1Graveyard, p2Graveyard, addLog,
+      p1Deck, p2Deck, p1Graveyard, p2Graveyard, p1Life, p2Life, addLog,
       setP1Life, setP2Life, setP1Field, setP2Field, setP1Hand, setP2Hand,
       setP1Deck, setP2Deck, setP1Graveyard, setP2Graveyard,
       setP1ActiveSP, setP1RestedSP, setP2ActiveSP, setP2RestedSP, setP1FieldCard, setP2FieldCard,
@@ -1951,8 +2012,9 @@ export default function MagicSpiritGame() {
           <div style={styles.fieldArea}>
             {/* 手札（プレイヤー2のターンなら表示、それ以外は裏向き） */}
             <div style={{ ...styles.handArea, minHeight: '80px' }}>
-              {p2Hand.map((card, i) => (
-                currentPlayer === 2 ? (
+              {p2Hand.map((card, i) => {
+                const costInfo = currentPlayer === 2 ? getModifiedCostInfo(card, 2) : {};
+                return currentPlayer === 2 ? (
                   <Card
                     key={card.uniqueId}
                     card={card}
@@ -1961,11 +2023,13 @@ export default function MagicSpiritGame() {
                     inHand
                     small
                     disabled={phase !== 2}
+                    modifiedCost={costInfo.modifiedCost}
+                    costModifierSource={costInfo.costModifierSource}
                   />
                 ) : (
                   <Card key={card.uniqueId} card={card} faceDown small />
-                )
-              ))}
+                );
+              })}
             </div>
             {/* モンスターゾーン */}
             <div style={styles.monsterZone}>
@@ -2412,16 +2476,21 @@ export default function MagicSpiritGame() {
             </div>
             {/* 手札 */}
             <div style={styles.handArea}>
-              {p1Hand.map((card) => (
-                <Card
-                  key={card.uniqueId}
-                  card={card}
-                  onClick={() => handleHandCardClick(card)}
-                  selected={selectedHandCard?.uniqueId === card.uniqueId || pendingSelectedCard?.uniqueId === card.uniqueId}
-                  inHand
-                  disabled={currentPlayer !== 1 || phase !== 2}
-                />
-              ))}
+              {p1Hand.map((card) => {
+                const costInfo = currentPlayer === 1 ? getModifiedCostInfo(card, 1) : {};
+                return (
+                  <Card
+                    key={card.uniqueId}
+                    card={card}
+                    onClick={() => handleHandCardClick(card)}
+                    selected={selectedHandCard?.uniqueId === card.uniqueId || pendingSelectedCard?.uniqueId === card.uniqueId}
+                    inHand
+                    disabled={currentPlayer !== 1 || phase !== 2}
+                    modifiedCost={costInfo.modifiedCost}
+                    costModifierSource={costInfo.costModifierSource}
+                  />
+                );
+              })}
             </div>
           </div>
 

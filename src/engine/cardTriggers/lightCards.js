@@ -17,6 +17,7 @@ import {
   modifyAttack,
   modifyHP,
 } from '../effectHelpers';
+import { hasCategory } from '../../utils/helpers';
 
 /**
  * 光属性カードのトリガー定義
@@ -369,8 +370,7 @@ export const lightCardTriggers = {
         // デッキからコスト3以下のプラントを探す
         const plantCard = deck.find((card) =>
           card.type === 'monster' &&
-          card.category &&
-          card.category.includes('【プラント】') &&
+          hasCategory(card, '【プラント】') &&
           card.cost <= 3
         );
 
@@ -474,8 +474,7 @@ export const lightCardTriggers = {
       effect: (context) => {
         const success = reviveFromGraveyard(context, (card) => {
           return card.type === 'monster' &&
-                 card.category &&
-                 card.category.includes('【プラント】');
+                 hasCategory(card, '【プラント】');
         }, true);
 
         if (!success) {
@@ -502,8 +501,7 @@ export const lightCardTriggers = {
         const plantCount = field.filter((monster, idx) =>
           monster &&
           idx !== monsterIndex &&
-          monster.category &&
-          monster.category.includes('【プラント】')
+          hasCategory(monster, '【プラント】')
         ).length;
 
         if (plantCount > 0) {

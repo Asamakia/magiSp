@@ -17,6 +17,7 @@ import {
   modifyAttack,
   modifyHP,
 } from '../effectHelpers';
+import { hasCategory } from '../../utils/helpers';
 
 /**
  * 原始属性カードのトリガー定義
@@ -145,8 +146,7 @@ export const primitiveCardTriggers = {
           (card) => {
             return (
               card.type === 'monster' &&
-              card.category &&
-              card.category.includes('【スライム】')
+              hasCategory(card, '【スライム】')
             );
           },
           true // 弱体化
@@ -200,7 +200,7 @@ export const primitiveCardTriggers = {
 
         // 場の粘液獣の数をカウント
         const slimeCount = currentField.filter(
-          (m) => m && m.category && m.category.includes('【スライム】')
+          (m) => m && hasCategory(m, '【スライム】')
         ).length;
 
         if (slimeCount < 3) {
@@ -306,8 +306,7 @@ export const primitiveCardTriggers = {
           (m, idx) =>
             m &&
             idx !== slotIndex &&
-            m.category &&
-            m.category.includes('【スライム】')
+            hasCategory(m, '【スライム】')
         ).length;
 
         if (slimeCount > 0) {
@@ -383,8 +382,7 @@ export const primitiveCardTriggers = {
           (m, idx) =>
             m &&
             idx !== slotIndex &&
-            m.category &&
-            m.category.includes('【スライム】')
+            hasCategory(m, '【スライム】')
         );
 
         if (targetIndex === -1) {
@@ -441,7 +439,7 @@ export const primitiveCardTriggers = {
 
         // 粘液獣を探す
         const targetIndex = currentField.findIndex(
-          (m) => m && m.category && m.category.includes('【スライム】')
+          (m) => m && hasCategory(m, '【スライム】')
         );
 
         if (targetIndex === -1) {
@@ -879,7 +877,7 @@ export const primitiveCardTriggers = {
 
         // 粘液獣の数をカウント
         const slimeCount = currentField.filter(
-          (m) => m && m.category && m.category.includes('【スライム】')
+          (m) => m && hasCategory(m, '【スライム】')
         ).length;
 
         if (slimeCount > 0) {
@@ -912,8 +910,7 @@ export const primitiveCardTriggers = {
           (card) => {
             return (
               card.type === 'monster' &&
-              card.category &&
-              card.category.includes('【スライム】')
+              hasCategory(card, '【スライム】')
             );
           },
           false // 弱体化なし
@@ -937,7 +934,7 @@ export const primitiveCardTriggers = {
 
         // 粘液獣の数をカウント
         const slimeCount = currentField.filter(
-          (m) => m && m.category && m.category.includes('【スライム】')
+          (m) => m && hasCategory(m, '【スライム】')
         ).length;
 
         if (slimeCount >= 3) {

@@ -13,6 +13,7 @@ import {
   modifyAttack,
   modifyHP,
 } from '../effectHelpers';
+import { hasCategory } from '../../utils/helpers';
 
 /**
  * 属性なしカードのトリガー定義
@@ -356,7 +357,7 @@ export const neutralCardTriggers = {
         const setOpponentField = currentPlayer === 1 ? setP2Field : setP1Field;
 
         // 蛮族の数をカウント
-        const barbarianCount = myField.filter((m) => m && m.category && m.category.includes('【蛮族】')).length;
+        const barbarianCount = myField.filter((m) => m && hasCategory(m, '【蛮族】')).length;
 
         if (barbarianCount === 0) {
           addLog('奴隷プニリーヌの効果: 蛮族がいません', 'info');
@@ -501,7 +502,7 @@ export const neutralCardTriggers = {
         }
 
         // 蛮族3体以上チェック
-        const barbarianCount = myField.filter((m) => m && m.category && m.category.includes('【蛮族】')).length;
+        const barbarianCount = myField.filter((m) => m && hasCategory(m, '【蛮族】')).length;
         if (barbarianCount >= 3) {
           setOpponentField((prev) => {
             return prev.map((monster) => {

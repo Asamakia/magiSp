@@ -8,6 +8,7 @@
  */
 
 import { checkCondition, countMonstersMatchingCondition } from './conditionChecker';
+import { hasCategory } from '../../utils/helpers';
 
 /**
  * 値計算タイプの定義
@@ -145,7 +146,7 @@ const checkIfCondition = (ifCondition, context) => {
     switch (key) {
       case 'hasCategoryOnField':
         // 特定カテゴリが場にあるか
-        if (!field.some((m) => m && m.category && m.category.includes(value))) {
+        if (!field.some((m) => m && hasCategory(m, value))) {
           return false;
         }
         break;
