@@ -21,6 +21,7 @@ const styles = {
     justifyContent: 'space-between',
     alignItems: 'center',
     boxShadow: '0 4px 20px rgba(107,76,230,0.3)',
+    flexShrink: 0,
   },
   title: {
     fontSize: '28px',
@@ -30,6 +31,21 @@ const styles = {
     WebkitTextFillColor: 'transparent',
     textShadow: '0 0 30px rgba(196,77,255,0.5)',
     letterSpacing: '2px',
+  },
+  mainArea: {
+    display: 'flex',
+    flex: 1,
+    minHeight: 0,
+    overflow: 'hidden',
+  },
+  leftSidePanel: {
+    width: '280px',
+    flexShrink: 0,
+    background: 'rgba(15,15,30,0.95)',
+    borderRight: '1px solid rgba(107,76,230,0.3)',
+    display: 'flex',
+    flexDirection: 'column',
+    overflow: 'hidden',
   },
   gameBoard: {
     display: 'grid',
@@ -69,13 +85,10 @@ const styles = {
     alignItems: 'center',
   },
   cardInfoPanel: {
-    background: 'rgba(20,20,40,0.9)',
-    borderRadius: '8px',
-    padding: '10px',
-    border: '1px solid rgba(107,76,230,0.4)',
-    width: '280px',
-    maxHeight: '200px',
+    flex: 1,
+    padding: '12px',
     overflowY: 'auto',
+    minHeight: 0,
   },
   fieldArea: {
     display: 'flex',

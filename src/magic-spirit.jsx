@@ -1644,8 +1644,215 @@ export default function MagicSpiritGame() {
         </div>
       </header>
 
-      {/* ゲームボード */}
-      <div style={styles.gameBoard}>
+      {/* メインエリア（左サイドパネル + ゲームボード） */}
+      <div style={styles.mainArea}>
+        {/* 左サイドパネル（カード情報表示） */}
+        <div style={styles.leftSidePanel}>
+          <div style={{ padding: '12px', borderBottom: '1px solid rgba(107,76,230,0.3)' }}>
+            <div style={{ fontSize: '14px', fontWeight: 'bold', color: '#a78bfa' }}>
+              📋 カード情報
+            </div>
+          </div>
+          <div style={styles.cardInfoPanel}>
+            {/* 選択中の手札カード */}
+            {selectedHandCard && (
+              <div>
+                <div style={{ fontSize: '13px', fontWeight: 'bold', marginBottom: '8px', color: currentPlayer === 1 ? '#4da6ff' : '#ff8a8a' }}>
+                  {selectedHandCard.name}
+                </div>
+                <div style={{ fontSize: '11px', color: '#ccc', marginBottom: '6px' }}>
+                  属性: {selectedHandCard.attribute} | コスト: {selectedHandCard.cost} SP
+                </div>
+                {selectedHandCard.categoryText && (
+                  <div style={{ fontSize: '11px', color: '#ffd700', marginBottom: '6px' }}>
+                    カテゴリ: {selectedHandCard.categoryText}
+                  </div>
+                )}
+                {selectedHandCard.type === 'monster' && (
+                  <div style={{ fontSize: '11px', color: '#ccc', marginBottom: '8px' }}>
+                    ⚔️ {selectedHandCard.attack} | ❤️ {selectedHandCard.hp}
+                  </div>
+                )}
+                <div style={{
+                  fontSize: '11px',
+                  color: '#e0e0e0',
+                  background: 'rgba(0,0,0,0.3)',
+                  padding: '8px',
+                  borderRadius: '6px',
+                  lineHeight: '1.5',
+                  marginBottom: '8px',
+                }}>
+                  {getEffectWithoutSkills(selectedHandCard.effect) || 'なし'}
+                </div>
+                {selectedHandCard.type === 'monster' && (selectedHandCard.basicSkill || selectedHandCard.advancedSkill) && (
+                  <div style={{ fontSize: '10px', lineHeight: '1.4' }}>
+                    {selectedHandCard.basicSkill && (
+                      <div style={{ padding: '6px', background: 'rgba(76,175,80,0.2)', borderRadius: '4px', marginBottom: '4px' }}>
+                        <span style={{ color: '#4caf50', fontWeight: 'bold' }}>基本技:</span><br/>
+                        {selectedHandCard.basicSkill.text}
+                      </div>
+                    )}
+                    {selectedHandCard.advancedSkill && (
+                      <div style={{ padding: '6px', background: 'rgba(255,152,0,0.2)', borderRadius: '4px' }}>
+                        <span style={{ color: '#ff9800', fontWeight: 'bold' }}>上級技:</span><br/>
+                        {selectedHandCard.advancedSkill.text}
+                      </div>
+                    )}
+                  </div>
+                )}
+                <div style={{ fontSize: '10px', color: '#888', marginTop: '8px', padding: '6px', background: 'rgba(107,76,230,0.1)', borderRadius: '4px' }}>
+                  {selectedHandCard.type === 'monster' && '👆 空きスロットをクリックして召喚'}
+                  {selectedHandCard.type === 'magic' && '👆 「魔法カード発動」ボタンで発動'}
+                  {selectedHandCard.type === 'field' && '👆 フィールドゾーンをクリックして配置'}
+                  {selectedHandCard.type === 'phasecard' && '👆 フェイズゾーンをクリックして配置'}
+                </div>
+              </div>
+            )}
+            {/* 選択中のフィールドモンスター */}
+            {!selectedHandCard && selectedFieldMonster !== null && (() => {
+              const field = currentPlayer === 1 ? p1Field : p2Field;
+              const monster = field[selectedFieldMonster];
+              if (!monster) return null;
+              return (
+                <div>
+                  <div style={{ fontSize: '13px', fontWeight: 'bold', marginBottom: '8px', color: currentPlayer === 1 ? '#4da6ff' : '#ff8a8a' }}>
+                    🎯 {monster.name}
+                  </div>
+                  <div style={{ fontSize: '11px', color: '#ccc', marginBottom: '6px' }}>
+                    属性: {monster.attribute}
+                  </div>
+                  <div style={{ fontSize: '12px', color: '#ccc', marginBottom: '8px' }}>
+                    ⚔️ {monster.currentAttack || monster.attack} | ❤️ {monster.currentHP}/{monster.maxHP || monster.hp}
+                    {monster.charges && monster.charges.length > 0 && (
+                      <span style={{ marginLeft: '8px', color: '#4caf50' }}>
+                        ⚡ チャージ: {monster.charges.length}
+                      </span>
+                    )}
+                  </div>
+                  {monster.categoryText && (
+                    <div style={{ fontSize: '11px', color: '#ffd700', marginBottom: '6px' }}>
+                      カテゴリ: {monster.categoryText}
+                    </div>
+                  )}
+                  <div style={{
+                    fontSize: '11px',
+                    color: '#e0e0e0',
+                    background: 'rgba(0,0,0,0.3)',
+                    padding: '8px',
+                    borderRadius: '6px',
+                    lineHeight: '1.5',
+                    marginBottom: '8px',
+                  }}>
+                    {getEffectWithoutSkills(monster.effect) || 'なし'}
+                  </div>
+                  {(monster.basicSkill || monster.advancedSkill) && (
+                    <div style={{ fontSize: '10px', lineHeight: '1.4' }}>
+                      {monster.basicSkill && (
+                        <div style={{ padding: '6px', background: 'rgba(76,175,80,0.2)', borderRadius: '4px', marginBottom: '4px' }}>
+                          <span style={{ color: '#4caf50', fontWeight: 'bold' }}>基本技(1):</span><br/>
+                          {monster.basicSkill.text}
+                        </div>
+                      )}
+                      {monster.advancedSkill && (
+                        <div style={{ padding: '6px', background: 'rgba(255,152,0,0.2)', borderRadius: '4px' }}>
+                          <span style={{ color: '#ff9800', fontWeight: 'bold' }}>上級技(2):</span><br/>
+                          {monster.advancedSkill.text}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
+            {/* 選択中のフィールド/フェイズカード */}
+            {!selectedHandCard && selectedFieldMonster === null && selectedFieldCardInfo && (
+              <div>
+                <div style={{ fontSize: '13px', fontWeight: 'bold', marginBottom: '8px', color: selectedFieldCardInfo.player === 1 ? '#4da6ff' : '#ff8a8a' }}>
+                  {selectedFieldCardInfo.type === 'field' ? '🌍 フィールド' : '⚡ フェイズ'}: {selectedFieldCardInfo.card.name}
+                </div>
+                <div style={{ fontSize: '11px', color: '#ccc', marginBottom: '6px' }}>
+                  属性: {selectedFieldCardInfo.card.attribute} | コスト: {selectedFieldCardInfo.card.cost} SP
+                </div>
+                {selectedFieldCardInfo.type === 'phasecard' && (
+                  <>
+                    <div style={{ fontSize: '12px', color: '#4caf50', marginBottom: '8px' }}>
+                      ⚡ {getStageShortName(selectedFieldCardInfo.card.stage || 0)}段階 ({selectedFieldCardInfo.card.charges?.length || 0}/3)
+                    </div>
+                    <div style={{
+                      fontSize: '11px',
+                      color: '#ffd700',
+                      background: 'rgba(255,215,0,0.1)',
+                      padding: '8px',
+                      borderRadius: '6px',
+                      marginBottom: '8px',
+                      lineHeight: '1.5',
+                    }}>
+                      <strong>【現在の効果】</strong><br/>
+                      {getCurrentStageDescription(selectedFieldCardInfo.card) || '効果なし'}
+                    </div>
+                    {(selectedFieldCardInfo.card.stage || 0) < 3 && getNextStageDescription(selectedFieldCardInfo.card) && (
+                      <div style={{
+                        fontSize: '11px',
+                        color: '#4da6ff',
+                        background: 'rgba(77,166,255,0.1)',
+                        padding: '8px',
+                        borderRadius: '6px',
+                        lineHeight: '1.5',
+                      }}>
+                        <strong>【次の段階】</strong><br/>
+                        {getNextStageDescription(selectedFieldCardInfo.card)}
+                      </div>
+                    )}
+                  </>
+                )}
+                {selectedFieldCardInfo.type === 'field' && (
+                  <div style={{
+                    fontSize: '11px',
+                    color: '#e0e0e0',
+                    background: 'rgba(0,0,0,0.3)',
+                    padding: '8px',
+                    borderRadius: '6px',
+                    lineHeight: '1.5',
+                  }}>
+                    {getEffectWithoutSkills(selectedFieldCardInfo.card.effect) || 'なし'}
+                  </div>
+                )}
+                <button
+                  onClick={() => setSelectedFieldCardInfo(null)}
+                  style={{
+                    marginTop: '8px',
+                    padding: '4px 12px',
+                    background: 'rgba(107,76,230,0.5)',
+                    border: '1px solid #6b4ce6',
+                    borderRadius: '4px',
+                    color: '#fff',
+                    fontSize: '11px',
+                    cursor: 'pointer',
+                    width: '100%',
+                  }}
+                >
+                  閉じる
+                </button>
+              </div>
+            )}
+            {/* 何も選択されていない時 */}
+            {!selectedHandCard && selectedFieldMonster === null && !selectedFieldCardInfo && (
+              <div style={{ fontSize: '12px', color: '#666', textAlign: 'center', padding: '40px 10px' }}>
+                カードを選択すると<br/>情報が表示されます
+              </div>
+            )}
+          </div>
+          {/* ログ */}
+          <div style={{ padding: '12px', borderTop: '1px solid rgba(107,76,230,0.3)' }}>
+            <div style={{ fontSize: '12px', fontWeight: 'bold', color: '#888', marginBottom: '8px' }}>
+              📜 ログ
+            </div>
+            <GameLog logs={logs} />
+          </div>
+        </div>
+
+        {/* ゲームボード */}
+        <div style={styles.gameBoard}>
         {/* プレイヤー2エリア（上） */}
         <div style={{ ...styles.playerArea, background: currentPlayer === 2 ? 'rgba(255,107,107,0.1)' : 'transparent' }}>
           {/* 情報パネル */}
@@ -2050,191 +2257,6 @@ export default function MagicSpiritGame() {
               </div>
             </div>
           </div>
-
-          {/* カード情報表示パネル（共通） */}
-          <div style={styles.cardInfoPanel}>
-            {/* 選択中の手札カード */}
-            {selectedHandCard && (
-              <div>
-                <div style={{ fontSize: '12px', fontWeight: 'bold', marginBottom: '6px', color: currentPlayer === 1 ? '#4da6ff' : '#ff8a8a' }}>
-                  📋 選択中: {selectedHandCard.name}
-                </div>
-                <div style={{ fontSize: '11px', color: '#ccc', marginBottom: '4px' }}>
-                  属性: {selectedHandCard.attribute} | コスト: {selectedHandCard.cost} SP
-                </div>
-                {selectedHandCard.categoryText && (
-                  <div style={{ fontSize: '11px', color: '#ffd700', marginBottom: '4px' }}>
-                    カテゴリ: {selectedHandCard.categoryText}
-                  </div>
-                )}
-                {selectedHandCard.type === 'monster' && (
-                  <div style={{ fontSize: '11px', color: '#ccc', marginBottom: '4px' }}>
-                    ⚔️ {selectedHandCard.attack} | ❤️ {selectedHandCard.hp}
-                  </div>
-                )}
-                <div style={{
-                  fontSize: '10px',
-                  color: '#e0e0e0',
-                  background: 'rgba(0,0,0,0.3)',
-                  padding: '6px',
-                  borderRadius: '4px',
-                  lineHeight: '1.4',
-                  maxHeight: '60px',
-                  overflowY: 'auto',
-                }}>
-                  {getEffectWithoutSkills(selectedHandCard.effect) || 'なし'}
-                </div>
-                {selectedHandCard.type === 'monster' && (selectedHandCard.basicSkill || selectedHandCard.advancedSkill) && (
-                  <div style={{ marginTop: '4px', fontSize: '9px', lineHeight: '1.3' }}>
-                    {selectedHandCard.basicSkill && (
-                      <div style={{ padding: '2px 4px', background: 'rgba(76,175,80,0.2)', borderRadius: '2px', marginBottom: '2px' }}>
-                        <span style={{ color: '#4caf50' }}>基本技:</span> {selectedHandCard.basicSkill.text}
-                      </div>
-                    )}
-                    {selectedHandCard.advancedSkill && (
-                      <div style={{ padding: '2px 4px', background: 'rgba(255,152,0,0.2)', borderRadius: '2px' }}>
-                        <span style={{ color: '#ff9800' }}>上級技:</span> {selectedHandCard.advancedSkill.text}
-                      </div>
-                    )}
-                  </div>
-                )}
-                <div style={{ fontSize: '9px', color: '#888', marginTop: '4px' }}>
-                  {selectedHandCard.type === 'monster' && '👆 空きスロットをクリックして召喚'}
-                  {selectedHandCard.type === 'magic' && '👆 「魔法カード発動」ボタンで発動'}
-                  {selectedHandCard.type === 'field' && '👆 フィールドゾーンをクリックして配置'}
-                  {selectedHandCard.type === 'phasecard' && '👆 フェイズゾーンをクリックして配置'}
-                </div>
-              </div>
-            )}
-            {/* 選択中のフィールドモンスター */}
-            {!selectedHandCard && selectedFieldMonster !== null && (() => {
-              const field = currentPlayer === 1 ? p1Field : p2Field;
-              const monster = field[selectedFieldMonster];
-              if (!monster) return null;
-              return (
-                <div>
-                  <div style={{ fontSize: '12px', fontWeight: 'bold', marginBottom: '6px', color: currentPlayer === 1 ? '#4da6ff' : '#ff8a8a' }}>
-                    🎯 {monster.name}
-                  </div>
-                  <div style={{ fontSize: '11px', color: '#ccc', marginBottom: '4px' }}>
-                    属性: {monster.attribute} | ⚔️ {monster.currentAttack || monster.attack} | ❤️ {monster.currentHP}/{monster.maxHP || monster.hp}
-                  </div>
-                  {monster.categoryText && (
-                    <div style={{ fontSize: '11px', color: '#ffd700', marginBottom: '4px' }}>
-                      カテゴリ: {monster.categoryText}
-                    </div>
-                  )}
-                  <div style={{
-                    fontSize: '10px',
-                    color: '#e0e0e0',
-                    background: 'rgba(0,0,0,0.3)',
-                    padding: '6px',
-                    borderRadius: '4px',
-                    lineHeight: '1.4',
-                    maxHeight: '60px',
-                    overflowY: 'auto',
-                  }}>
-                    {getEffectWithoutSkills(monster.effect) || 'なし'}
-                  </div>
-                  {(monster.basicSkill || monster.advancedSkill) && (
-                    <div style={{ marginTop: '4px', fontSize: '9px', lineHeight: '1.3' }}>
-                      {monster.basicSkill && (
-                        <div style={{ padding: '2px 4px', background: 'rgba(76,175,80,0.2)', borderRadius: '2px', marginBottom: '2px' }}>
-                          <span style={{ color: '#4caf50' }}>基本技(1):</span> {monster.basicSkill.text}
-                        </div>
-                      )}
-                      {monster.advancedSkill && (
-                        <div style={{ padding: '2px 4px', background: 'rgba(255,152,0,0.2)', borderRadius: '2px' }}>
-                          <span style={{ color: '#ff9800' }}>上級技(2):</span> {monster.advancedSkill.text}
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
-              );
-            })()}
-            {/* 選択中のフィールド/フェイズカード */}
-            {!selectedHandCard && selectedFieldMonster === null && selectedFieldCardInfo && (
-              <div>
-                <div style={{ fontSize: '12px', fontWeight: 'bold', marginBottom: '6px', color: selectedFieldCardInfo.player === 1 ? '#4da6ff' : '#ff8a8a' }}>
-                  📋 {selectedFieldCardInfo.type === 'field' ? 'フィールド' : 'フェイズ'}: {selectedFieldCardInfo.card.name}
-                </div>
-                <div style={{ fontSize: '11px', color: '#ccc', marginBottom: '4px' }}>
-                  属性: {selectedFieldCardInfo.card.attribute} | コスト: {selectedFieldCardInfo.card.cost} SP
-                </div>
-                {selectedFieldCardInfo.type === 'phasecard' && (
-                  <>
-                    <div style={{ fontSize: '11px', color: '#4caf50', marginBottom: '4px' }}>
-                      ⚡ {getStageShortName(selectedFieldCardInfo.card.stage || 0)}段階 ({selectedFieldCardInfo.card.charges?.length || 0}/3)
-                    </div>
-                    <div style={{
-                      fontSize: '10px',
-                      color: '#ffd700',
-                      background: 'rgba(255,215,0,0.1)',
-                      padding: '4px',
-                      borderRadius: '4px',
-                      marginBottom: '4px',
-                      lineHeight: '1.3',
-                    }}>
-                      <strong>【現在の効果】</strong><br/>
-                      {getCurrentStageDescription(selectedFieldCardInfo.card) || '効果なし'}
-                    </div>
-                    {(selectedFieldCardInfo.card.stage || 0) < 3 && getNextStageDescription(selectedFieldCardInfo.card) && (
-                      <div style={{
-                        fontSize: '10px',
-                        color: '#4da6ff',
-                        background: 'rgba(77,166,255,0.1)',
-                        padding: '4px',
-                        borderRadius: '4px',
-                        lineHeight: '1.3',
-                      }}>
-                        <strong>【次の段階】</strong><br/>
-                        {getNextStageDescription(selectedFieldCardInfo.card)}
-                      </div>
-                    )}
-                  </>
-                )}
-                {selectedFieldCardInfo.type === 'field' && (
-                  <div style={{
-                    fontSize: '10px',
-                    color: '#e0e0e0',
-                    background: 'rgba(0,0,0,0.3)',
-                    padding: '6px',
-                    borderRadius: '4px',
-                    lineHeight: '1.4',
-                  }}>
-                    {getEffectWithoutSkills(selectedFieldCardInfo.card.effect) || 'なし'}
-                  </div>
-                )}
-                <button
-                  onClick={() => setSelectedFieldCardInfo(null)}
-                  style={{
-                    marginTop: '6px',
-                    padding: '3px 10px',
-                    background: 'rgba(107,76,230,0.5)',
-                    border: '1px solid #6b4ce6',
-                    borderRadius: '4px',
-                    color: '#fff',
-                    fontSize: '10px',
-                    cursor: 'pointer',
-                  }}
-                >
-                  閉じる
-                </button>
-              </div>
-            )}
-            {/* 何も選択されていない時 */}
-            {!selectedHandCard && selectedFieldMonster === null && !selectedFieldCardInfo && (
-              <div style={{ fontSize: '11px', color: '#666', textAlign: 'center', padding: '20px 0' }}>
-                カードを選択すると<br/>情報が表示されます
-              </div>
-            )}
-          </div>
-
-          {/* ログ */}
-          <div style={{ width: '200px' }}>
-            <GameLog logs={logs} />
-          </div>
         </div>
 
         {/* プレイヤー1エリア（下） */}
@@ -2371,6 +2393,7 @@ export default function MagicSpiritGame() {
               </div>
             </div>
           </div>
+        </div>
         </div>
       </div>
     </div>
