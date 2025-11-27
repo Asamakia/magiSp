@@ -37,8 +37,8 @@ export const [属性名]CardEffects = {
       return true;
     }
 
-    // 基本技の場合
-    if (skillText.includes('基本技')) {
+    // 基本技の場合（context.skillType で判定）
+    if (context.skillType === 'basic') {
       // 基本技の実装
       addLog('基本技を発動！', 'info');
 
@@ -61,8 +61,8 @@ export const [属性名]CardEffects = {
       return true;
     }
 
-    // 上級技の場合
-    if (skillText.includes('上級技')) {
+    // 上級技の場合（context.skillType で判定）
+    if (context.skillType === 'advanced') {
       // 上級技の実装
       addLog('上級技を発動！', 'info');
       // ...

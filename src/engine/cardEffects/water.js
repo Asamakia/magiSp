@@ -18,48 +18,8 @@ import { STATUS_EFFECT_TYPES } from '../statusEffects';
  * 水属性カードの固有効果
  */
 export const waterCardEffects = {
-  /**
-   * C0000142: ブリザードマスター
-   * 【召喚時】デッキから《ブリザード》または《猫》魔法カード1枚を手札に加える
-   */
-  C0000142: (skillText, context) => {
-    if (skillText.includes('【召喚時】')) {
-      return searchCard(context, (card) => {
-        return card.type === 'magic' &&
-               (card.name.includes('ブリザード') || card.name.includes('猫'));
-      }) !== null;
-    }
-    return false;
-  },
-
-  /**
-   * C0000147: ブリザードキャット・シャード
-   * 【召喚時】相手モンスター1体に、場にいる《ブリザードキャット》×500ダメージを与える
-   */
-  C0000147: (skillText, context) => {
-    const {
-      addLog,
-      currentPlayer,
-      p1Field, p2Field,
-    } = context;
-
-    if (skillText.includes('【召喚時】')) {
-      const currentField = currentPlayer === 1 ? p1Field : p2Field;
-      const blizzardCatCount = currentField.filter(m =>
-        m && m.name && m.name.includes('ブリザードキャット')
-      ).length;
-
-      if (blizzardCatCount > 0) {
-        const damage = blizzardCatCount * 500;
-        addLog(`ブリザードキャット×${blizzardCatCount}`, 'info');
-        return conditionalDamage(context, damage, 'opponent_monster', 0);
-      } else {
-        addLog('ブリザードキャットがいません', 'info');
-        return false;
-      }
-    }
-    return false;
-  },
+  // C0000142 (ブリザードマスター) と C0000147 (ブリザードキャット・シャード) は
+  // cardTriggers/waterCards.js に実装済み（召喚時トリガーとして）
 
   /**
    * C0000148: 氷の双尾猫
@@ -74,7 +34,7 @@ export const waterCardEffects = {
       setP1Graveyard, setP2Graveyard,
     } = context;
 
-    if (skillText.includes('基本技')) {
+    if (context.skillType === 'basic') {
       const currentHand = currentPlayer === 1 ? p1Hand : p2Hand;
       const setHand = currentPlayer === 1 ? setP1Hand : setP2Hand;
       const setGraveyard = currentPlayer === 1 ? setP1Graveyard : setP2Graveyard;
@@ -719,18 +679,28 @@ export const waterCardEffects = {
       p1Field, p2Field,
       setP1Field, setP2Field,
       setP1Graveyard, setP2Graveyard,
+      p1Hand, p2Hand,
+      setP1Hand, setP2Hand,
       monsterIndex,
-      setNextWaterCostReduction,
     } = context;
 
-    if (skillText.includes('基本技')) {
+    if (context.skillType === 'basic') {
       const currentField = currentPlayer === 1 ? p1Field : p2Field;
       const setField = currentPlayer === 1 ? setP1Field : setP2Field;
       const setGraveyard = currentPlayer === 1 ? setP1Graveyard : setP2Graveyard;
+      const hand = currentPlayer === 1 ? p1Hand : p2Hand;
+      const setHand = currentPlayer === 1 ? setP1Hand : setP2Hand;
 
       const monster = currentField[monsterIndex];
       if (!monster) {
         addLog('対象のモンスターが存在しません', 'info');
+        return false;
+      }
+
+      // 手札に水属性モンスターがいるかチェック
+      const waterMonsters = hand.filter(c => c.type === 'monster' && c.attribute === '水');
+      if (waterMonsters.length === 0) {
+        addLog('手札に水属性モンスターがいないため発動できません', 'info');
         return false;
       }
 
@@ -743,16 +713,119 @@ export const waterCardEffects = {
       setGraveyard(prev => [...prev, monster]);
       addLog(`${monster.name}をリリース！`, 'info');
 
-      // 次の水属性召喚コスト軽減フラグを設定
-      // この機能は magic-spirit.jsx で処理する必要があります
-      if (setNextWaterCostReduction) {
-        setNextWaterCostReduction(2);
-        addLog('次の水属性モンスターの召喚コストが2軽減！', 'heal');
-      } else {
-        // フォールバック: コンテキストにセッターがない場合
-        addLog('次の水属性モンスターの召喚コストが2軽減（要実装）', 'info');
+      // 手札のすべての水属性モンスターにコスト軽減を付与（次の1体のみ使用）
+      setHand(prev => prev.map(c => {
+        if (c.type === 'monster' && c.attribute === '水') {
+          return {
+            ...c,
+            tempCostModifier: (c.tempCostModifier || 0) - 2,
+            tempCostModifierSource: '泡沫の精霊',
+            tempCostModifierOneTime: true, // 次の1体のみフラグ
+          };
+        }
+        return c;
+      }));
+      addLog('次の水属性モンスターの召喚コストが2軽減！', 'heal');
+
+      return true;
+    }
+    return false;
+  },
+
+  /**
+   * C0000144: ブリザードキャット・フロスト
+   * 基本技：自身の攻撃力の半分のダメージを相手モンスター1体に与える。
+   */
+  C0000144: (skillText, context) => {
+    const {
+      addLog,
+      currentPlayer,
+      monsterIndex,
+      p1Field, p2Field,
+      setP1Field, setP2Field,
+      setPendingTargetSelection,
+    } = context;
+
+    if (context.skillType === 'basic') {
+      const currentField = currentPlayer === 1 ? p1Field : p2Field;
+      const opponentField = currentPlayer === 1 ? p2Field : p1Field;
+      const setOpponentField = currentPlayer === 1 ? setP2Field : setP1Field;
+
+      const monster = currentField[monsterIndex];
+      if (!monster) {
+        addLog('モンスターが存在しません', 'damage');
+        return false;
       }
 
+      // ダメージ量 = 攻撃力の半分
+      const damage = Math.floor(monster.attack / 2);
+
+      // 相手フィールドのモンスターをチェック
+      const validTargets = opponentField
+        .map((m, idx) => ({ monster: m, index: idx }))
+        .filter(t => t.monster !== null);
+
+      if (validTargets.length === 0) {
+        addLog('相手フィールドにモンスターがいません', 'info');
+        return false;
+      }
+
+      // 1体のみの場合は自動選択
+      if (validTargets.length === 1) {
+        const target = validTargets[0];
+        setOpponentField(prev => prev.map((m, idx) => {
+          if (idx === target.index && m) {
+            const newHp = m.currentHp - damage;
+            addLog(`${monster.name}の基本技: ${m.name}に${damage}ダメージ！`, 'damage');
+            if (newHp <= 0) {
+              addLog(`${m.name}は破壊された！`, 'damage');
+              return null;
+            }
+            return { ...m, currentHp: newHp };
+          }
+          return m;
+        }));
+        return true;
+      }
+
+      // 複数の場合はターゲット選択UI
+      if (setPendingTargetSelection) {
+        setPendingTargetSelection({
+          message: `${damage}ダメージを与える相手モンスターを選択`,
+          validTargets: validTargets.map(t => t.index),
+          isOpponent: true,
+          callback: (targetIndex) => {
+            setOpponentField(prev => prev.map((m, idx) => {
+              if (idx === targetIndex && m) {
+                const newHp = m.currentHp - damage;
+                addLog(`${monster.name}の基本技: ${m.name}に${damage}ダメージ！`, 'damage');
+                if (newHp <= 0) {
+                  addLog(`${m.name}は破壊された！`, 'damage');
+                  return null;
+                }
+                return { ...m, currentHp: newHp };
+              }
+              return m;
+            }));
+          },
+        });
+        return true;
+      }
+
+      // フォールバック: 最初のターゲット
+      const target = validTargets[0];
+      setOpponentField(prev => prev.map((m, idx) => {
+        if (idx === target.index && m) {
+          const newHp = m.currentHp - damage;
+          addLog(`${monster.name}の基本技: ${m.name}に${damage}ダメージ！`, 'damage');
+          if (newHp <= 0) {
+            addLog(`${m.name}は破壊された！`, 'damage');
+            return null;
+          }
+          return { ...m, currentHp: newHp };
+        }
+        return m;
+      }));
       return true;
     }
     return false;

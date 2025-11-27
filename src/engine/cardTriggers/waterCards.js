@@ -33,7 +33,7 @@ export const waterCardTriggers = {
   C0000039: [
     {
       type: TRIGGER_TYPES.ON_SUMMON,
-      activationType: ACTIVATION_TYPES.OPTIONAL,
+      activationType: ACTIVATION_TYPES.AUTOMATIC,
       description: '召喚時: 相手モンスター1体を「眠り」状態に',
       effect: (context) => {
         // 眠り: 次のターン終了時まで行動不能＋効果無効、ターン開始時50%解除
@@ -95,12 +95,62 @@ export const waterCardTriggers = {
   C0000042: [
     {
       type: TRIGGER_TYPES.ON_SUMMON,
-      activationType: ACTIVATION_TYPES.OPTIONAL,
+      activationType: ACTIVATION_TYPES.AUTOMATIC,
       description: '召喚時: 手札の水属性カード1枚のコスト-1',
       effect: (context) => {
-        const { addLog } = context;
-        addLog('潮の乙女の効果: 手札の水属性カードのコスト軽減（未実装）', 'info');
-        // TODO: コスト軽減システムの実装が必要
+        const {
+          currentPlayer, p1Hand, p2Hand, setP1Hand, setP2Hand,
+          addLog, setPendingHandSelection,
+        } = context;
+
+        const hand = currentPlayer === 1 ? p1Hand : p2Hand;
+        const setHand = currentPlayer === 1 ? setP1Hand : setP2Hand;
+
+        // 水属性カードをフィルタ（自分自身以外）
+        const waterCards = hand.filter(c => c.attribute === '水');
+
+        if (waterCards.length === 0) {
+          addLog('潮の乙女の効果: 手札に水属性カードがありません', 'info');
+          return;
+        }
+
+        // 1枚のみの場合は自動選択
+        if (waterCards.length === 1) {
+          const targetCard = waterCards[0];
+          setHand(prev => prev.map(c =>
+            c.uniqueId === targetCard.uniqueId
+              ? { ...c, tempCostModifier: (c.tempCostModifier || 0) - 1, tempCostModifierSource: '潮の乙女' }
+              : c
+          ));
+          addLog(`潮の乙女の効果: ${targetCard.name}のコストを1軽減！`, 'heal');
+          return;
+        }
+
+        // 複数の場合は選択UI
+        if (setPendingHandSelection) {
+          setPendingHandSelection({
+            message: 'コストを1軽減する水属性カードを選択してください',
+            filter: (card) => card.attribute === '水',
+            callback: (selectedCard) => {
+              setHand(prev => prev.map(c =>
+                c.uniqueId === selectedCard.uniqueId
+                  ? { ...c, tempCostModifier: (c.tempCostModifier || 0) - 1, tempCostModifierSource: '潮の乙女' }
+                  : c
+              ));
+              addLog(`潮の乙女の効果: ${selectedCard.name}のコストを1軽減！`, 'heal');
+            },
+          });
+          return;
+        }
+
+        // フォールバック: 最初の水属性カードを選択
+        const targetCard = waterCards[0];
+        setHand(prev => prev.map(c =>
+          c.uniqueId === targetCard.uniqueId
+            ? { ...c, tempCostModifier: (c.tempCostModifier || 0) - 1, tempCostModifierSource: '潮の乙女' }
+            : c
+        ));
+        addLog(`潮の乙女の効果: ${targetCard.name}のコストを1軽減！`, 'heal');
       },
     },
   ],
@@ -179,12 +229,77 @@ export const waterCardTriggers = {
   C0000044: [
     {
       type: TRIGGER_TYPES.ON_SUMMON,
-      activationType: ACTIVATION_TYPES.OPTIONAL,
-      description: '召喚時: 手札の水属性モンスターのコスト-1',
+      activationType: ACTIVATION_TYPES.AUTOMATIC,
+      description: '召喚時: 手札の水属性モンスター1体のコスト-1（エンドフェイズまで）',
       effect: (context) => {
-        const { addLog } = context;
-        addLog('水晶のマーメイドの効果: 手札の水属性モンスターのコスト軽減（未実装）', 'info');
-        // TODO: 一時的なコスト軽減システムの実装が必要
+        const {
+          currentPlayer, p1Hand, p2Hand, setP1Hand, setP2Hand,
+          addLog, setPendingHandSelection,
+        } = context;
+
+        const hand = currentPlayer === 1 ? p1Hand : p2Hand;
+        const setHand = currentPlayer === 1 ? setP1Hand : setP2Hand;
+
+        // 水属性モンスターをフィルタ
+        const waterMonsters = hand.filter(c => c.type === 'monster' && c.attribute === '水');
+
+        if (waterMonsters.length === 0) {
+          addLog('水晶のマーメイドの効果: 手札に水属性モンスターがありません', 'info');
+          return;
+        }
+
+        // 1体のみの場合は自動選択
+        if (waterMonsters.length === 1) {
+          const targetCard = waterMonsters[0];
+          setHand(prev => prev.map(c =>
+            c.uniqueId === targetCard.uniqueId
+              ? {
+                  ...c,
+                  tempCostModifier: (c.tempCostModifier || 0) - 1,
+                  tempCostModifierSource: '水晶のマーメイド',
+                  tempCostModifierUntilEndPhase: true, // エンドフェイズまでの一時軽減
+                }
+              : c
+          ));
+          addLog(`水晶のマーメイドの効果: ${targetCard.name}のコストを1軽減！`, 'heal');
+          return;
+        }
+
+        // 複数の場合は選択UI
+        if (setPendingHandSelection) {
+          setPendingHandSelection({
+            message: 'コストを1軽減する水属性モンスターを選択してください',
+            filter: (card) => card.type === 'monster' && card.attribute === '水',
+            callback: (selectedCard) => {
+              setHand(prev => prev.map(c =>
+                c.uniqueId === selectedCard.uniqueId
+                  ? {
+                      ...c,
+                      tempCostModifier: (c.tempCostModifier || 0) - 1,
+                      tempCostModifierSource: '水晶のマーメイド',
+                      tempCostModifierUntilEndPhase: true,
+                    }
+                  : c
+              ));
+              addLog(`水晶のマーメイドの効果: ${selectedCard.name}のコストを1軽減！`, 'heal');
+            },
+          });
+          return;
+        }
+
+        // フォールバック: 最初の水属性モンスターを選択
+        const targetCard = waterMonsters[0];
+        setHand(prev => prev.map(c =>
+          c.uniqueId === targetCard.uniqueId
+            ? {
+                ...c,
+                tempCostModifier: (c.tempCostModifier || 0) - 1,
+                tempCostModifierSource: '水晶のマーメイド',
+                tempCostModifierUntilEndPhase: true,
+              }
+            : c
+        ));
+        addLog(`水晶のマーメイドの効果: ${targetCard.name}のコストを1軽減！`, 'heal');
       },
     },
   ],
@@ -221,21 +336,11 @@ export const waterCardTriggers = {
 
   /**
    * C0000053: 母なる大海
-   * 【常時】水属性モンスターの攻撃力300アップ。
+   * 【常時】水属性モンスターの攻撃力300アップ。（continuousEffects/fieldCards.jsで実装）
    * 【自分エンドフェイズ時】自分のレスト状態のSPトークンを1つアクティブにする。
    * 【エンドフェイズ時】「凍結」状態の相手モンスターがいる場合、相手プレイヤーに300ダメージを与える。
    */
   C0000053: [
-    {
-      type: TRIGGER_TYPES.CONTINUOUS,
-      activationType: ACTIVATION_TYPES.AUTOMATIC,
-      description: '常時: 水属性モンスターの攻撃力+300',
-      effect: (context) => {
-        const { addLog } = context;
-        addLog('母なる大海の常時効果: 水属性モンスターの攻撃力+300（未実装）', 'info');
-        // TODO: フィールドカードの常時効果システムが必要
-      },
-    },
     {
       type: TRIGGER_TYPES.ON_END_PHASE_SELF,
       activationType: ACTIVATION_TYPES.AUTOMATIC,
@@ -252,6 +357,28 @@ export const waterCardTriggers = {
           setRestedSP((prev) => prev - 1);
           setActiveSP((prev) => prev + 1);
           addLog('母なる大海の効果: レストSP1個をアクティブにした', 'info');
+        }
+      },
+    },
+    {
+      type: TRIGGER_TYPES.ON_END_PHASE_SELF,
+      activationType: ACTIVATION_TYPES.AUTOMATIC,
+      description: 'エンドフェイズ: 凍結モンスターいれば相手に300ダメージ',
+      effect: (context) => {
+        const { currentPlayer, p1Field, p2Field, addLog } = context;
+        // 相手フィールドをチェック
+        const opponentField = currentPlayer === 1 ? p2Field : p1Field;
+
+        // 凍結状態のモンスターがいるかチェック
+        const frozenMonsters = opponentField.filter(monster =>
+          monster &&
+          monster.statusEffects &&
+          monster.statusEffects.some(effect => effect.type === STATUS_EFFECT_TYPES.FREEZE)
+        );
+
+        if (frozenMonsters.length > 0) {
+          addLog(`母なる大海の効果: 凍結モンスター${frozenMonsters.length}体、相手に300ダメージ！`, 'damage');
+          conditionalDamage(context, 300, 'opponent');
         }
       },
     },
@@ -319,14 +446,67 @@ export const waterCardTriggers = {
       activationType: ACTIVATION_TYPES.AUTOMATIC,
       description: '召喚時: 《ブリザード》/《猫》魔法をサーチ',
       effect: (context) => {
-        const found = searchCard(context, (card) => {
-          return card.type === 'magic' &&
-                 (card.name.includes('ブリザード') || card.name.includes('猫'));
-        });
+        const {
+          currentPlayer, p1Deck, p2Deck, setP1Deck, setP2Deck,
+          setP1Hand, setP2Hand, addLog, setPendingDeckReview,
+        } = context;
 
-        if (!found) {
-          context.addLog('ブリザードマスターの効果: 対象カードが見つかりませんでした', 'info');
+        const deck = currentPlayer === 1 ? p1Deck : p2Deck;
+        const setDeck = currentPlayer === 1 ? setP1Deck : setP2Deck;
+        const setHand = currentPlayer === 1 ? setP1Hand : setP2Hand;
+
+        // 対象カードをフィルタ
+        const targetFilter = (card) =>
+          card.type === 'magic' &&
+          (card.name.includes('ブリザード') || card.name.includes('猫'));
+
+        const matchingCards = deck.filter(targetFilter);
+
+        if (matchingCards.length === 0) {
+          addLog('ブリザードマスターの効果: 対象カードが見つかりませんでした', 'info');
+          return;
         }
+
+        // 1枚のみの場合は自動選択
+        if (matchingCards.length === 1) {
+          const targetCard = matchingCards[0];
+          setDeck(prev => prev.filter(c => c.uniqueId !== targetCard.uniqueId));
+          setHand(prev => [...prev, targetCard]);
+          addLog(`ブリザードマスターの効果: ${targetCard.name}を手札に加えた！`, 'heal');
+          return;
+        }
+
+        // 複数ある場合はデッキ選択UIを表示
+        if (setPendingDeckReview) {
+          setPendingDeckReview({
+            cards: matchingCards,
+            title: 'ブリザードマスターの効果',
+            message: '手札に加える《ブリザード》または《猫》魔法カードを1枚選択してください',
+            allowReorder: false,
+            selectMode: {
+              enabled: true,
+              count: 1,
+            },
+            onSelect: (selectedCards, remainingCards) => {
+              if (selectedCards.length > 0) {
+                const selectedCard = selectedCards[0];
+                setDeck(prev => prev.filter(c => c.uniqueId !== selectedCard.uniqueId));
+                setHand(prev => [...prev, selectedCard]);
+                addLog(`ブリザードマスターの効果: ${selectedCard.name}を手札に加えた！`, 'heal');
+              }
+            },
+            onCancel: () => {
+              addLog('ブリザードマスターの効果: キャンセルしました', 'info');
+            },
+          });
+          return;
+        }
+
+        // フォールバック: 最初のカードを選択
+        const targetCard = matchingCards[0];
+        setDeck(prev => prev.filter(c => c.uniqueId !== targetCard.uniqueId));
+        setHand(prev => [...prev, targetCard]);
+        addLog(`ブリザードマスターの効果: ${targetCard.name}を手札に加えた！`, 'heal');
       },
     },
   ],
@@ -393,7 +573,7 @@ export const waterCardTriggers = {
   C0000144: [
     {
       type: TRIGGER_TYPES.ON_SUMMON,
-      activationType: ACTIVATION_TYPES.OPTIONAL,
+      activationType: ACTIVATION_TYPES.AUTOMATIC,
       description: '召喚時: 相手モンスター1体を「凍結」',
       effect: (context) => {
         // 凍結: 攻撃力半減＋行動不能、次のターン開始時に50%で解除
@@ -417,7 +597,7 @@ export const waterCardTriggers = {
   C0000145: [
     {
       type: TRIGGER_TYPES.ON_SUMMON,
-      activationType: ACTIVATION_TYPES.OPTIONAL,
+      activationType: ACTIVATION_TYPES.AUTOMATIC,
       description: '召喚時: 相手モンスター1体を「凍結」',
       effect: (context) => {
         // 凍結: 攻撃力半減＋行動不能、次のターン開始時に50%で解除
@@ -462,11 +642,18 @@ export const waterCardTriggers = {
   C0000147: [
     {
       type: TRIGGER_TYPES.ON_SUMMON,
-      activationType: ACTIVATION_TYPES.OPTIONAL,
+      activationType: ACTIVATION_TYPES.AUTOMATIC,
       description: '召喚時: 《ブリザードキャット》×500ダメージ',
       effect: (context) => {
-        const { currentPlayer, p1Field, p2Field, addLog } = context;
+        const {
+          currentPlayer, p1Field, p2Field, addLog,
+          setP1Field, setP2Field, setP1Graveyard, setP2Graveyard,
+          setPendingTargetSelection,
+        } = context;
         const field = currentPlayer === 1 ? p1Field : p2Field;
+        const opponentField = currentPlayer === 1 ? p2Field : p1Field;
+        const setOpponentField = currentPlayer === 1 ? setP2Field : setP1Field;
+        const setOpponentGraveyard = currentPlayer === 1 ? setP2Graveyard : setP1Graveyard;
 
         // 場の《ブリザードキャット》をカウント
         const blizzardCatCount = field.filter((monster) =>
@@ -479,8 +666,59 @@ export const waterCardTriggers = {
         }
 
         const damage = blizzardCatCount * 500;
-        addLog(`ブリザードキャット・シャードの効果: 相手モンスターに${damage}ダメージ（未実装）`, 'info');
-        // TODO: モンスター選択UIが必要
+
+        // 相手モンスターを取得
+        const validTargets = opponentField
+          .map((m, idx) => ({ monster: m, index: idx }))
+          .filter(({ monster }) => monster !== null);
+
+        if (validTargets.length === 0) {
+          addLog('ブリザードキャット・シャードの効果: 相手モンスターがいません', 'info');
+          return;
+        }
+
+        const applyDamage = (targetIndex) => {
+          setOpponentField(prev => {
+            const newField = [...prev];
+            const target = newField[targetIndex];
+            if (target) {
+              const newHp = Math.max(0, target.currentHp - damage);
+              addLog(`${target.name}に${damage}ダメージ！（残りHP: ${newHp}）`, 'damage');
+              if (newHp <= 0) {
+                addLog(`${target.name}が破壊された！`, 'damage');
+                setOpponentGraveyard(prev => [...prev, target]);
+                newField[targetIndex] = null;
+              } else {
+                newField[targetIndex] = { ...target, currentHp: newHp };
+              }
+            }
+            return newField;
+          });
+        };
+
+        // 1体のみの場合は自動選択
+        if (validTargets.length === 1) {
+          addLog(`ブリザードキャット×${blizzardCatCount}で${damage}ダメージ！`, 'info');
+          applyDamage(validTargets[0].index);
+          return;
+        }
+
+        // 複数いる場合は選択UI
+        if (setPendingTargetSelection) {
+          addLog(`ブリザードキャット×${blizzardCatCount}で${damage}ダメージ！対象を選択...`, 'info');
+          setPendingTargetSelection({
+            message: `${damage}ダメージを与える相手モンスターを選択してください`,
+            targetType: 'opponent_monster',
+            callback: (selectedIndex) => {
+              applyDamage(selectedIndex);
+            },
+          });
+          return;
+        }
+
+        // フォールバック
+        addLog(`ブリザードキャット×${blizzardCatCount}で${damage}ダメージ！`, 'info');
+        applyDamage(validTargets[0].index);
       },
     },
   ],

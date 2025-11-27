@@ -154,14 +154,25 @@ export default function MagicSpiritGame() {
       p2Life,
     };
 
+    // 常時効果からのコスト修正
     const { modifier, sources } = continuousEffectEngine.getSummonCostModifierDetails(card, player, context);
 
-    if (modifier === 0) {
+    // カード固有の一時的コスト修正（潮の乙女など）
+    const tempModifier = card.tempCostModifier || 0;
+    const tempSource = card.tempCostModifierSource || null;
+
+    const totalModifier = modifier + tempModifier;
+
+    if (totalModifier === 0) {
       return { modifiedCost: undefined, costModifierSource: undefined };
     }
 
-    const actualCost = Math.max(0, card.cost + modifier);
-    const sourceText = sources.length > 0 ? sources.join(', ') : '常時効果';
+    const actualCost = Math.max(0, card.cost + totalModifier);
+    const allSources = [...sources];
+    if (tempSource) {
+      allSources.push(tempSource);
+    }
+    const sourceText = allSources.length > 0 ? allSources.join(', ') : '効果';
 
     return { modifiedCost: actualCost, costModifierSource: sourceText };
   }, [p1Field, p2Field, p1Life, p2Life]);
@@ -444,6 +455,17 @@ export default function MagicSpiritGame() {
         resetTurnFlags();
         continuousEffectEngine.resetTurnFlags();
 
+        // エンドフェイズまでの一時的コスト軽減をクリア（水晶のマーメイド等）
+        const clearTempCostModifier = (hand) => hand.map(c => {
+          if (c.tempCostModifierUntilEndPhase) {
+            const { tempCostModifier, tempCostModifierSource, tempCostModifierUntilEndPhase, ...rest } = c;
+            return rest;
+          }
+          return c;
+        });
+        setP1Hand(prev => clearTempCostModifier(prev));
+        setP2Hand(prev => clearTempCostModifier(prev));
+
         setPhase(0);
         // ターン終了、相手に切り替え
         if (currentPlayer === 1) {
@@ -704,6 +726,7 @@ export default function MagicSpiritGame() {
     const context = {
       currentPlayer,
       monsterIndex,
+      skillType, // 'basic' or 'advanced'
       setP1Life,
       setP2Life,
       setP1Field,
@@ -760,10 +783,21 @@ export default function MagicSpiritGame() {
         p1Life,
         p2Life,
       };
+      // 常時効果からのコスト修正
       const { modifier, sources } = continuousEffectEngine.getSummonCostModifierDetails(card, currentPlayer, context);
-      actualCost = Math.max(0, card.cost + modifier);
-      if (modifier !== 0 && sources.length > 0) {
-        costModifierSource = sources.join(', ');
+      // カード固有の一時的コスト修正（潮の乙女など）
+      const tempModifier = card.tempCostModifier || 0;
+      const tempSource = card.tempCostModifierSource || null;
+
+      const totalModifier = modifier + tempModifier;
+      actualCost = Math.max(0, card.cost + totalModifier);
+
+      const allSources = [...sources];
+      if (tempSource) {
+        allSources.push(tempSource);
+      }
+      if (totalModifier !== 0 && allSources.length > 0) {
+        costModifierSource = allSources.join(', ');
       }
     }
 
@@ -783,13 +817,24 @@ export default function MagicSpiritGame() {
       monsterInstance.owner = currentPlayer; // 常時効果のターゲット判定用
 
       // フィールドにモンスターを配置
+      // 「次の1体のみ」のコスト軽減を使用した場合、他のカードからリセット
+      const usedOneTimeModifier = card.tempCostModifierOneTime && card.tempCostModifier;
+      const oneTimeSource = usedOneTimeModifier ? card.tempCostModifierSource : null;
+
       if (currentPlayer === 1) {
         setP1Field(prev => {
           const newField = [...prev];
           newField[slotIndex] = monsterInstance;
           return newField;
         });
-        setP1Hand(prev => prev.filter(c => c.uniqueId !== card.uniqueId));
+        // 手札からカードを削除し、同じソースの「次の1体のみ」軽減をリセット
+        setP1Hand(prev => prev.filter(c => c.uniqueId !== card.uniqueId).map(c => {
+          if (oneTimeSource && c.tempCostModifierOneTime && c.tempCostModifierSource === oneTimeSource) {
+            const { tempCostModifier, tempCostModifierSource, tempCostModifierOneTime, ...rest } = c;
+            return rest;
+          }
+          return c;
+        }));
         setP1ActiveSP(prev => prev - actualCost);
         setP1RestedSP(prev => prev + actualCost);
       } else {
@@ -798,7 +843,14 @@ export default function MagicSpiritGame() {
           newField[slotIndex] = monsterInstance;
           return newField;
         });
-        setP2Hand(prev => prev.filter(c => c.uniqueId !== card.uniqueId));
+        // 手札からカードを削除し、同じソースの「次の1体のみ」軽減をリセット
+        setP2Hand(prev => prev.filter(c => c.uniqueId !== card.uniqueId).map(c => {
+          if (oneTimeSource && c.tempCostModifierOneTime && c.tempCostModifierSource === oneTimeSource) {
+            const { tempCostModifier, tempCostModifierSource, tempCostModifierOneTime, ...rest } = c;
+            return rest;
+          }
+          return c;
+        }));
         setP2ActiveSP(prev => prev - actualCost);
         setP2RestedSP(prev => prev + actualCost);
       }

@@ -53,10 +53,17 @@ cardEffects/
 [カードID]: (skillText, context) => {
   const { addLog } = context;
 
-  // 効果の実装
-  if (skillText.includes('基本技')) {
+  // 効果の実装（context.skillType で判定）
+  if (context.skillType === 'basic') {
     // 基本技の処理
     addLog('基本技を発動！', 'info');
+    // ...
+    return true;
+  }
+
+  if (context.skillType === 'advanced') {
+    // 上級技の処理
+    addLog('上級技を発動！', 'info');
     // ...
     return true;
   }
@@ -74,6 +81,7 @@ cardEffects/
   // プレイヤー情報
   currentPlayer,          // 1 or 2
   monsterIndex,           // 技を発動するモンスターのインデックス
+  skillType,              // 'basic' or 'advanced'
 
   // ゲーム状態
   p1Life, p2Life,
@@ -182,8 +190,8 @@ C0000279: (skillText, context) => {
     return true;
   }
 
-  // 基本技
-  if (skillText.includes('基本技')) {
+  // 基本技（context.skillType で判定）
+  if (context.skillType === 'basic') {
     const milledCards = millDeck(context, 1);
     if (milledCards.length === 0) {
       return false;

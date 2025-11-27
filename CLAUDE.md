@@ -106,7 +106,7 @@ Currently a **prototype version** with local 2-player gameplay.
   - **Continuous effect UI display**: Field monsters now show ATK/HP modifiers with color coding (green=buff, red=debuff)
   - **Field card trigger registration**: Fixed missing `registerCardTriggers()` call for field cards
   - Fixed: ドラゴンの火山 end phase trigger now fires correctly (only on owner's turn, damages opponent monsters)
-- **2025-11-27 (Status Effect System)**: Comprehensive status effect system implemented ⭐⭐ **NEW**
+- **2025-11-27 (Status Effect System)**: Comprehensive status effect system implemented ⭐⭐
   - **Status effect engine** (`src/engine/statusEffects/`) with ~580 lines of new code
   - **13 status effect types**: SLEEP, FREEZE, THUNDER, WET, STUN, SILENCE, GUARD, INVINCIBLE, CORRODE, AWAKENED, ATK_UP, HP_UP, POISON
   - **Game integration**: Turn start/end phase processing, attack/skill restrictions, damage calculation
@@ -114,6 +114,17 @@ Currently a **prototype version** with local 2-player gameplay.
   - **UI display**: Status icons on field monsters (FieldMonster.jsx)
   - **New deck**: 氷眠の檻 (Ice Sleep Prison) - freeze/sleep control deck
   - **6 cards implemented**: C0000039 (sleep), C0000144/145/150/157/199 (freeze)
+- **2025-11-27 (skillType Context & Ice Deck Effects)**: Skill type judgment system fix and ice deck card implementations ⭐⭐ **NEW**
+  - **skillType context parameter**: Added `context.skillType` ('basic' | 'advanced') to effect context
+  - **Deprecated pattern fix**: Changed `skillText.includes('基本技')` → `context.skillType === 'basic'`
+  - Fixed across all attribute files: fire.js, water.js, light.js, dark.js, future.js
+  - Updated template and README documentation
+  - **Ice deck (氷眠の檻) card implementations**:
+    - C0000053 母なる大海: 凍結バーンダメージ (エンド時凍結モンスターいれば300ダメージ)
+    - C0000044 水晶のマーメイド: 召喚時コスト軽減 (水属性モンスター1体のコスト-1)
+    - C0000142 ブリザードマスター: デッキ選択UI対応 (複数候補から選択可能)
+    - C0000046 泡沫の精霊: 基本技修正 (skillType判定に変更)
+    - C0000144 ブリザードキャット・フロスト: 基本技実装 (ATK半分ダメージ)
 
 ---
 
@@ -553,16 +564,27 @@ export const fireCardEffects = {
    * Effect description
    */
   C0000XXX: (skillText, context) => {
-    // Check skill type (【召喚時】, 基本技, 上級技, etc.)
+    // 召喚時効果の場合（skillTextで判定）
     if (skillText.includes('【召喚時】')) {
-      // Use effect helpers for common patterns
       const { addLog } = context;
-
       // Example: Revive a dragon from graveyard
       return reviveFromGraveyard(context, (card) => {
         return card.category && card.category.includes('【ドラゴン】');
       }, true); // true = weakened (half attack)
     }
+
+    // 基本技の場合（context.skillTypeで判定）
+    if (context.skillType === 'basic') {
+      // 基本技の実装
+      return true;
+    }
+
+    // 上級技の場合（context.skillTypeで判定）
+    if (context.skillType === 'advanced') {
+      // 上級技の実装
+      return true;
+    }
+
     return false;
   },
 };
@@ -627,6 +649,7 @@ const context = {
 
   // Context info
   monsterIndex,       // Index of monster using skill (if applicable)
+  skillType,          // 'basic' or 'advanced' (for skill type judgment)
 
   // Logging
   addLog,             // Log function (message, type)
