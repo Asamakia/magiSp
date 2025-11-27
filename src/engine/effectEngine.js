@@ -441,6 +441,7 @@ export const executeEffect = (effect, context) => {
           hp: weakened ? Math.floor(reviveCard.hp / 2) : reviveCard.hp,
           currentHp: weakened ? Math.floor(reviveCard.hp / 2) : reviveCard.hp,
           canAttack: false,
+          owner: currentPlayer, // 常時効果のターゲット判定用
         };
         newField[emptySlotIndex] = revivedMonster;
         return newField;

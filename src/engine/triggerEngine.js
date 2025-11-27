@@ -461,6 +461,33 @@ export const fireTrigger = (triggerType, context) => {
     });
   }
 
+  // フェイズ関連の「_SELF」トリガーはオーナーがターンプレイヤーの場合のみ発動
+  // （「自分のエンドフェイズ時」= カードオーナーのターンのエンドフェイズ時）
+  const phaseSelfTriggers = [
+    TRIGGER_TYPES.ON_TURN_START_SELF,
+    TRIGGER_TYPES.ON_DRAW_PHASE_SELF,
+    TRIGGER_TYPES.ON_MAIN_PHASE_SELF,
+    TRIGGER_TYPES.ON_END_PHASE_SELF,
+  ];
+
+  if (phaseSelfTriggers.includes(triggerType)) {
+    automaticTriggers = automaticTriggers.filter((trigger) => {
+      return trigger.owner === context.currentPlayer;
+    });
+  }
+
+  // フェイズ関連の「_OPPONENT」トリガーはオーナーがターンプレイヤーと異なる場合のみ発動
+  // （「相手のエンドフェイズ時」= 相手ターンのエンドフェイズ時）
+  const phaseOpponentTriggers = [
+    TRIGGER_TYPES.ON_OPPONENT_END_PHASE,
+  ];
+
+  if (phaseOpponentTriggers.includes(triggerType)) {
+    automaticTriggers = automaticTriggers.filter((trigger) => {
+      return trigger.owner !== context.currentPlayer;
+    });
+  }
+
   if (automaticTriggers.length === 0) {
     return;
   }

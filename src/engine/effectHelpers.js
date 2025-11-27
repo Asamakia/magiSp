@@ -248,6 +248,7 @@ export const reviveFromGraveyard = (context, condition, weakened = false) => {
       hp: weakened ? Math.floor(reviveCard.hp / 2) : reviveCard.hp,
       currentHp: weakened ? Math.floor(reviveCard.hp / 2) : reviveCard.hp,
       canAttack: false,
+      owner: currentPlayer, // 常時効果のターゲット判定用
     };
     newField[emptySlotIndex] = revivedMonster;
     return newField;
@@ -539,6 +540,7 @@ export const selectAndReviveFromGraveyard = (context, filter = null, weakened = 
         currentHp: weakened ? Math.floor(selectedCard.hp / 2) : selectedCard.hp,
         canAttack: false,
         charges: [],
+        owner: currentPlayer, // 常時効果のターゲット判定用
       };
 
       setField(prev => {
