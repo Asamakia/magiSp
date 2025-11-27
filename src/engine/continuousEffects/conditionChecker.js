@@ -64,16 +64,34 @@ const checkSingleCondition = (conditionKey, conditionValue, target, context) => 
 
     case 'category':
       // 単一カテゴリ: 「【ドラゴン】モンスター」
-      return target.category && target.category.includes(conditionValue);
+      // conditionValueから【】を除去して比較（cardManager.jsで配列化される際に【】が削除されるため）
+      if (!target.category) return false;
+      const normalizedCategory = conditionValue.replace(/【|】/g, '');
+      // target.categoryが配列の場合と文字列の場合の両方に対応
+      if (Array.isArray(target.category)) {
+        return target.category.includes(normalizedCategory);
+      }
+      return target.category.includes(conditionValue);
 
     case 'categories':
       // 複数カテゴリ（OR）: 「【ドラゴン】または【ワイバーン】」
       if (!target.category) return false;
-      return Array.isArray(conditionValue) && conditionValue.some((cat) => target.category.includes(cat));
+      if (!Array.isArray(conditionValue)) return false;
+      // 各条件値から【】を除去して比較
+      const normalizedCategories = conditionValue.map((cat) => cat.replace(/【|】/g, ''));
+      if (Array.isArray(target.category)) {
+        return normalizedCategories.some((cat) => target.category.includes(cat));
+      }
+      return conditionValue.some((cat) => target.category.includes(cat));
 
     case 'notCategory':
       // カテゴリ除外
-      return !target.category || !target.category.includes(conditionValue);
+      if (!target.category) return true;
+      const normalizedNotCategory = conditionValue.replace(/【|】/g, '');
+      if (Array.isArray(target.category)) {
+        return !target.category.includes(normalizedNotCategory);
+      }
+      return !target.category.includes(conditionValue);
 
     // ========================================
     // 名前条件
@@ -239,7 +257,15 @@ const hasCardOnField = (context, cardId) => {
 const hasCategoryOnField = (context, category) => {
   const { effectOwner, p1Field, p2Field } = context;
   const field = effectOwner === 1 ? p1Field : p2Field;
-  return field.some((m) => m && m.category && m.category.includes(category));
+  // 【】を除去して比較
+  const normalizedCategory = category.replace(/【|】/g, '');
+  return field.some((m) => {
+    if (!m || !m.category) return false;
+    if (Array.isArray(m.category)) {
+      return m.category.includes(normalizedCategory);
+    }
+    return m.category.includes(category);
+  });
 };
 
 /**
