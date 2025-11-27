@@ -541,6 +541,9 @@ export default function MagicSpiritGame() {
     if (newStage >= 3) {
       addLog(`フェイズカード【${phaseCard.name}】は最終段階の効果を発動し、墓地へ送られます`, 'info');
 
+      // フェイズカードの常時効果を解除
+      continuousEffectEngine.unregister(phaseCard.uniqueId);
+
       // フェイズカードとチャージされたカードを全て墓地へ
       const cardsToGraveyard = [
         { ...updatedPhaseCard, charges: [] }, // フェイズカード本体（chargesは分離）
@@ -550,6 +553,9 @@ export default function MagicSpiritGame() {
       setGraveyard(prev => [...prev, ...cardsToGraveyard]);
       setPhaseCard(null);
     } else {
+      // フェイズカードの常時効果を新しい段階に更新
+      continuousEffectEngine.updatePhaseCardStage(updatedPhaseCard, currentPlayer, newStage);
+
       setPhaseCard(updatedPhaseCard);
     }
 
@@ -955,6 +961,9 @@ export default function MagicSpiritGame() {
 
       // フェイズカードのトリガーを登録
       registerCardTriggers(initializedPhaseCard, currentPlayer, null);
+
+      // フェイズカードの常時効果を登録（初期段階 stage=0）
+      continuousEffectEngine.registerPhaseCard(initializedPhaseCard, currentPlayer, 0);
 
       // 【発動時】トリガーを発火
       fireTrigger(TRIGGER_TYPES.ON_PHASE_CARD_ACTIVATE, context);
