@@ -97,6 +97,7 @@ export default function MagicSpiritGame() {
   const [selectedFieldCardInfo, setSelectedFieldCardInfo] = useState(null); // フィールド/フェイズカード情報表示用
   const [pendingHandSelection, setPendingHandSelection] = useState(null); // 手札選択待ち状態 { message, callback, filter? }
   const [pendingSelectedCard, setPendingSelectedCard] = useState(null); // 手札選択モード中の選択カード
+  const [hoveredCard, setHoveredCard] = useState(null); // ホバー中のカード情報表示用
 
   // デッキ選択状態
   const [p1SelectedDeck, setP1SelectedDeck] = useState('random');
@@ -1771,8 +1772,59 @@ export default function MagicSpiritGame() {
             </div>
           </div>
           <div style={styles.cardInfoPanel}>
+            {/* ホバー中のカード（最優先表示） */}
+            {hoveredCard && (
+              <div>
+                <div style={{ fontSize: '10px', color: '#a78bfa', marginBottom: '6px', padding: '4px', background: 'rgba(167,139,250,0.2)', borderRadius: '4px' }}>
+                  👁️ プレビュー
+                </div>
+                <div style={{ fontSize: '13px', fontWeight: 'bold', marginBottom: '8px', color: hoveredCard.owner === 1 ? '#4da6ff' : '#ff8a8a' }}>
+                  {hoveredCard.name}
+                </div>
+                <div style={{ fontSize: '11px', color: '#ccc', marginBottom: '6px' }}>
+                  属性: {hoveredCard.attribute} | コスト: {hoveredCard.cost} SP
+                </div>
+                {hoveredCard.categoryText && (
+                  <div style={{ fontSize: '11px', color: '#ffd700', marginBottom: '6px' }}>
+                    カテゴリ: {hoveredCard.categoryText}
+                  </div>
+                )}
+                {(hoveredCard.type === 'monster' || hoveredCard.currentHp !== undefined) && (
+                  <div style={{ fontSize: '11px', color: '#ccc', marginBottom: '8px' }}>
+                    ⚔️ {hoveredCard.currentAttack || hoveredCard.attack} | ❤️ {hoveredCard.currentHp !== undefined ? `${hoveredCard.currentHp}/${hoveredCard.maxHP || hoveredCard.hp}` : hoveredCard.hp}
+                  </div>
+                )}
+                <div style={{
+                  fontSize: '11px',
+                  color: '#e0e0e0',
+                  background: 'rgba(0,0,0,0.3)',
+                  padding: '8px',
+                  borderRadius: '6px',
+                  lineHeight: '1.5',
+                  marginBottom: '8px',
+                }}>
+                  {getEffectWithoutSkills(hoveredCard.effect) || 'なし'}
+                </div>
+                {(hoveredCard.basicSkill || hoveredCard.advancedSkill) && (
+                  <div style={{ fontSize: '10px', lineHeight: '1.4' }}>
+                    {hoveredCard.basicSkill && (
+                      <div style={{ padding: '6px', background: 'rgba(76,175,80,0.2)', borderRadius: '4px', marginBottom: '4px' }}>
+                        <span style={{ color: '#4caf50', fontWeight: 'bold' }}>基本技:</span><br/>
+                        {hoveredCard.basicSkill.text}
+                      </div>
+                    )}
+                    {hoveredCard.advancedSkill && (
+                      <div style={{ padding: '6px', background: 'rgba(255,152,0,0.2)', borderRadius: '4px' }}>
+                        <span style={{ color: '#ff9800', fontWeight: 'bold' }}>上級技:</span><br/>
+                        {hoveredCard.advancedSkill.text}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
             {/* 選択中の手札カード（通常モードまたは手札選択モード） */}
-            {(selectedHandCard || pendingSelectedCard) && (
+            {!hoveredCard && (selectedHandCard || pendingSelectedCard) && (
               (() => {
                 const displayCard = pendingSelectedCard || selectedHandCard;
                 const isPendingMode = !!pendingSelectedCard;
@@ -1840,7 +1892,7 @@ export default function MagicSpiritGame() {
               })()
             )}
             {/* 選択中のフィールドモンスター */}
-            {!selectedHandCard && !pendingSelectedCard && selectedFieldMonster !== null && (() => {
+            {!hoveredCard && !selectedHandCard && !pendingSelectedCard && selectedFieldMonster !== null && (() => {
               const field = currentPlayer === 1 ? p1Field : p2Field;
               const monster = field[selectedFieldMonster];
               if (!monster) return null;
@@ -1896,7 +1948,7 @@ export default function MagicSpiritGame() {
               );
             })()}
             {/* 選択中のフィールド/フェイズカード */}
-            {!selectedHandCard && selectedFieldMonster === null && selectedFieldCardInfo && (
+            {!hoveredCard && !selectedHandCard && selectedFieldMonster === null && selectedFieldCardInfo && (
               <div>
                 <div style={{ fontSize: '13px', fontWeight: 'bold', marginBottom: '8px', color: selectedFieldCardInfo.player === 1 ? '#4da6ff' : '#ff8a8a' }}>
                   {selectedFieldCardInfo.type === 'field' ? '🌍 フィールド' : '⚡ フェイズ'}: {selectedFieldCardInfo.card.name}
@@ -2025,6 +2077,8 @@ export default function MagicSpiritGame() {
                     disabled={phase !== 2}
                     modifiedCost={costInfo.modifiedCost}
                     costModifierSource={costInfo.costModifierSource}
+                    onMouseEnter={() => setHoveredCard({ ...card, owner: 2 })}
+                    onMouseLeave={() => setHoveredCard(null)}
                   />
                 ) : (
                   <Card key={card.uniqueId} card={card} faceDown small />
@@ -2042,6 +2096,8 @@ export default function MagicSpiritGame() {
                   canAttack={currentPlayer === 2 && phase === 3 && monster?.canAttack}
                   isTarget={currentPlayer === 1 && phase === 3 && attackingMonster !== null}
                   isValidTarget={currentPlayer === 2 && phase === 2 && selectedHandCard && selectedHandCard.type === 'monster' && !monster}
+                  onMouseEnter={monster ? () => setHoveredCard({ ...monster, owner: 2 }) : undefined}
+                  onMouseLeave={monster ? () => setHoveredCard(null) : undefined}
                 />
               ))}
             </div>
@@ -2471,6 +2527,8 @@ export default function MagicSpiritGame() {
                   canAttack={currentPlayer === 1 && phase === 3 && monster?.canAttack}
                   isTarget={currentPlayer === 2 && phase === 3 && attackingMonster !== null}
                   isValidTarget={currentPlayer === 1 && phase === 2 && selectedHandCard && selectedHandCard.type === 'monster' && !monster}
+                  onMouseEnter={monster ? () => setHoveredCard({ ...monster, owner: 1 }) : undefined}
+                  onMouseLeave={monster ? () => setHoveredCard(null) : undefined}
                 />
               ))}
             </div>
@@ -2488,6 +2546,8 @@ export default function MagicSpiritGame() {
                     disabled={currentPlayer !== 1 || phase !== 2}
                     modifiedCost={costInfo.modifiedCost}
                     costModifierSource={costInfo.costModifierSource}
+                    onMouseEnter={() => setHoveredCard({ ...card, owner: 1 })}
+                    onMouseLeave={() => setHoveredCard(null)}
                   />
                 );
               })}

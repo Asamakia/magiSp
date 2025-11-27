@@ -5,7 +5,7 @@ import styles from '../styles/gameStyles';
 // ========================================
 // フィールドモンスターコンポーネント
 // ========================================
-const FieldMonster = ({ monster, onClick, selected, canAttack, isTarget, isValidTarget }) => {
+const FieldMonster = ({ monster, onClick, selected, canAttack, isTarget, isValidTarget, onMouseEnter, onMouseLeave }) => {
   if (!monster) {
     return (
       <div
@@ -29,6 +29,8 @@ const FieldMonster = ({ monster, onClick, selected, canAttack, isTarget, isValid
   return (
     <div
       onClick={onClick}
+      onMouseEnter={onMouseEnter}
+      onMouseLeave={onMouseLeave}
       style={{
         ...styles.cardSlot,
         border: selected ? '3px solid #ffd700' : isTarget ? '3px solid #ff4444' : '2px solid rgba(107,76,230,0.6)',
