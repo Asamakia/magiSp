@@ -1651,6 +1651,13 @@ export default function MagicSpiritGame() {
       return;
     }
 
+    // 状態異常による攻撃制限をチェック（チェーン確認前に判定）
+    if (!statusEffectEngine.canAttack(attacker)) {
+      const statusName = statusEffectEngine.getBlockingStatusName(attacker, 'attack');
+      addLog(`${attacker.name}は${statusName}により攻撃できません！`, 'damage');
+      return;
+    }
+
     // 攻撃宣言時のチェーンポイントを開始
     const needsConfirmation = startChainConfirmation(
       CHAIN_POINTS.ATTACK_DECLARATION,
