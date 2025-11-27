@@ -455,6 +455,17 @@ export default function MagicSpiritGame() {
         resetTurnFlags();
         continuousEffectEngine.resetTurnFlags();
 
+        // エンドフェイズまでの一時的コスト軽減をクリア（水晶のマーメイド等）
+        const clearTempCostModifier = (hand) => hand.map(c => {
+          if (c.tempCostModifierUntilEndPhase) {
+            const { tempCostModifier, tempCostModifierSource, tempCostModifierUntilEndPhase, ...rest } = c;
+            return rest;
+          }
+          return c;
+        });
+        setP1Hand(prev => clearTempCostModifier(prev));
+        setP2Hand(prev => clearTempCostModifier(prev));
+
         setPhase(0);
         // ターン終了、相手に切り替え
         if (currentPlayer === 1) {

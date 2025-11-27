@@ -229,12 +229,77 @@ export const waterCardTriggers = {
   C0000044: [
     {
       type: TRIGGER_TYPES.ON_SUMMON,
-      activationType: ACTIVATION_TYPES.OPTIONAL,
-      description: '召喚時: 手札の水属性モンスターのコスト-1',
+      activationType: ACTIVATION_TYPES.AUTOMATIC,
+      description: '召喚時: 手札の水属性モンスター1体のコスト-1（エンドフェイズまで）',
       effect: (context) => {
-        const { addLog } = context;
-        addLog('水晶のマーメイドの効果: 手札の水属性モンスターのコスト軽減（未実装）', 'info');
-        // TODO: 一時的なコスト軽減システムの実装が必要
+        const {
+          currentPlayer, p1Hand, p2Hand, setP1Hand, setP2Hand,
+          addLog, setPendingHandSelection,
+        } = context;
+
+        const hand = currentPlayer === 1 ? p1Hand : p2Hand;
+        const setHand = currentPlayer === 1 ? setP1Hand : setP2Hand;
+
+        // 水属性モンスターをフィルタ
+        const waterMonsters = hand.filter(c => c.type === 'monster' && c.attribute === '水');
+
+        if (waterMonsters.length === 0) {
+          addLog('水晶のマーメイドの効果: 手札に水属性モンスターがありません', 'info');
+          return;
+        }
+
+        // 1体のみの場合は自動選択
+        if (waterMonsters.length === 1) {
+          const targetCard = waterMonsters[0];
+          setHand(prev => prev.map(c =>
+            c.uniqueId === targetCard.uniqueId
+              ? {
+                  ...c,
+                  tempCostModifier: (c.tempCostModifier || 0) - 1,
+                  tempCostModifierSource: '水晶のマーメイド',
+                  tempCostModifierUntilEndPhase: true, // エンドフェイズまでの一時軽減
+                }
+              : c
+          ));
+          addLog(`水晶のマーメイドの効果: ${targetCard.name}のコストを1軽減！`, 'heal');
+          return;
+        }
+
+        // 複数の場合は選択UI
+        if (setPendingHandSelection) {
+          setPendingHandSelection({
+            message: 'コストを1軽減する水属性モンスターを選択してください',
+            filter: (card) => card.type === 'monster' && card.attribute === '水',
+            callback: (selectedCard) => {
+              setHand(prev => prev.map(c =>
+                c.uniqueId === selectedCard.uniqueId
+                  ? {
+                      ...c,
+                      tempCostModifier: (c.tempCostModifier || 0) - 1,
+                      tempCostModifierSource: '水晶のマーメイド',
+                      tempCostModifierUntilEndPhase: true,
+                    }
+                  : c
+              ));
+              addLog(`水晶のマーメイドの効果: ${selectedCard.name}のコストを1軽減！`, 'heal');
+            },
+          });
+          return;
+        }
+
+        // フォールバック: 最初の水属性モンスターを選択
+        const targetCard = waterMonsters[0];
+        setHand(prev => prev.map(c =>
+          c.uniqueId === targetCard.uniqueId
+            ? {
+                ...c,
+                tempCostModifier: (c.tempCostModifier || 0) - 1,
+                tempCostModifierSource: '水晶のマーメイド',
+                tempCostModifierUntilEndPhase: true,
+              }
+            : c
+        ));
+        addLog(`水晶のマーメイドの効果: ${targetCard.name}のコストを1軽減！`, 'heal');
       },
     },
   ],
@@ -271,21 +336,11 @@ export const waterCardTriggers = {
 
   /**
    * C0000053: 母なる大海
-   * 【常時】水属性モンスターの攻撃力300アップ。
+   * 【常時】水属性モンスターの攻撃力300アップ。（continuousEffects/fieldCards.jsで実装）
    * 【自分エンドフェイズ時】自分のレスト状態のSPトークンを1つアクティブにする。
    * 【エンドフェイズ時】「凍結」状態の相手モンスターがいる場合、相手プレイヤーに300ダメージを与える。
    */
   C0000053: [
-    {
-      type: TRIGGER_TYPES.CONTINUOUS,
-      activationType: ACTIVATION_TYPES.AUTOMATIC,
-      description: '常時: 水属性モンスターの攻撃力+300',
-      effect: (context) => {
-        const { addLog } = context;
-        addLog('母なる大海の常時効果: 水属性モンスターの攻撃力+300（未実装）', 'info');
-        // TODO: フィールドカードの常時効果システムが必要
-      },
-    },
     {
       type: TRIGGER_TYPES.ON_END_PHASE_SELF,
       activationType: ACTIVATION_TYPES.AUTOMATIC,
@@ -302,6 +357,28 @@ export const waterCardTriggers = {
           setRestedSP((prev) => prev - 1);
           setActiveSP((prev) => prev + 1);
           addLog('母なる大海の効果: レストSP1個をアクティブにした', 'info');
+        }
+      },
+    },
+    {
+      type: TRIGGER_TYPES.ON_END_PHASE_SELF,
+      activationType: ACTIVATION_TYPES.AUTOMATIC,
+      description: 'エンドフェイズ: 凍結モンスターいれば相手に300ダメージ',
+      effect: (context) => {
+        const { currentPlayer, p1Field, p2Field, addLog } = context;
+        // 相手フィールドをチェック
+        const opponentField = currentPlayer === 1 ? p2Field : p1Field;
+
+        // 凍結状態のモンスターがいるかチェック
+        const frozenMonsters = opponentField.filter(monster =>
+          monster &&
+          monster.statusEffects &&
+          monster.statusEffects.some(effect => effect.type === STATUS_EFFECT_TYPES.FREEZE)
+        );
+
+        if (frozenMonsters.length > 0) {
+          addLog(`母なる大海の効果: 凍結モンスター${frozenMonsters.length}体、相手に300ダメージ！`, 'damage');
+          conditionalDamage(context, 300, 'opponent');
         }
       },
     },
