@@ -192,6 +192,8 @@ export const futureCardTriggers = {
       type: TRIGGER_TYPES.ON_SUMMON,
       activationType: ACTIVATION_TYPES.AUTOMATIC,
       description: '1枚ドロー後、手札1枚をデッキの下に戻す',
+      // 自分自身が召喚された時のみ発火
+      condition: (context) => context.card && context.card.id === 'C0000116',
       effect: (context) => {
         const { currentPlayer, p1Hand, p2Hand, setP1Deck, setP2Deck, setP1Hand, setP2Hand, addLog, setPendingHandSelection } = context;
 
