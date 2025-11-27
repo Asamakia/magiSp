@@ -1259,8 +1259,14 @@ export default function MagicSpiritGame() {
   const confirmHandSelection = () => {
     if (!pendingHandSelection || !pendingSelectedCard) return;
 
-    // コールバックを実行
-    pendingHandSelection.callback(pendingSelectedCard);
+    try {
+      // コールバックを実行
+      pendingHandSelection.callback(pendingSelectedCard);
+    } catch (error) {
+      console.error('手札選択コールバックエラー:', error);
+      addLog('手札選択処理でエラーが発生しました', 'damage');
+    }
+    // エラーが発生してもUIをクリア
     setPendingHandSelection(null);
     setPendingSelectedCard(null);
   };
