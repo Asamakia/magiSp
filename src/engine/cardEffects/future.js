@@ -249,12 +249,19 @@ export const futureCardEffects = {
         return true;
       }
 
-      // 全モンスターに600ダメージ
-      setOpponentField(prev => prev.map(m => {
+      // 全モンスターに600ダメージ（ログを先に出力）
+      const damageResults = opponentField.map(m => {
         if (m) {
           const newHp = Math.max(0, m.currentHp - 600);
           addLog(`${m.name}に600ダメージ（残りHP: ${newHp}）`, 'damage');
-          return { ...m, currentHp: newHp };
+          return { monster: m, newHp };
+        }
+        return null;
+      });
+
+      setOpponentField(prev => prev.map((m, idx) => {
+        if (m && damageResults[idx]) {
+          return { ...m, currentHp: damageResults[idx].newHp };
         }
         return m;
       }));

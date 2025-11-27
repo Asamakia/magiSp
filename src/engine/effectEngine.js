@@ -251,10 +251,10 @@ export const executeEffect = (effect, context) => {
         } else if (monstersWithIndex.length === 1) {
           // モンスターが1体のみの場合は自動選択
           const { monster: targetMonster } = monstersWithIndex[0];
+          const newHp = Math.max(0, targetMonster.currentHp - value);
+          addLog(`${targetMonster.name}に${value}ダメージ！（残りHP: ${newHp}）`, 'damage');
           setOpponentField(prev => prev.map(m => {
             if (m && m.uniqueId === targetMonster.uniqueId) {
-              const newHp = Math.max(0, m.currentHp - value);
-              addLog(`${m.name}に${value}ダメージ！（残りHP: ${newHp}）`, 'damage');
               return { ...m, currentHp: newHp };
             }
             return m;
@@ -267,23 +267,27 @@ export const executeEffect = (effect, context) => {
               message: `${value}ダメージを与えるモンスターを選択`,
               targetPlayer: 'opponent',
               callback: (selectedIndex) => {
-                setOpponentField(prev => prev.map((m, idx) => {
-                  if (idx === selectedIndex && m) {
-                    const newHp = Math.max(0, m.currentHp - value);
-                    addLog(`${m.name}に${value}ダメージ！（残りHP: ${newHp}）`, 'damage');
-                    return { ...m, currentHp: newHp };
-                  }
-                  return m;
-                }));
+                // 選択されたモンスターを取得してログを出力（setState外で実行）
+                const selectedMonster = opponentField[selectedIndex];
+                if (selectedMonster) {
+                  const newHp = Math.max(0, selectedMonster.currentHp - value);
+                  addLog(`${selectedMonster.name}に${value}ダメージ！（残りHP: ${newHp}）`, 'damage');
+                  setOpponentField(prev => prev.map((m, idx) => {
+                    if (idx === selectedIndex && m) {
+                      return { ...m, currentHp: newHp };
+                    }
+                    return m;
+                  }));
+                }
               },
             });
           } else {
             // フォールバック：setPendingMonsterTargetがない場合は最初のモンスター
             const { monster: targetMonster } = monstersWithIndex[0];
+            const newHp = Math.max(0, targetMonster.currentHp - value);
+            addLog(`${targetMonster.name}に${value}ダメージ！（残りHP: ${newHp}）`, 'damage');
             setOpponentField(prev => prev.map(m => {
               if (m && m.uniqueId === targetMonster.uniqueId) {
-                const newHp = Math.max(0, m.currentHp - value);
-                addLog(`${m.name}に${value}ダメージ！（残りHP: ${newHp}）`, 'damage');
                 return { ...m, currentHp: newHp };
               }
               return m;
@@ -307,14 +311,18 @@ export const executeEffect = (effect, context) => {
     case EFFECT_TYPES.BUFF_ATK:
       // モンスターの攻撃力を上昇
       if (monsterIndex !== undefined && monsterIndex !== null) {
+        const currentField = currentPlayer === 1 ? p1Field : p2Field;
         const setCurrentField = currentPlayer === 1 ? setP1Field : setP2Field;
-        setCurrentField(prev => prev.map((m, idx) => {
-          if (idx === monsterIndex && m) {
-            addLog(`${m.name}の攻撃力が${value}上昇！`, 'info');
-            return { ...m, attack: m.attack + value };
-          }
-          return m;
-        }));
+        const monster = currentField[monsterIndex];
+        if (monster) {
+          addLog(`${monster.name}の攻撃力が${value}上昇！`, 'info');
+          setCurrentField(prev => prev.map((m, idx) => {
+            if (idx === monsterIndex && m) {
+              return { ...m, attack: m.attack + value };
+            }
+            return m;
+          }));
+        }
         return true;
       } else {
         addLog(`攻撃力+${value}（対象未指定）`, 'info');
@@ -324,18 +332,22 @@ export const executeEffect = (effect, context) => {
     case EFFECT_TYPES.BUFF_HP:
       // モンスターのHPを上昇
       if (monsterIndex !== undefined && monsterIndex !== null) {
-        const setCurrentField = currentPlayer === 1 ? setP1Field : setP2Field;
-        setCurrentField(prev => prev.map((m, idx) => {
-          if (idx === monsterIndex && m) {
-            addLog(`${m.name}のHPが${value}上昇！`, 'heal');
-            return {
-              ...m,
-              hp: m.hp + value,
-              currentHp: m.currentHp + value
-            };
-          }
-          return m;
-        }));
+        const currentField2 = currentPlayer === 1 ? p1Field : p2Field;
+        const setCurrentField2 = currentPlayer === 1 ? setP1Field : setP2Field;
+        const monster2 = currentField2[monsterIndex];
+        if (monster2) {
+          addLog(`${monster2.name}のHPが${value}上昇！`, 'heal');
+          setCurrentField2(prev => prev.map((m, idx) => {
+            if (idx === monsterIndex && m) {
+              return {
+                ...m,
+                hp: m.hp + value,
+                currentHp: m.currentHp + value
+              };
+            }
+            return m;
+          }));
+        }
         return true;
       } else {
         addLog(`HP+${value}（対象未指定）`, 'info');
@@ -350,10 +362,10 @@ export const executeEffect = (effect, context) => {
 
       if (monsters.length > 0) {
         const targetMonster = monsters[0]; // 最初のモンスター
+        const newAtk = Math.max(0, targetMonster.attack - value);
+        addLog(`${targetMonster.name}の攻撃力が${value}減少！（攻撃力: ${newAtk}）`, 'info');
         setOpponentField(prev => prev.map(m => {
           if (m && m.uniqueId === targetMonster.uniqueId) {
-            const newAtk = Math.max(0, m.attack - value);
-            addLog(`${m.name}の攻撃力が${value}減少！（攻撃力: ${newAtk}）`, 'info');
             return { ...m, attack: newAtk };
           }
           return m;
@@ -371,12 +383,12 @@ export const executeEffect = (effect, context) => {
       const monsters2 = opponentField2.filter(m => m !== null);
 
       if (monsters2.length > 0) {
-        const targetMonster = monsters2[0];
+        const targetMonster2 = monsters2[0];
+        const newHp2 = Math.max(0, targetMonster2.currentHp - value);
+        addLog(`${targetMonster2.name}のHPが${value}減少！（HP: ${newHp2}）`, 'damage');
         setOpponentField2(prev => prev.map(m => {
-          if (m && m.uniqueId === targetMonster.uniqueId) {
-            const newHp = Math.max(0, m.currentHp - value);
-            addLog(`${m.name}のHPが${value}減少！（HP: ${newHp}）`, 'damage');
-            return { ...m, currentHp: newHp };
+          if (m && m.uniqueId === targetMonster2.uniqueId) {
+            return { ...m, currentHp: newHp2 };
           }
           return m;
         }));

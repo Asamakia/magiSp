@@ -678,22 +678,27 @@ export const waterCardTriggers = {
         }
 
         const applyDamage = (targetIndex) => {
-          setOpponentField(prev => {
-            const newField = [...prev];
-            const target = newField[targetIndex];
-            if (target) {
-              const newHp = Math.max(0, target.currentHp - damage);
-              addLog(`${target.name}に${damage}ダメージ！（残りHP: ${newHp}）`, 'damage');
-              if (newHp <= 0) {
-                addLog(`${target.name}が破壊された！`, 'damage');
-                setOpponentGraveyard(prev => [...prev, target]);
-                newField[targetIndex] = null;
-              } else {
-                newField[targetIndex] = { ...target, currentHp: newHp };
-              }
-            }
-            return newField;
-          });
+          const target = opponentField[targetIndex];
+          if (!target) return;
+
+          const newHp = Math.max(0, target.currentHp - damage);
+          addLog(`${target.name}に${damage}ダメージ！（残りHP: ${newHp}）`, 'damage');
+
+          if (newHp <= 0) {
+            addLog(`${target.name}が破壊された！`, 'damage');
+            setOpponentGraveyard(prev => [...prev, target]);
+            setOpponentField(prev => {
+              const newField = [...prev];
+              newField[targetIndex] = null;
+              return newField;
+            });
+          } else {
+            setOpponentField(prev => {
+              const newField = [...prev];
+              newField[targetIndex] = { ...target, currentHp: newHp };
+              return newField;
+            });
+          }
         };
 
         // 1体のみの場合は自動選択
