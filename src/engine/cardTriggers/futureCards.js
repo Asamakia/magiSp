@@ -651,6 +651,58 @@ export const futureCardTriggers = {
   ],
 
   /**
+   * C0000266: エクラシアの時空炉 (フェイズカード)
+   * 初期効果:【発動時】自分のデッキ上1枚を見て、それが「未来属性」カードなら手札に、違えば墓地に送る。
+   */
+  C0000266: [
+    {
+      type: TRIGGER_TYPES.ON_PHASE_CARD_ACTIVATE,
+      activationType: ACTIVATION_TYPES.AUTOMATIC,
+      description: '発動時: デッキ上1枚を見て、未来属性なら手札に、違えば墓地に送る',
+      effect: (context) => {
+        const {
+          currentPlayer,
+          p1Deck,
+          p2Deck,
+          setP1Deck,
+          setP2Deck,
+          setP1Hand,
+          setP2Hand,
+          setP1Graveyard,
+          setP2Graveyard,
+          addLog,
+        } = context;
+
+        const deck = currentPlayer === 1 ? p1Deck : p2Deck;
+        const setDeck = currentPlayer === 1 ? setP1Deck : setP2Deck;
+        const setHand = currentPlayer === 1 ? setP1Hand : setP2Hand;
+        const setGraveyard = currentPlayer === 1 ? setP1Graveyard : setP2Graveyard;
+
+        if (deck.length === 0) {
+          addLog('デッキにカードがありません', 'info');
+          return;
+        }
+
+        // デッキトップ1枚を確認
+        const topCard = deck[0];
+        addLog(`エクラシアの時空炉の効果: デッキトップを確認 - ${topCard.name}`, 'info');
+
+        if (topCard.attribute === '未来') {
+          // 未来属性なら手札に加える
+          setDeck((prev) => prev.slice(1));
+          setHand((prev) => [...prev, topCard]);
+          addLog(`${topCard.name}は未来属性！手札に加えた`, 'info');
+        } else {
+          // 未来属性でなければ墓地に送る
+          setDeck((prev) => prev.slice(1));
+          setGraveyard((prev) => [...prev, topCard]);
+          addLog(`${topCard.name}は未来属性ではない。墓地に送った`, 'info');
+        }
+      },
+    },
+  ],
+
+  /**
    * C0000274: 星辰の魔導術師
    * 【召喚時】自分のデッキ上2枚を見て、1枚を手札に加え、残りをデッキ下に戻す。
    */

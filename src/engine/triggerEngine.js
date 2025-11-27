@@ -453,6 +453,14 @@ export const fireTrigger = (triggerType, context) => {
     });
   }
 
+  // ON_PHASE_CARD_ACTIVATEトリガーは設置されたカード自身のトリガーのみ発火
+  // （「このフェイズカードの発動時」という意味のため）
+  if (triggerType === TRIGGER_TYPES.ON_PHASE_CARD_ACTIVATE && context.card) {
+    automaticTriggers = automaticTriggers.filter((trigger) => {
+      return trigger.cardId === context.card.uniqueId;
+    });
+  }
+
   if (automaticTriggers.length === 0) {
     return;
   }
