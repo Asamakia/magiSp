@@ -285,18 +285,32 @@ export const futureCardTriggers = {
       activationType: ACTIVATION_TYPES.AUTOMATIC,
       description: 'デッキの上から3枚を確認',
       effect: (context) => {
-        const { currentPlayer, p1Deck, p2Deck, addLog } = context;
+        const { currentPlayer, p1Deck, p2Deck, setP1Deck, setP2Deck, addLog, setPendingDeckReview } = context;
 
         const deck = currentPlayer === 1 ? p1Deck : p2Deck;
+        const setDeck = currentPlayer === 1 ? setP1Deck : setP2Deck;
 
-        if (deck.length >= 3) {
-          const topCards = deck.slice(0, 3);
-          addLog(`デッキの上3枚: ${topCards.map((c) => c.name).join(', ')}`, 'info');
-          // TODO: UIで順番を変更する機能を実装
-          addLog('(順番はそのまま)', 'info');
-        } else {
-          addLog(`デッキの残り: ${deck.length}枚`, 'info');
+        if (deck.length === 0) {
+          addLog('デッキにカードがありません', 'info');
+          return;
         }
+
+        const cardCount = Math.min(3, deck.length);
+        const topCards = deck.slice(0, cardCount);
+        addLog(`ミランの使い魔未来鴉の効果: デッキの上${cardCount}枚を確認`, 'info');
+
+        // デッキ確認モーダルを表示
+        setPendingDeckReview({
+          cards: topCards,
+          title: 'ミランの使い魔未来鴉',
+          message: 'ドラッグして順番を変更し、確定してください',
+          allowReorder: true,
+          onConfirm: (reorderedCards) => {
+            // 並び替えた順番でデッキを更新
+            setDeck((prev) => [...reorderedCards, ...prev.slice(cardCount)]);
+            addLog(`カードをデッキの上に戻した: ${reorderedCards.map((c) => c.name).join(' → ')}`, 'info');
+          },
+        });
       },
     },
   ],
@@ -596,6 +610,7 @@ export const futureCardTriggers = {
           setP1Hand,
           setP2Hand,
           addLog,
+          setPendingDeckReview,
         } = context;
 
         const deck = currentPlayer === 1 ? p1Deck : p2Deck;
@@ -608,27 +623,92 @@ export const futureCardTriggers = {
         }
 
         // デッキ上3枚を確認
-        const topCards = deck.slice(0, Math.min(3, deck.length));
-        addLog(`デッキ上${topCards.length}枚を確認: ${topCards.map((c) => c.name).join(', ')}`, 'info');
+        const cardCount = Math.min(3, deck.length);
+        const topCards = deck.slice(0, cardCount);
+        addLog(`星翼の飛舟エクラオンの効果: デッキ上${cardCount}枚を確認`, 'info');
 
         // 未来属性モンスターを探す
-        const futureMonster = topCards.find(
+        const futureMonsters = topCards.filter(
           (card) => card.attribute === '未来' && card.type === 'monster'
         );
 
-        if (futureMonster) {
-          // 未来モンスターを手札に加える
-          setHand((prev) => [...prev, futureMonster]);
-          // 残りをデッキに戻す（元の順番で。本来は好きな順番だがUI未実装）
-          const remaining = topCards.filter((c) => c.uniqueId !== futureMonster.uniqueId);
-          setDeck((prev) => {
-            const deckWithoutTop = prev.slice(topCards.length);
-            return [...remaining, ...deckWithoutTop];
+        if (futureMonsters.length === 0) {
+          // 未来モンスターがいない場合、並び替えて戻す
+          setPendingDeckReview({
+            cards: topCards,
+            title: '星翼の飛舟エクラオン',
+            message: '未来属性モンスターがいませんでした。カードの順番を変更してデッキに戻してください',
+            allowReorder: true,
+            onConfirm: (reorderedCards) => {
+              setDeck((prev) => [...reorderedCards, ...prev.slice(cardCount)]);
+              addLog(`カードをデッキに戻した: ${reorderedCards.map((c) => c.name).join(' → ')}`, 'info');
+            },
           });
-          addLog(`${futureMonster.name}を手札に加え、残りをデッキに戻した`, 'info');
+        } else if (futureMonsters.length === 1) {
+          // 未来モンスターが1体の場合、自動で手札に加え、残りを並び替え
+          const futureMonster = futureMonsters[0];
+          const remaining = topCards.filter((c) => c.uniqueId !== futureMonster.uniqueId);
+
+          setHand((prev) => [...prev, futureMonster]);
+          addLog(`${futureMonster.name}を手札に加えた`, 'info');
+
+          if (remaining.length > 1) {
+            // 残りが2枚以上なら並び替え
+            setPendingDeckReview({
+              cards: remaining,
+              title: '星翼の飛舟エクラオン',
+              message: '残りのカードの順番を変更してデッキに戻してください',
+              allowReorder: true,
+              onConfirm: (reorderedCards) => {
+                setDeck((prev) => [...reorderedCards, ...prev.slice(cardCount)]);
+                addLog(`残りをデッキに戻した: ${reorderedCards.map((c) => c.name).join(' → ')}`, 'info');
+              },
+            });
+          } else if (remaining.length === 1) {
+            // 残りが1枚なら自動で戻す
+            setDeck((prev) => [remaining[0], ...prev.slice(cardCount)]);
+            addLog(`${remaining[0].name}をデッキに戻した`, 'info');
+          } else {
+            // 残りがない
+            setDeck((prev) => prev.slice(cardCount));
+          }
         } else {
-          // 未来モンスターがいない場合、全てそのまま戻す
-          addLog('未来属性モンスターがいなかった。カードをデッキに戻した', 'info');
+          // 未来モンスターが複数の場合、選択させる
+          setPendingDeckReview({
+            cards: topCards,
+            title: '星翼の飛舟エクラオン',
+            message: '手札に加える未来属性モンスターを1枚選択してください',
+            allowReorder: false,
+            selectMode: {
+              enabled: true,
+              count: 1,
+              filter: (card) => card.attribute === '未来' && card.type === 'monster',
+            },
+            onSelect: (selectedCards, remainingCards) => {
+              const selectedMonster = selectedCards[0];
+              setHand((prev) => [...prev, selectedMonster]);
+              addLog(`${selectedMonster.name}を手札に加えた`, 'info');
+
+              // 残りを並び替えて戻す
+              if (remainingCards.length > 1) {
+                setPendingDeckReview({
+                  cards: remainingCards,
+                  title: '星翼の飛舟エクラオン',
+                  message: '残りのカードの順番を変更してデッキに戻してください',
+                  allowReorder: true,
+                  onConfirm: (reorderedCards) => {
+                    setDeck((prev) => [...reorderedCards, ...prev.slice(cardCount)]);
+                    addLog(`残りをデッキに戻した: ${reorderedCards.map((c) => c.name).join(' → ')}`, 'info');
+                  },
+                });
+              } else if (remainingCards.length === 1) {
+                setDeck((prev) => [remainingCards[0], ...prev.slice(cardCount)]);
+                addLog(`${remainingCards[0].name}をデッキに戻した`, 'info');
+              } else {
+                setDeck((prev) => prev.slice(cardCount));
+              }
+            },
+          });
         }
       },
     },
@@ -721,6 +801,7 @@ export const futureCardTriggers = {
           setP1Hand,
           setP2Hand,
           addLog,
+          setPendingDeckReview,
         } = context;
 
         const deck = currentPlayer === 1 ? p1Deck : p2Deck;
@@ -733,26 +814,35 @@ export const futureCardTriggers = {
         }
 
         // デッキ上2枚を確認
-        const topCards = deck.slice(0, Math.min(2, deck.length));
-        addLog(`デッキ上${topCards.length}枚を確認: ${topCards.map((c) => c.name).join(', ')}`, 'info');
+        const cardCount = Math.min(2, deck.length);
+        const topCards = deck.slice(0, cardCount);
+        addLog(`星辰の魔導術師の効果: デッキ上${cardCount}枚を確認`, 'info');
 
-        if (topCards.length === 1) {
-          // 1枚しかない場合、その1枚を手札に
+        if (cardCount === 1) {
+          // 1枚しかない場合、その1枚を自動で手札に
           setHand((prev) => [...prev, topCards[0]]);
           setDeck((prev) => prev.slice(1));
           addLog(`${topCards[0].name}を手札に加えた`, 'info');
         } else {
-          // 2枚ある場合、最初の1枚を手札に、残りをデッキ下に
-          // 本来はプレイヤーが選択するがUI未実装のため最初の1枚を選択
-          const cardToHand = topCards[0];
-          const cardToBottom = topCards[1];
+          // 2枚ある場合、プレイヤーに選択させる
+          setPendingDeckReview({
+            cards: topCards,
+            title: '星辰の魔導術師',
+            message: '手札に加えるカードを1枚選択してください（残りはデッキ下へ）',
+            allowReorder: false,
+            selectMode: { enabled: true, count: 1 },
+            onSelect: (selectedCards, remainingCards) => {
+              const cardToHand = selectedCards[0];
+              const cardToBottom = remainingCards[0];
 
-          setHand((prev) => [...prev, cardToHand]);
-          setDeck((prev) => {
-            const deckWithoutTop = prev.slice(2);
-            return [...deckWithoutTop, cardToBottom];
+              setHand((prev) => [...prev, cardToHand]);
+              setDeck((prev) => {
+                const deckWithoutTop = prev.slice(cardCount);
+                return [...deckWithoutTop, cardToBottom];
+              });
+              addLog(`${cardToHand.name}を手札に加え、${cardToBottom.name}をデッキの下に戻した`, 'info');
+            },
           });
-          addLog(`${cardToHand.name}を手札に加え、${cardToBottom.name}をデッキの下に戻した`, 'info');
         }
       },
     },
