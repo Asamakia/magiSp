@@ -15,6 +15,7 @@ import {
   modifyAttack,
   modifyHP,
 } from '../effectHelpers';
+import { fireLeaveFieldTrigger } from '../triggerEngine';
 
 /**
  * 未来属性カードの固有効果
@@ -376,6 +377,158 @@ export const futureCardEffects = {
       }
     }
 
+    return false;
+  },
+
+  /**
+   * C0000267: 星翼の飛舟エクラオン
+   * 基本技: デッキからコスト4以下の「未来属性」モンスター1体を召喚。このカードをデッキの下に戻す。
+   */
+  C0000267: (skillText, context) => {
+    const {
+      addLog,
+      currentPlayer,
+      p1Deck, p2Deck,
+      setP1Deck, setP2Deck,
+      p1Field, p2Field,
+      setP1Field, setP2Field,
+      monsterIndex,
+    } = context;
+
+    if (skillText.includes('基本技')) {
+      const currentDeck = currentPlayer === 1 ? p1Deck : p2Deck;
+      const setDeck = currentPlayer === 1 ? setP1Deck : setP2Deck;
+      const currentField = currentPlayer === 1 ? p1Field : p2Field;
+      const setField = currentPlayer === 1 ? setP1Field : setP2Field;
+
+      // デッキからコスト4以下の未来属性モンスターを検索
+      const targetIndex = currentDeck.findIndex(card =>
+        card.type === 'monster' &&
+        checkAttribute(card, '未来') &&
+        card.cost <= 4
+      );
+
+      if (targetIndex === -1) {
+        addLog('デッキにコスト4以下の未来属性モンスターがいません', 'info');
+        return false;
+      }
+
+      // 空きスロットを探す
+      const emptySlotIndex = currentField.findIndex(slot => slot === null);
+      if (emptySlotIndex === -1) {
+        addLog('フィールドに空きがありません', 'info');
+        return false;
+      }
+
+      // デッキからカードを取得
+      const targetCard = currentDeck[targetIndex];
+      const newDeck = currentDeck.filter((_, idx) => idx !== targetIndex);
+
+      // このカード（エクラオン）を取得
+      const thisCard = currentField[monsterIndex];
+      if (!thisCard) {
+        addLog('エラー: カードが見つかりません', 'info');
+        return false;
+      }
+
+      // モンスターインスタンスを作成（簡易版）
+      const monsterInstance = {
+        ...targetCard,
+        uniqueId: `${targetCard.id}_${Date.now()}`,
+        currentHp: targetCard.hp,
+        canAttack: false, // 召喚ターンは攻撃不可
+        usedSkillThisTurn: false,
+      };
+
+      // フィールドを更新：召喚＆このカードを除去
+      setField(prev => prev.map((slot, idx) => {
+        if (idx === emptySlotIndex) {
+          return monsterInstance;
+        }
+        if (idx === monsterIndex) {
+          return null; // このカードをフィールドから除去
+        }
+        return slot;
+      }));
+
+      // デッキを更新：このカードをデッキの下に追加
+      setDeck([...newDeck, thisCard]);
+
+      addLog(`デッキから「${targetCard.name}」を召喚！`, 'info');
+      addLog(`「${thisCard.name}」をデッキの下に戻した`, 'info');
+
+      // 「場を離れる時」トリガーを発動（デッキに戻る場合も発動）
+      fireLeaveFieldTrigger(thisCard, context, 'return_to_deck');
+
+      return true;
+    }
+
+    return false;
+  },
+
+  /**
+   * C0000274: 星辰の魔導術師
+   * 基本技: 場に《エクラリア》モンスターがいる場合、自分のデッキからコスト4以下「未来属性」魔法カード1枚を手札に加える。
+   */
+  C0000274: (skillText, context) => {
+    const {
+      addLog,
+      currentPlayer,
+      p1Field, p2Field,
+      p1Deck, p2Deck,
+      setP1Deck, setP2Deck,
+      setP1Hand, setP2Hand,
+    } = context;
+
+    if (skillText.includes('基本技')) {
+      const currentField = currentPlayer === 1 ? p1Field : p2Field;
+      const currentDeck = currentPlayer === 1 ? p1Deck : p2Deck;
+      const setDeck = currentPlayer === 1 ? setP1Deck : setP2Deck;
+      const setHand = currentPlayer === 1 ? setP1Hand : setP2Hand;
+
+      // 場に「エクラリア」モンスターがいるか確認
+      const hasEclaria = currentField.some(monster =>
+        monster !== null &&
+        (monster.name.includes('エクラリア') || monster.category?.includes('【エクラリア】'))
+      );
+
+      if (!hasEclaria) {
+        addLog('場に《エクラリア》モンスターがいません', 'info');
+        return false;
+      }
+
+      // デッキからコスト4以下の未来属性魔法カードを検索
+      const targetIndex = currentDeck.findIndex(card =>
+        card.type === 'magic' &&
+        checkAttribute(card, '未来') &&
+        card.cost <= 4
+      );
+
+      if (targetIndex === -1) {
+        addLog('デッキにコスト4以下の未来属性魔法カードがありません', 'info');
+        return false;
+      }
+
+      // カードを手札に加える
+      const targetCard = currentDeck[targetIndex];
+      setDeck(prev => prev.filter((_, idx) => idx !== targetIndex));
+      setHand(prev => [...prev, targetCard]);
+
+      addLog(`デッキから「${targetCard.name}」を手札に加えた`, 'info');
+      return true;
+    }
+
+    return false;
+  },
+
+  /**
+   * C0000278: 灯守の少女
+   * トリガーのみ（futureCards.jsで実装）
+   * - 【召喚時】自分のデッキ上1枚を見て、それが「未来属性」カードなら手札に、違えばデッキ下に
+   * - 【場を離れる時】自分の墓地の「未来属性」カード1枚をデッキに戻す
+   */
+  C0000278: (skillText, context) => {
+    // このカードは基本技/上級技を持たない（トリガーのみ）
     return false;
   },
 
