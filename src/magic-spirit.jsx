@@ -94,6 +94,8 @@ export default function MagicSpiritGame() {
   const [attackingMonster, setAttackingMonster] = useState(null);
   const [chargeUsedThisTurn, setChargeUsedThisTurn] = useState(false);
   const [selectedFieldCardInfo, setSelectedFieldCardInfo] = useState(null); // フィールド/フェイズカード情報表示用
+  const [pendingHandSelection, setPendingHandSelection] = useState(null); // 手札選択待ち状態 { message, callback, filter? }
+  const [pendingSelectedCard, setPendingSelectedCard] = useState(null); // 手札選択モード中の選択カード
 
   // デッキ選択状態
   const [p1SelectedDeck, setP1SelectedDeck] = useState('random');
@@ -153,6 +155,8 @@ export default function MagicSpiritGame() {
     setAttackingMonster(null);
     setChargeUsedThisTurn(false);
     setSelectedFieldCardInfo(null);
+    setPendingHandSelection(null);
+    setPendingSelectedCard(null);
 
     // トリガーシステムをクリア
     clearAllTriggers();
@@ -240,6 +244,7 @@ export default function MagicSpiritGame() {
       p1Life,
       p2Life,
       addLog,
+      setPendingHandSelection,
     };
 
     switch (phaseIndex) {
@@ -760,6 +765,7 @@ export default function MagicSpiritGame() {
         p1RestedSP,
         p2RestedSP,
         addLog,
+        setPendingHandSelection,
       };
       fireTrigger(TRIGGER_TYPES.ON_SUMMON, triggerContext);
 
@@ -1231,14 +1237,45 @@ export default function MagicSpiritGame() {
     // 現在のプレイヤーの手札かどうかチェック
     const currentHand = currentPlayer === 1 ? p1Hand : p2Hand;
     if (!currentHand.find(c => c.uniqueId === card.uniqueId)) return;
-    
+
+    // 手札選択待ち状態の場合：pendingSelectedCardを使用（通常のアクションを無効化）
+    if (pendingHandSelection) {
+      // フィルターがある場合はチェック
+      if (pendingHandSelection.filter && !pendingHandSelection.filter(card)) {
+        addLog('そのカードは選択できません', 'damage');
+        return;
+      }
+      // 選択状態を切り替え（同じカードをクリックで選択解除）
+      setPendingSelectedCard(pendingSelectedCard?.uniqueId === card.uniqueId ? null : card);
+      return;
+    }
+
     setSelectedHandCard(selectedHandCard?.uniqueId === card.uniqueId ? null : card);
     setSelectedFieldMonster(null);
     setAttackingMonster(null);
   };
 
+  // 手札選択を確定
+  const confirmHandSelection = () => {
+    if (!pendingHandSelection || !pendingSelectedCard) return;
+
+    try {
+      // コールバックを実行
+      pendingHandSelection.callback(pendingSelectedCard);
+    } catch (error) {
+      console.error('手札選択コールバックエラー:', error);
+      addLog('手札選択処理でエラーが発生しました', 'damage');
+    }
+    // エラーが発生してもUIをクリア
+    setPendingHandSelection(null);
+    setPendingSelectedCard(null);
+  };
+
   // フィールドスロットクリック
   const handleFieldSlotClick = (slotIndex, playerNum) => {
+    // 手札選択待ち中は操作不可
+    if (pendingHandSelection) return;
+
     // 現在のプレイヤーの場か相手の場かを判定
     const isMyField = playerNum === currentPlayer;
 
@@ -1363,6 +1400,11 @@ export default function MagicSpiritGame() {
 
   // 次のフェイズへ
   const nextPhase = () => {
+    // 手札選択待ち中はフェイズ進行不可
+    if (pendingHandSelection) {
+      addLog('手札を選択してください', 'damage');
+      return;
+    }
     if (phase === 2) {
       setPhase(3);
       setSelectedHandCard(null);
@@ -1438,6 +1480,7 @@ export default function MagicSpiritGame() {
       setP1Life, setP2Life,
       card,
       addLog,
+      setPendingHandSelection,
     };
 
     try {
@@ -1654,62 +1697,76 @@ export default function MagicSpiritGame() {
             </div>
           </div>
           <div style={styles.cardInfoPanel}>
-            {/* 選択中の手札カード */}
-            {selectedHandCard && (
-              <div>
-                <div style={{ fontSize: '13px', fontWeight: 'bold', marginBottom: '8px', color: currentPlayer === 1 ? '#4da6ff' : '#ff8a8a' }}>
-                  {selectedHandCard.name}
-                </div>
-                <div style={{ fontSize: '11px', color: '#ccc', marginBottom: '6px' }}>
-                  属性: {selectedHandCard.attribute} | コスト: {selectedHandCard.cost} SP
-                </div>
-                {selectedHandCard.categoryText && (
-                  <div style={{ fontSize: '11px', color: '#ffd700', marginBottom: '6px' }}>
-                    カテゴリ: {selectedHandCard.categoryText}
-                  </div>
-                )}
-                {selectedHandCard.type === 'monster' && (
-                  <div style={{ fontSize: '11px', color: '#ccc', marginBottom: '8px' }}>
-                    ⚔️ {selectedHandCard.attack} | ❤️ {selectedHandCard.hp}
-                  </div>
-                )}
-                <div style={{
-                  fontSize: '11px',
-                  color: '#e0e0e0',
-                  background: 'rgba(0,0,0,0.3)',
-                  padding: '8px',
-                  borderRadius: '6px',
-                  lineHeight: '1.5',
-                  marginBottom: '8px',
-                }}>
-                  {getEffectWithoutSkills(selectedHandCard.effect) || 'なし'}
-                </div>
-                {selectedHandCard.type === 'monster' && (selectedHandCard.basicSkill || selectedHandCard.advancedSkill) && (
-                  <div style={{ fontSize: '10px', lineHeight: '1.4' }}>
-                    {selectedHandCard.basicSkill && (
-                      <div style={{ padding: '6px', background: 'rgba(76,175,80,0.2)', borderRadius: '4px', marginBottom: '4px' }}>
-                        <span style={{ color: '#4caf50', fontWeight: 'bold' }}>基本技:</span><br/>
-                        {selectedHandCard.basicSkill.text}
+            {/* 選択中の手札カード（通常モードまたは手札選択モード） */}
+            {(selectedHandCard || pendingSelectedCard) && (
+              (() => {
+                const displayCard = pendingSelectedCard || selectedHandCard;
+                const isPendingMode = !!pendingSelectedCard;
+                return (
+                  <div>
+                    {isPendingMode && (
+                      <div style={{ fontSize: '10px', color: '#ff8e53', marginBottom: '6px', padding: '4px', background: 'rgba(255,142,83,0.2)', borderRadius: '4px' }}>
+                        🔍 選択確認中
                       </div>
                     )}
-                    {selectedHandCard.advancedSkill && (
-                      <div style={{ padding: '6px', background: 'rgba(255,152,0,0.2)', borderRadius: '4px' }}>
-                        <span style={{ color: '#ff9800', fontWeight: 'bold' }}>上級技:</span><br/>
-                        {selectedHandCard.advancedSkill.text}
+                    <div style={{ fontSize: '13px', fontWeight: 'bold', marginBottom: '8px', color: currentPlayer === 1 ? '#4da6ff' : '#ff8a8a' }}>
+                      {displayCard.name}
+                    </div>
+                    <div style={{ fontSize: '11px', color: '#ccc', marginBottom: '6px' }}>
+                      属性: {displayCard.attribute} | コスト: {displayCard.cost} SP
+                    </div>
+                    {displayCard.categoryText && (
+                      <div style={{ fontSize: '11px', color: '#ffd700', marginBottom: '6px' }}>
+                        カテゴリ: {displayCard.categoryText}
+                      </div>
+                    )}
+                    {displayCard.type === 'monster' && (
+                      <div style={{ fontSize: '11px', color: '#ccc', marginBottom: '8px' }}>
+                        ⚔️ {displayCard.attack} | ❤️ {displayCard.hp}
+                      </div>
+                    )}
+                    <div style={{
+                      fontSize: '11px',
+                      color: '#e0e0e0',
+                      background: 'rgba(0,0,0,0.3)',
+                      padding: '8px',
+                      borderRadius: '6px',
+                      lineHeight: '1.5',
+                      marginBottom: '8px',
+                    }}>
+                      {getEffectWithoutSkills(displayCard.effect) || 'なし'}
+                    </div>
+                    {displayCard.type === 'monster' && (displayCard.basicSkill || displayCard.advancedSkill) && (
+                      <div style={{ fontSize: '10px', lineHeight: '1.4' }}>
+                        {displayCard.basicSkill && (
+                          <div style={{ padding: '6px', background: 'rgba(76,175,80,0.2)', borderRadius: '4px', marginBottom: '4px' }}>
+                            <span style={{ color: '#4caf50', fontWeight: 'bold' }}>基本技:</span><br/>
+                            {displayCard.basicSkill.text}
+                          </div>
+                        )}
+                        {displayCard.advancedSkill && (
+                          <div style={{ padding: '6px', background: 'rgba(255,152,0,0.2)', borderRadius: '4px' }}>
+                            <span style={{ color: '#ff9800', fontWeight: 'bold' }}>上級技:</span><br/>
+                            {displayCard.advancedSkill.text}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                    {/* 操作ガイドは通常モードのみ表示 */}
+                    {!isPendingMode && (
+                      <div style={{ fontSize: '10px', color: '#888', marginTop: '8px', padding: '6px', background: 'rgba(107,76,230,0.1)', borderRadius: '4px' }}>
+                        {displayCard.type === 'monster' && '👆 空きスロットをクリックして召喚'}
+                        {displayCard.type === 'magic' && '👆 「魔法カード発動」ボタンで発動'}
+                        {displayCard.type === 'field' && '👆 フィールドゾーンをクリックして配置'}
+                        {displayCard.type === 'phasecard' && '👆 フェイズゾーンをクリックして配置'}
                       </div>
                     )}
                   </div>
-                )}
-                <div style={{ fontSize: '10px', color: '#888', marginTop: '8px', padding: '6px', background: 'rgba(107,76,230,0.1)', borderRadius: '4px' }}>
-                  {selectedHandCard.type === 'monster' && '👆 空きスロットをクリックして召喚'}
-                  {selectedHandCard.type === 'magic' && '👆 「魔法カード発動」ボタンで発動'}
-                  {selectedHandCard.type === 'field' && '👆 フィールドゾーンをクリックして配置'}
-                  {selectedHandCard.type === 'phasecard' && '👆 フェイズゾーンをクリックして配置'}
-                </div>
-              </div>
+                );
+              })()
             )}
             {/* 選択中のフィールドモンスター */}
-            {!selectedHandCard && selectedFieldMonster !== null && (() => {
+            {!selectedHandCard && !pendingSelectedCard && selectedFieldMonster !== null && (() => {
               const field = currentPlayer === 1 ? p1Field : p2Field;
               const monster = field[selectedFieldMonster];
               if (!monster) return null;
@@ -1887,7 +1944,7 @@ export default function MagicSpiritGame() {
                     key={card.uniqueId}
                     card={card}
                     onClick={() => handleHandCardClick(card)}
-                    selected={selectedHandCard?.uniqueId === card.uniqueId}
+                    selected={selectedHandCard?.uniqueId === card.uniqueId || pendingSelectedCard?.uniqueId === card.uniqueId}
                     inHand
                     small
                     disabled={phase !== 2}
@@ -2015,6 +2072,45 @@ export default function MagicSpiritGame() {
             ))}
           </div>
 
+          {/* 手札選択モード */}
+          {pendingHandSelection && (
+            <div
+              onClick={pendingSelectedCard ? confirmHandSelection : undefined}
+              style={{
+                background: pendingSelectedCard
+                  ? 'linear-gradient(135deg, #4caf50 0%, #66bb6a 100%)'
+                  : 'linear-gradient(135deg, #ff6b6b 0%, #ff8e53 100%)',
+                padding: '16px 24px',
+                borderRadius: '12px',
+                textAlign: 'center',
+                boxShadow: pendingSelectedCard
+                  ? '0 4px 20px rgba(76,175,80,0.4)'
+                  : '0 4px 20px rgba(255,107,107,0.4)',
+                marginBottom: '12px',
+                cursor: pendingSelectedCard ? 'pointer' : 'default',
+                transition: 'all 0.2s ease',
+              }}
+            >
+              <div style={{ fontSize: '16px', fontWeight: 'bold', color: '#fff', marginBottom: '8px' }}>
+                {pendingHandSelection.message}
+              </div>
+              {pendingSelectedCard ? (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', alignItems: 'center' }}>
+                  <div style={{ fontSize: '14px', color: '#fff' }}>
+                    選択中: <strong>{pendingSelectedCard.name}</strong>
+                  </div>
+                  <div style={{ fontSize: '12px', color: '#e0ffe0' }}>
+                    👆 クリックで決定
+                  </div>
+                </div>
+              ) : (
+                <div style={{ fontSize: '12px', color: '#ffe0e0' }}>
+                  手札からカードをクリックして選択してください
+                </div>
+              )}
+            </div>
+          )}
+
           {/* アクションボタン */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
             {/* 技発動ボタン（メインフェイズ） */}
@@ -2087,6 +2183,7 @@ export default function MagicSpiritGame() {
                               p1Life,
                               p2Life,
                               addLog,
+                              setPendingHandSelection,
                             };
                             const { activateTrigger } = require('./engine/triggerEngine');
                             activateTrigger(trigger, triggerContext);
@@ -2178,6 +2275,7 @@ export default function MagicSpiritGame() {
                               p1Life,
                               p2Life,
                               addLog,
+                              setPendingHandSelection,
                             };
                             const { activateTrigger } = require('./engine/triggerEngine');
                             activateTrigger(trigger, triggerContext);
@@ -2306,7 +2404,7 @@ export default function MagicSpiritGame() {
                   key={card.uniqueId}
                   card={card}
                   onClick={() => handleHandCardClick(card)}
-                  selected={selectedHandCard?.uniqueId === card.uniqueId}
+                  selected={selectedHandCard?.uniqueId === card.uniqueId || pendingSelectedCard?.uniqueId === card.uniqueId}
                   inHand
                   disabled={currentPlayer !== 1 || phase !== 2}
                 />

@@ -69,7 +69,7 @@ Currently a **prototype version** with local 2-player gameplay.
   - 情報パネルに現在の段階効果と次の段階効果を表示
   - フェイズカードでフェイズカードをチャージ可能（同属性）
   - 最終段階（3枚チャージ）で墓地送り処理
-- **2025-11-26 (Phase 7 - Continuous Effect System)**: Comprehensive continuous effect system implemented ⭐⭐⭐⭐ **NEW**
+- **2025-11-26 (Phase 7 - Continuous Effect System)**: Comprehensive continuous effect system implemented ⭐⭐⭐⭐
   - State-based effect system for persistent card effects
   - 12 effect types: ATK_MODIFIER, HP_MODIFIER, DAMAGE_REDUCTION, DAMAGE_IMMUNITY, etc.
   - Condition checking system (attribute, category, name, life, turn conditions)
@@ -77,6 +77,12 @@ Currently a **prototype version** with local 2-player gameplay.
   - 45 cards with continuous effects (23 field cards + 22 monster cards)
   - Phase card stage-based effects support
   - ~2736 lines of new implementation code
+- **2025-11-27 (Hand Selection System & Trigger Fix)**: Player hand selection UI and ON_SUMMON trigger scope fix ⭐ **NEW**
+  - Hand selection system for effects requiring player choice (e.g., ソラリア)
+  - Two-step confirmation: click to select, click area to confirm
+  - Separate `pendingSelectedCard` state to prevent normal actions during selection
+  - **ON_SUMMON trigger scope fix**: Now fires only for the summoned card itself
+  - Previously ON_SUMMON fired for all summons; now correctly scoped to owning card
 
 ---
 
@@ -379,6 +385,8 @@ The game uses React hooks with extensive state:
 - selectedHandCard
 - selectedFieldMonster
 - attackingMonster
+- pendingHandSelection      // Hand selection mode { message, callback }
+- pendingSelectedCard       // Selected card during hand selection (prevents normal actions)
 ```
 
 ---
@@ -767,7 +775,8 @@ Trigger Lifecycle:
 **Key Components**:
 
 **1. Trigger Types** (`src/engine/triggerTypes.js` - 26 types):
-- **Summon**: ON_SUMMON, ON_OPPONENT_SUMMON, ON_ATTRIBUTE_SUMMON_SELF, etc.
+- **Summon**: ON_SUMMON (self only), ON_OPPONENT_SUMMON, ON_ATTRIBUTE_SUMMON_SELF, etc.
+  - **Important**: ON_SUMMON fires only for the summoned card itself, not for other summons
 - **Destroy**: ON_DESTROY_SELF, ON_CATEGORY_MONSTER_DESTROYED, etc.
 - **Phase**: ON_TURN_START_SELF, ON_MAIN_PHASE_SELF, ON_END_PHASE_SELF, etc.
 - **Attack**: ON_ATTACK, ON_ATTACKED, ON_ATTACK_SUCCESS
@@ -855,6 +864,9 @@ const context = {
   setP1ActiveSP, setP2ActiveSP,
   p1RestedSP, p2RestedSP,
   setP1RestedSP, setP2RestedSP,
+
+  // UI Control
+  setPendingHandSelection, // For effects requiring player hand selection
 
   // Logging
   addLog,
@@ -1535,6 +1547,6 @@ This is suitable for expansion into a full game or as a learning project for Rea
 
 ---
 
-**Document Version**: 3.9
-**Last Updated**: 2025-11-26 (Continuous effect system implementation)
+**Document Version**: 4.0
+**Last Updated**: 2025-11-27 (Hand selection system & ON_SUMMON trigger fix)
 **For**: Magic Spirit (magiSp) Repository

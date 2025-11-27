@@ -376,9 +376,17 @@ export const fireTrigger = (triggerType, context) => {
   }
 
   // 自動発動のみをフィルター
-  const automaticTriggers = triggers.filter((trigger) => {
+  let automaticTriggers = triggers.filter((trigger) => {
     return trigger.activationType === ACTIVATION_TYPES.AUTOMATIC;
   });
+
+  // ON_SUMMONトリガーは召喚されたカード自身のトリガーのみ発火
+  // （「このカードが召喚された時」という意味のため）
+  if (triggerType === TRIGGER_TYPES.ON_SUMMON && context.card) {
+    automaticTriggers = automaticTriggers.filter((trigger) => {
+      return trigger.cardId === context.card.uniqueId;
+    });
+  }
 
   if (automaticTriggers.length === 0) {
     return;
