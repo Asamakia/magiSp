@@ -298,6 +298,114 @@ export const darkCardEffects = {
   },
 
   /**
+   * C0000424: 呪灰の翼ダスクドラゴン
+   * 基本技: 自分のライフを600減らし、相手モンスター1体のHPを1200減らす（ターンに1度）
+   */
+  C0000424: (skillText, context) => {
+    const {
+      addLog,
+      currentPlayer,
+      setP1Life,
+      setP2Life,
+      p1Field,
+      p2Field,
+      setP1Field,
+      setP2Field,
+      setP1Graveyard,
+      setP2Graveyard,
+      setPendingMonsterTarget,
+    } = context;
+
+    if (context.skillType === 'basic') {
+      const setCurrentLife = currentPlayer === 1 ? setP1Life : setP2Life;
+      const opponentField = currentPlayer === 1 ? p2Field : p1Field;
+      const setOpponentField = currentPlayer === 1 ? setP2Field : setP1Field;
+      const setOpponentGraveyard = currentPlayer === 1 ? setP2Graveyard : setP1Graveyard;
+
+      // 相手モンスターがいるか確認
+      const opponentMonsters = opponentField
+        .map((m, idx) => ({ monster: m, index: idx }))
+        .filter(({ monster }) => monster !== null);
+
+      if (opponentMonsters.length === 0) {
+        addLog('相手フィールドにモンスターがいません', 'info');
+        return false;
+      }
+
+      // ライフが足りるか確認（0以下にはなれるが、自滅するかどうかはゲームルール次第）
+      // ライフコストとして600減らす
+      setCurrentLife((prev) => prev - 600);
+      addLog('呪灰の翼ダスクドラゴンの基本技！ライフを600支払った', 'damage');
+
+      // 1体だけの場合は自動選択
+      if (opponentMonsters.length === 1) {
+        const target = opponentMonsters[0];
+        const newHp = Math.max(0, target.monster.currentHp - 1200);
+        addLog(`${target.monster.name}のHPを1200減少！（残りHP: ${newHp}）`, 'damage');
+
+        if (newHp <= 0) {
+          // モンスター破壊
+          setOpponentField((prev) => {
+            const newField = [...prev];
+            newField[target.index] = null;
+            return newField;
+          });
+          setOpponentGraveyard((prev) => [...prev, target.monster]);
+          addLog(`${target.monster.name}は破壊された！`, 'damage');
+        } else {
+          setOpponentField((prev) =>
+            prev.map((m, idx) => {
+              if (idx === target.index && m) {
+                return { ...m, currentHp: newHp };
+              }
+              return m;
+            })
+          );
+        }
+        return true;
+      }
+
+      // 複数モンスターがいる場合は選択UI
+      if (setPendingMonsterTarget) {
+        setPendingMonsterTarget({
+          message: 'HPを1200減らすモンスターを選択',
+          targetPlayer: 'opponent',
+          callback: (selectedIndex) => {
+            const selectedMonster = opponentField[selectedIndex];
+            if (selectedMonster) {
+              const newHp = Math.max(0, selectedMonster.currentHp - 1200);
+              addLog(`${selectedMonster.name}のHPを1200減少！（残りHP: ${newHp}）`, 'damage');
+
+              if (newHp <= 0) {
+                // モンスター破壊
+                setOpponentField((prev) => {
+                  const newField = [...prev];
+                  newField[selectedIndex] = null;
+                  return newField;
+                });
+                setOpponentGraveyard((prev) => [...prev, selectedMonster]);
+                addLog(`${selectedMonster.name}は破壊された！`, 'damage');
+              } else {
+                setOpponentField((prev) =>
+                  prev.map((m, idx) => {
+                    if (idx === selectedIndex && m) {
+                      return { ...m, currentHp: newHp };
+                    }
+                    return m;
+                  })
+                );
+              }
+            }
+          },
+        });
+      }
+      return true;
+    }
+
+    return false;
+  },
+
+  /**
    * C0000393: 黒呪・カルヴェリオンの灰嵐
    * 相手フィールド全体に1500ダメージを与え、次のターン終了時まで相手モンスターの攻撃力を500下げる。
    * 場に《呪縛の塔・ヴェルナクール》がある場合、このカードのダメージを2000に変更。
