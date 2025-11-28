@@ -45,12 +45,15 @@ export { packSystem } from './systems/packSystem';
 export { shopSystem } from './systems/shopSystem';
 
 // ========================================
-// コンポーネント層（Phase 3-4で実装予定）
+// コンポーネント層
 // ========================================
 
-// export { CollectionScreen } from './components/CollectionScreen';
-// export { ShopScreen } from './components/ShopScreen';
-// export { PackOpening } from './components/PackOpening';
-// export { CardGrid } from './components/CardGrid';
-// export { CardDetail } from './components/CardDetail';
-// export { DeckBuilder } from './components/DeckBuilder';
+// Phase 3: コレクションUI
+export { default as CollectionScreen } from './components/CollectionScreen';
+export { default as CardGrid } from './components/CardGrid';
+export { default as CardDetail } from './components/CardDetail';
+
+// Phase 4で実装予定
+// export { default as ShopScreen } from './components/ShopScreen';
+// export { default as PackOpening } from './components/PackOpening';
+// export { default as DeckBuilder } from './components/DeckBuilder';
