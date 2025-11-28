@@ -764,7 +764,14 @@ const context = {
 
 ### Available Effect Helper Functions ⭐
 
-The effect helper library provides 9 reusable functions for common card effect patterns:
+The effect helper library provides reusable functions for common card effect patterns:
+
+**getPlayerContext(context)** ⭐⭐ **Core Helper**
+- Returns player-abstracted properties based on `currentPlayer` (1 or 2)
+- Eliminates repetitive `currentPlayer === 1 ? p1X : p2X` patterns
+- Returns object with: `myField`, `opponentField`, `setMyField`, `setOpponentField`, `myHand`, `opponentHand`, `setMyHand`, `setOpponentHand`, `myDeck`, `opponentDeck`, `setMyDeck`, `setOpponentDeck`, `myGraveyard`, `opponentGraveyard`, `setMyGraveyard`, `setOpponentGraveyard`, `myLife`, `opponentLife`, `setMyLife`, `setOpponentLife`, `myActiveSP`, `myRestedSP`, `setMyActiveSP`, `setMyRestedSP`, `myFieldCard`, `setMyFieldCard`, `currentPlayer`, `isP1`
+- Usage: `const { myField, setOpponentField } = getPlayerContext(context);`
+- See: `src/ルール/getPlayerContext-refactoring-guide.md` for detailed documentation
 
 **1. millDeck(context, count)**
 - Mill cards from current player's deck to graveyard
