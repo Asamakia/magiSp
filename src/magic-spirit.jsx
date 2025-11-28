@@ -1115,6 +1115,9 @@ export default function MagicSpiritGame() {
           addLog,
           setPendingDeckReview,
           setPendingMonsterTarget,
+          // 墓地選択（クラーケンの呼び声等）
+          setPendingGraveyardSelection,
+          setShowGraveyardViewer,
           // SPボーナス設定（マーメイドの恵み等）
           setP1NextTurnSPBonus,
           setP2NextTurnSPBonus,

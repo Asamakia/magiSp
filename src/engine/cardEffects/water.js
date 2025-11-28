@@ -1322,5 +1322,73 @@ export const waterCardEffects = {
     return true;
   },
 
+  /**
+   * C0000050: クラーケンの呼び声
+   * 墓地の水属性モンスター1体を手札に戻し、そのカードの召喚コストを1軽減
+   * 【刹那詠唱】
+   */
+  C0000050: (skillText, context) => {
+    const {
+      addLog,
+      currentPlayer,
+      p1Graveyard, p2Graveyard,
+      setP1Graveyard, setP2Graveyard,
+      setP1Hand, setP2Hand,
+      setPendingGraveyardSelection,
+      setShowGraveyardViewer,
+    } = context;
+
+    const currentGraveyard = currentPlayer === 1 ? p1Graveyard : p2Graveyard;
+    const setGraveyard = currentPlayer === 1 ? setP1Graveyard : setP2Graveyard;
+    const setHand = currentPlayer === 1 ? setP1Hand : setP2Hand;
+
+    // 墓地の水属性モンスターを検索
+    const waterMonsters = currentGraveyard.filter(card =>
+      card.type === 'monster' && card.attribute === '水'
+    );
+
+    if (waterMonsters.length === 0) {
+      addLog('墓地に水属性モンスターがいません', 'info');
+      return false;
+    }
+
+    // カードを手札に加える処理（コスト-1付き）
+    const returnToHand = (targetCard) => {
+      // 墓地から除去
+      setGraveyard(prev => prev.filter(c => c.uniqueId !== targetCard.uniqueId));
+      // 手札に加える（コスト-1を付与）
+      const cardWithCostReduction = {
+        ...targetCard,
+        tempCostModifier: (targetCard.tempCostModifier || 0) - 1,
+        tempCostModifierSource: 'クラーケンの呼び声',
+      };
+      setHand(prev => [...prev, cardWithCostReduction]);
+      addLog(`クラーケンの呼び声: ${targetCard.name}を手札に戻した（召喚コスト-1）`, 'heal');
+    };
+
+    // 1体のみの場合は自動選択
+    if (waterMonsters.length === 1) {
+      returnToHand(waterMonsters[0]);
+      return true;
+    }
+
+    // 複数いる場合は墓地選択UIを表示
+    if (setPendingGraveyardSelection && setShowGraveyardViewer) {
+      setShowGraveyardViewer({ player: currentPlayer });
+      setPendingGraveyardSelection({
+        message: '手札に戻す水属性モンスターを選択',
+        filter: (card) => card.type === 'monster' && card.attribute === '水',
+        callback: (selectedCard) => {
+          returnToHand(selectedCard);
+        },
+      });
+      return true;
+    }
+
+    // フォールバック: 最初の1体を選択
+    returnToHand(waterMonsters[0]);
+    return true;
+  },
+
   // 他の水属性カードを追加...
 };
