@@ -333,10 +333,17 @@ export const searchCard = (context, condition) => {
  * 墓地からカードを蘇生
  * @param {Object} context - ゲームコンテキスト
  * @param {Function} condition - 条件関数 (card) => boolean
- * @param {boolean} weakened - 弱体化するか（攻撃力半減）
+ * @param {boolean|Object} options - 蘇生オプション
+ *   - boolean: true = 攻撃力半減（後方互換性）
+ *   - Object: {
+ *       attackHalf: boolean,   // 攻撃力を半減するか
+ *       hpHalf: boolean,       // HPを半減するか
+ *       fixedAttack: number,   // 固定攻撃力（指定時は半減より優先）
+ *       fixedHp: number,       // 固定HP（指定時は半減より優先）
+ *     }
  * @returns {boolean} 成功したかどうか
  */
-export const reviveFromGraveyard = (context, condition, weakened = false) => {
+export const reviveFromGraveyard = (context, condition, options = false) => {
   const {
     currentPlayer,
     p1Graveyard, p2Graveyard,
@@ -345,6 +352,11 @@ export const reviveFromGraveyard = (context, condition, weakened = false) => {
     setP1Field, setP2Field,
     addLog,
   } = context;
+
+  // オプションを正規化（後方互換性: booleanの場合は攻撃力半減として扱う）
+  const normalizedOptions = typeof options === 'boolean'
+    ? { attackHalf: options, hpHalf: false }
+    : { attackHalf: false, hpHalf: false, ...options };
 
   const currentGraveyard = currentPlayer === 1 ? p1Graveyard : p2Graveyard;
   const setCurrentGraveyard = currentPlayer === 1 ? setP1Graveyard : setP2Graveyard;
@@ -368,21 +380,36 @@ export const reviveFromGraveyard = (context, condition, weakened = false) => {
     return false;
   }
 
-  // 蘇生（弱体化オプション付き - 攻撃力のみ半減、HPは元のまま）
+  // 蘇生（オプションに応じてステータス調整）
   setCurrentGraveyard(prev => prev.filter(c => c.uniqueId !== reviveCard.uniqueId));
   setCurrentField(prev => {
     const newField = [...prev];
     // 元のステータスを取得（墓地にある時点では元の値を保持）
     const originalAttack = reviveCard.attack;
     const originalHp = reviveCard.hp;
-    // weakened=true の場合、攻撃力のみ半減（HPは元のまま）
-    const baseAttack = weakened ? Math.floor(originalAttack / 2) : originalAttack;
+
+    // 攻撃力計算: 固定値 > 半減 > 元の値
+    let finalAttack = originalAttack;
+    if (normalizedOptions.fixedAttack !== undefined && normalizedOptions.fixedAttack !== null) {
+      finalAttack = normalizedOptions.fixedAttack;
+    } else if (normalizedOptions.attackHalf) {
+      finalAttack = Math.floor(originalAttack / 2);
+    }
+
+    // HP計算: 固定値 > 半減 > 元の値
+    let finalHp = originalHp;
+    if (normalizedOptions.fixedHp !== undefined && normalizedOptions.fixedHp !== null) {
+      finalHp = normalizedOptions.fixedHp;
+    } else if (normalizedOptions.hpHalf) {
+      finalHp = Math.floor(originalHp / 2);
+    }
+
     const revivedMonster = {
       ...reviveCard,
-      attack: baseAttack,
-      currentAttack: baseAttack, // 戦闘計算用の現在攻撃力
-      hp: originalHp,
-      currentHp: originalHp,
+      attack: finalAttack,
+      currentAttack: finalAttack, // 戦闘計算用の現在攻撃力
+      hp: finalHp,
+      currentHp: finalHp,
       canAttack: false,
       owner: currentPlayer, // 常時効果のターゲット判定用
       charges: [], // チャージカードをリセット
@@ -391,7 +418,21 @@ export const reviveFromGraveyard = (context, condition, weakened = false) => {
     newField[emptySlotIndex] = revivedMonster;
     return newField;
   });
-  addLog(`${reviveCard.name}を墓地から蘇生！${weakened ? '（攻撃力半減）' : ''}`, 'heal');
+
+  // ログメッセージ生成
+  const modifiers = [];
+  if (normalizedOptions.fixedAttack !== undefined && normalizedOptions.fixedAttack !== null) {
+    modifiers.push(`攻撃力${normalizedOptions.fixedAttack}`);
+  } else if (normalizedOptions.attackHalf) {
+    modifiers.push('攻撃力半減');
+  }
+  if (normalizedOptions.fixedHp !== undefined && normalizedOptions.fixedHp !== null) {
+    modifiers.push(`HP${normalizedOptions.fixedHp}`);
+  } else if (normalizedOptions.hpHalf) {
+    modifiers.push('HP半減');
+  }
+  const modifierText = modifiers.length > 0 ? `（${modifiers.join('、')}）` : '';
+  addLog(`${reviveCard.name}を墓地から蘇生！${modifierText}`, 'heal');
   return true;
 };
 

@@ -146,10 +146,10 @@ export const waterCardEffects = {
         setGraveyard(prev => [...prev, discardedCard]);
         addLog(`手札から「${discardedCard.name}」を墓地に送った`, 'info');
 
-        // 墓地からブリザードキャットを蘇生
+        // 墓地からブリザードキャットを蘇生（HP半減）
         return reviveFromGraveyard(context, (card) => {
           return card.name && card.name.includes('ブリザードキャット');
-        }, true); // HP半分
+        }, { hpHalf: true }); // HP半分、攻撃力は元のまま
       } else {
         addLog('手札がありません', 'info');
         return false;
