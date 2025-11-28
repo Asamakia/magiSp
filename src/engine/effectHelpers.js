@@ -12,6 +12,94 @@ import {
 } from './triggerEngine';
 import { continuousEffectEngine } from './continuousEffects';
 
+// ========================================
+// プレイヤーコンテキスト抽象化
+// currentPlayer判定を一元化し、「自分/相手」で扱えるようにする
+// ========================================
+
+/**
+ * currentPlayerに基づいて「自分/相手」に抽象化したプロパティを返す
+ * @param {Object} context - ゲームコンテキスト
+ * @returns {Object} プレイヤー抽象化されたプロパティ
+ *
+ * @example
+ * // Before（旧パターン）:
+ * const { currentPlayer, p1Field, p2Field, setP1Field, setP2Field } = context;
+ * const myField = currentPlayer === 1 ? p1Field : p2Field;
+ * const opponentField = currentPlayer === 1 ? p2Field : p1Field;
+ *
+ * // After（新パターン）:
+ * const { myField, opponentField, setMyField } = getPlayerContext(context);
+ */
+export const getPlayerContext = (context) => {
+  const { currentPlayer } = context;
+  const isP1 = currentPlayer === 1;
+
+  return {
+    // === フィールド ===
+    myField: isP1 ? context.p1Field : context.p2Field,
+    opponentField: isP1 ? context.p2Field : context.p1Field,
+    setMyField: isP1 ? context.setP1Field : context.setP2Field,
+    setOpponentField: isP1 ? context.setP2Field : context.setP1Field,
+
+    // === 手札 ===
+    myHand: isP1 ? context.p1Hand : context.p2Hand,
+    opponentHand: isP1 ? context.p2Hand : context.p1Hand,
+    setMyHand: isP1 ? context.setP1Hand : context.setP2Hand,
+    setOpponentHand: isP1 ? context.setP2Hand : context.setP1Hand,
+
+    // === デッキ ===
+    myDeck: isP1 ? context.p1Deck : context.p2Deck,
+    opponentDeck: isP1 ? context.p2Deck : context.p1Deck,
+    setMyDeck: isP1 ? context.setP1Deck : context.setP2Deck,
+    setOpponentDeck: isP1 ? context.setP2Deck : context.setP1Deck,
+
+    // === 墓地 ===
+    myGraveyard: isP1 ? context.p1Graveyard : context.p2Graveyard,
+    opponentGraveyard: isP1 ? context.p2Graveyard : context.p1Graveyard,
+    setMyGraveyard: isP1 ? context.setP1Graveyard : context.setP2Graveyard,
+    setOpponentGraveyard: isP1 ? context.setP2Graveyard : context.setP1Graveyard,
+
+    // === ライフ ===
+    myLife: isP1 ? context.p1Life : context.p2Life,
+    opponentLife: isP1 ? context.p2Life : context.p1Life,
+    setMyLife: isP1 ? context.setP1Life : context.setP2Life,
+    setOpponentLife: isP1 ? context.setP2Life : context.setP1Life,
+
+    // === SP（アクティブ） ===
+    myActiveSP: isP1 ? context.p1ActiveSP : context.p2ActiveSP,
+    opponentActiveSP: isP1 ? context.p2ActiveSP : context.p1ActiveSP,
+    setMyActiveSP: isP1 ? context.setP1ActiveSP : context.setP2ActiveSP,
+    setOpponentActiveSP: isP1 ? context.setP2ActiveSP : context.setP1ActiveSP,
+
+    // === SP（レスト） ===
+    myRestedSP: isP1 ? context.p1RestedSP : context.p2RestedSP,
+    opponentRestedSP: isP1 ? context.p2RestedSP : context.p1RestedSP,
+    setMyRestedSP: isP1 ? context.setP1RestedSP : context.setP2RestedSP,
+    setOpponentRestedSP: isP1 ? context.setP2RestedSP : context.setP1RestedSP,
+
+    // === フィールドカード ===
+    myFieldCard: isP1 ? context.p1FieldCard : context.p2FieldCard,
+    opponentFieldCard: isP1 ? context.p2FieldCard : context.p1FieldCard,
+    setMyFieldCard: isP1 ? context.setP1FieldCard : context.setP2FieldCard,
+    setOpponentFieldCard: isP1 ? context.setP2FieldCard : context.setP1FieldCard,
+
+    // === フェイズカード ===
+    myPhaseCard: isP1 ? context.p1PhaseCard : context.p2PhaseCard,
+    opponentPhaseCard: isP1 ? context.p2PhaseCard : context.p1PhaseCard,
+    setMyPhaseCard: isP1 ? context.setP1PhaseCard : context.setP2PhaseCard,
+    setOpponentPhaseCard: isP1 ? context.setP2PhaseCard : context.setP1PhaseCard,
+
+    // === ユーティリティ ===
+    isP1,                 // currentPlayer === 1
+    currentPlayer,        // 元の値（1 or 2）
+  };
+};
+
+// ========================================
+// カード効果ヘルパー関数
+// ========================================
+
 /**
  * デッキの上からカードを墓地に送る（ミル）
  * @param {Object} context - ゲームコンテキスト

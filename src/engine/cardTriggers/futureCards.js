@@ -7,6 +7,7 @@
 
 import { TRIGGER_TYPES, ACTIVATION_TYPES } from '../triggerTypes';
 import {
+  getPlayerContext,
   millDeck,
   millOpponentDeck,
   conditionalDamage,
@@ -32,7 +33,8 @@ export const futureCardTriggers = {
       activationType: ACTIVATION_TYPES.AUTOMATIC,
       description: 'デッキから1枚を墓地に送る',
       effect: (context) => {
-        const { currentPlayer, addLog } = context;
+        const { addLog, monsterIndex } = context;
+        const { myField, setMyField } = getPlayerContext(context);
         const milledCards = millDeck(context, 1);
 
         if (milledCards.length > 0) {
@@ -41,12 +43,8 @@ export const futureCardTriggers = {
 
           // 未来属性の場合、攻撃力を600に変更
           if (card.attribute === '未来') {
-            const { monsterIndex, p1Field, p2Field, setP1Field, setP2Field } = context;
-            const field = currentPlayer === 1 ? p1Field : p2Field;
-            const setField = currentPlayer === 1 ? setP1Field : setP2Field;
-
-            if (field[monsterIndex]) {
-              setField((prev) => {
+            if (myField[monsterIndex]) {
+              setMyField((prev) => {
                 const newField = [...prev];
                 newField[monsterIndex] = {
                   ...newField[monsterIndex],
@@ -74,32 +72,17 @@ export const futureCardTriggers = {
       activationType: ACTIVATION_TYPES.AUTOMATIC,
       description: '墓地の未来属性カードをデッキに戻し300ダメージ',
       effect: (context) => {
-        const {
-          currentPlayer,
-          p1Graveyard,
-          p2Graveyard,
-          setP1Graveyard,
-          setP2Graveyard,
-          p1Deck,
-          p2Deck,
-          setP1Deck,
-          setP2Deck,
-          addLog,
-        } = context;
-
-        const graveyard = currentPlayer === 1 ? p1Graveyard : p2Graveyard;
-        const setGraveyard = currentPlayer === 1 ? setP1Graveyard : setP2Graveyard;
-        const deck = currentPlayer === 1 ? p1Deck : p2Deck;
-        const setDeck = currentPlayer === 1 ? setP1Deck : setP2Deck;
+        const { addLog } = context;
+        const { myGraveyard, setMyGraveyard, myDeck, setMyDeck } = getPlayerContext(context);
 
         // 墓地から未来属性カードを探す
-        const futureCard = graveyard.find((card) => card.attribute === '未来');
+        const futureCard = myGraveyard.find((card) => card.attribute === '未来');
 
         if (futureCard) {
           // 墓地から削除
-          setGraveyard((prev) => prev.filter((c) => c.uniqueId !== futureCard.uniqueId));
+          setMyGraveyard((prev) => prev.filter((c) => c.uniqueId !== futureCard.uniqueId));
           // デッキに追加
-          setDeck((prev) => [...prev, futureCard]);
+          setMyDeck((prev) => [...prev, futureCard]);
           addLog(`${futureCard.name}をデッキに戻した`, 'info');
 
           // 相手に300ダメージ
@@ -121,24 +104,12 @@ export const futureCardTriggers = {
       activationType: ACTIVATION_TYPES.AUTOMATIC,
       description: 'レストSP1個をアクティブに（1ターンに1度）',
       effect: (context) => {
-        const {
-          currentPlayer,
-          p1RestedSP,
-          p2RestedSP,
-          setP1ActiveSP,
-          setP2ActiveSP,
-          setP1RestedSP,
-          setP2RestedSP,
-          addLog,
-        } = context;
+        const { addLog } = context;
+        const { myRestedSP, setMyActiveSP, setMyRestedSP } = getPlayerContext(context);
 
-        const restedSP = currentPlayer === 1 ? p1RestedSP : p2RestedSP;
-        const setActiveSP = currentPlayer === 1 ? setP1ActiveSP : setP2ActiveSP;
-        const setRestedSP = currentPlayer === 1 ? setP1RestedSP : setP2RestedSP;
-
-        if (restedSP > 0) {
-          setRestedSP((prev) => prev - 1);
-          setActiveSP((prev) => prev + 1);
+        if (myRestedSP > 0) {
+          setMyRestedSP((prev) => prev - 1);
+          setMyActiveSP((prev) => prev + 1);
           addLog('次元渡り・ヴォイドウォーカーの効果: SP1個をアクティブにした', 'info');
         }
       },
@@ -155,14 +126,12 @@ export const futureCardTriggers = {
       activationType: ACTIVATION_TYPES.AUTOMATIC,
       description: '未来属性モンスターのHP500回復（1ターンに1度）',
       effect: (context) => {
-        const { currentPlayer, p1Field, p2Field, setP1Field, setP2Field, addLog } = context;
-
-        const field = currentPlayer === 1 ? p1Field : p2Field;
-        const setField = currentPlayer === 1 ? setP1Field : setP2Field;
+        const { addLog } = context;
+        const { setMyField } = getPlayerContext(context);
 
         let healed = false;
 
-        setField((prev) => {
+        setMyField((prev) => {
           const newField = prev.map((monster) => {
             if (monster && monster.attribute === '未来') {
               const newHp = Math.min(monster.currentHp + 500, monster.maxHp);
@@ -194,7 +163,8 @@ export const futureCardTriggers = {
       activationType: ACTIVATION_TYPES.AUTOMATIC,
       description: '1枚ドロー後、手札1枚をデッキの下に戻す',
       effect: (context) => {
-        const { currentPlayer, p1Hand, p2Hand, setP1Deck, setP2Deck, setP1Hand, setP2Hand, addLog, setPendingHandSelection } = context;
+        const { addLog, setPendingHandSelection } = context;
+        const { myHand, setMyDeck, setMyHand } = getPlayerContext(context);
 
         // 1枚ドロー
         const drawnCards = drawCards(context, 1);
@@ -202,13 +172,8 @@ export const futureCardTriggers = {
         if (drawnCards.length > 0) {
           addLog(`${drawnCards[0].name}をドローした`, 'info');
 
-          // 手札を確認（ドロー後の手札）
-          const hand = currentPlayer === 1 ? p1Hand : p2Hand;
-          const setDeck = currentPlayer === 1 ? setP1Deck : setP2Deck;
-          const setHand = currentPlayer === 1 ? setP1Hand : setP2Hand;
-
           // ドロー後の手札が1枚以上あれば選択させる
-          if (hand.length + drawnCards.length > 0) {
+          if (myHand.length + drawnCards.length > 0) {
             addLog('デッキの下に戻すカードを手札から選択してください', 'info');
 
             // 手札選択モードに入る
@@ -216,8 +181,8 @@ export const futureCardTriggers = {
               message: 'デッキの下に戻すカードを選択',
               callback: (selectedCard) => {
                 // 手札から削除してデッキの下に追加
-                setHand((prev) => prev.filter((c) => c.uniqueId !== selectedCard.uniqueId));
-                setDeck((prev) => [...prev, selectedCard]);
+                setMyHand((prev) => prev.filter((c) => c.uniqueId !== selectedCard.uniqueId));
+                setMyDeck((prev) => [...prev, selectedCard]);
                 addLog(`${selectedCard.name}をデッキの下に戻した`, 'info');
               },
             });
@@ -237,11 +202,8 @@ export const futureCardTriggers = {
       activationType: ACTIVATION_TYPES.AUTOMATIC,
       description: '相手フィールド全体に600ダメージ',
       effect: (context) => {
-        const { currentPlayer, p1Field, p2Field, setP1Field, setP2Field, setP1Graveyard, setP2Graveyard, addLog } = context;
-
-        const opponentField = currentPlayer === 1 ? p2Field : p1Field;
-        const setOpponentField = currentPlayer === 1 ? setP2Field : setP1Field;
-        const setOpponentGraveyard = currentPlayer === 1 ? setP2Graveyard : setP1Graveyard;
+        const { addLog } = context;
+        const { opponentField, setOpponentField, setOpponentGraveyard } = getPlayerContext(context);
 
         let damaged = false;
         const destroyedMonsters = [];
@@ -286,18 +248,16 @@ export const futureCardTriggers = {
       activationType: ACTIVATION_TYPES.AUTOMATIC,
       description: 'デッキの上から3枚を確認',
       effect: (context) => {
-        const { currentPlayer, p1Deck, p2Deck, setP1Deck, setP2Deck, addLog, setPendingDeckReview } = context;
+        const { addLog, setPendingDeckReview } = context;
+        const { myDeck, setMyDeck } = getPlayerContext(context);
 
-        const deck = currentPlayer === 1 ? p1Deck : p2Deck;
-        const setDeck = currentPlayer === 1 ? setP1Deck : setP2Deck;
-
-        if (deck.length === 0) {
+        if (myDeck.length === 0) {
           addLog('デッキにカードがありません', 'info');
           return;
         }
 
-        const cardCount = Math.min(3, deck.length);
-        const topCards = deck.slice(0, cardCount);
+        const cardCount = Math.min(3, myDeck.length);
+        const topCards = myDeck.slice(0, cardCount);
         addLog(`ミランの使い魔未来鴉の効果: デッキの上${cardCount}枚を確認`, 'info');
 
         // デッキ確認モーダルを表示
@@ -308,7 +268,7 @@ export const futureCardTriggers = {
           allowReorder: true,
           onConfirm: (reorderedCards) => {
             // 並び替えた順番でデッキを更新
-            setDeck((prev) => [...reorderedCards, ...prev.slice(cardCount)]);
+            setMyDeck((prev) => [...reorderedCards, ...prev.slice(cardCount)]);
             addLog(`カードをデッキの上に戻した: ${reorderedCards.map((c) => c.name).join(' → ')}`, 'info');
           },
         });
@@ -326,20 +286,8 @@ export const futureCardTriggers = {
       activationType: ACTIVATION_TYPES.AUTOMATIC,
       description: '相手の手札を1枚ランダムに墓地に送る',
       effect: (context) => {
-        const {
-          currentPlayer,
-          p1Hand,
-          p2Hand,
-          setP1Hand,
-          setP2Hand,
-          setP1Graveyard,
-          setP2Graveyard,
-          addLog,
-        } = context;
-
-        const opponentHand = currentPlayer === 1 ? p2Hand : p1Hand;
-        const setOpponentHand = currentPlayer === 1 ? setP2Hand : setP1Hand;
-        const setOpponentGraveyard = currentPlayer === 1 ? setP2Graveyard : setP1Graveyard;
+        const { addLog } = context;
+        const { opponentHand, setOpponentHand, setOpponentGraveyard } = getPlayerContext(context);
 
         if (opponentHand.length > 0) {
           // ランダムに1枚選択
@@ -391,32 +339,20 @@ export const futureCardTriggers = {
       activationType: ACTIVATION_TYPES.AUTOMATIC,
       description: '未来属性モンスターを墓地に送り1枚ドロー',
       effect: (context) => {
-        const {
-          currentPlayer,
-          p1Deck,
-          p2Deck,
-          setP1Deck,
-          setP2Deck,
-          setP1Graveyard,
-          setP2Graveyard,
-          addLog,
-        } = context;
-
-        const deck = currentPlayer === 1 ? p1Deck : p2Deck;
-        const setDeck = currentPlayer === 1 ? setP1Deck : setP2Deck;
-        const setGraveyard = currentPlayer === 1 ? setP1Graveyard : setP2Graveyard;
+        const { addLog } = context;
+        const { myDeck, setMyDeck, setMyGraveyard } = getPlayerContext(context);
 
         // デッキから未来属性モンスターを探す
-        const futureMonsterIndex = deck.findIndex(
+        const futureMonsterIndex = myDeck.findIndex(
           (card) => card.attribute === '未来' && card.type === 'monster'
         );
 
         if (futureMonsterIndex !== -1) {
-          const futureMonster = deck[futureMonsterIndex];
+          const futureMonster = myDeck[futureMonsterIndex];
 
           // デッキから削除して墓地に送る
-          setDeck((prev) => prev.filter((c, idx) => idx !== futureMonsterIndex));
-          setGraveyard((prev) => [...prev, futureMonster]);
+          setMyDeck((prev) => prev.filter((c, idx) => idx !== futureMonsterIndex));
+          setMyGraveyard((prev) => [...prev, futureMonster]);
           addLog(`${futureMonster.name}を墓地に送った`, 'info');
 
           // 1枚ドロー
@@ -438,28 +374,16 @@ export const futureCardTriggers = {
       activationType: ACTIVATION_TYPES.AUTOMATIC,
       description: '墓地の未来属性カードを手札に加える',
       effect: (context) => {
-        const {
-          currentPlayer,
-          p1Graveyard,
-          p2Graveyard,
-          setP1Graveyard,
-          setP2Graveyard,
-          setP1Hand,
-          setP2Hand,
-          addLog,
-        } = context;
-
-        const graveyard = currentPlayer === 1 ? p1Graveyard : p2Graveyard;
-        const setGraveyard = currentPlayer === 1 ? setP1Graveyard : setP2Graveyard;
-        const setHand = currentPlayer === 1 ? setP1Hand : setP2Hand;
+        const { addLog } = context;
+        const { myGraveyard, setMyGraveyard, setMyHand } = getPlayerContext(context);
 
         // 墓地から未来属性カードを探す
-        const futureCard = graveyard.find((card) => card.attribute === '未来');
+        const futureCard = myGraveyard.find((card) => card.attribute === '未来');
 
         if (futureCard) {
           // 墓地から削除して手札に加える
-          setGraveyard((prev) => prev.filter((c) => c.uniqueId !== futureCard.uniqueId));
-          setHand((prev) => [...prev, futureCard]);
+          setMyGraveyard((prev) => prev.filter((c) => c.uniqueId !== futureCard.uniqueId));
+          setMyHand((prev) => [...prev, futureCard]);
           addLog(`${futureCard.name}を手札に加えた`, 'info');
         } else {
           addLog('墓地に未来属性カードがない', 'info');
@@ -488,9 +412,8 @@ export const futureCardTriggers = {
       activationType: ACTIVATION_TYPES.AUTOMATIC,
       description: '相手のデッキトップを確認',
       effect: (context) => {
-        const { currentPlayer, p1Deck, p2Deck, addLog } = context;
-
-        const opponentDeck = currentPlayer === 1 ? p2Deck : p1Deck;
+        const { addLog } = context;
+        const { opponentDeck } = getPlayerContext(context);
 
         if (opponentDeck.length > 0) {
           const topCard = opponentDeck[0];
@@ -514,38 +437,26 @@ export const futureCardTriggers = {
       activationType: ACTIVATION_TYPES.AUTOMATIC,
       description: 'デッキ上1枚を確認、未来属性なら手札に、違えばデッキ下に',
       effect: (context) => {
-        const {
-          currentPlayer,
-          p1Deck,
-          p2Deck,
-          setP1Deck,
-          setP2Deck,
-          setP1Hand,
-          setP2Hand,
-          addLog,
-        } = context;
+        const { addLog } = context;
+        const { myDeck, setMyDeck, setMyHand } = getPlayerContext(context);
 
-        const deck = currentPlayer === 1 ? p1Deck : p2Deck;
-        const setDeck = currentPlayer === 1 ? setP1Deck : setP2Deck;
-        const setHand = currentPlayer === 1 ? setP1Hand : setP2Hand;
-
-        if (deck.length === 0) {
+        if (myDeck.length === 0) {
           addLog('デッキにカードがありません', 'info');
           return;
         }
 
         // デッキトップ1枚を確認
-        const topCard = deck[0];
+        const topCard = myDeck[0];
         addLog(`デッキトップを確認: ${topCard.name}`, 'info');
 
         if (topCard.attribute === '未来') {
           // 未来属性なら手札に加える
-          setDeck((prev) => prev.slice(1));
-          setHand((prev) => [...prev, topCard]);
+          setMyDeck((prev) => prev.slice(1));
+          setMyHand((prev) => [...prev, topCard]);
           addLog(`${topCard.name}は未来属性！手札に加えた`, 'info');
         } else {
           // 未来属性でなければデッキの下に戻す
-          setDeck((prev) => {
+          setMyDeck((prev) => {
             const newDeck = prev.slice(1);
             return [...newDeck, topCard];
           });
@@ -558,31 +469,18 @@ export const futureCardTriggers = {
       activationType: ACTIVATION_TYPES.AUTOMATIC,
       description: '場を離れる時、墓地の未来属性カード1枚をデッキに戻す',
       effect: (context) => {
-        const {
-          currentPlayer,
-          p1Graveyard,
-          p2Graveyard,
-          setP1Graveyard,
-          setP2Graveyard,
-          setP1Deck,
-          setP2Deck,
-          addLog,
-          leavingCard,
-        } = context;
-
-        const graveyard = currentPlayer === 1 ? p1Graveyard : p2Graveyard;
-        const setGraveyard = currentPlayer === 1 ? setP1Graveyard : setP2Graveyard;
-        const setDeck = currentPlayer === 1 ? setP1Deck : setP2Deck;
+        const { addLog, leavingCard } = context;
+        const { myGraveyard, setMyGraveyard, setMyDeck } = getPlayerContext(context);
 
         // 墓地から未来属性カードを探す（自分自身は除外）
-        const futureCard = graveyard.find(
+        const futureCard = myGraveyard.find(
           (card) => card.attribute === '未来' && card.uniqueId !== leavingCard?.uniqueId
         );
 
         if (futureCard) {
           // 墓地から削除してデッキに戻す
-          setGraveyard((prev) => prev.filter((c) => c.uniqueId !== futureCard.uniqueId));
-          setDeck((prev) => [...prev, futureCard]);
+          setMyGraveyard((prev) => prev.filter((c) => c.uniqueId !== futureCard.uniqueId));
+          setMyDeck((prev) => [...prev, futureCard]);
           addLog(`灯守の少女の効果: ${futureCard.name}を墓地からデッキに戻した`, 'info');
         } else {
           addLog('墓地に未来属性カードがない', 'info');
@@ -602,30 +500,17 @@ export const futureCardTriggers = {
       activationType: ACTIVATION_TYPES.AUTOMATIC,
       description: 'デッキ上3枚を見て、未来モンスター1枚を手札に加える',
       effect: (context) => {
-        const {
-          currentPlayer,
-          p1Deck,
-          p2Deck,
-          setP1Deck,
-          setP2Deck,
-          setP1Hand,
-          setP2Hand,
-          addLog,
-          setPendingDeckReview,
-        } = context;
+        const { addLog, setPendingDeckReview } = context;
+        const { myDeck, setMyDeck, setMyHand } = getPlayerContext(context);
 
-        const deck = currentPlayer === 1 ? p1Deck : p2Deck;
-        const setDeck = currentPlayer === 1 ? setP1Deck : setP2Deck;
-        const setHand = currentPlayer === 1 ? setP1Hand : setP2Hand;
-
-        if (deck.length === 0) {
+        if (myDeck.length === 0) {
           addLog('デッキにカードがありません', 'info');
           return;
         }
 
         // デッキ上3枚を確認
-        const cardCount = Math.min(3, deck.length);
-        const topCards = deck.slice(0, cardCount);
+        const cardCount = Math.min(3, myDeck.length);
+        const topCards = myDeck.slice(0, cardCount);
         addLog(`星翼の飛舟エクラオンの効果: デッキ上${cardCount}枚を確認`, 'info');
 
         // 未来属性モンスターを探す
@@ -641,7 +526,7 @@ export const futureCardTriggers = {
             message: '未来属性モンスターがいませんでした。カードの順番を変更してデッキに戻してください',
             allowReorder: true,
             onConfirm: (reorderedCards) => {
-              setDeck((prev) => [...reorderedCards, ...prev.slice(cardCount)]);
+              setMyDeck((prev) => [...reorderedCards, ...prev.slice(cardCount)]);
               addLog(`カードをデッキに戻した: ${reorderedCards.map((c) => c.name).join(' → ')}`, 'info');
             },
           });
@@ -650,7 +535,7 @@ export const futureCardTriggers = {
           const futureMonster = futureMonsters[0];
           const remaining = topCards.filter((c) => c.uniqueId !== futureMonster.uniqueId);
 
-          setHand((prev) => [...prev, futureMonster]);
+          setMyHand((prev) => [...prev, futureMonster]);
           addLog(`${futureMonster.name}を手札に加えた`, 'info');
 
           if (remaining.length > 1) {
@@ -661,17 +546,17 @@ export const futureCardTriggers = {
               message: '残りのカードの順番を変更してデッキに戻してください',
               allowReorder: true,
               onConfirm: (reorderedCards) => {
-                setDeck((prev) => [...reorderedCards, ...prev.slice(cardCount)]);
+                setMyDeck((prev) => [...reorderedCards, ...prev.slice(cardCount)]);
                 addLog(`残りをデッキに戻した: ${reorderedCards.map((c) => c.name).join(' → ')}`, 'info');
               },
             });
           } else if (remaining.length === 1) {
             // 残りが1枚なら自動で戻す
-            setDeck((prev) => [remaining[0], ...prev.slice(cardCount)]);
+            setMyDeck((prev) => [remaining[0], ...prev.slice(cardCount)]);
             addLog(`${remaining[0].name}をデッキに戻した`, 'info');
           } else {
             // 残りがない
-            setDeck((prev) => prev.slice(cardCount));
+            setMyDeck((prev) => prev.slice(cardCount));
           }
         } else {
           // 未来モンスターが複数の場合、選択させる
@@ -687,7 +572,7 @@ export const futureCardTriggers = {
             },
             onSelect: (selectedCards, remainingCards) => {
               const selectedMonster = selectedCards[0];
-              setHand((prev) => [...prev, selectedMonster]);
+              setMyHand((prev) => [...prev, selectedMonster]);
               addLog(`${selectedMonster.name}を手札に加えた`, 'info');
 
               // 残りを並び替えて戻す
@@ -698,15 +583,15 @@ export const futureCardTriggers = {
                   message: '残りのカードの順番を変更してデッキに戻してください',
                   allowReorder: true,
                   onConfirm: (reorderedCards) => {
-                    setDeck((prev) => [...reorderedCards, ...prev.slice(cardCount)]);
+                    setMyDeck((prev) => [...reorderedCards, ...prev.slice(cardCount)]);
                     addLog(`残りをデッキに戻した: ${reorderedCards.map((c) => c.name).join(' → ')}`, 'info');
                   },
                 });
               } else if (remainingCards.length === 1) {
-                setDeck((prev) => [remainingCards[0], ...prev.slice(cardCount)]);
+                setMyDeck((prev) => [remainingCards[0], ...prev.slice(cardCount)]);
                 addLog(`${remainingCards[0].name}をデッキに戻した`, 'info');
               } else {
-                setDeck((prev) => prev.slice(cardCount));
+                setMyDeck((prev) => prev.slice(cardCount));
               }
             },
           });
@@ -718,14 +603,11 @@ export const futureCardTriggers = {
       activationType: ACTIVATION_TYPES.AUTOMATIC,
       description: '場を離れる時、相手に600ダメージ',
       effect: (context) => {
-        const { currentPlayer, setP1Life, setP2Life, addLog } = context;
+        const { addLog } = context;
+        const { setOpponentLife } = getPlayerContext(context);
 
         // 相手にダメージ
-        if (currentPlayer === 1) {
-          setP2Life((prev) => Math.max(0, prev - 600));
-        } else {
-          setP1Life((prev) => Math.max(0, prev - 600));
-        }
+        setOpponentLife((prev) => Math.max(0, prev - 600));
         addLog('星翼の飛舟エクラオンの効果: 相手に600ダメージ！', 'damage');
       },
     },
@@ -741,42 +623,27 @@ export const futureCardTriggers = {
       activationType: ACTIVATION_TYPES.AUTOMATIC,
       description: '発動時: デッキ上1枚を見て、未来属性なら手札に、違えば墓地に送る',
       effect: (context) => {
-        const {
-          currentPlayer,
-          p1Deck,
-          p2Deck,
-          setP1Deck,
-          setP2Deck,
-          setP1Hand,
-          setP2Hand,
-          setP1Graveyard,
-          setP2Graveyard,
-          addLog,
-        } = context;
+        const { addLog } = context;
+        const { myDeck, setMyDeck, setMyHand, setMyGraveyard } = getPlayerContext(context);
 
-        const deck = currentPlayer === 1 ? p1Deck : p2Deck;
-        const setDeck = currentPlayer === 1 ? setP1Deck : setP2Deck;
-        const setHand = currentPlayer === 1 ? setP1Hand : setP2Hand;
-        const setGraveyard = currentPlayer === 1 ? setP1Graveyard : setP2Graveyard;
-
-        if (deck.length === 0) {
+        if (myDeck.length === 0) {
           addLog('デッキにカードがありません', 'info');
           return;
         }
 
         // デッキトップ1枚を確認
-        const topCard = deck[0];
+        const topCard = myDeck[0];
         addLog(`エクラシアの時空炉の効果: デッキトップを確認 - ${topCard.name}`, 'info');
 
         if (topCard.attribute === '未来') {
           // 未来属性なら手札に加える
-          setDeck((prev) => prev.slice(1));
-          setHand((prev) => [...prev, topCard]);
+          setMyDeck((prev) => prev.slice(1));
+          setMyHand((prev) => [...prev, topCard]);
           addLog(`${topCard.name}は未来属性！手札に加えた`, 'info');
         } else {
           // 未来属性でなければ墓地に送る
-          setDeck((prev) => prev.slice(1));
-          setGraveyard((prev) => [...prev, topCard]);
+          setMyDeck((prev) => prev.slice(1));
+          setMyGraveyard((prev) => [...prev, topCard]);
           addLog(`${topCard.name}は未来属性ではない。墓地に送った`, 'info');
         }
       },
@@ -793,36 +660,23 @@ export const futureCardTriggers = {
       activationType: ACTIVATION_TYPES.AUTOMATIC,
       description: 'デッキ上2枚を見て、1枚を手札に加え、残りをデッキ下に戻す',
       effect: (context) => {
-        const {
-          currentPlayer,
-          p1Deck,
-          p2Deck,
-          setP1Deck,
-          setP2Deck,
-          setP1Hand,
-          setP2Hand,
-          addLog,
-          setPendingDeckReview,
-        } = context;
+        const { addLog, setPendingDeckReview } = context;
+        const { myDeck, setMyDeck, setMyHand } = getPlayerContext(context);
 
-        const deck = currentPlayer === 1 ? p1Deck : p2Deck;
-        const setDeck = currentPlayer === 1 ? setP1Deck : setP2Deck;
-        const setHand = currentPlayer === 1 ? setP1Hand : setP2Hand;
-
-        if (deck.length === 0) {
+        if (myDeck.length === 0) {
           addLog('デッキにカードがありません', 'info');
           return;
         }
 
         // デッキ上2枚を確認
-        const cardCount = Math.min(2, deck.length);
-        const topCards = deck.slice(0, cardCount);
+        const cardCount = Math.min(2, myDeck.length);
+        const topCards = myDeck.slice(0, cardCount);
         addLog(`星辰の魔導術師の効果: デッキ上${cardCount}枚を確認`, 'info');
 
         if (cardCount === 1) {
           // 1枚しかない場合、その1枚を自動で手札に
-          setHand((prev) => [...prev, topCards[0]]);
-          setDeck((prev) => prev.slice(1));
+          setMyHand((prev) => [...prev, topCards[0]]);
+          setMyDeck((prev) => prev.slice(1));
           addLog(`${topCards[0].name}を手札に加えた`, 'info');
         } else {
           // 2枚ある場合、プレイヤーに選択させる
@@ -836,8 +690,8 @@ export const futureCardTriggers = {
               const cardToHand = selectedCards[0];
               const cardToBottom = remainingCards[0];
 
-              setHand((prev) => [...prev, cardToHand]);
-              setDeck((prev) => {
+              setMyHand((prev) => [...prev, cardToHand]);
+              setMyDeck((prev) => {
                 const deckWithoutTop = prev.slice(cardCount);
                 return [...deckWithoutTop, cardToBottom];
               });

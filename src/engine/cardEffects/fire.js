@@ -3,6 +3,7 @@
 // ========================================
 
 import {
+  getPlayerContext,
   millDeck,
   conditionalDamage,
   searchCard,
@@ -21,21 +22,11 @@ export const fireCardEffects = {
    * 基本技：自身の攻撃力の半分のダメージを相手モンスター1体に与える
    */
   C0000021: (skillText, context) => {
-    const {
-      addLog,
-      currentPlayer,
-      monsterIndex,
-      p1Field, p2Field,
-      setP1Field, setP2Field,
-      setPendingTargetSelection,
-    } = context;
+    const { addLog, monsterIndex, setPendingTargetSelection } = context;
+    const { myField, opponentField, setOpponentField } = getPlayerContext(context);
 
     if (context.skillType === 'basic') {
-      const currentField = currentPlayer === 1 ? p1Field : p2Field;
-      const opponentField = currentPlayer === 1 ? p2Field : p1Field;
-      const setOpponentField = currentPlayer === 1 ? setP2Field : setP1Field;
-
-      const monster = currentField[monsterIndex];
+      const monster = myField[monsterIndex];
       if (!monster) {
         addLog('モンスターが存在しません', 'damage');
         return false;
@@ -133,9 +124,8 @@ export const fireCardEffects = {
    * 【召喚時】場にいる全ての炎属性モンスターに3000ダメージを与え、破壊したモンスター×600のダメージを相手プレイヤーに与える
    */
   C0000161: (skillText, context) => {
+    const { addLog } = context;
     const {
-      addLog,
-      currentPlayer,
       p1Field, p2Field,
       setP1Field, setP2Field,
       setP1Graveyard, setP2Graveyard,
@@ -150,7 +140,6 @@ export const fireCardEffects = {
         const setField = player === 1 ? setP1Field : setP2Field;
         const setGraveyard = player === 1 ? setP1Graveyard : setP2Graveyard;
 
-        const fireMonsters = field.filter(m => m && m.attribute === '炎');
         const destroyedMonsters = [];
 
         setField(prev => prev.map(m => {
@@ -226,26 +215,14 @@ export const fireCardEffects = {
    * 【召喚時】自分のSPを1減らすことで相手の場にいるモンスター1体に2000ダメージ
    */
   C0000169: (skillText, context) => {
-    const {
-      addLog,
-      currentPlayer,
-      p1ActiveSP, p2ActiveSP,
-      setP1ActiveSP, setP2ActiveSP,
-      setP1RestedSP, setP2RestedSP,
-    } = context;
+    const { addLog } = context;
+    const { myActiveSP, setMyActiveSP, setMyRestedSP } = getPlayerContext(context);
 
     if (skillText.includes('【召喚時】')) {
-      const activeSP = currentPlayer === 1 ? p1ActiveSP : p2ActiveSP;
-
-      if (activeSP >= 1) {
+      if (myActiveSP >= 1) {
         // SP消費
-        if (currentPlayer === 1) {
-          setP1ActiveSP(prev => prev - 1);
-          setP1RestedSP(prev => prev + 1);
-        } else {
-          setP2ActiveSP(prev => prev - 1);
-          setP2RestedSP(prev => prev + 1);
-        }
+        setMyActiveSP(prev => prev - 1);
+        setMyRestedSP(prev => prev + 1);
 
         conditionalDamage(context, 2000, 'opponent_monster', 0);
         return true;
@@ -262,33 +239,24 @@ export const fireCardEffects = {
    * 【召喚時】自分の場にいる《岩狸》モンスター1体を破壊し、その攻撃力の半分のダメージを相手プレイヤーに与える
    */
   C0000171: (skillText, context) => {
-    const {
-      addLog,
-      currentPlayer,
-      p1Field, p2Field,
-      setP1Field, setP2Field,
-      setP1Graveyard, setP2Graveyard,
-    } = context;
+    const { addLog } = context;
+    const { myField, setMyField, setMyGraveyard } = getPlayerContext(context);
 
     if (skillText.includes('【召喚時】')) {
-      const currentField = currentPlayer === 1 ? p1Field : p2Field;
-      const setField = currentPlayer === 1 ? setP1Field : setP2Field;
-      const setGraveyard = currentPlayer === 1 ? setP1Graveyard : setP2Graveyard;
-
-      const tanukiMonsters = currentField.filter(m => m && m.name && m.name.includes('岩狸'));
+      const tanukiMonsters = myField.filter(m => m && m.name && m.name.includes('岩狸'));
 
       if (tanukiMonsters.length > 0) {
         const target = tanukiMonsters[0];
         const damage = Math.floor(target.attack / 2);
 
         // モンスターを破壊
-        setField(prev => prev.map(m => {
+        setMyField(prev => prev.map(m => {
           if (m && m.uniqueId === target.uniqueId) {
             return null;
           }
           return m;
         }));
-        setGraveyard(prev => [...prev, target]);
+        setMyGraveyard(prev => [...prev, target]);
 
         addLog(`${target.name}を破壊`, 'damage');
 
@@ -308,23 +276,14 @@ export const fireCardEffects = {
    * 【召喚時】自分の手札1枚を墓地に送り、相手プレイヤーに600ダメージを与える
    */
   C0000369: (skillText, context) => {
-    const {
-      addLog,
-      currentPlayer,
-      p1Hand, p2Hand,
-      setP1Hand, setP2Hand,
-      setP1Graveyard, setP2Graveyard,
-    } = context;
+    const { addLog } = context;
+    const { myHand, setMyHand, setMyGraveyard } = getPlayerContext(context);
 
     if (skillText.includes('【召喚時】')) {
-      const currentHand = currentPlayer === 1 ? p1Hand : p2Hand;
-      const setHand = currentPlayer === 1 ? setP1Hand : setP2Hand;
-      const setGraveyard = currentPlayer === 1 ? setP1Graveyard : setP2Graveyard;
-
-      if (currentHand.length > 0) {
-        const discardedCard = currentHand[0];
-        setHand(prev => prev.slice(1));
-        setGraveyard(prev => [...prev, discardedCard]);
+      if (myHand.length > 0) {
+        const discardedCard = myHand[0];
+        setMyHand(prev => prev.slice(1));
+        setMyGraveyard(prev => [...prev, discardedCard]);
         addLog(`手札から「${discardedCard.name}」を墓地に送った`, 'info');
 
         conditionalDamage(context, 600, 'opponent');
@@ -368,26 +327,17 @@ export const fireCardEffects = {
    * 【召喚時】自分の墓地のコスト3の魔法カード1枚を手札に戻す
    */
   C0000398: (skillText, context) => {
-    const {
-      addLog,
-      currentPlayer,
-      p1Graveyard, p2Graveyard,
-      setP1Graveyard, setP2Graveyard,
-      setP1Hand, setP2Hand,
-    } = context;
+    const { addLog } = context;
+    const { myGraveyard, setMyGraveyard, setMyHand } = getPlayerContext(context);
 
     if (skillText.includes('【召喚時】')) {
-      const currentGraveyard = currentPlayer === 1 ? p1Graveyard : p2Graveyard;
-      const setGraveyard = currentPlayer === 1 ? setP1Graveyard : setP2Graveyard;
-      const setHand = currentPlayer === 1 ? setP1Hand : setP2Hand;
-
-      const targetCard = currentGraveyard.find(card =>
+      const targetCard = myGraveyard.find(card =>
         card.type === 'magic' && card.cost === 3
       );
 
       if (targetCard) {
-        setGraveyard(prev => prev.filter(c => c.uniqueId !== targetCard.uniqueId));
-        setHand(prev => [...prev, targetCard]);
+        setMyGraveyard(prev => prev.filter(c => c.uniqueId !== targetCard.uniqueId));
+        setMyHand(prev => [...prev, targetCard]);
         addLog(`墓地から「${targetCard.name}」を手札に戻した`, 'info');
         return true;
       } else {
@@ -403,43 +353,28 @@ export const fireCardEffects = {
    * 基本技：自分の手札を1枚捨てて、このカードの攻撃力をターン終了時まで1000アップ
    */
   C0000023: (skillText, context) => {
-    const {
-      addLog,
-      currentPlayer,
-      monsterIndex,
-      p1Hand, p2Hand,
-      setP1Hand, setP2Hand,
-      p1Field, p2Field,
-      setP1Field, setP2Field,
-      setP1Graveyard, setP2Graveyard,
-      setPendingHandSelection,
-    } = context;
+    const { addLog, monsterIndex, setPendingHandSelection } = context;
+    const { myHand, setMyHand, myField, setMyField, setMyGraveyard } = getPlayerContext(context);
 
     if (context.skillType === 'basic') {
-      const currentHand = currentPlayer === 1 ? p1Hand : p2Hand;
-      const setHand = currentPlayer === 1 ? setP1Hand : setP2Hand;
-      const currentField = currentPlayer === 1 ? p1Field : p2Field;
-      const setField = currentPlayer === 1 ? setP1Field : setP2Field;
-      const setGraveyard = currentPlayer === 1 ? setP1Graveyard : setP2Graveyard;
-
-      const monster = currentField[monsterIndex];
+      const monster = myField[monsterIndex];
       if (!monster) {
         addLog('モンスターが存在しません', 'damage');
         return false;
       }
 
       // 手札がない場合は失敗
-      if (currentHand.length === 0) {
+      if (myHand.length === 0) {
         addLog('レッドバーストドラゴンの基本技: 手札がありません', 'info');
         return false;
       }
 
       // 1枚のみの場合は自動選択
-      if (currentHand.length === 1) {
-        const discardedCard = currentHand[0];
-        setHand([]);
-        setGraveyard(prev => [...prev, discardedCard]);
-        setField(prev => prev.map((m, idx) => {
+      if (myHand.length === 1) {
+        const discardedCard = myHand[0];
+        setMyHand([]);
+        setMyGraveyard(prev => [...prev, discardedCard]);
+        setMyField(prev => prev.map((m, idx) => {
           if (idx === monsterIndex && m) {
             const newAttack = m.attack + 1000;
             return { ...m, attack: newAttack };
@@ -456,9 +391,9 @@ export const fireCardEffects = {
           message: '捨てる手札を1枚選択してください',
           filter: () => true, // 全ての手札が対象
           callback: (selectedCard) => {
-            setHand(prev => prev.filter(c => c.uniqueId !== selectedCard.uniqueId));
-            setGraveyard(prev => [...prev, selectedCard]);
-            setField(prev => prev.map((m, idx) => {
+            setMyHand(prev => prev.filter(c => c.uniqueId !== selectedCard.uniqueId));
+            setMyGraveyard(prev => [...prev, selectedCard]);
+            setMyField(prev => prev.map((m, idx) => {
               if (idx === monsterIndex && m) {
                 const newAttack = m.attack + 1000;
                 return { ...m, attack: newAttack };
@@ -472,10 +407,10 @@ export const fireCardEffects = {
       }
 
       // フォールバック: 最初の手札を選択
-      const discardedCard = currentHand[0];
-      setHand(prev => prev.slice(1));
-      setGraveyard(prev => [...prev, discardedCard]);
-      setField(prev => prev.map((m, idx) => {
+      const discardedCard = myHand[0];
+      setMyHand(prev => prev.slice(1));
+      setMyGraveyard(prev => [...prev, discardedCard]);
+      setMyField(prev => prev.map((m, idx) => {
         if (idx === monsterIndex && m) {
           const newAttack = m.attack + 1000;
           return { ...m, attack: newAttack };
@@ -493,23 +428,11 @@ export const fireCardEffects = {
    * 基本技：自身の攻撃力の半分のダメージを相手モンスター1体に与える
    */
   C0000025: (skillText, context) => {
-    const {
-      addLog,
-      currentPlayer,
-      monsterIndex,
-      p1Field, p2Field,
-      setP1Field, setP2Field,
-      setP1Graveyard, setP2Graveyard,
-      setPendingTargetSelection,
-    } = context;
+    const { addLog, monsterIndex, setPendingTargetSelection } = context;
+    const { myField, opponentField, setOpponentField, setOpponentGraveyard } = getPlayerContext(context);
 
     if (context.skillType === 'basic') {
-      const currentField = currentPlayer === 1 ? p1Field : p2Field;
-      const opponentField = currentPlayer === 1 ? p2Field : p1Field;
-      const setOpponentField = currentPlayer === 1 ? setP2Field : setP1Field;
-      const setOpponentGraveyard = currentPlayer === 1 ? setP2Graveyard : setP1Graveyard;
-
-      const monster = currentField[monsterIndex];
+      const monster = myField[monsterIndex];
       if (!monster) {
         addLog('モンスターが存在しません', 'damage');
         return false;

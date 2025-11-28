@@ -7,6 +7,7 @@
 
 import { TRIGGER_TYPES, ACTIVATION_TYPES, TRIGGER_PRIORITIES } from '../triggerTypes';
 import {
+  getPlayerContext,
   millDeck,
   conditionalDamage,
   searchCard,
@@ -53,9 +54,9 @@ export const fireCardTriggers = {
       activationType: ACTIVATION_TYPES.AUTOMATIC,
       description: 'バトルフェイズ開始時: 相手に300ダメージ',
       effect: (context) => {
-        const { currentPlayer, p1Field, p2Field, monsterIndex, addLog } = context;
-        const field = currentPlayer === 1 ? p1Field : p2Field;
-        const monster = field[monsterIndex];
+        const { monsterIndex, addLog } = context;
+        const { myField } = getPlayerContext(context);
+        const monster = myField[monsterIndex];
 
         // 覚醒状態チェック（攻撃力が初期値より高い場合など）
         const isAwakened = monster && monster.awakened;
@@ -148,11 +149,11 @@ export const fireCardTriggers = {
       activationType: ACTIVATION_TYPES.AUTOMATIC,
       description: '常時: ［ドラゴン］がいる時、攻撃力+400',
       effect: (context) => {
-        const { currentPlayer, p1Field, p2Field, monsterIndex } = context;
-        const field = currentPlayer === 1 ? p1Field : p2Field;
+        const { monsterIndex } = context;
+        const { myField } = getPlayerContext(context);
 
         // 場に［ドラゴン］がいるかチェック
-        const hasDragon = field.some((monster, idx) =>
+        const hasDragon = myField.some((monster, idx) =>
           monster &&
           idx !== monsterIndex &&
           hasCategory(monster, '【ドラゴン】')
@@ -268,17 +269,18 @@ export const fireCardTriggers = {
       activationType: ACTIVATION_TYPES.OPTIONAL,
       description: '召喚時: 相手モンスター1体の攻撃力-500',
       effect: (context) => {
-        const { p2Field, addLog } = context;
+        const { addLog } = context;
+        const { opponentField } = getPlayerContext(context);
 
         // 相手のフィールドにモンスターがいるかチェック
-        const opponentMonsters = p2Field.filter((m) => m !== null);
+        const opponentMonsters = opponentField.filter((m) => m !== null);
         if (opponentMonsters.length === 0) {
           addLog('岩狸・熔岩守の効果: 相手フィールドにモンスターがいません', 'info');
           return;
         }
 
         // 最初のモンスターをターゲット（UIで選択させるべきだが、簡略化）
-        const targetIndex = p2Field.findIndex((m) => m !== null);
+        const targetIndex = opponentField.findIndex((m) => m !== null);
         if (targetIndex !== -1) {
           modifyAttack(context, -500, targetIndex, true, false); // temporary
           addLog('岩狸・熔岩守の効果: 相手モンスターの攻撃力-500', 'info');
@@ -350,13 +352,13 @@ export const fireCardTriggers = {
       activationType: ACTIVATION_TYPES.AUTOMATIC,
       description: '攻撃時: 相手モンスターに400、フィールドありで相手に300',
       effect: (context) => {
-        const { currentPlayer, p1FieldCard, p2FieldCard, addLog } = context;
-        const fieldCard = currentPlayer === 1 ? p1FieldCard : p2FieldCard;
+        const { addLog } = context;
+        const { myFieldCard } = getPlayerContext(context);
 
         // TODO: 攻撃対象のモンスターに400ダメージ（攻撃対象が必要）
         addLog('熱き剣士セイニーの効果: 相手モンスターに400ダメージ', 'damage');
 
-        if (fieldCard) {
+        if (myFieldCard) {
           addLog('熱き剣士セイニーの追加効果: 相手プレイヤーに300ダメージ', 'damage');
           conditionalDamage(context, 300, 'opponent');
         }
@@ -374,32 +376,26 @@ export const fireCardTriggers = {
       activationType: ACTIVATION_TYPES.OPTIONAL,
       description: '召喚時: SP1消費で相手モンスター1体に2000ダメージ',
       effect: (context) => {
-        const { currentPlayer, p1ActiveSP, p2ActiveSP, setP1ActiveSP, setP2ActiveSP,
-                p2Field, addLog } = context;
+        const { addLog } = context;
+        const { myActiveSP, setMyActiveSP, opponentField } = getPlayerContext(context);
 
-        const activeSP = currentPlayer === 1 ? p1ActiveSP : p2ActiveSP;
-
-        if (activeSP < 1) {
+        if (myActiveSP < 1) {
           addLog('岩狸・火山頭の効果: SPが不足しています', 'damage');
           return;
         }
 
         // 相手のフィールドにモンスターがいるかチェック
-        const opponentMonsters = p2Field.filter((m) => m !== null);
+        const opponentMonsters = opponentField.filter((m) => m !== null);
         if (opponentMonsters.length === 0) {
           addLog('岩狸・火山頭の効果: 相手フィールドにモンスターがいません', 'info');
           return;
         }
 
         // SP消費
-        if (currentPlayer === 1) {
-          setP1ActiveSP((prev) => prev - 1);
-        } else {
-          setP2ActiveSP((prev) => prev - 1);
-        }
+        setMyActiveSP((prev) => prev - 1);
 
         // 最初のモンスターに2000ダメージ（UIで選択させるべきだが、簡略化）
-        const targetIndex = p2Field.findIndex((m) => m !== null);
+        const targetIndex = opponentField.findIndex((m) => m !== null);
         if (targetIndex !== -1) {
           conditionalDamage(context, 2000, 'opponent_monster', targetIndex);
           addLog('岩狸・火山頭の効果: 相手モンスターに2000ダメージ', 'damage');
@@ -418,11 +414,11 @@ export const fireCardTriggers = {
       activationType: ACTIVATION_TYPES.AUTOMATIC,
       description: '常時: ［マグマフォージ］1体につき攻撃力+500',
       effect: (context) => {
-        const { currentPlayer, p1Field, p2Field, monsterIndex } = context;
-        const field = currentPlayer === 1 ? p1Field : p2Field;
+        const { monsterIndex } = context;
+        const { myField } = getPlayerContext(context);
 
         // 場に［マグマフォージ］が何体いるかカウント
-        const magmaForgeCount = field.filter((monster, idx) =>
+        const magmaForgeCount = myField.filter((monster, idx) =>
           monster &&
           idx !== monsterIndex &&
           hasCategory(monster, '【マグマフォージ】')
@@ -446,11 +442,11 @@ export const fireCardTriggers = {
       activationType: ACTIVATION_TYPES.OPTIONAL,
       description: '召喚時: 《岩狸》1体破壊、攻撃力半分を相手に',
       effect: (context) => {
-        const { currentPlayer, p1Field, p2Field, monsterIndex, addLog } = context;
-        const field = currentPlayer === 1 ? p1Field : p2Field;
+        const { monsterIndex, addLog } = context;
+        const { myField } = getPlayerContext(context);
 
         // 自分以外の《岩狸》を探す
-        const tanukiIndex = field.findIndex((monster, idx) =>
+        const tanukiIndex = myField.findIndex((monster, idx) =>
           monster &&
           idx !== monsterIndex &&
           monster.name &&
@@ -462,7 +458,7 @@ export const fireCardTriggers = {
           return;
         }
 
-        const targetMonster = field[tanukiIndex];
+        const targetMonster = myField[tanukiIndex];
         const damageAmount = Math.floor(targetMonster.attack / 2);
 
         // モンスターを破壊
@@ -547,11 +543,11 @@ export const fireCardTriggers = {
       activationType: ACTIVATION_TYPES.OPTIONAL,
       description: '召喚時: 自分のモンスター1体破壊、相手に1000ダメージ',
       effect: (context) => {
-        const { currentPlayer, p1Field, p2Field, monsterIndex, addLog } = context;
-        const field = currentPlayer === 1 ? p1Field : p2Field;
+        const { monsterIndex, addLog } = context;
+        const { myField } = getPlayerContext(context);
 
         // 自分以外のモンスターを探す
-        const targetIndex = field.findIndex((monster, idx) =>
+        const targetIndex = myField.findIndex((monster, idx) =>
           monster && idx !== monsterIndex
         );
 
@@ -597,22 +593,18 @@ export const fireCardTriggers = {
       activationType: ACTIVATION_TYPES.OPTIONAL,
       description: '召喚時: 手札1枚捨て、相手に600ダメージ',
       effect: (context) => {
-        const { currentPlayer, p1Hand, p2Hand, setP1Hand, setP2Hand,
-                p1Graveyard, p2Graveyard, setP1Graveyard, setP2Graveyard, addLog } = context;
+        const { addLog } = context;
+        const { myHand, setMyHand, setMyGraveyard } = getPlayerContext(context);
 
-        const hand = currentPlayer === 1 ? p1Hand : p2Hand;
-        const setHand = currentPlayer === 1 ? setP1Hand : setP2Hand;
-        const setGraveyard = currentPlayer === 1 ? setP1Graveyard : setP2Graveyard;
-
-        if (hand.length === 0) {
+        if (myHand.length === 0) {
           addLog('炎翼の鳥民・イグニスの効果: 手札がありません', 'info');
           return;
         }
 
         // 最初のカードを墓地に送る（UIで選択させるべきだが、簡略化）
-        const discardedCard = hand[0];
-        setHand((prev) => prev.slice(1));
-        setGraveyard((prev) => [...prev, discardedCard]);
+        const discardedCard = myHand[0];
+        setMyHand((prev) => prev.slice(1));
+        setMyGraveyard((prev) => [...prev, discardedCard]);
 
         addLog(`${discardedCard.name}を墓地に送った`, 'info');
         conditionalDamage(context, 600, 'opponent');
@@ -678,15 +670,11 @@ export const fireCardTriggers = {
       activationType: ACTIVATION_TYPES.AUTOMATIC,
       description: '召喚時: 墓地のコスト3魔法カードをサルベージ',
       effect: (context) => {
-        const { currentPlayer, p1Graveyard, p2Graveyard, setP1Graveyard, setP2Graveyard,
-                p1Hand, p2Hand, setP1Hand, setP2Hand, addLog } = context;
-
-        const graveyard = currentPlayer === 1 ? p1Graveyard : p2Graveyard;
-        const setGraveyard = currentPlayer === 1 ? setP1Graveyard : setP2Graveyard;
-        const setHand = currentPlayer === 1 ? setP1Hand : setP2Hand;
+        const { addLog } = context;
+        const { myGraveyard, setMyGraveyard, setMyHand } = getPlayerContext(context);
 
         // 墓地からコスト3の魔法カードを探す
-        const targetCard = graveyard.find((card) =>
+        const targetCard = myGraveyard.find((card) =>
           card.type === 'magic' && card.cost === 3
         );
 
@@ -696,8 +684,8 @@ export const fireCardTriggers = {
         }
 
         // 墓地から手札に戻す
-        setGraveyard((prev) => prev.filter((c) => c.uniqueId !== targetCard.uniqueId));
-        setHand((prev) => [...prev, targetCard]);
+        setMyGraveyard((prev) => prev.filter((c) => c.uniqueId !== targetCard.uniqueId));
+        setMyHand((prev) => [...prev, targetCard]);
         addLog(`${targetCard.name}を手札に戻した`, 'info');
       },
     },
@@ -729,11 +717,12 @@ export const fireCardTriggers = {
       activationType: ACTIVATION_TYPES.AUTOMATIC,
       description: 'ターン開始時: 相手フィールド全体に300',
       effect: (context) => {
-        const { p2Field, setP2Field, addLog } = context;
+        const { addLog } = context;
+        const { setOpponentField } = getPlayerContext(context);
 
         addLog('峠の暴君ヴェルミグノスの効果: 相手フィールド全体に300ダメージ', 'damage');
 
-        setP2Field((prev) => {
+        setOpponentField((prev) => {
           return prev.map((monster) => {
             if (monster) {
               const newHp = monster.currentHp - 300;
@@ -799,21 +788,8 @@ export const fireCardTriggers = {
       activationType: ACTIVATION_TYPES.AUTOMATIC,
       description: 'エンドフェイズ時: 相手モンスターに300ダメージ、炎モンスターがいれば相手に400ダメージ',
       effect: (context) => {
-        const {
-          currentPlayer,
-          p1Field, p2Field,
-          setP1Field, setP2Field,
-          setP1Life, setP2Life,
-          p1Graveyard, p2Graveyard,
-          setP1Graveyard, setP2Graveyard,
-          addLog,
-        } = context;
-
-        const myField = currentPlayer === 1 ? p1Field : p2Field;
-        const opponentField = currentPlayer === 1 ? p2Field : p1Field;
-        const setOpponentField = currentPlayer === 1 ? setP2Field : setP1Field;
-        const setOpponentLife = currentPlayer === 1 ? setP2Life : setP1Life;
-        const setOpponentGraveyard = currentPlayer === 1 ? setP2Graveyard : setP1Graveyard;
+        const { addLog } = context;
+        const { myField, opponentField, setOpponentField, setOpponentLife, setOpponentGraveyard } = getPlayerContext(context);
 
         // 相手モンスター全体に300ダメージ
         let destroyedMonsters = [];

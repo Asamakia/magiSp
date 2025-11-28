@@ -3,6 +3,7 @@
 // ========================================
 
 import {
+  getPlayerContext,
   conditionalDamage,
   searchCard,
   reviveFromGraveyard,
@@ -21,12 +22,8 @@ export const primitiveCardEffects = {
    */
   C0000002: (skillText, context) => {
     if (context.skillType === 'basic') {
-      const {
-        addLog,
-        currentPlayer,
-        setP1MagicBlocked,
-        setP2MagicBlocked,
-      } = context;
+      // setP1MagicBlocked/setP2MagicBlockedは特殊なステートのためcontext直接参照
+      const { addLog, currentPlayer, setP1MagicBlocked, setP2MagicBlocked } = context;
 
       // 相手の魔法カード使用をブロック
       if (currentPlayer === 1) {
@@ -63,22 +60,11 @@ export const primitiveCardEffects = {
    */
   C0000009: (skillText, context) => {
     if (context.skillType === 'basic') {
-      const {
-        addLog,
-        currentPlayer,
-        monsterIndex,
-        p1Field, p2Field,
-        setP1Field, setP2Field,
-        setPendingMonsterTarget,
-      } = context;
-
-      const currentField = currentPlayer === 1 ? p1Field : p2Field;
-      const setField = currentPlayer === 1 ? setP1Field : setP2Field;
-      const opponentField = currentPlayer === 1 ? p2Field : p1Field;
-      const setOpponentField = currentPlayer === 1 ? setP2Field : setP1Field;
+      const { addLog, monsterIndex, setPendingMonsterTarget } = context;
+      const { myField, setMyField, opponentField, setOpponentField, currentPlayer } = getPlayerContext(context);
 
       // このカードの情報を取得
-      const thisMonster = currentField[monsterIndex];
+      const thisMonster = myField[monsterIndex];
       if (!thisMonster) {
         addLog('粘液獣・寄生: カードが見つかりません', 'info');
         return false;
@@ -92,7 +78,7 @@ export const primitiveCardEffects = {
       }
 
       // 場の粘液獣の数をカウント（自分を除く）
-      const slimeCount = currentField.filter((m, idx) =>
+      const slimeCount = myField.filter((m, idx) =>
         m && idx !== monsterIndex && hasCategory(m, '【スライム】')
       ).length;
 
@@ -108,7 +94,7 @@ export const primitiveCardEffects = {
           if (!target) return;
 
           // このカードを自分フィールドから除去（墓地には送らない、寄生として付与）
-          setField(prev => prev.map((m, idx) => {
+          setMyField(prev => prev.map((m, idx) => {
             if (idx === monsterIndex) {
               return null;
             }
@@ -153,27 +139,18 @@ export const primitiveCardEffects = {
    * 基本技：場にいる時一度だけ相手モンスター1体を飲み込んで無効化する
    */
   C0000006: (skillText, context) => {
-    const {
-      addLog,
-      currentPlayer,
-      monsterIndex,
-      p1Field, p2Field,
-      setP1Field, setP2Field,
-      setPendingMonsterTarget,
-    } = context;
+    const { addLog, monsterIndex, setPendingMonsterTarget } = context;
+    const { myField, setMyField, opponentField, setOpponentField } = getPlayerContext(context);
 
     // 召喚時効果（トリガーで処理されるが、フォールバック用）
     if (skillText.includes('【召喚時】')) {
-      const currentField = currentPlayer === 1 ? p1Field : p2Field;
-      const setField = currentPlayer === 1 ? setP1Field : setP2Field;
-
-      const slimeCount = currentField.filter(m =>
+      const slimeCount = myField.filter(m =>
         m && m.name && m.name.includes('粘液獣')
       ).length;
 
       if (slimeCount > 0) {
         const atkBoost = slimeCount * 1000;
-        setField(prev => prev.map((m, idx) => {
+        setMyField(prev => prev.map((m, idx) => {
           if (idx === monsterIndex && m) {
             const newAttack = m.attack + atkBoost;
             const newCurrentAttack = (m.currentAttack || m.attack) + atkBoost;
@@ -189,13 +166,8 @@ export const primitiveCardEffects = {
 
     // 基本技：相手モンスター1体を飲み込む（1回限り、2ターン後に消化）
     if (context.skillType === 'basic') {
-      const currentField = currentPlayer === 1 ? p1Field : p2Field;
-      const setField = currentPlayer === 1 ? setP1Field : setP2Field;
-      const opponentField = currentPlayer === 1 ? p2Field : p1Field;
-      const setOpponentField = currentPlayer === 1 ? setP2Field : setP1Field;
-
       // このカードの情報を取得
-      const thisMonster = currentField[monsterIndex];
+      const thisMonster = myField[monsterIndex];
       if (!thisMonster) {
         addLog('新・超覚醒粘液獣ハイパー: カードが見つかりません', 'info');
         return false;
@@ -231,7 +203,7 @@ export const primitiveCardEffects = {
           }));
 
           // 自身に飲み込んだモンスターを保存（2ターン後に消化）
-          setField(prev => prev.map((m, idx) => {
+          setMyField(prev => prev.map((m, idx) => {
             if (idx === monsterIndex && m) {
               return {
                 ...m,
@@ -271,31 +243,21 @@ export const primitiveCardEffects = {
    * 【召喚時】このカードと場の他の《粘液獣》1体を融合し、このカードの攻撃力を融合素材の合計に変更する
    */
   C0000010: (skillText, context) => {
-    const {
-      addLog,
-      currentPlayer,
-      monsterIndex,
-      p1Field, p2Field,
-      setP1Field, setP2Field,
-      setP1Graveyard, setP2Graveyard,
-    } = context;
+    const { addLog, monsterIndex } = context;
+    const { myField, setMyField, setMyGraveyard } = getPlayerContext(context);
 
     if (skillText.includes('【召喚時】')) {
-      const currentField = currentPlayer === 1 ? p1Field : p2Field;
-      const setField = currentPlayer === 1 ? setP1Field : setP2Field;
-      const setGraveyard = currentPlayer === 1 ? setP1Graveyard : setP2Graveyard;
-
-      const slimes = currentField.filter((m, idx) =>
+      const slimes = myField.filter((m, idx) =>
         m && idx !== monsterIndex && m.name && m.name.includes('粘液獣')
       );
 
       if (slimes.length > 0) {
         const target = slimes[0];
-        const fusionMonster = currentField[monsterIndex];
+        const fusionMonster = myField[monsterIndex];
         const newAtk = fusionMonster.attack + target.attack;
 
         // 融合素材を墓地に送る
-        setField(prev => prev.map((m, idx) => {
+        setMyField(prev => prev.map((m, idx) => {
           if (m && m.uniqueId === target.uniqueId) {
             return null;
           }
@@ -304,7 +266,7 @@ export const primitiveCardEffects = {
           }
           return m;
         }));
-        setGraveyard(prev => [...prev, target]);
+        setMyGraveyard(prev => [...prev, target]);
 
         addLog(`${target.name}を融合！攻撃力が${newAtk}に変更`, 'info');
         return true;
@@ -321,20 +283,11 @@ export const primitiveCardEffects = {
    * 【召喚時】場にいる《粘液獣》1体を破壊し、そのコスト×300ダメージを相手プレイヤーに与える
    */
   C0000011: (skillText, context) => {
-    const {
-      addLog,
-      currentPlayer,
-      p1Field, p2Field,
-      setP1Field, setP2Field,
-      setP1Graveyard, setP2Graveyard,
-    } = context;
+    const { addLog } = context;
+    const { myField, setMyField, setMyGraveyard } = getPlayerContext(context);
 
     if (skillText.includes('【召喚時】')) {
-      const currentField = currentPlayer === 1 ? p1Field : p2Field;
-      const setField = currentPlayer === 1 ? setP1Field : setP2Field;
-      const setGraveyard = currentPlayer === 1 ? setP1Graveyard : setP2Graveyard;
-
-      const slimes = currentField.filter(m =>
+      const slimes = myField.filter(m =>
         m && m.name && m.name.includes('粘液獣')
       );
 
@@ -343,13 +296,13 @@ export const primitiveCardEffects = {
         const damage = target.cost * 300;
 
         // モンスターを破壊
-        setField(prev => prev.map(m => {
+        setMyField(prev => prev.map(m => {
           if (m && m.uniqueId === target.uniqueId) {
             return null;
           }
           return m;
         }));
-        setGraveyard(prev => [...prev, target]);
+        setMyGraveyard(prev => [...prev, target]);
 
         addLog(`${target.name}を破壊`, 'damage');
         conditionalDamage(context, damage, 'opponent');
@@ -381,17 +334,10 @@ export const primitiveCardEffects = {
    * 【召喚時】相手モンスター1体の攻撃力をターン終了時まで0にする
    */
   C0000128: (skillText, context) => {
-    const {
-      addLog,
-      currentPlayer,
-      p1Field, p2Field,
-      setP1Field, setP2Field,
-    } = context;
+    const { addLog } = context;
+    const { opponentField, setOpponentField } = getPlayerContext(context);
 
     if (skillText.includes('【召喚時】')) {
-      const opponentField = currentPlayer === 1 ? p2Field : p1Field;
-      const setOpponentField = currentPlayer === 1 ? setP2Field : setP1Field;
-
       const monsters = opponentField.filter(m => m !== null);
       if (monsters.length === 0) {
         addLog('相手モンスターがいません', 'info');
@@ -417,20 +363,11 @@ export const primitiveCardEffects = {
    * 場にいる《粘液獣》1体を分裂させる（攻撃力は半分になる）。
    */
   C0000012: (skillText, context) => {
-    const {
-      addLog,
-      currentPlayer,
-      p1Field,
-      p2Field,
-      setP1Field,
-      setP2Field,
-    } = context;
-
-    const currentField = currentPlayer === 1 ? p1Field : p2Field;
-    const setField = currentPlayer === 1 ? setP1Field : setP2Field;
+    const { addLog } = context;
+    const { myField, setMyField, currentPlayer } = getPlayerContext(context);
 
     // 場の粘液獣を探す
-    const slimeIndex = currentField.findIndex(
+    const slimeIndex = myField.findIndex(
       (m) => m && hasCategory(m, '【スライム】')
     );
 
@@ -440,13 +377,13 @@ export const primitiveCardEffects = {
     }
 
     // 空きスロットを探す
-    const emptySlotIndex = currentField.findIndex((slot) => slot === null);
+    const emptySlotIndex = myField.findIndex((slot) => slot === null);
     if (emptySlotIndex === -1) {
       addLog('粘液の増殖: 場が満杯のため分裂できない', 'info');
       return false;
     }
 
-    const targetSlime = currentField[slimeIndex];
+    const targetSlime = myField[slimeIndex];
 
     // 分裂: 攻撃力半分のコピーを生成
     const copy = {
@@ -462,9 +399,9 @@ export const primitiveCardEffects = {
       owner: currentPlayer,
     };
 
-    const newField = [...currentField];
+    const newField = [...myField];
     newField[emptySlotIndex] = copy;
-    setField(newField);
+    setMyField(newField);
 
     addLog(
       `粘液の増殖: ${targetSlime.name}が分裂した！（攻撃力${copy.currentAttack}）`,
@@ -479,14 +416,8 @@ export const primitiveCardEffects = {
    * そのモンスターの攻撃力を800ダウン、次のターンまで行動不能にする。
    */
   C0000013: (skillText, context) => {
-    const {
-      addLog,
-      currentPlayer,
-      attacker,
-      attackerIndex,
-      setP1Field,
-      setP2Field,
-    } = context;
+    const { addLog, attacker, attackerIndex } = context;
+    const { setOpponentField } = getPlayerContext(context);
 
     // 刹那詠唱で発動された場合のみ有効
     // attacker は攻撃宣言をしたモンスター（相手フィールドにいる）
@@ -498,7 +429,6 @@ export const primitiveCardEffects = {
     // 攻撃者は「相手フィールド」にいる
     // currentPlayer = 刹那詠唱使用者
     // 攻撃者は currentPlayer の相手のフィールドにいる
-    const setOpponentField = currentPlayer === 1 ? setP2Field : setP1Field;
 
     // 攻撃力を800ダウン & STUN（行動不能）を付与
     setOpponentField(prev => prev.map((m, idx) => {
