@@ -2967,12 +2967,19 @@ export default function MagicSpiritGame() {
                   if (triggers.length === 0) return null;
                   return (
                     <div style={{ fontSize: '10px', marginBottom: '8px', padding: '6px', background: 'rgba(157,76,230,0.15)', borderRadius: '4px' }}>
-                      <div style={{ color: '#9d4ce6', fontWeight: 'bold', marginBottom: '4px' }}>📍 発動タイミング</div>
+                      <div style={{ color: '#9d4ce6', fontWeight: 'bold', marginBottom: '6px' }}>📍 発動タイミング</div>
                       {triggers.map((trigger, i) => (
-                        <div key={i} style={{ color: '#ccc', fontSize: '9px', marginLeft: '4px' }}>
-                          ・{getTriggerDisplayName(trigger.type)}
-                          {trigger.activationType === ACTIVATION_TYPES.OPTIONAL && ' (任意)'}
-                          {trigger.description && `: ${trigger.description}`}
+                        <div key={i}>
+                          {i > 0 && <div style={{ borderTop: '1px solid rgba(157,76,230,0.3)', margin: '6px 0' }} />}
+                          <div style={{ color: '#c9a0ff', fontWeight: 'bold', fontSize: '10px', marginBottom: '2px' }}>
+                            【{getTriggerDisplayName(trigger.type)}】
+                            {trigger.activationType === ACTIVATION_TYPES.OPTIONAL && <span style={{ color: '#ff8e53', fontWeight: 'normal', marginLeft: '4px' }}>(任意)</span>}
+                          </div>
+                          {trigger.description && (
+                            <div style={{ color: '#ccc', fontSize: '9px', paddingLeft: '8px' }}>
+                              {trigger.description}
+                            </div>
+                          )}
                         </div>
                       ))}
                     </div>
@@ -3059,12 +3066,19 @@ export default function MagicSpiritGame() {
                       if (triggers.length === 0) return null;
                       return (
                         <div style={{ fontSize: '10px', marginBottom: '8px', padding: '6px', background: 'rgba(157,76,230,0.15)', borderRadius: '4px' }}>
-                          <div style={{ color: '#9d4ce6', fontWeight: 'bold', marginBottom: '4px' }}>📍 発動タイミング</div>
+                          <div style={{ color: '#9d4ce6', fontWeight: 'bold', marginBottom: '6px' }}>📍 発動タイミング</div>
                           {triggers.map((trigger, i) => (
-                            <div key={i} style={{ color: '#ccc', fontSize: '9px', marginLeft: '4px' }}>
-                              ・{getTriggerDisplayName(trigger.type)}
-                              {trigger.activationType === ACTIVATION_TYPES.OPTIONAL && ' (任意)'}
-                              {trigger.description && `: ${trigger.description}`}
+                            <div key={i}>
+                              {i > 0 && <div style={{ borderTop: '1px solid rgba(157,76,230,0.3)', margin: '6px 0' }} />}
+                              <div style={{ color: '#c9a0ff', fontWeight: 'bold', fontSize: '10px', marginBottom: '2px' }}>
+                                【{getTriggerDisplayName(trigger.type)}】
+                                {trigger.activationType === ACTIVATION_TYPES.OPTIONAL && <span style={{ color: '#ff8e53', fontWeight: 'normal', marginLeft: '4px' }}>(任意)</span>}
+                              </div>
+                              {trigger.description && (
+                                <div style={{ color: '#ccc', fontSize: '9px', paddingLeft: '8px' }}>
+                                  {trigger.description}
+                                </div>
+                              )}
                             </div>
                           ))}
                         </div>
@@ -3218,12 +3232,19 @@ export default function MagicSpiritGame() {
                     if (triggers.length === 0) return null;
                     return (
                       <div style={{ fontSize: '10px', marginBottom: '8px', padding: '6px', background: 'rgba(157,76,230,0.15)', borderRadius: '4px' }}>
-                        <div style={{ color: '#9d4ce6', fontWeight: 'bold', marginBottom: '4px' }}>📍 発動タイミング</div>
+                        <div style={{ color: '#9d4ce6', fontWeight: 'bold', marginBottom: '6px' }}>📍 発動タイミング</div>
                         {triggers.map((trigger, i) => (
-                          <div key={i} style={{ color: '#ccc', fontSize: '9px', marginLeft: '4px' }}>
-                            ・{getTriggerDisplayName(trigger.type)}
-                            {trigger.activationType === ACTIVATION_TYPES.OPTIONAL && ' (任意)'}
-                            {trigger.description && `: ${trigger.description}`}
+                          <div key={i}>
+                            {i > 0 && <div style={{ borderTop: '1px solid rgba(157,76,230,0.3)', margin: '6px 0' }} />}
+                            <div style={{ color: '#c9a0ff', fontWeight: 'bold', fontSize: '10px', marginBottom: '2px' }}>
+                              【{getTriggerDisplayName(trigger.type)}】
+                              {trigger.activationType === ACTIVATION_TYPES.OPTIONAL && <span style={{ color: '#ff8e53', fontWeight: 'normal', marginLeft: '4px' }}>(任意)</span>}
+                            </div>
+                            {trigger.description && (
+                              <div style={{ color: '#ccc', fontSize: '9px', paddingLeft: '8px' }}>
+                                {trigger.description}
+                              </div>
+                            )}
                           </div>
                         ))}
                       </div>
@@ -3320,12 +3341,19 @@ export default function MagicSpiritGame() {
                   if (triggers.length === 0) return null;
                   return (
                     <div style={{ fontSize: '10px', marginBottom: '8px', padding: '6px', background: 'rgba(157,76,230,0.15)', borderRadius: '4px' }}>
-                      <div style={{ color: '#9d4ce6', fontWeight: 'bold', marginBottom: '4px' }}>📍 発動タイミング</div>
+                      <div style={{ color: '#9d4ce6', fontWeight: 'bold', marginBottom: '6px' }}>📍 発動タイミング</div>
                       {triggers.map((trigger, i) => (
-                        <div key={i} style={{ color: '#ccc', fontSize: '9px', marginLeft: '4px' }}>
-                          ・{getTriggerDisplayName(trigger.type)}
-                          {trigger.activationType === ACTIVATION_TYPES.OPTIONAL && ' (任意)'}
-                          {trigger.description && `: ${trigger.description}`}
+                        <div key={i}>
+                          {i > 0 && <div style={{ borderTop: '1px solid rgba(157,76,230,0.3)', margin: '6px 0' }} />}
+                          <div style={{ color: '#c9a0ff', fontWeight: 'bold', fontSize: '10px', marginBottom: '2px' }}>
+                            【{getTriggerDisplayName(trigger.type)}】
+                            {trigger.activationType === ACTIVATION_TYPES.OPTIONAL && <span style={{ color: '#ff8e53', fontWeight: 'normal', marginLeft: '4px' }}>(任意)</span>}
+                          </div>
+                          {trigger.description && (
+                            <div style={{ color: '#ccc', fontSize: '9px', paddingLeft: '8px' }}>
+                              {trigger.description}
+                            </div>
+                          )}
                         </div>
                       ))}
                     </div>
