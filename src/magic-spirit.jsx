@@ -422,8 +422,8 @@ export default function MagicSpiritGame() {
         player.setActiveSP(prev => prev + player.restedSP);
         player.setRestedSP(0);
 
-        // モンスターの攻撃可能フラグをリセット
-        player.setField(prev => prev.map(m => m ? { ...m, canAttack: true } : null));
+        // モンスターの攻撃可能フラグと技発動フラグをリセット
+        player.setField(prev => prev.map(m => m ? { ...m, canAttack: true, usedSkillThisTurn: false } : null));
         setChargeUsedThisTurn(false);
 
         // 状態異常のターン開始時処理（眠り・凍結の解除判定、寄生ATK減少）
@@ -814,6 +814,12 @@ export default function MagicSpiritGame() {
       return false;
     }
 
+    // 1ターン1回制限チェック
+    if (monster.usedSkillThisTurn) {
+      addLog(`${monster.name}はこのターン既に技を発動しています`, 'damage');
+      return false;
+    }
+
     const skill = skillType === 'basic' ? monster.basicSkill : monster.advancedSkill;
     const skillName = skillType === 'basic' ? '基本技' : '上級技';
 
@@ -886,6 +892,22 @@ export default function MagicSpiritGame() {
 
     // カードIDを渡して効果を実行（カード固有処理がある場合は優先）
     const success = executeSkillEffects(skill.text, context, monster.id);
+
+    // 技発動成功時、1ターン1回制限フラグを設定
+    if (success !== false) {
+      const setField = currentPlayer === 1 ? setP1Field : setP2Field;
+      setField(prev => {
+        const newField = [...prev];
+        if (newField[monsterIndex]) {
+          newField[monsterIndex] = {
+            ...newField[monsterIndex],
+            usedSkillThisTurn: true,
+          };
+        }
+        return newField;
+      });
+    }
+
     return success;
   }, [currentPlayer, p1Field, p2Field, p1Hand, p2Hand, p1Deck, p2Deck, p1Graveyard, p2Graveyard,
       p1ActiveSP, p2ActiveSP, p1RestedSP, p2RestedSP,
@@ -3788,13 +3810,15 @@ export default function MagicSpiritGame() {
                         onClick={() => executeSkill(selectedFieldMonster, 'basic')}
                         style={{
                           ...styles.actionButton,
-                          background: 'linear-gradient(135deg, #4caf50 0%, #66bb6a 100%)',
+                          background: monster.usedSkillThisTurn
+                            ? 'linear-gradient(135deg, #666 0%, #888 100%)'
+                            : 'linear-gradient(135deg, #4caf50 0%, #66bb6a 100%)',
                           fontSize: '12px',
                           padding: '8px 16px',
                         }}
-                        disabled={!monster.charges || monster.charges.length < 1}
+                        disabled={!monster.charges || monster.charges.length < 1 || monster.usedSkillThisTurn}
                       >
-                        基本技 (チャージ{monster.charges?.length || 0}/1)
+                        基本技 (チャージ{monster.charges?.length || 0}/1){monster.usedSkillThisTurn && ' [発動済]'}
                       </button>
                     )}
                     {monster.advancedSkill && (
@@ -3802,13 +3826,15 @@ export default function MagicSpiritGame() {
                         onClick={() => executeSkill(selectedFieldMonster, 'advanced')}
                         style={{
                           ...styles.actionButton,
-                          background: 'linear-gradient(135deg, #ff9800 0%, #ffa726 100%)',
+                          background: monster.usedSkillThisTurn
+                            ? 'linear-gradient(135deg, #666 0%, #888 100%)'
+                            : 'linear-gradient(135deg, #ff9800 0%, #ffa726 100%)',
                           fontSize: '12px',
                           padding: '8px 16px',
                         }}
-                        disabled={!monster.charges || monster.charges.length < 2}
+                        disabled={!monster.charges || monster.charges.length < 2 || monster.usedSkillThisTurn}
                       >
-                        上級技 (チャージ{monster.charges?.length || 0}/2)
+                        上級技 (チャージ{monster.charges?.length || 0}/2){monster.usedSkillThisTurn && ' [発動済]'}
                       </button>
                     )}
                     {/* メインフェイズトリガー */}
@@ -3883,13 +3909,15 @@ export default function MagicSpiritGame() {
                         onClick={() => executeSkill(selectedFieldMonster, 'basic')}
                         style={{
                           ...styles.actionButton,
-                          background: 'linear-gradient(135deg, #4caf50 0%, #66bb6a 100%)',
+                          background: monster.usedSkillThisTurn
+                            ? 'linear-gradient(135deg, #666 0%, #888 100%)'
+                            : 'linear-gradient(135deg, #4caf50 0%, #66bb6a 100%)',
                           fontSize: '12px',
                           padding: '8px 16px',
                         }}
-                        disabled={!monster.charges || monster.charges.length < 1}
+                        disabled={!monster.charges || monster.charges.length < 1 || monster.usedSkillThisTurn}
                       >
-                        基本技 (チャージ{monster.charges?.length || 0}/1)
+                        基本技 (チャージ{monster.charges?.length || 0}/1){monster.usedSkillThisTurn && ' [発動済]'}
                       </button>
                     )}
                     {monster.advancedSkill && (
@@ -3897,13 +3925,15 @@ export default function MagicSpiritGame() {
                         onClick={() => executeSkill(selectedFieldMonster, 'advanced')}
                         style={{
                           ...styles.actionButton,
-                          background: 'linear-gradient(135deg, #ff9800 0%, #ffa726 100%)',
+                          background: monster.usedSkillThisTurn
+                            ? 'linear-gradient(135deg, #666 0%, #888 100%)'
+                            : 'linear-gradient(135deg, #ff9800 0%, #ffa726 100%)',
                           fontSize: '12px',
                           padding: '8px 16px',
                         }}
-                        disabled={!monster.charges || monster.charges.length < 2}
+                        disabled={!monster.charges || monster.charges.length < 2 || monster.usedSkillThisTurn}
                       >
-                        上級技 (チャージ{monster.charges?.length || 0}/2)
+                        上級技 (チャージ{monster.charges?.length || 0}/2){monster.usedSkillThisTurn && ' [発動済]'}
                       </button>
                     )}
                     {/* メインフェイズトリガー */}

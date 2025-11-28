@@ -77,6 +77,7 @@ export const createMonsterInstance = (card) => ({
   canAttack: false,
   charges: [],
   statusEffects: [],
+  usedSkillThisTurn: false,
 });
 
 /**

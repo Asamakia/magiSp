@@ -185,11 +185,14 @@ export function getChargeableCards(gameState) {
 
 /**
  * 使用可能なスキルを取得
+ * 1ターン1回制限（usedSkillThisTurn）もチェック
  */
 export function getUsableSkills(gameState) {
   const skills = [];
   gameState.myField.forEach((monster, index) => {
     if (!monster) return;
+    // 既に技を発動済みの場合はスキップ
+    if (monster.usedSkillThisTurn) return;
     const charges = monster.charges?.length || 0;
 
     if (charges >= 1 && monster.basicSkill) {
