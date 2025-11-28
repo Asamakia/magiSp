@@ -18,7 +18,124 @@ import { STATUS_EFFECT_TYPES } from '../statusEffects';
  * 水属性カードの固有効果
  */
 export const waterCardEffects = {
-  // C0000142 (ブリザードマスター) と C0000147 (ブリザードキャット・シャード) は
+  /**
+   * C0000142: ブリザードマスター
+   * 基本技：相手モンスターの攻撃力を300下げ、600ダメージを与える。
+   * 上級技：相手モンスター1体を「凍結（攻撃力半減＋行動不能）」にする、次のターン開始時に50%で解除。
+   * 召喚時効果は cardTriggers/waterCards.js に実装済み
+   */
+  C0000142: (skillText, context) => {
+    const {
+      addLog,
+      currentPlayer,
+      p1Field, p2Field,
+      setP1Field, setP2Field,
+      setPendingTargetSelection,
+    } = context;
+
+    const opponentField = currentPlayer === 1 ? p2Field : p1Field;
+    const setOpponentField = currentPlayer === 1 ? setP2Field : setP1Field;
+
+    // 相手モンスターを取得
+    const validTargets = opponentField
+      .map((m, idx) => ({ monster: m, index: idx }))
+      .filter(({ monster }) => monster !== null);
+
+    // 基本技：攻撃力300ダウン + 600ダメージ
+    if (context.skillType === 'basic') {
+      if (validTargets.length === 0) {
+        addLog('相手フィールドにモンスターがいません', 'info');
+        return true; // 汎用パーサーにフォールバックしない
+      }
+
+      const applyBasicSkill = (targetIndex) => {
+        const targetMonster = opponentField[targetIndex];
+        if (!targetMonster) return;
+
+        setOpponentField(prev => prev.map((m, idx) => {
+          if (idx === targetIndex && m) {
+            const newAtk = Math.max(0, m.currentAttack - 300);
+            const newHp = m.currentHp - 600;
+            addLog(`${m.name}の攻撃力を300ダウン、600ダメージ！`, 'damage');
+            if (newHp <= 0) {
+              addLog(`${m.name}は破壊された！`, 'damage');
+              return null;
+            }
+            return { ...m, currentAttack: newAtk, currentHp: newHp };
+          }
+          return m;
+        }));
+      };
+
+      // 1体のみの場合は自動選択
+      if (validTargets.length === 1) {
+        applyBasicSkill(validTargets[0].index);
+        return true;
+      }
+
+      // 複数いる場合は選択UI
+      if (setPendingTargetSelection) {
+        setPendingTargetSelection({
+          message: '攻撃力ダウン+ダメージを与える相手モンスターを選択',
+          targetType: 'opponent_monster',
+          callback: (selectedIndex) => {
+            applyBasicSkill(selectedIndex);
+          },
+        });
+        return true;
+      }
+
+      // フォールバック: 最初のターゲット
+      applyBasicSkill(validTargets[0].index);
+      return true;
+    }
+
+    // 上級技：凍結付与（攻撃力半減＋行動不能、50%解除）
+    if (context.skillType === 'advanced') {
+      if (validTargets.length === 0) {
+        addLog('相手フィールドにモンスターがいません', 'info');
+        return true; // 汎用パーサーにフォールバックしない
+      }
+
+      const applyFreeze = (targetIndex) => {
+        const targetMonster = opponentField[targetIndex];
+        if (!targetMonster) return;
+
+        // 凍結付与（攻撃力半減＋行動不能、次のターン開始時50%解除）
+        applyStatusToOpponentMonster(context, targetIndex, STATUS_EFFECT_TYPES.FREEZE, {
+          duration: -1, // 永続（解除されるまで）
+          removeChance: 0.5, // 50%でターン開始時に解除
+        }, 'ブリザードマスター');
+        addLog(`${targetMonster.name}を凍結させた！`, 'damage');
+      };
+
+      // 1体のみの場合は自動選択
+      if (validTargets.length === 1) {
+        applyFreeze(validTargets[0].index);
+        return true;
+      }
+
+      // 複数いる場合は選択UI
+      if (setPendingTargetSelection) {
+        setPendingTargetSelection({
+          message: '凍結させる相手モンスターを選択',
+          targetType: 'opponent_monster',
+          callback: (selectedIndex) => {
+            applyFreeze(selectedIndex);
+          },
+        });
+        return true;
+      }
+
+      // フォールバック: 最初のターゲット
+      applyFreeze(validTargets[0].index);
+      return true;
+    }
+
+    return false;
+  },
+
+  // C0000147 (ブリザードキャット・シャード) は
   // cardTriggers/waterCards.js に実装済み（召喚時トリガーとして）
 
   /**
