@@ -103,7 +103,8 @@ export const isSpecialty = (merchant, card) => {
  * @returns {boolean}
  */
 export const isForbidden = (card) => {
-  return card.forbidden === true || card.forbidden === 'true';
+  // cardManager.js では isForbidden プロパティで設定される
+  return card.isForbidden === true || card.forbidden === true || card.forbidden === 'true';
 };
 
 /**
@@ -478,6 +479,35 @@ export const generateStock = (merchant, cardPool, dayId, options = {}) => {
       const bargainIndex = Math.floor(Math.random() * stock.length);
       stock[bargainIndex].price = Math.floor(stock[bargainIndex].price * 0.5);
       stock[bargainIndex].isBargain = true;
+    }
+
+    // 禁忌カード保証（闇商人用）
+    if (stockConfig.guaranteed.forbiddenCount && stock.length > 0) {
+      // 現在のstockに禁忌カードがあるかチェック
+      const hasForbidden = stock.some(item => {
+        const card = cardPool.find(c => c.id === item.cardId);
+        return card && isForbidden(card);
+      });
+
+      if (!hasForbidden) {
+        // 禁忌カードをプールから取得
+        const forbiddenCards = cardPool.filter(c => isForbidden(c) && !usedCardIds.has(c.id));
+        if (forbiddenCards.length > 0) {
+          const forbiddenCard = forbiddenCards[Math.floor(Math.random() * forbiddenCards.length)];
+          // 最初の枠を禁忌カードに差し替え
+          const rarity = 'GR'; // 禁忌カードは最高レアリティ
+          const marketPrice = getMarketPrice(forbiddenCard, rarity);
+          const price = calculateSellPrice(merchant, forbiddenCard, marketPrice, favorabilityLevel);
+
+          stock[0] = {
+            cardId: forbiddenCard.id,
+            rarity,
+            price,
+            isPlayerSold: false,
+            isForbidden: true,
+          };
+        }
+      }
     }
   }
 

@@ -157,7 +157,7 @@ export const MERCHANTS = {
     name: '名無し',
     type: MERCHANT_TYPES.DARK,
     icon: '👻',
-    specialty: { type: 'rarity', value: ['SR', 'UR', 'HR', 'SEC', 'ALT', 'GR'] },
+    specialty: null, // 全カードからランダム選択、高レアリティを割り当て
     appearance: 'random',
     profile: {
       appearance: '全身黒フード。顔見えない、囁き声',
