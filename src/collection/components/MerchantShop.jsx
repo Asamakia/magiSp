@@ -526,7 +526,7 @@ const MerchantShop = ({
     if (type === 'buy') {
       // 購入実行
       if (onPurchase) {
-        onPurchase(merchantName, item.cardId, item.rarity, item.price);
+        onPurchase(item.cardId, item.rarity, item.price);
       }
       // 品揃えから削除
       setStock(prev => prev.filter(
@@ -535,7 +535,7 @@ const MerchantShop = ({
     } else {
       // 売却実行
       if (onSell) {
-        onSell(merchantName, item.cardId, item.rarity, item.buyPrice);
+        onSell(card, item.rarity, item.buyPrice);
       }
     }
 
