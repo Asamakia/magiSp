@@ -62,6 +62,19 @@ import SPTokens from './components/SPTokens';
 import GameLog from './components/GameLog';
 import DeckReviewModal from './components/DeckReviewModal';
 
+// コレクションシステム
+import {
+  storage,
+  createInitialPlayerData,
+  validatePlayerData,
+  repairPlayerData,
+  currencyManager,
+  valueCalculator,
+  CollectionScreen,
+  ShopScreen,
+  PackOpening,
+} from './collection';
+
 // ========================================
 // 効果テキストから基本技・上級技を除外するヘルパー関数
 // （情報パネルでの重複表示を防ぐため）
@@ -83,13 +96,19 @@ export default function MagicSpiritGame() {
   const [isLoadingCards, setIsLoadingCards] = useState(true);
 
   // ゲーム状態
-  const [gameState, setGameState] = useState('title'); // title, playing, gameOver
+  const [gameState, setGameState] = useState('title'); // title, playing, gameOver, collection, shop, packOpening
   const [turn, setTurn] = useState(1);
   const [currentPlayer, setCurrentPlayer] = useState(1);
   const [phase, setPhase] = useState(0);
   const [isFirstTurn, setIsFirstTurn] = useState(true);
   const [winner, setWinner] = useState(null);
   const [logs, setLogs] = useState([]);
+
+  // コレクションシステム状態
+  const [playerData, setPlayerData] = useState(null); // プレイヤーデータ（コレクション、G等）
+  const [cardValueMap, setCardValueMap] = useState(null); // カード価値マップ
+  const [pendingPackCards, setPendingPackCards] = useState(null); // 開封待ちパックカード
+  const [battleReward, setBattleReward] = useState(null); // 対戦報酬 { goldReward, packReward, isWin }
 
   // プレイヤー1の状態
   const [p1Life, setP1Life] = useState(INITIAL_LIFE);
@@ -222,20 +241,96 @@ export default function MagicSpiritGame() {
     return { modifiedCost: actualCost, costModifierSource: sourceText };
   }, [p1Field, p2Field, p1Life, p2Life]);
 
-  // CSVファイルの読み込み
+  // CSVファイルの読み込み & プレイヤーデータ初期化
   useEffect(() => {
     const loadCards = async () => {
       setIsLoadingCards(true);
       const cards = await loadCardsFromCSV();
       setAllCards(cards);
+
+      // カード価値マップを計算
+      const valueMap = valueCalculator.calculateAllCardValues(cards);
+      setCardValueMap(valueMap);
+
+      // プレイヤーデータをロード or 新規作成
+      let data = storage.load();
+      if (!data) {
+        // 新規プレイヤー: 初期データを作成
+        data = createInitialPlayerData();
+        storage.save(data);
+      } else {
+        // 既存データの検証・修復
+        const validation = validatePlayerData(data);
+        if (!validation.valid) {
+          data = repairPlayerData(data);
+          storage.save(data);
+        }
+      }
+      setPlayerData(data);
+
       setIsLoadingCards(false);
     };
 
     loadCards();
   }, []);
 
+  // ========================================
+  // コレクションシステム ハンドラ
+  // ========================================
+
+  // プレイヤーデータを更新して保存
+  const updatePlayerData = useCallback((newData) => {
+    setPlayerData(newData);
+    storage.save(newData);
+  }, []);
+
+  // 対戦報酬を付与
+  const awardBattleRewards = useCallback((isWin) => {
+    if (!playerData) return;
+
+    const result = currencyManager.awardBattleReward(playerData, isWin);
+    updatePlayerData(result.playerData);
+    setBattleReward({
+      goldReward: result.goldReward,
+      packReward: result.packReward,
+      isWin,
+    });
+  }, [playerData, updatePlayerData]);
+
+  // パック開封画面へ遷移
+  const handleOpenPack = useCallback((cards) => {
+    setPendingPackCards(cards);
+    setGameState('packOpening');
+  }, []);
+
+  // パック開封完了
+  const handlePackOpeningClose = useCallback(() => {
+    setPendingPackCards(null);
+    // 報酬パックの場合はゲームオーバー画面に戻る、ショップからの場合はショップに戻る
+    if (battleReward) {
+      setGameState('gameOver');
+    } else {
+      setGameState('shop');
+    }
+  }, [battleReward]);
+
+  // カード売却
+  const handleSellCard = useCallback((cardId, rarity, quantity, card) => {
+    if (!playerData || !cardValueMap) return;
+
+    const { shopSystem } = require('./collection');
+    const result = shopSystem.sellCard(playerData, cardId, rarity, quantity, card, cardValueMap);
+
+    if (result.success) {
+      updatePlayerData(result.playerData);
+    }
+  }, [playerData, cardValueMap, updatePlayerData]);
+
+  // ========================================
   // ゲーム初期化
   const initGame = useCallback(() => {
+    // 報酬状態をクリア
+    setBattleReward(null);
     // 選択されたデッキからカードを生成
     const deck1 = createDeckFromPrebuilt(p1SelectedDeck, allCards);
     const deck2 = createDeckFromPrebuilt(p2SelectedDeck, allCards);
@@ -2673,6 +2768,22 @@ export default function MagicSpiritGame() {
           <p style={{ color: '#a0a0a0', fontSize: '18px' }}>
             スピリットウェイヴァーよ、戦いの時だ
           </p>
+
+          {/* 所持G表示 */}
+          {playerData && (
+            <div style={{
+              fontSize: '18px',
+              fontWeight: 'bold',
+              color: '#ffd700',
+              padding: '8px 24px',
+              background: 'rgba(255,215,0,0.1)',
+              borderRadius: '8px',
+              border: '1px solid rgba(255,215,0,0.3)',
+            }}>
+              💰 {currencyManager.formatGold(playerData.gold)}
+            </div>
+          )}
+
           {isLoadingCards ? (
             <div style={{ color: '#a0a0a0', fontSize: '16px' }}>
               カードデータを読み込み中...
@@ -2881,6 +2992,38 @@ export default function MagicSpiritGame() {
               >
                 ゲーム開始
               </button>
+
+              {/* コレクション・ショップボタン */}
+              <div style={{
+                display: 'flex',
+                gap: '16px',
+                marginTop: '8px',
+              }}>
+                <button
+                  onClick={() => setGameState('collection')}
+                  style={{
+                    ...styles.actionButton,
+                    background: 'linear-gradient(135deg, #6b4ce6 0%, #9d4ce6 100%)',
+                    fontSize: '14px',
+                    padding: '10px 24px',
+                  }}
+                >
+                  📚 コレクション
+                </button>
+                <button
+                  onClick={() => setGameState('shop')}
+                  style={{
+                    ...styles.actionButton,
+                    background: 'linear-gradient(135deg, #ffd700 0%, #ff9500 100%)',
+                    color: '#1a1a2e',
+                    fontSize: '14px',
+                    padding: '10px 24px',
+                  }}
+                >
+                  🛒 ショップ
+                </button>
+              </div>
+
               <div style={{ color: '#888', fontSize: '13px' }}>
                 {allCards.length}枚のカードを読み込み完了
               </div>
@@ -2894,8 +3037,54 @@ export default function MagicSpiritGame() {
     );
   }
 
+  // コレクション画面
+  if (gameState === 'collection') {
+    return (
+      <CollectionScreen
+        playerData={playerData}
+        allCards={allCards}
+        cardValueMap={cardValueMap}
+        onBack={() => setGameState('title')}
+        onSellCard={handleSellCard}
+      />
+    );
+  }
+
+  // ショップ画面
+  if (gameState === 'shop') {
+    return (
+      <ShopScreen
+        playerData={playerData}
+        allCards={allCards}
+        cardValueMap={cardValueMap}
+        onBack={() => setGameState('title')}
+        onOpenPack={handleOpenPack}
+        onGoToCollection={() => setGameState('collection')}
+        onPlayerDataUpdate={updatePlayerData}
+      />
+    );
+  }
+
+  // パック開封画面
+  if (gameState === 'packOpening' && pendingPackCards) {
+    return (
+      <PackOpening
+        cards={pendingPackCards}
+        onClose={handlePackOpeningClose}
+        existingCollection={playerData?.collection || []}
+      />
+    );
+  }
+
   // ゲームオーバー画面
   if (gameState === 'gameOver') {
+    // 報酬が未付与なら付与する
+    if (!battleReward && playerData) {
+      // winner === 1 は P1 勝利、winner === 2 は P2 勝利
+      // ここでは P1 視点で報酬付与（将来的にマルチプレイヤー対応時に調整）
+      awardBattleRewards(winner === 1);
+    }
+
     return (
       <div style={styles.container}>
         <div style={styles.modal}>
@@ -2903,19 +3092,71 @@ export default function MagicSpiritGame() {
             <h2 style={{ textAlign: 'center', marginBottom: '24px', color: '#ffd700' }}>
               🏆 ゲーム終了 🏆
             </h2>
-            <p style={{ textAlign: 'center', fontSize: '24px', marginBottom: '24px' }}>
+            <p style={{ textAlign: 'center', fontSize: '24px', marginBottom: '16px' }}>
               プレイヤー{winner}の勝利！
             </p>
-            <div style={{ display: 'flex', justifyContent: 'center', gap: '16px' }}>
-              <button onClick={initGame} style={styles.actionButton}>
-                もう一度プレイ
-              </button>
-              <button 
-                onClick={() => setGameState('title')} 
-                style={{ ...styles.actionButton, background: '#444' }}
-              >
-                タイトルへ
-              </button>
+
+            {/* 報酬表示 */}
+            {battleReward && (
+              <div style={{
+                background: 'rgba(255,215,0,0.1)',
+                border: '1px solid rgba(255,215,0,0.3)',
+                borderRadius: '8px',
+                padding: '16px',
+                marginBottom: '24px',
+                textAlign: 'center',
+              }}>
+                <div style={{ fontSize: '16px', color: '#ffd700', marginBottom: '12px', fontWeight: 'bold' }}>
+                  ───── 報酬 ─────
+                </div>
+                <div style={{ fontSize: '18px', color: '#ffd700', marginBottom: '8px' }}>
+                  💰 {currencyManager.formatGold(battleReward.goldReward)}
+                </div>
+                {battleReward.packReward > 0 && (
+                  <div style={{ fontSize: '16px', color: '#ff9500' }}>
+                    🎴 パック ×{battleReward.packReward}（勝利ボーナス）
+                  </div>
+                )}
+              </div>
+            )}
+
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px' }}>
+              {/* 勝利ボーナスパック開封ボタン */}
+              {battleReward?.packReward > 0 && (
+                <button
+                  onClick={() => {
+                    // 無料パックを開封
+                    const { packSystem } = require('./collection');
+                    const result = packSystem.openFreePack(playerData, allCards, cardValueMap);
+                    updatePlayerData(result.playerData);
+                    handleOpenPack(result.cards);
+                  }}
+                  style={{
+                    ...styles.actionButton,
+                    background: 'linear-gradient(135deg, #ff9500 0%, #ffd700 100%)',
+                    color: '#1a1a2e',
+                    fontSize: '16px',
+                    padding: '12px 32px',
+                  }}
+                >
+                  🎴 パックを開ける
+                </button>
+              )}
+
+              <div style={{ display: 'flex', gap: '16px' }}>
+                <button onClick={initGame} style={styles.actionButton}>
+                  もう一度プレイ
+                </button>
+                <button
+                  onClick={() => {
+                    setBattleReward(null);
+                    setGameState('title');
+                  }}
+                  style={{ ...styles.actionButton, background: '#444' }}
+                >
+                  タイトルへ
+                </button>
+              </div>
             </div>
           </div>
         </div>
