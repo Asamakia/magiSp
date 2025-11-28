@@ -23,6 +23,7 @@ export const fieldCardEffects = {
   C0000003: [
     {
       type: CONTINUOUS_EFFECT_TYPES.ATK_MODIFIER,
+      description: '自分の場の粘液獣モンスターの攻撃力を300アップ',
       value: 300,
       target: TARGET_TYPES.SELF_MONSTERS,
       condition: { nameIncludes: '粘液獣' },
@@ -36,6 +37,7 @@ export const fieldCardEffects = {
   C0000018: [
     {
       type: CONTINUOUS_EFFECT_TYPES.ATK_MODIFIER,
+      description: '場にいる《粘液獣》の攻撃力を300アップ',
       value: 300,
       target: TARGET_TYPES.SELF_MONSTERS,
       condition: { nameIncludes: '粘液獣' },
@@ -53,6 +55,7 @@ export const fieldCardEffects = {
   C0000037: [
     {
       type: CONTINUOUS_EFFECT_TYPES.ATK_MODIFIER,
+      description: '《ドラゴン》と名のついたモンスターの攻撃力を400アップ',
       value: 400,
       target: TARGET_TYPES.SELF_MONSTERS,
       condition: { nameIncludes: 'ドラゴン' },
@@ -66,6 +69,7 @@ export const fieldCardEffects = {
   C0000188: [
     {
       type: CONTINUOUS_EFFECT_TYPES.ATK_MODIFIER,
+      description: '炎属性モンスターの攻撃力を400アップ',
       value: 400,
       target: TARGET_TYPES.SELF_MONSTERS,
       condition: { attribute: '炎' },
@@ -83,6 +87,7 @@ export const fieldCardEffects = {
   C0000053: [
     {
       type: CONTINUOUS_EFFECT_TYPES.ATK_MODIFIER,
+      description: '水属性モンスターの攻撃力300アップ',
       value: 300,
       target: TARGET_TYPES.SELF_MONSTERS,
       condition: { attribute: '水' },
@@ -96,6 +101,7 @@ export const fieldCardEffects = {
   C0000055: [
     {
       type: CONTINUOUS_EFFECT_TYPES.SUMMON_COST_MODIFIER,
+      description: '水属性モンスターの召喚コストを1軽減',
       value: -1,
       target: TARGET_TYPES.SELF_SUMMON,
       condition: { attribute: '水' },
@@ -109,6 +115,7 @@ export const fieldCardEffects = {
   C0000155: [
     {
       type: CONTINUOUS_EFFECT_TYPES.ATK_MODIFIER,
+      description: '《ブリザードキャット》モンスターの攻撃力を400アップ',
       value: 400,
       target: TARGET_TYPES.SELF_MONSTERS,
       condition: { nameIncludes: 'ブリザードキャット' },
@@ -122,6 +129,7 @@ export const fieldCardEffects = {
   C0000199: [
     {
       type: CONTINUOUS_EFFECT_TYPES.SP_LIMIT_MODIFIER,
+      description: '自分のSP上限が4になる',
       value: 4,
       target: TARGET_TYPES.SELF_CARD,
     },
@@ -134,6 +142,7 @@ export const fieldCardEffects = {
   C0000338: [
     {
       type: CONTINUOUS_EFFECT_TYPES.HP_MODIFIER,
+      description: '『アクアレギナ』または『ヴェルゼファール』モンスターのHPを600アップ',
       value: 600,
       target: TARGET_TYPES.SELF_MONSTERS,
       condition: { nameIncludes: 'アクアレギナ' },
@@ -158,6 +167,7 @@ export const fieldCardEffects = {
   C0000071: [
     {
       type: CONTINUOUS_EFFECT_TYPES.ATK_MODIFIER,
+      description: '光属性モンスターの攻撃力を500アップ。2体以上光属性モンスターが場にいるとき相手の基本技の効果を1ターンに1度無効化できる',
       value: 500,
       target: TARGET_TYPES.SELF_MONSTERS,
       condition: { attribute: '光' },
@@ -177,6 +187,7 @@ export const fieldCardEffects = {
   C0000073: [
     {
       type: CONTINUOUS_EFFECT_TYPES.ATK_MODIFIER,
+      description: '相手モンスター全体の攻撃力を、場にいる光属性モンスター1体につき200ダウン',
       valueCalculator: VALUE_CALCULATOR_TYPES.COUNT_MULTIPLY,
       baseValue: -200,
       countCondition: { attribute: '光' },
@@ -191,6 +202,7 @@ export const fieldCardEffects = {
   C0000218: [
     {
       type: CONTINUOUS_EFFECT_TYPES.ATK_MODIFIER,
+      description: '光属性［プラント］モンスターの攻撃力を400アップ',
       value: 400,
       target: TARGET_TYPES.SELF_MONSTERS,
       condition: { attribute: '光', category: '【プラント】' },
@@ -204,6 +216,7 @@ export const fieldCardEffects = {
   C0000326: [
     {
       type: CONTINUOUS_EFFECT_TYPES.ATK_MODIFIER,
+      description: '場にいる光属性モンスターの攻撃力を500アップ',
       value: 500,
       target: TARGET_TYPES.SELF_MONSTERS,
       condition: { attribute: '光' },
@@ -217,6 +230,7 @@ export const fieldCardEffects = {
   C0000351: [
     {
       type: CONTINUOUS_EFFECT_TYPES.ATK_MODIFIER,
+      description: '《ヴォランティス》モンスターの攻撃力を700アップ',
       value: 700,
       target: TARGET_TYPES.SELF_MONSTERS,
       condition: { nameIncludes: 'ヴォランティス' },
@@ -234,6 +248,7 @@ export const fieldCardEffects = {
   C0000089: [
     {
       type: CONTINUOUS_EFFECT_TYPES.ATK_MODIFIER,
+      description: '闇属性モンスターの攻撃力を400アップ',
       value: 400,
       target: TARGET_TYPES.SELF_MONSTERS,
       condition: { attribute: '闇' },
@@ -247,6 +262,7 @@ export const fieldCardEffects = {
   C0000123: [
     {
       type: CONTINUOUS_EFFECT_TYPES.SUMMON_COST_MODIFIER,
+      description: '自分のライフが2000以下の場合、闇属性モンスターの召喚コストを1軽減',
       value: -1,
       target: TARGET_TYPES.SELF_SUMMON,
       condition: { attribute: '闇', maxLife: 2000 },
@@ -260,6 +276,7 @@ export const fieldCardEffects = {
   C0000240: [
     {
       type: CONTINUOUS_EFFECT_TYPES.ATK_MODIFIER,
+      description: '《リリカ》と名の付くモンスターの攻撃力を500アップ',
       value: 500,
       target: TARGET_TYPES.SELF_MONSTERS,
       condition: { nameIncludes: 'リリカ' },
@@ -273,6 +290,7 @@ export const fieldCardEffects = {
   C0000386: [
     {
       type: CONTINUOUS_EFFECT_TYPES.MAGIC_COST_MODIFIER,
+      description: '自分の《黒呪》魔法カードのコストを1軽減（エリザヴェットと重複可）',
       value: -1,
       target: TARGET_TYPES.SELF_MAGIC,
       condition: { nameIncludes: '黒呪' },
@@ -290,6 +308,7 @@ export const fieldCardEffects = {
   C0000257: [
     {
       type: CONTINUOUS_EFFECT_TYPES.ATK_MODIFIER,
+      description: '「未来属性」モンスターの攻撃力を400アップ',
       value: 400,
       target: TARGET_TYPES.SELF_MONSTERS,
       condition: { attribute: '未来' },
@@ -303,6 +322,7 @@ export const fieldCardEffects = {
   C0000270: [
     {
       type: CONTINUOUS_EFFECT_TYPES.ON_SUMMON_BUFF,
+      description: '「未来属性」モンスターの召喚時にそのHPを600アップ',
       statType: 'hp',
       value: 600,
       condition: { attribute: '未来' },
@@ -320,6 +340,7 @@ export const fieldCardEffects = {
   C0000366: [
     {
       type: CONTINUOUS_EFFECT_TYPES.HP_MODIFIER,
+      description: '《ヴォランティス》モンスターのHPを1000アップ',
       value: 1000,
       target: TARGET_TYPES.SELF_MONSTERS,
       condition: { nameIncludes: 'ヴォランティス' },
@@ -337,6 +358,7 @@ export const fieldCardEffects = {
   C0000229: [
     {
       type: CONTINUOUS_EFFECT_TYPES.ATK_MODIFIER,
+      description: '《鉄槍》モンスターの攻撃力を400アップ',
       value: 400,
       target: TARGET_TYPES.SELF_MONSTERS,
       condition: { nameIncludes: '鉄槍' },
@@ -350,6 +372,7 @@ export const fieldCardEffects = {
   C0000242: [
     {
       type: CONTINUOUS_EFFECT_TYPES.ATK_MODIFIER,
+      description: '《ご主人様》または《リリカ》と名の付くモンスターの攻撃力を400アップ',
       value: 400,
       target: TARGET_TYPES.SELF_MONSTERS,
       condition: { nameIncludes: 'ご主人様' },
@@ -369,6 +392,7 @@ export const fieldCardEffects = {
   C0000289: [
     {
       type: CONTINUOUS_EFFECT_TYPES.ATK_MODIFIER,
+      description: '場にいる《毒》と名の付くモンスターの攻撃力を400アップ',
       value: 400,
       target: TARGET_TYPES.SELF_MONSTERS,
       condition: { nameIncludes: '毒' },
@@ -382,6 +406,7 @@ export const fieldCardEffects = {
   C0000376: [
     {
       type: CONTINUOUS_EFFECT_TYPES.ATK_MODIFIER,
+      description: '自分のターン中《虹羽密林》モンスターの攻撃力を500アップ',
       value: 500,
       target: TARGET_TYPES.SELF_MONSTERS,
       condition: { nameIncludes: '虹羽密林', isMyTurn: true },
