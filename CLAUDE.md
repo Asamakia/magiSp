@@ -182,7 +182,7 @@ Currently a **prototype version** with local 2-player gameplay and AI opponent s
   - **新API**: `processOpponentEndPhase()`, `getParasiteInfo()`, `isParasiteEffectNegated()`
   - **ヘルパー関数追加**: `processStatusEffectsTurnStart()`, `processStatusEffectsEndPhase()`
   - **magic-spirit.jsx簡素化**: ターン開始/エンドフェイズの状態異常処理をヘルパーに移動（約30行削減）
-- **2025-11-28 (Skill & SP Charge Rules)**: 技発動1ターン1回制限とSPチャージ機能を実装 ⭐⭐ **NEW**
+- **2025-11-28 (Skill & SP Charge Rules)**: 技発動1ターン1回制限とSPチャージ機能を実装 ⭐⭐
   - **技発動1ターン1回制限**: 公式ルール5.1準拠（各モンスター1ターンに一度のみ）
     - `usedSkillThisTurn`フラグをモンスターに追加
     - ターン開始時にフラグリセット
@@ -202,6 +202,16 @@ Currently a **prototype version** with local 2-player gameplay and AI opponent s
     - effectHelpers.js: reviveFromGraveyard() - usedSkillThisTurn初期化
     - FieldMonster.jsx: charge icon display (💠/🃏)
     - aiController.js: getUsableSkills() - 発動済みスキップ
+- **2025-11-28 (Card Collection System Design)**: カードコレクションシステム設計 ⭐⭐⭐⭐⭐ **NEW**
+  - **対戦システムとは独立したモジュール**として設計
+  - **カード価値計算システム**: 基礎価値・ティア（S/A/B/C/D）・レアリティ（10種）
+  - **コレクション管理**: 所持カード（カードID + レアリティ + 枚数）
+  - **経済システム**: 通貨G、初期10,000G、対戦報酬5,000G、パック3,500G
+  - **パック開封**: 5枚/パック、闇鍋形式（将来属性別パック拡張予定）
+  - **プリセットデッキ連携**: 未所持カードはC版、所持カードは最高レアリティ適用
+  - **スターターデッキ**: 新規プレイヤーに特定デッキをC版で付与
+  - **永続化**: localStorage（将来IndexedDB/クラウド移行可能な抽象化）
+  - **Documentation**: `src/ルール/CardValueSystem/collection-system-design.md`
 
 ---
 
@@ -220,12 +230,34 @@ Currently a **prototype version** with local 2-player gameplay and AI opponent s
 │   ├── App.js                  # Main app component (renders MagicSpiritGame)
 │   ├── magic-spirit.jsx        # Main game logic (~4300 lines) ⭐
 │   │
+│   ├── collection/             # Card collection system (NEW) ⭐⭐⭐⭐⭐
+│   │   ├── index.js              # Main exports
+│   │   ├── data/                 # Data management
+│   │   │   ├── storage.js        # Persistence layer (localStorage abstraction)
+│   │   │   ├── playerData.js     # Player data structure & initialization
+│   │   │   ├── constants.js      # Economy constants (INITIAL_GOLD, PACK_PRICE, etc.)
+│   │   │   └── migration.js      # Data migration for version upgrades
+│   │   ├── systems/              # Core systems
+│   │   │   ├── valueCalculator.js    # Base value & tier calculation
+│   │   │   ├── raritySystem.js       # Rarity definitions & pull rates
+│   │   │   ├── collectionManager.js  # Card collection CRUD operations
+│   │   │   ├── currencyManager.js    # Gold management
+│   │   │   ├── packSystem.js         # Pack opening logic
+│   │   │   └── shopSystem.js         # Buy/sell operations
+│   │   └── components/           # Collection UI
+│   │       ├── CollectionScreen.jsx  # Collection view
+│   │       ├── ShopScreen.jsx        # Shop view
+│   │       ├── PackOpening.jsx       # Pack opening animation
+│   │       ├── CardGrid.jsx          # Card grid display
+│   │       ├── CardDetail.jsx        # Card detail modal
+│   │       └── DeckBuilder.jsx       # Deck building from collection
+│   │
 │   ├── utils/                  # Utility functions
 │   │   ├── constants.js        # Game constants (30 lines)
 │   │   ├── helpers.js          # Helper functions (125 lines)
 │   │   └── cardManager.js      # Card data management (253 lines)
 │   │
-│   ├── components/             # UI Components
+│   ├── components/             # Battle UI Components
 │   │   ├── Card.jsx            # Card display (187 lines)
 │   │   ├── FieldMonster.jsx    # Field monster display (170 lines)
 │   │   ├── SPTokens.jsx        # SP token display (38 lines)
@@ -234,7 +266,7 @@ Currently a **prototype version** with local 2-player gameplay and AI opponent s
 │   ├── styles/                 # Style definitions
 │   │   └── gameStyles.js       # Game styles (182 lines)
 │   │
-│   ├── engine/                 # Game logic engines ⭐⭐
+│   ├── engine/                 # Battle engine ⭐⭐
 │   │   ├── effectEngine.js     # Generic effect execution engine (563 lines)
 │   │   ├── effectHelpers.js    # Reusable effect helper functions (~920 lines)
 │   │   ├── phaseCardEffects.js # Phase card stage effect parser (200 lines) ⭐ NEW
@@ -309,8 +341,11 @@ Currently a **prototype version** with local 2-player gameplay and AI opponent s
 │   │   │   └── chain-system-design.md (~280 lines) - Chain point system design
 │   │   ├── Status Effect System Documentation - 1 file (~1050 lines) ⭐⭐
 │   │   │   └── status-effect-system-design.md (~1050 lines) - System design
-│   │   └── AI Player System Documentation - 1 file (~1400 lines) ⭐⭐⭐⭐⭐ NEW
-│   │       └── ai-player-system-design.md (~1400 lines) - AI system design
+│   │   ├── AI Player System Documentation - 1 file (~1400 lines) ⭐⭐⭐⭐⭐
+│   │   │   └── ai-player-system-design.md (~1400 lines) - AI system design
+│   │   └── Card Value System Documentation - 2 files (~1200 lines) ⭐⭐⭐⭐⭐ NEW
+│   │       ├── card_value_system_v2.1.md (~590 lines) - Value calculation spec
+│   │       └── collection-system-design.md (~600 lines) - Collection system design
 │   │
 │   ├── index.js                # React entry point
 │   ├── App.css                 # App styling
@@ -1886,11 +1921,17 @@ The Japanese text throughout suggests this may be for a Japanese audience or is 
   - Fixed field card overwrite (existing card → graveyard)
   - Game log history expansion
   - New card effects: 黒呪・カルヴェリオンの灰嵐, エリザヴェット・ヴェイル, ブリザードキャット・スノウ, フレア・ドラゴン
+- **2025-11-28 (Card Collection System)**: Collection system architecture designed
+  - Independent module from battle system
+  - Card value calculation & rarity system (10 rarities)
+  - Economy system (Gold, packs, trading)
+  - localStorage persistence with migration support
+  - Prebuilt deck rarity integration
 
 This is suitable for expansion into a full game or as a learning project for React and game development concepts.
 
 ---
 
-**Document Version**: 5.1
-**Last Updated**: 2025-11-28 (Skill 1-turn limit & SP Charge - 技発動制限・SPチャージ)
+**Document Version**: 5.2
+**Last Updated**: 2025-11-28 (Card Collection System Design - カードコレクションシステム設計)
 **For**: Magic Spirit (magiSp) Repository
