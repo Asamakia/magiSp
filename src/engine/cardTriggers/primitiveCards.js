@@ -73,7 +73,7 @@ export const primitiveCardTriggers = {
           currentAttack: card.currentAttack || card.attack,
           hp: card.hp,
           currentHp: card.currentHp || card.hp,
-          canAttack: false, // 分裂直後は攻撃不可
+          canAttack: card.canAttack, // 分裂前と同じ状態を引き継ぐ
           charges: [],
           statusEffects: [],
           owner: currentPlayer,

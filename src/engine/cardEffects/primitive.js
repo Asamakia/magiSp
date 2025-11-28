@@ -267,7 +267,7 @@ export const primitiveCardEffects = {
       currentAttack: Math.floor((targetSlime.currentAttack || targetSlime.attack) / 2),
       hp: targetSlime.hp,
       currentHp: targetSlime.currentHp || targetSlime.hp,
-      canAttack: false, // 分裂直後は攻撃不可
+      canAttack: targetSlime.canAttack, // 分裂前と同じ状態を引き継ぐ
       charges: [],
       statusEffects: [],
       owner: currentPlayer,
