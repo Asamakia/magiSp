@@ -12,7 +12,9 @@ import {
   getTodayAppearances,
   callAttributeMerchant,
   ATTRIBUTE_MERCHANTS,
+  countForbiddenCards,
 } from '../merchant';
+import { calculateTotalAssets } from '../systems/assetCalculator';
 
 // ========================================
 // スタイル定義
@@ -346,20 +348,30 @@ const MerchantCard = ({
 
 const MerchantGuild = ({
   playerData,
-  dayId = 0,
+  allCards = [],
   onBack,
   onEnterShop,
-  onMerchantDataUpdate,
-  allCards = [],
-  forbiddenCount = 0,
-  totalAssets = 0,
+  onPlayerDataUpdate,
 }) => {
   const [showTicketModal, setShowTicketModal] = useState(false);
 
+  const dayId = playerData?.market?.currentDay || 0;
   const merchantData = playerData?.merchantData || {};
   const favorability = merchantData.favorability || {};
   const tickets = merchantData.tickets || { attribute: 0, dark: 0, traveler: 0 };
   const wishlist = merchantData.wishlist || [];
+  const marketState = playerData?.market;
+
+  // 禁忌カード数を計算（コンポーネント内で計算）
+  const forbiddenCount = useMemo(() => {
+    return countForbiddenCards(playerData, allCards);
+  }, [playerData, allCards]);
+
+  // 総資産を計算（コンポーネント内で計算）
+  const totalAssets = useMemo(() => {
+    const assets = calculateTotalAssets(playerData, allCards, marketState);
+    return assets.totalMarket;
+  }, [playerData, allCards, marketState]);
 
   // 今日出現する商人を計算（キャッシュ付き）
   const { appearances, updated, newMerchantData } = useMemo(() => {
@@ -371,10 +383,13 @@ const MerchantGuild = ({
 
   // merchantDataが更新された場合、親に通知
   useEffect(() => {
-    if (updated && newMerchantData && onMerchantDataUpdate) {
-      onMerchantDataUpdate(newMerchantData);
+    if (updated && newMerchantData && onPlayerDataUpdate) {
+      onPlayerDataUpdate({
+        ...playerData,
+        merchantData: newMerchantData,
+      });
     }
-  }, [updated, newMerchantData, onMerchantDataUpdate]);
+  }, [updated, newMerchantData, onPlayerDataUpdate, playerData]);
 
   // 出現商人を使いやすい形式に変換
   const availableMerchants = useMemo(() => ({
@@ -410,8 +425,11 @@ const MerchantGuild = ({
   // 属性商人呼び出しチケット使用
   const handleCallAttributeMerchant = (merchantName) => {
     const result = callAttributeMerchant(merchantData, merchantName, dayId);
-    if (result.success && onMerchantDataUpdate) {
-      onMerchantDataUpdate(result.newMerchantData);
+    if (result.success && onPlayerDataUpdate) {
+      onPlayerDataUpdate({
+        ...playerData,
+        merchantData: result.newMerchantData,
+      });
     }
     setShowTicketModal(false);
     if (!result.success) {

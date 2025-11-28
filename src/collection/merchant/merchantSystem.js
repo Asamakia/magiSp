@@ -932,6 +932,138 @@ export const getWishlistMatches = (stock, wishlist) => {
     .map(item => item.cardId);
 };
 
+// ========================================
+// コレクション分析
+// ========================================
+
+/**
+ * プレイヤーの禁忌カード所持数を計算
+ * @param {Object} playerData - プレイヤーデータ
+ * @param {Array} allCards - 全カードデータ
+ * @returns {number} 禁忌カード所持数
+ */
+export const countForbiddenCards = (playerData, allCards) => {
+  if (!playerData?.collection || !allCards) {
+    return 0;
+  }
+
+  // カードIDからカードデータへのマップを作成
+  const cardMap = new Map();
+  for (const card of allCards) {
+    if (card.id) {
+      cardMap.set(card.id, card);
+    }
+  }
+
+  return playerData.collection.reduce((count, item) => {
+    const card = cardMap.get(item.cardId);
+    if (card && isForbidden(card)) {
+      return count + (item.quantity || 1);
+    }
+    return count;
+  }, 0);
+};
+
+// ========================================
+// 高レベル取引API（playerData更新込み）
+// ========================================
+
+/**
+ * 商人から購入（playerData更新込み）
+ * @param {Object} playerData - プレイヤーデータ
+ * @param {string} merchantName - 商人名
+ * @param {string} cardId - カードID
+ * @param {string} rarity - レアリティ
+ * @param {number} price - 価格
+ * @param {Object} collectionManager - コレクション管理オブジェクト
+ * @returns {{ success: boolean, playerData: Object, message: string }}
+ */
+export const executePurchase = (playerData, merchantName, cardId, rarity, price, collectionManager) => {
+  if (!playerData || !collectionManager) {
+    return { success: false, playerData, message: '無効なパラメータ' };
+  }
+
+  if (playerData.gold < price) {
+    return { success: false, playerData, message: '所持金が足りません' };
+  }
+
+  // merchantDataを更新
+  const updatedMerchantData = purchaseFromMerchant(
+    playerData.merchantData,
+    merchantName,
+    cardId,
+    rarity,
+    price
+  );
+
+  if (!updatedMerchantData) {
+    return { success: false, playerData, message: '購入処理に失敗しました' };
+  }
+
+  // コレクションにカード追加
+  const collectionResult = collectionManager.addCard(playerData, cardId, rarity);
+
+  // playerDataを統合
+  const newPlayerData = {
+    ...playerData,
+    gold: playerData.gold - price,
+    collection: collectionResult.collection,
+    merchantData: updatedMerchantData,
+  };
+
+  return {
+    success: true,
+    playerData: newPlayerData,
+    message: '購入しました',
+  };
+};
+
+/**
+ * 商人に売却（playerData更新込み）
+ * @param {Object} playerData - プレイヤーデータ
+ * @param {string} merchantName - 商人名
+ * @param {Object} card - カードデータ
+ * @param {string} rarity - レアリティ
+ * @param {number} sellPrice - 売却価格
+ * @param {number} dayId - 現在の日
+ * @param {Object} collectionManager - コレクション管理オブジェクト
+ * @returns {{ success: boolean, playerData: Object, message: string }}
+ */
+export const executeSale = (playerData, merchantName, card, rarity, sellPrice, dayId, collectionManager) => {
+  if (!playerData || !collectionManager || !card) {
+    return { success: false, playerData, message: '無効なパラメータ' };
+  }
+
+  // コレクションからカード削除
+  const collectionResult = collectionManager.removeCard(playerData, card.id, rarity);
+  if (!collectionResult.success) {
+    return { success: false, playerData, message: 'カードが見つかりません' };
+  }
+
+  // merchantDataを更新
+  const updatedMerchantData = sellToMerchant(
+    playerData.merchantData,
+    merchantName,
+    card,
+    rarity,
+    dayId
+  );
+
+  // playerDataを統合
+  const newPlayerData = {
+    ...playerData,
+    gold: playerData.gold + sellPrice,
+    collection: collectionResult.collection,
+    merchantData: updatedMerchantData,
+  };
+
+  return {
+    success: true,
+    playerData: newPlayerData,
+    message: '売却しました',
+  };
+};
+
 export default {
   getFavorabilityLevel,
   getFavorabilityInfo,
@@ -957,4 +1089,9 @@ export default {
   removeFromWishlist,
   isInWishlist,
   getWishlistMatches,
+  // 追加: コレクション分析
+  countForbiddenCards,
+  // 追加: 高レベル取引API
+  executePurchase,
+  executeSale,
 };
