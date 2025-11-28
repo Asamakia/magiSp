@@ -271,7 +271,11 @@ export const darkCardTriggers = {
 
         setOpponentField((prev) => {
           const newField = [...prev];
-          newField[targetIndex] = { ...target, attack: newAttack };
+          newField[targetIndex] = {
+            ...target,
+            attack: newAttack,
+            currentAttack: newAttack,
+          };
           return newField;
         });
 
@@ -531,7 +535,11 @@ export const darkCardTriggers = {
                 ...darkMonster,
                 uniqueId: `${darkMonster.id}_${Date.now()}_${Math.random()}`,
                 currentHp: darkMonster.hp,
+                currentAttack: darkMonster.attack,
                 canAttack: false,
+                owner: currentPlayer,
+                charges: [],
+                statusEffects: [],
               };
               return newField;
             });
@@ -755,9 +763,12 @@ export const darkCardTriggers = {
           return prev.map((monster) => {
             if (monster) {
               affectedCount++;
+              const newAttack = Math.max(0, monster.attack - 300);
+              const newCurrentAttack = Math.max(0, (monster.currentAttack || monster.attack) - 300);
               return {
                 ...monster,
-                attack: Math.max(0, monster.attack - 300)
+                attack: newAttack,
+                currentAttack: newCurrentAttack,
               };
             }
             return monster;
@@ -861,9 +872,11 @@ export const darkCardTriggers = {
             if (darkMonsterIndex !== -1) {
               setField((prev) => {
                 const newField = [...prev];
+                const monster = newField[darkMonsterIndex];
                 newField[darkMonsterIndex] = {
-                  ...newField[darkMonsterIndex],
-                  attack: newField[darkMonsterIndex].attack + 800,
+                  ...monster,
+                  attack: monster.attack + 800,
+                  currentAttack: (monster.currentAttack || monster.attack) + 800,
                 };
                 return newField;
               });
