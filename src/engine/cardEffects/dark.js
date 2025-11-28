@@ -410,6 +410,137 @@ export const darkCardEffects = {
   },
 
   /**
+   * C0000396: 呪骸王エリザルヴェドン
+   * 基本技: 自分の墓地の《黒呪》魔法カード1枚をデッキに戻し、このカードの攻撃力をターン終了時まで800アップ（ターンに1度）
+   * 上級技: 自分の墓地の《黒呪》魔法カード1枚をデッキに戻し、そのカードの効果を発動する
+   */
+  C0000396: (skillText, context) => {
+    const {
+      addLog,
+      currentPlayer,
+      p1Graveyard,
+      p2Graveyard,
+      setP1Graveyard,
+      setP2Graveyard,
+      p1Deck,
+      p2Deck,
+      setP1Deck,
+      setP2Deck,
+      p1Field,
+      p2Field,
+      setP1Field,
+      setP2Field,
+      monsterIndex,
+      setPendingGraveyardSelection,
+    } = context;
+
+    const graveyard = currentPlayer === 1 ? p1Graveyard : p2Graveyard;
+    const setGraveyard = currentPlayer === 1 ? setP1Graveyard : setP2Graveyard;
+    const setDeck = currentPlayer === 1 ? setP1Deck : setP2Deck;
+    const currentField = currentPlayer === 1 ? p1Field : p2Field;
+    const setField = currentPlayer === 1 ? setP1Field : setP2Field;
+
+    // 墓地から《黒呪》魔法カードを検索
+    const blackCurseMagics = graveyard.filter(
+      (card) => card.type === 'magic' && card.name && card.name.includes('黒呪')
+    );
+
+    if (blackCurseMagics.length === 0) {
+      addLog('墓地に《黒呪》魔法カードがありません', 'info');
+      return false;
+    }
+
+    // 基本技: 墓地の黒呪魔法1枚をデッキに戻し、攻撃力800アップ
+    if (context.skillType === 'basic') {
+      const executeBasicEffect = (selectedCard) => {
+        // 墓地から除去
+        setGraveyard((prev) => prev.filter((c) => c.uniqueId !== selectedCard.uniqueId));
+        // デッキに戻す（シャッフル）
+        setDeck((prev) => {
+          const newDeck = [...prev, selectedCard];
+          // シャッフル
+          for (let i = newDeck.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [newDeck[i], newDeck[j]] = [newDeck[j], newDeck[i]];
+          }
+          return newDeck;
+        });
+        addLog(`${selectedCard.name}をデッキに戻した`, 'info');
+
+        // 攻撃力800アップ
+        if (monsterIndex !== undefined && monsterIndex !== null) {
+          setField((prev) =>
+            prev.map((m, idx) => {
+              if (idx === monsterIndex && m) {
+                const newAtk = m.currentAttack + 800;
+                return { ...m, currentAttack: newAtk };
+              }
+              return m;
+            })
+          );
+          addLog('呪骸王エリザルヴェドンの攻撃力が800アップ！（ターン終了時まで）', 'info');
+        }
+      };
+
+      // 複数ある場合は選択UI
+      if (blackCurseMagics.length > 1 && setPendingGraveyardSelection) {
+        setPendingGraveyardSelection({
+          message: 'デッキに戻す《黒呪》魔法カードを選択',
+          cards: blackCurseMagics,
+          callback: executeBasicEffect,
+        });
+        return true;
+      }
+
+      // 1枚だけの場合は自動選択
+      executeBasicEffect(blackCurseMagics[0]);
+      return true;
+    }
+
+    // 上級技: 墓地の黒呪魔法1枚をデッキに戻し、そのカードの効果を発動
+    if (context.skillType === 'advanced') {
+      const { executeSkillEffects } = require('../effectEngine');
+
+      const executeAdvancedEffect = (selectedCard) => {
+        // 墓地から除去
+        setGraveyard((prev) => prev.filter((c) => c.uniqueId !== selectedCard.uniqueId));
+        // デッキに戻す（シャッフル）
+        setDeck((prev) => {
+          const newDeck = [...prev, selectedCard];
+          // シャッフル
+          for (let i = newDeck.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [newDeck[i], newDeck[j]] = [newDeck[j], newDeck[i]];
+          }
+          return newDeck;
+        });
+        addLog(`${selectedCard.name}をデッキに戻した`, 'info');
+        addLog(`${selectedCard.name}の効果を発動！`, 'info');
+
+        // 選択したカードの効果を発動
+        const effectText = selectedCard.effect || '';
+        executeSkillEffects(effectText, context, selectedCard.id);
+      };
+
+      // 複数ある場合は選択UI
+      if (blackCurseMagics.length > 1 && setPendingGraveyardSelection) {
+        setPendingGraveyardSelection({
+          message: '効果を発動する《黒呪》魔法カードを選択',
+          cards: blackCurseMagics,
+          callback: executeAdvancedEffect,
+        });
+        return true;
+      }
+
+      // 1枚だけの場合は自動選択
+      executeAdvancedEffect(blackCurseMagics[0]);
+      return true;
+    }
+
+    return false;
+  },
+
+  /**
    * C0000393: 黒呪・カルヴェリオンの灰嵐
    * 相手フィールド全体に1500ダメージを与え、次のターン終了時まで相手モンスターの攻撃力を500下げる。
    * 場に《呪縛の塔・ヴェルナクール》がある場合、このカードのダメージを2000に変更。
