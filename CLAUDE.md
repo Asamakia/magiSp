@@ -236,9 +236,10 @@ Currently a **prototype version** with local 2-player gameplay and AI opponent s
 │   │   │   ├── マジックスピリット 公式ルール仕様書 ver2.3.txt (~130 lines)
 │   │   │   ├── マジックスピリット - デッキ構築とコストバランス.txt (86 lines)
 │   │   │   └── マジックスピリット - フェイズカードルール (ver1.0).txt (44 lines)
-│   │   ├── Development Roadmaps - 2 files (1100 lines)
-│   │   │   ├── magic-spirit-roadmap-updated.txt (851 lines) ⭐ Current
-│   │   │   └── magic-spirit-roadmap.txt (249 lines) - Legacy
+│   │   ├── Development Docs - 3 files (~395 lines)
+│   │   │   ├── magic-spirit-roadmap-updated.txt (~145 lines) ⭐ Current roadmap
+│   │   │   ├── CHANGELOG.md (~150 lines) - Completion history
+│   │   │   └── magic-spirit-roadmap.txt (249 lines) - Legacy (archived)
 │   │   ├── Code Architecture
 │   │   │   └── code-structure.md (433 lines) - Detailed architecture guide
 │   │   ├── Trigger System Documentation - 4 files (3579 lines)
@@ -401,12 +402,13 @@ Currently a **prototype version** with local 2-player gameplay and AI opponent s
   - Stage progression rules
   - Phase card activation timing
 
-*Development Roadmaps - 2 files, ~1200 lines:*
-- **magic-spirit-roadmap-updated.txt** (~950 lines) ⭐ **Current roadmap**
-  - Complete development history
-  - Phase-by-phase implementation status
-  - Current progress: Phase 8 (AI Player System) completed
+*Development Docs - 3 files, ~395 lines:*
+- **magic-spirit-roadmap-updated.txt** (~145 lines) ⭐ **Current roadmap**
+  - Remaining tasks and priorities only
   - Total progress: 90%
+- **CHANGELOG.md** (~150 lines): Completion history
+  - Phase-by-phase implementation status
+  - Milestone dates and code statistics
 - **magic-spirit-roadmap.txt** (249 lines): Legacy roadmap (archived)
 
 *Code Architecture - 1 file, 433 lines:*
