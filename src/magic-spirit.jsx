@@ -662,6 +662,59 @@ export default function MagicSpiritGame() {
     return false;
   }, [currentPlayer, p1Field, p2Field, chargeUsedThisTurn, addLog]);
 
+  // SPチャージ処理（SPトークンをモンスターにチャージ）
+  const chargeSP = useCallback((monsterIndex) => {
+    if (chargeUsedThisTurn) {
+      addLog('このターンは既にチャージを使用しました', 'damage');
+      return false;
+    }
+
+    const field = currentPlayer === 1 ? p1Field : p2Field;
+    const activeSP = currentPlayer === 1 ? p1ActiveSP : p2ActiveSP;
+    const monster = field[monsterIndex];
+
+    if (!monster) {
+      addLog('モンスターが存在しません', 'damage');
+      return false;
+    }
+
+    if (monster.charges && monster.charges.length >= 2) {
+      addLog('このモンスターは既に2枚チャージされています', 'damage');
+      return false;
+    }
+
+    if (activeSP < 1) {
+      addLog('SPが足りません', 'damage');
+      return false;
+    }
+
+    // SPチャージを追加
+    const spCharge = {
+      card: null,
+      attribute: 'any',
+      isSPCharge: true,
+    };
+
+    const setField = currentPlayer === 1 ? setP1Field : setP2Field;
+    const setActiveSP = currentPlayer === 1 ? setP1ActiveSP : setP2ActiveSP;
+
+    setField(prev => {
+      const newField = [...prev];
+      newField[monsterIndex] = {
+        ...monster,
+        charges: [...(monster.charges || []), spCharge],
+      };
+      return newField;
+    });
+
+    // SP総数を減らす（restedSPには加算しない = 永久消費）
+    setActiveSP(prev => prev - 1);
+    setChargeUsedThisTurn(true);
+
+    addLog(`${monster.name}にSPトークンをチャージ`, 'info');
+    return true;
+  }, [currentPlayer, p1Field, p2Field, p1ActiveSP, p2ActiveSP, chargeUsedThisTurn, addLog]);
+
   // フェイズカードへのチャージ処理
   const chargePhaseCard = useCallback((card) => {
     if (chargeUsedThisTurn) {
@@ -836,15 +889,34 @@ export default function MagicSpiritGame() {
       return false;
     }
 
-    // 属性チェック（「任意」でない場合、同属性のチャージが必要）
-    if (skill.attribute !== 'any') {
-      const validCharges = monster.charges.filter(charge =>
-        charge.attribute === monster.attribute || charge.attribute === 'なし'
-      );
-      if (validCharges.length < requiredCharges) {
-        addLog(`${skillName}を発動するには同属性のチャージが必要です`, 'damage');
-        return false;
-      }
+    // 有効なチャージを判定（優先順位: 同属性 > なし属性 > SPチャージ）
+    // SPチャージは任意属性扱いで、技発動時に消費される
+    const getValidChargesForSkill = (charges, monsterAttr, required) => {
+      const sameAttr = charges.filter(c => !c.isSPCharge && c.attribute === monsterAttr);
+      const noneAttr = charges.filter(c => !c.isSPCharge && c.attribute === 'なし');
+      const spCharges = charges.filter(c => c.isSPCharge);
+
+      // 優先順位順に結合して必要数だけ取得
+      const orderedCharges = [...sameAttr, ...noneAttr, ...spCharges];
+      const usedCharges = orderedCharges.slice(0, required);
+      const spUsedCount = usedCharges.filter(c => c.isSPCharge).length;
+
+      return {
+        isValid: usedCharges.length >= required,
+        usedCharges,
+        spUsedCount,
+      };
+    };
+
+    const chargeResult = getValidChargesForSkill(
+      monster.charges || [],
+      monster.attribute,
+      requiredCharges
+    );
+
+    if (!chargeResult.isValid) {
+      addLog(`${skillName}を発動するには有効なチャージが必要です（同属性、なし属性、またはSPチャージ）`, 'damage');
+      return false;
     }
 
     // 技発動
@@ -893,19 +965,38 @@ export default function MagicSpiritGame() {
     // カードIDを渡して効果を実行（カード固有処理がある場合は優先）
     const success = executeSkillEffects(skill.text, context, monster.id);
 
-    // 技発動成功時、1ターン1回制限フラグを設定
+    // 技発動成功時、1ターン1回制限フラグを設定 + SPチャージを消費
     if (success !== false) {
       const setField = currentPlayer === 1 ? setP1Field : setP2Field;
       setField(prev => {
         const newField = [...prev];
         if (newField[monsterIndex]) {
+          const currentMonster = newField[monsterIndex];
+
+          // SPチャージを消費（使用した分のみ削除、属性チャージは残す）
+          // chargeResult.usedChargesに含まれるSPチャージを削除
+          let spRemoved = 0;
+          const remainingCharges = (currentMonster.charges || []).filter(charge => {
+            if (charge.isSPCharge && spRemoved < chargeResult.spUsedCount) {
+              spRemoved++;
+              return false; // 削除
+            }
+            return true; // 属性チャージは残す
+          });
+
           newField[monsterIndex] = {
-            ...newField[monsterIndex],
+            ...currentMonster,
             usedSkillThisTurn: true,
+            charges: remainingCharges,
           };
         }
         return newField;
       });
+
+      // SPチャージ消費ログ
+      if (chargeResult.spUsedCount > 0) {
+        addLog(`SPチャージ${chargeResult.spUsedCount}個を消費`, 'info');
+      }
     }
 
     return success;
@@ -3837,6 +3928,23 @@ export default function MagicSpiritGame() {
                         上級技 (チャージ{monster.charges?.length || 0}/2){monster.usedSkillThisTurn && ' [発動済]'}
                       </button>
                     )}
+                    {/* SPチャージボタン */}
+                    {(monster.basicSkill || monster.advancedSkill) && (
+                      <button
+                        onClick={() => chargeSP(selectedFieldMonster)}
+                        style={{
+                          ...styles.actionButton,
+                          background: (chargeUsedThisTurn || monster.charges?.length >= 2 || p1ActiveSP < 1)
+                            ? 'linear-gradient(135deg, #666 0%, #888 100%)'
+                            : 'linear-gradient(135deg, #9c27b0 0%, #ba68c8 100%)',
+                          fontSize: '12px',
+                          padding: '8px 16px',
+                        }}
+                        disabled={chargeUsedThisTurn || monster.charges?.length >= 2 || p1ActiveSP < 1}
+                      >
+                        💠 SPチャージ (残SP: {p1ActiveSP})
+                      </button>
+                    )}
                     {/* メインフェイズトリガー */}
                     {(() => {
                       const triggers = getCardMainPhaseTriggers(monster, currentPlayer);
@@ -3934,6 +4042,23 @@ export default function MagicSpiritGame() {
                         disabled={!monster.charges || monster.charges.length < 2 || monster.usedSkillThisTurn}
                       >
                         上級技 (チャージ{monster.charges?.length || 0}/2){monster.usedSkillThisTurn && ' [発動済]'}
+                      </button>
+                    )}
+                    {/* SPチャージボタン */}
+                    {(monster.basicSkill || monster.advancedSkill) && (
+                      <button
+                        onClick={() => chargeSP(selectedFieldMonster)}
+                        style={{
+                          ...styles.actionButton,
+                          background: (chargeUsedThisTurn || monster.charges?.length >= 2 || p1ActiveSP < 1)
+                            ? 'linear-gradient(135deg, #666 0%, #888 100%)'
+                            : 'linear-gradient(135deg, #9c27b0 0%, #ba68c8 100%)',
+                          fontSize: '12px',
+                          padding: '8px 16px',
+                        }}
+                        disabled={chargeUsedThisTurn || monster.charges?.length >= 2 || p1ActiveSP < 1}
+                      >
+                        💠 SPチャージ (残SP: {p1ActiveSP})
                       </button>
                     )}
                     {/* メインフェイズトリガー */}
