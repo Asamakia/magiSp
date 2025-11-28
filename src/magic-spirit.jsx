@@ -2314,21 +2314,35 @@ export default function MagicSpiritGame() {
   const canUseSetsunaMagic = useCallback(() => {
     // 非アクティブプレイヤー（相手ターン中の自分）の手札とSPをチェック
     const nonActivePlayer = currentPlayer === 1 ? 2 : 1;
+
+    // 魔法カード使用制限チェック（触覚持ち粘液獣等）
+    const isMagicBlocked = nonActivePlayer === 1 ? p1MagicBlocked : p2MagicBlocked;
+    if (isMagicBlocked) {
+      return false;
+    }
+
     const hand = nonActivePlayer === 1 ? p1Hand : p2Hand;
     const activeSP = nonActivePlayer === 1 ? p1ActiveSP : p2ActiveSP;
 
     const activatableCards = getActivatableSetsunaMagics(hand, activeSP);
     return activatableCards.length > 0;
-  }, [currentPlayer, p1Hand, p2Hand, p1ActiveSP, p2ActiveSP]);
+  }, [currentPlayer, p1Hand, p2Hand, p1ActiveSP, p2ActiveSP, p1MagicBlocked, p2MagicBlocked]);
 
   // 刹那詠唱発動可能カード一覧を取得
   const getSetsunaMagicsForNonActivePlayer = useCallback(() => {
     const nonActivePlayer = currentPlayer === 1 ? 2 : 1;
+
+    // 魔法カード使用制限チェック（触覚持ち粘液獣等）
+    const isMagicBlocked = nonActivePlayer === 1 ? p1MagicBlocked : p2MagicBlocked;
+    if (isMagicBlocked) {
+      return [];
+    }
+
     const hand = nonActivePlayer === 1 ? p1Hand : p2Hand;
     const activeSP = nonActivePlayer === 1 ? p1ActiveSP : p2ActiveSP;
 
     return getActivatableSetsunaMagics(hand, activeSP);
-  }, [currentPlayer, p1Hand, p2Hand, p1ActiveSP, p2ActiveSP]);
+  }, [currentPlayer, p1Hand, p2Hand, p1ActiveSP, p2ActiveSP, p1MagicBlocked, p2MagicBlocked]);
 
   // 刹那詠唱カードを発動
   const activateSetsunaMagic = useCallback((card) => {
@@ -2339,6 +2353,14 @@ export default function MagicSpiritGame() {
 
     // 発動するプレイヤーは非アクティブプレイヤー
     const castingPlayer = currentPlayer === 1 ? 2 : 1;
+
+    // 魔法カード使用制限チェック（触覚持ち粘液獣等）
+    const isMagicBlocked = castingPlayer === 1 ? p1MagicBlocked : p2MagicBlocked;
+    if (isMagicBlocked) {
+      addLog('魔法カードを使用できません！（触覚持ち粘液獣の効果）', 'damage');
+      return false;
+    }
+
     const setsunaCost = getSetsunaCost(card);
     const activeSP = castingPlayer === 1 ? p1ActiveSP : p2ActiveSP;
 
