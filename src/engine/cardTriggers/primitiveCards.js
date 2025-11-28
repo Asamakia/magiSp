@@ -168,13 +168,32 @@ export const primitiveCardTriggers = {
       priority: TRIGGER_PRIORITIES.NORMAL,
       description: '召喚時: このターンはダイレクトアタック可能',
       effect: (context) => {
-        const { card, addLog } = context;
-        // TODO: ダイレクトアタック許可フラグの実装が必要
+        const {
+          currentPlayer,
+          p1Field,
+          p2Field,
+          setP1Field,
+          setP2Field,
+          slotIndex,
+          addLog,
+        } = context;
+
+        const setField = currentPlayer === 1 ? setP1Field : setP2Field;
+
+        // ダイレクトアタック許可フラグを設定
+        setField((prev) =>
+          prev.map((m, idx) => {
+            if (idx === slotIndex && m) {
+              return { ...m, canDirectAttackThisTurn: true };
+            }
+            return m;
+          })
+        );
+
         addLog(
           'ゴミあさり粘液獣: このターンはダイレクトアタック可能！',
           'info'
         );
-        // 実装時にcard.canDirectAttack = trueのようなフラグを設定
       },
     },
   ],
