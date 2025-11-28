@@ -8,7 +8,8 @@
 import React, { useState } from 'react';
 import { currencyManager } from '../systems/currencyManager';
 import { packSystem } from '../systems/packSystem';
-import { ECONOMY, DAYS_PER_WEEK } from '../data/constants';
+import { ECONOMY } from '../data/constants';
+import { DAYS_PER_WEEK } from '../market/constants';
 import {
   getMarketIndexChartData,
   getTrendIcon,
