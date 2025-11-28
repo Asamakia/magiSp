@@ -199,6 +199,38 @@ class ContinuousEffectEngine {
   }
 
   /**
+   * 攻撃力修正の詳細情報を取得
+   * @param {Object} monster - 対象モンスター
+   * @param {Object} context - ゲームコンテキスト
+   * @returns {Object} { modifier: number, sources: Array<{name: string, value: number}> }
+   */
+  getAttackModifierDetails(monster, context) {
+    let totalModifier = 0;
+    const sources = [];
+
+    for (const [uniqueId, { card, owner, effects }] of this.activeEffects) {
+      const effectContext = { ...context, effectOwner: owner };
+
+      for (const effect of effects) {
+        if (effect.type !== CONTINUOUS_EFFECT_TYPES.ATK_MODIFIER) continue;
+
+        if (!this.checkTarget(effect, monster, owner, context)) continue;
+        if (!checkCondition(effect.condition, monster, effectContext)) continue;
+
+        const effectWithId = setEffectUniqueId(effect, uniqueId);
+        const value = calculateValue(effectWithId, effectContext);
+        totalModifier += value;
+
+        if (card && card.name && value !== 0) {
+          sources.push({ name: card.name, value });
+        }
+      }
+    }
+
+    return { modifier: totalModifier, sources };
+  }
+
+  /**
    * HP修正値を計算
    * @param {Object} monster - 対象モンスター
    * @param {Object} context - ゲームコンテキスト
@@ -222,6 +254,38 @@ class ContinuousEffectEngine {
     }
 
     return totalModifier;
+  }
+
+  /**
+   * HP修正の詳細情報を取得
+   * @param {Object} monster - 対象モンスター
+   * @param {Object} context - ゲームコンテキスト
+   * @returns {Object} { modifier: number, sources: Array<{name: string, value: number}> }
+   */
+  getHPModifierDetails(monster, context) {
+    let totalModifier = 0;
+    const sources = [];
+
+    for (const [uniqueId, { card, owner, effects }] of this.activeEffects) {
+      const effectContext = { ...context, effectOwner: owner };
+
+      for (const effect of effects) {
+        if (effect.type !== CONTINUOUS_EFFECT_TYPES.HP_MODIFIER) continue;
+
+        if (!this.checkTarget(effect, monster, owner, context)) continue;
+        if (!checkCondition(effect.condition, monster, effectContext)) continue;
+
+        const effectWithId = setEffectUniqueId(effect, uniqueId);
+        const value = calculateValue(effectWithId, effectContext);
+        totalModifier += value;
+
+        if (card && card.name && value !== 0) {
+          sources.push({ name: card.name, value });
+        }
+      }
+    }
+
+    return { modifier: totalModifier, sources };
   }
 
   // ========================================

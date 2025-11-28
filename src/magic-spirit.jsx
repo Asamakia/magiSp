@@ -23,7 +23,7 @@ import {
   hasCardTrigger,
   parseCardTriggers,
 } from './engine/triggerEngine';
-import { TRIGGER_TYPES } from './engine/triggerTypes';
+import { TRIGGER_TYPES, ACTIVATION_TYPES, getTriggerDisplayName } from './engine/triggerTypes';
 import {
   getPhaseCardStageText,
   getStageName,
@@ -32,7 +32,7 @@ import {
   getNextStageDescription,
 } from './engine/phaseCardEffects';
 import { continuousEffectEngine } from './engine/continuousEffects';
-import { statusEffectEngine, STATUS_EFFECT_TYPES, getStatusDisplayName } from './engine/statusEffects';
+import { statusEffectEngine, STATUS_EFFECT_TYPES, getStatusDisplayName, getStatusIcon, STATUS_EFFECT_METADATA } from './engine/statusEffects';
 import { processStatusEffectsTurnStart, processStatusEffectsEndPhase } from './engine/effectHelpers';
 import {
   isSetsunaMagic,
@@ -2862,6 +2862,18 @@ export default function MagicSpiritGame() {
                 <div style={{ fontSize: '11px', color: '#ccc', marginBottom: '6px' }}>
                   属性: {hoveredCard.attribute} | コスト: {hoveredCard.cost} SP
                 </div>
+                {/* キーワード能力 */}
+                {hoveredCard.keywordText && (
+                  <div style={{ fontSize: '10px', color: '#ff8e53', marginBottom: '6px', padding: '4px', background: 'rgba(255,142,83,0.15)', borderRadius: '4px' }}>
+                    {hoveredCard.keywordText}
+                  </div>
+                )}
+                {/* 禁忌カード警告 */}
+                {hoveredCard.isForbidden && (
+                  <div style={{ fontSize: '10px', color: '#ff4444', marginBottom: '6px', padding: '4px', background: 'rgba(255,68,68,0.15)', borderRadius: '4px' }}>
+                    ⚠️ 禁忌カード - デッキに1枚まで
+                  </div>
+                )}
                 {hoveredCard.categoryText && (
                   <div style={{ fontSize: '11px', color: '#ffd700', marginBottom: '6px' }}>
                     カテゴリ: {hoveredCard.categoryText}
@@ -2877,31 +2889,65 @@ export default function MagicSpiritGame() {
                     p1Life,
                     p2Life,
                   };
-                  const atkMod = hoveredCard.currentAttack !== undefined
-                    ? continuousEffectEngine.calculateAttackModifier(hoveredCard, effectContext)
-                    : 0;
-                  const hpMod = hoveredCard.currentHp !== undefined
-                    ? continuousEffectEngine.calculateHPModifier(hoveredCard, effectContext)
-                    : 0;
+                  const { modifier: atkMod, sources: atkSources } = hoveredCard.currentAttack !== undefined
+                    ? continuousEffectEngine.getAttackModifierDetails(hoveredCard, effectContext)
+                    : { modifier: 0, sources: [] };
+                  const { modifier: hpMod, sources: hpSources } = hoveredCard.currentHp !== undefined
+                    ? continuousEffectEngine.getHPModifierDetails(hoveredCard, effectContext)
+                    : { modifier: 0, sources: [] };
                   const baseAtk = hoveredCard.currentAttack || hoveredCard.attack;
                   const effectiveAtk = baseAtk + atkMod;
+                  const allSources = [...atkSources, ...hpSources].filter((s, i, arr) => arr.findIndex(x => x.name === s.name) === i);
 
                   return (
-                    <div style={{ fontSize: '11px', color: '#ccc', marginBottom: '8px' }}>
-                      <span style={{
-                        color: atkMod > 0 ? '#4cff4c' : atkMod < 0 ? '#ff4c4c' : '#ccc',
-                      }}>
-                        ⚔️ {effectiveAtk}
-                        {atkMod !== 0 && ` (${atkMod > 0 ? '+' : ''}${atkMod})`}
-                      </span>
-                      {' | '}
-                      <span style={{
-                        color: hpMod > 0 ? '#4cff4c' : hpMod < 0 ? '#ff4c4c' : '#ccc',
-                      }}>
-                        ❤️ {hoveredCard.currentHp !== undefined ? `${hoveredCard.currentHp}/${hoveredCard.maxHP || hoveredCard.hp}` : hoveredCard.hp}
-                        {hpMod !== 0 && ` (${hpMod > 0 ? '+' : ''}${hpMod})`}
-                      </span>
-                    </div>
+                    <>
+                      <div style={{ fontSize: '11px', color: '#ccc', marginBottom: '4px' }}>
+                        <span style={{
+                          color: atkMod > 0 ? '#4cff4c' : atkMod < 0 ? '#ff4c4c' : '#ccc',
+                        }}>
+                          ⚔️ {effectiveAtk}
+                          {atkMod !== 0 && ` (${atkMod > 0 ? '+' : ''}${atkMod})`}
+                        </span>
+                        {' | '}
+                        <span style={{
+                          color: hpMod > 0 ? '#4cff4c' : hpMod < 0 ? '#ff4c4c' : '#ccc',
+                        }}>
+                          ❤️ {hoveredCard.currentHp !== undefined ? `${hoveredCard.currentHp}/${hoveredCard.maxHP || hoveredCard.hp}` : hoveredCard.hp}
+                          {hpMod !== 0 && ` (${hpMod > 0 ? '+' : ''}${hpMod})`}
+                        </span>
+                      </div>
+                      {/* 常時効果ソース表示 */}
+                      {allSources.length > 0 && (
+                        <div style={{ fontSize: '9px', color: '#888', marginBottom: '8px', paddingLeft: '8px' }}>
+                          {atkSources.map((s, i) => (
+                            <div key={`atk-${i}`} style={{ color: s.value > 0 ? '#4cff4c' : '#ff4c4c' }}>
+                              └ {s.name}: ATK {s.value > 0 ? '+' : ''}{s.value}
+                            </div>
+                          ))}
+                          {hpSources.map((s, i) => (
+                            <div key={`hp-${i}`} style={{ color: s.value > 0 ? '#4cff4c' : '#ff4c4c' }}>
+                              └ {s.name}: HP {s.value > 0 ? '+' : ''}{s.value}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                      {/* 状態異常表示 */}
+                      {hoveredCard.statusEffects && hoveredCard.statusEffects.length > 0 && (
+                        <div style={{ fontSize: '10px', marginBottom: '8px', padding: '4px', background: 'rgba(255,99,71,0.15)', borderRadius: '4px' }}>
+                          <div style={{ color: '#ff6347', fontWeight: 'bold', marginBottom: '2px' }}>状態異常:</div>
+                          {hoveredCard.statusEffects.map((effect, i) => {
+                            const meta = STATUS_EFFECT_METADATA[effect.type] || {};
+                            return (
+                              <div key={i} style={{ color: meta.color || '#ccc', fontSize: '9px' }}>
+                                {meta.icon || '?'} {meta.displayName || effect.type}
+                                {effect.duration > 0 && ` (残${effect.duration}ターン)`}
+                                {effect.removeChance && ` [${Math.round(effect.removeChance * 100)}%解除]`}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </>
                   );
                 })()}
                 <div style={{
@@ -2915,6 +2961,30 @@ export default function MagicSpiritGame() {
                 }}>
                   {getEffectWithoutSkills(hoveredCard.effect) || 'なし'}
                 </div>
+                {/* トリガー情報 */}
+                {(() => {
+                  const triggers = parseCardTriggers(hoveredCard);
+                  if (triggers.length === 0) return null;
+                  return (
+                    <div style={{ fontSize: '10px', marginBottom: '8px', padding: '6px', background: 'rgba(157,76,230,0.15)', borderRadius: '4px' }}>
+                      <div style={{ color: '#9d4ce6', fontWeight: 'bold', marginBottom: '6px' }}>📍 発動タイミング</div>
+                      {triggers.map((trigger, i) => (
+                        <div key={i}>
+                          {i > 0 && <div style={{ borderTop: '1px solid rgba(157,76,230,0.3)', margin: '6px 0' }} />}
+                          <div style={{ color: '#c9a0ff', fontWeight: 'bold', fontSize: '10px', marginBottom: '2px' }}>
+                            【{getTriggerDisplayName(trigger.type)}】
+                            {trigger.activationType === ACTIVATION_TYPES.OPTIONAL && <span style={{ color: '#ff8e53', fontWeight: 'normal', marginLeft: '4px' }}>(任意)</span>}
+                          </div>
+                          {trigger.description && (
+                            <div style={{ color: '#ccc', fontSize: '9px', paddingLeft: '8px' }}>
+                              {trigger.description}
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  );
+                })()}
                 {(hoveredCard.basicSkill || hoveredCard.advancedSkill) && (
                   <div style={{ fontSize: '10px', lineHeight: '1.4' }}>
                     {hoveredCard.basicSkill && (
@@ -2929,6 +2999,12 @@ export default function MagicSpiritGame() {
                         {hoveredCard.advancedSkill.text}
                       </div>
                     )}
+                  </div>
+                )}
+                {/* フレーバーテキスト */}
+                {hoveredCard.flavor && (
+                  <div style={{ fontSize: '9px', color: '#666', marginTop: '8px', fontStyle: 'italic', borderTop: '1px solid rgba(107,76,230,0.2)', paddingTop: '6px' }}>
+                    📖 {hoveredCard.flavor}
                   </div>
                 )}
               </div>
@@ -2951,6 +3027,18 @@ export default function MagicSpiritGame() {
                     <div style={{ fontSize: '11px', color: '#ccc', marginBottom: '6px' }}>
                       属性: {displayCard.attribute} | コスト: {displayCard.cost} SP
                     </div>
+                    {/* キーワード能力 */}
+                    {displayCard.keywordText && (
+                      <div style={{ fontSize: '10px', color: '#ff8e53', marginBottom: '6px', padding: '4px', background: 'rgba(255,142,83,0.15)', borderRadius: '4px' }}>
+                        {displayCard.keywordText}
+                      </div>
+                    )}
+                    {/* 禁忌カード警告 */}
+                    {displayCard.isForbidden && (
+                      <div style={{ fontSize: '10px', color: '#ff4444', marginBottom: '6px', padding: '4px', background: 'rgba(255,68,68,0.15)', borderRadius: '4px' }}>
+                        ⚠️ 禁忌カード - デッキに1枚まで
+                      </div>
+                    )}
                     {displayCard.categoryText && (
                       <div style={{ fontSize: '11px', color: '#ffd700', marginBottom: '6px' }}>
                         カテゴリ: {displayCard.categoryText}
@@ -2972,6 +3060,30 @@ export default function MagicSpiritGame() {
                     }}>
                       {getEffectWithoutSkills(displayCard.effect) || 'なし'}
                     </div>
+                    {/* トリガー情報 */}
+                    {(() => {
+                      const triggers = parseCardTriggers(displayCard);
+                      if (triggers.length === 0) return null;
+                      return (
+                        <div style={{ fontSize: '10px', marginBottom: '8px', padding: '6px', background: 'rgba(157,76,230,0.15)', borderRadius: '4px' }}>
+                          <div style={{ color: '#9d4ce6', fontWeight: 'bold', marginBottom: '6px' }}>📍 発動タイミング</div>
+                          {triggers.map((trigger, i) => (
+                            <div key={i}>
+                              {i > 0 && <div style={{ borderTop: '1px solid rgba(157,76,230,0.3)', margin: '6px 0' }} />}
+                              <div style={{ color: '#c9a0ff', fontWeight: 'bold', fontSize: '10px', marginBottom: '2px' }}>
+                                【{getTriggerDisplayName(trigger.type)}】
+                                {trigger.activationType === ACTIVATION_TYPES.OPTIONAL && <span style={{ color: '#ff8e53', fontWeight: 'normal', marginLeft: '4px' }}>(任意)</span>}
+                              </div>
+                              {trigger.description && (
+                                <div style={{ color: '#ccc', fontSize: '9px', paddingLeft: '8px' }}>
+                                  {trigger.description}
+                                </div>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      );
+                    })()}
                     {displayCard.type === 'monster' && (displayCard.basicSkill || displayCard.advancedSkill) && (
                       <div style={{ fontSize: '10px', lineHeight: '1.4' }}>
                         {displayCard.basicSkill && (
@@ -2986,6 +3098,12 @@ export default function MagicSpiritGame() {
                             {displayCard.advancedSkill.text}
                           </div>
                         )}
+                      </div>
+                    )}
+                    {/* フレーバーテキスト */}
+                    {displayCard.flavor && (
+                      <div style={{ fontSize: '9px', color: '#666', marginTop: '8px', fontStyle: 'italic', borderTop: '1px solid rgba(107,76,230,0.2)', paddingTop: '6px' }}>
+                        📖 {displayCard.flavor}
                       </div>
                     )}
                     {/* 操作ガイドは通常モードのみ表示 */}
@@ -3016,8 +3134,8 @@ export default function MagicSpiritGame() {
                 p1Life,
                 p2Life,
               };
-              const atkMod = continuousEffectEngine.calculateAttackModifier(monster, effectContext);
-              const hpMod = continuousEffectEngine.calculateHPModifier(monster, effectContext);
+              const { modifier: atkMod, sources: atkSources } = continuousEffectEngine.getAttackModifierDetails(monster, effectContext);
+              const { modifier: hpMod, sources: hpSources } = continuousEffectEngine.getHPModifierDetails(monster, effectContext);
               const baseAtk = monster.currentAttack || monster.attack;
               const effectiveAtk = baseAtk + atkMod;
 
@@ -3029,7 +3147,19 @@ export default function MagicSpiritGame() {
                   <div style={{ fontSize: '11px', color: '#ccc', marginBottom: '6px' }}>
                     属性: {monster.attribute}
                   </div>
-                  <div style={{ fontSize: '12px', color: '#ccc', marginBottom: '8px' }}>
+                  {/* キーワード能力 */}
+                  {monster.keywordText && (
+                    <div style={{ fontSize: '10px', color: '#ff8e53', marginBottom: '6px', padding: '4px', background: 'rgba(255,142,83,0.15)', borderRadius: '4px' }}>
+                      {monster.keywordText}
+                    </div>
+                  )}
+                  {/* 禁忌カード警告 */}
+                  {monster.isForbidden && (
+                    <div style={{ fontSize: '10px', color: '#ff4444', marginBottom: '6px', padding: '4px', background: 'rgba(255,68,68,0.15)', borderRadius: '4px' }}>
+                      ⚠️ 禁忌カード - デッキに1枚まで
+                    </div>
+                  )}
+                  <div style={{ fontSize: '12px', color: '#ccc', marginBottom: '4px' }}>
                     <span style={{
                       color: atkMod > 0 ? '#4cff4c' : atkMod < 0 ? '#ff4c4c' : '#ccc',
                     }}>
@@ -3049,6 +3179,37 @@ export default function MagicSpiritGame() {
                       </span>
                     )}
                   </div>
+                  {/* 常時効果ソース表示 */}
+                  {(atkSources.length > 0 || hpSources.length > 0) && (
+                    <div style={{ fontSize: '9px', color: '#888', marginBottom: '8px', paddingLeft: '8px' }}>
+                      {atkSources.map((s, i) => (
+                        <div key={`atk-${i}`} style={{ color: s.value > 0 ? '#4cff4c' : '#ff4c4c' }}>
+                          └ {s.name}: ATK {s.value > 0 ? '+' : ''}{s.value}
+                        </div>
+                      ))}
+                      {hpSources.map((s, i) => (
+                        <div key={`hp-${i}`} style={{ color: s.value > 0 ? '#4cff4c' : '#ff4c4c' }}>
+                          └ {s.name}: HP {s.value > 0 ? '+' : ''}{s.value}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  {/* 状態異常表示 */}
+                  {monster.statusEffects && monster.statusEffects.length > 0 && (
+                    <div style={{ fontSize: '10px', marginBottom: '8px', padding: '4px', background: 'rgba(255,99,71,0.15)', borderRadius: '4px' }}>
+                      <div style={{ color: '#ff6347', fontWeight: 'bold', marginBottom: '2px' }}>状態異常:</div>
+                      {monster.statusEffects.map((effect, i) => {
+                        const meta = STATUS_EFFECT_METADATA[effect.type] || {};
+                        return (
+                          <div key={i} style={{ color: meta.color || '#ccc', fontSize: '9px' }}>
+                            {meta.icon || '?'} {meta.displayName || effect.type}
+                            {effect.duration > 0 && ` (残${effect.duration}ターン)`}
+                            {effect.removeChance && ` [${Math.round(effect.removeChance * 100)}%解除]`}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
                   {monster.categoryText && (
                     <div style={{ fontSize: '11px', color: '#ffd700', marginBottom: '6px' }}>
                       カテゴリ: {monster.categoryText}
@@ -3065,6 +3226,30 @@ export default function MagicSpiritGame() {
                   }}>
                     {getEffectWithoutSkills(monster.effect) || 'なし'}
                   </div>
+                  {/* トリガー情報 */}
+                  {(() => {
+                    const triggers = parseCardTriggers(monster);
+                    if (triggers.length === 0) return null;
+                    return (
+                      <div style={{ fontSize: '10px', marginBottom: '8px', padding: '6px', background: 'rgba(157,76,230,0.15)', borderRadius: '4px' }}>
+                        <div style={{ color: '#9d4ce6', fontWeight: 'bold', marginBottom: '6px' }}>📍 発動タイミング</div>
+                        {triggers.map((trigger, i) => (
+                          <div key={i}>
+                            {i > 0 && <div style={{ borderTop: '1px solid rgba(157,76,230,0.3)', margin: '6px 0' }} />}
+                            <div style={{ color: '#c9a0ff', fontWeight: 'bold', fontSize: '10px', marginBottom: '2px' }}>
+                              【{getTriggerDisplayName(trigger.type)}】
+                              {trigger.activationType === ACTIVATION_TYPES.OPTIONAL && <span style={{ color: '#ff8e53', fontWeight: 'normal', marginLeft: '4px' }}>(任意)</span>}
+                            </div>
+                            {trigger.description && (
+                              <div style={{ color: '#ccc', fontSize: '9px', paddingLeft: '8px' }}>
+                                {trigger.description}
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    );
+                  })()}
                   {(monster.basicSkill || monster.advancedSkill) && (
                     <div style={{ fontSize: '10px', lineHeight: '1.4' }}>
                       {monster.basicSkill && (
@@ -3081,6 +3266,12 @@ export default function MagicSpiritGame() {
                       )}
                     </div>
                   )}
+                  {/* フレーバーテキスト */}
+                  {monster.flavor && (
+                    <div style={{ fontSize: '9px', color: '#666', marginTop: '8px', fontStyle: 'italic', borderTop: '1px solid rgba(107,76,230,0.2)', paddingTop: '6px' }}>
+                      📖 {monster.flavor}
+                    </div>
+                  )}
                 </div>
               );
             })()}
@@ -3093,6 +3284,12 @@ export default function MagicSpiritGame() {
                 <div style={{ fontSize: '11px', color: '#ccc', marginBottom: '6px' }}>
                   属性: {selectedFieldCardInfo.card.attribute} | コスト: {selectedFieldCardInfo.card.cost} SP
                 </div>
+                {/* キーワード能力 */}
+                {selectedFieldCardInfo.card.keywordText && (
+                  <div style={{ fontSize: '10px', color: '#ff8e53', marginBottom: '6px', padding: '4px', background: 'rgba(255,142,83,0.15)', borderRadius: '4px' }}>
+                    {selectedFieldCardInfo.card.keywordText}
+                  </div>
+                )}
                 {selectedFieldCardInfo.type === 'phasecard' && (
                   <>
                     <div style={{ fontSize: '12px', color: '#4caf50', marginBottom: '8px' }}>
@@ -3133,8 +3330,39 @@ export default function MagicSpiritGame() {
                     padding: '8px',
                     borderRadius: '6px',
                     lineHeight: '1.5',
+                    marginBottom: '8px',
                   }}>
                     {getEffectWithoutSkills(selectedFieldCardInfo.card.effect) || 'なし'}
+                  </div>
+                )}
+                {/* トリガー情報 */}
+                {(() => {
+                  const triggers = parseCardTriggers(selectedFieldCardInfo.card);
+                  if (triggers.length === 0) return null;
+                  return (
+                    <div style={{ fontSize: '10px', marginBottom: '8px', padding: '6px', background: 'rgba(157,76,230,0.15)', borderRadius: '4px' }}>
+                      <div style={{ color: '#9d4ce6', fontWeight: 'bold', marginBottom: '6px' }}>📍 発動タイミング</div>
+                      {triggers.map((trigger, i) => (
+                        <div key={i}>
+                          {i > 0 && <div style={{ borderTop: '1px solid rgba(157,76,230,0.3)', margin: '6px 0' }} />}
+                          <div style={{ color: '#c9a0ff', fontWeight: 'bold', fontSize: '10px', marginBottom: '2px' }}>
+                            【{getTriggerDisplayName(trigger.type)}】
+                            {trigger.activationType === ACTIVATION_TYPES.OPTIONAL && <span style={{ color: '#ff8e53', fontWeight: 'normal', marginLeft: '4px' }}>(任意)</span>}
+                          </div>
+                          {trigger.description && (
+                            <div style={{ color: '#ccc', fontSize: '9px', paddingLeft: '8px' }}>
+                              {trigger.description}
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  );
+                })()}
+                {/* フレーバーテキスト */}
+                {selectedFieldCardInfo.card.flavor && (
+                  <div style={{ fontSize: '9px', color: '#666', marginBottom: '8px', fontStyle: 'italic', borderTop: '1px solid rgba(107,76,230,0.2)', paddingTop: '6px' }}>
+                    📖 {selectedFieldCardInfo.card.flavor}
                   </div>
                 )}
                 <button

@@ -318,25 +318,56 @@ export const TRIGGER_PRIORITIES = {
  * UI表示や実装の参考用
  */
 export const TRIGGER_TYPE_METADATA = {
+  // 召喚系
   [TRIGGER_TYPES.ON_SUMMON]: {
     displayName: '召喚時',
     defaultActivation: ACTIVATION_TYPES.AUTOMATIC,
     category: 'summon',
   },
-  [TRIGGER_TYPES.ON_MAIN_PHASE_SELF]: {
-    displayName: 'メインフェイズ時',
-    defaultActivation: ACTIVATION_TYPES.OPTIONAL,
-    category: 'phase',
-    note: '基本技/上級技と同じUIエリアに表示',
+  [TRIGGER_TYPES.ON_OPPONENT_SUMMON]: {
+    displayName: '相手召喚時',
+    defaultActivation: ACTIVATION_TYPES.AUTOMATIC,
+    category: 'summon',
   },
-  [TRIGGER_TYPES.ON_MAIN_PHASE_FROM_GRAVEYARD]: {
-    displayName: 'メインフェイズ時（墓地）',
-    defaultActivation: ACTIVATION_TYPES.OPTIONAL,
-    category: 'graveyard',
-    note: '墓地UIでカード選択時に表示',
+  [TRIGGER_TYPES.ON_ATTRIBUTE_SUMMON_SELF]: {
+    displayName: '属性召喚時',
+    defaultActivation: ACTIVATION_TYPES.AUTOMATIC,
+    category: 'summon',
   },
+  [TRIGGER_TYPES.ON_CATEGORY_SUMMON_SELF]: {
+    displayName: 'カテゴリ召喚時',
+    defaultActivation: ACTIVATION_TYPES.AUTOMATIC,
+    category: 'summon',
+  },
+  [TRIGGER_TYPES.ON_COST_SUMMON_SELF]: {
+    displayName: 'コスト条件召喚時',
+    defaultActivation: ACTIVATION_TYPES.AUTOMATIC,
+    category: 'summon',
+  },
+
+  // 破壊系
   [TRIGGER_TYPES.ON_DESTROY_SELF]: {
     displayName: '破壊時',
+    defaultActivation: ACTIVATION_TYPES.AUTOMATIC,
+    category: 'destroy',
+  },
+  [TRIGGER_TYPES.ON_CATEGORY_MONSTER_DESTROYED]: {
+    displayName: 'カテゴリ破壊時',
+    defaultActivation: ACTIVATION_TYPES.AUTOMATIC,
+    category: 'destroy',
+  },
+  [TRIGGER_TYPES.ON_ATTRIBUTE_BEFORE_DESTROY]: {
+    displayName: '属性破壊前',
+    defaultActivation: ACTIVATION_TYPES.AUTOMATIC,
+    category: 'destroy',
+  },
+  [TRIGGER_TYPES.ON_SELF_MONSTER_DESTROYED]: {
+    displayName: '自分モンスター破壊時',
+    defaultActivation: ACTIVATION_TYPES.AUTOMATIC,
+    category: 'destroy',
+  },
+  [TRIGGER_TYPES.ON_OPPONENT_MONSTER_DESTROYED]: {
+    displayName: '相手モンスター破壊時',
     defaultActivation: ACTIVATION_TYPES.AUTOMATIC,
     category: 'destroy',
   },
@@ -345,12 +376,117 @@ export const TRIGGER_TYPE_METADATA = {
     defaultActivation: ACTIVATION_TYPES.AUTOMATIC,
     category: 'destroy',
   },
+
+  // フェイズ系
+  [TRIGGER_TYPES.ON_TURN_START_SELF]: {
+    displayName: 'ターン開始時',
+    defaultActivation: ACTIVATION_TYPES.AUTOMATIC,
+    category: 'phase',
+  },
+  [TRIGGER_TYPES.ON_DRAW_PHASE_SELF]: {
+    displayName: 'ドローフェイズ時',
+    defaultActivation: ACTIVATION_TYPES.AUTOMATIC,
+    category: 'phase',
+  },
+  [TRIGGER_TYPES.ON_MAIN_PHASE_SELF]: {
+    displayName: 'メインフェイズ時',
+    defaultActivation: ACTIVATION_TYPES.OPTIONAL,
+    category: 'phase',
+    note: '基本技/上級技と同じUIエリアに表示',
+  },
+  [TRIGGER_TYPES.ON_BATTLE_PHASE_START]: {
+    displayName: 'バトルフェイズ開始時',
+    defaultActivation: ACTIVATION_TYPES.AUTOMATIC,
+    category: 'phase',
+  },
   [TRIGGER_TYPES.ON_END_PHASE_SELF]: {
     displayName: 'エンドフェイズ時',
     defaultActivation: ACTIVATION_TYPES.AUTOMATIC,
     category: 'phase',
   },
-  // ... 他のトリガータイプもメタデータを追加可能
+  [TRIGGER_TYPES.ON_OPPONENT_END_PHASE]: {
+    displayName: '相手エンドフェイズ時',
+    defaultActivation: ACTIVATION_TYPES.AUTOMATIC,
+    category: 'phase',
+  },
+  [TRIGGER_TYPES.ON_END_PHASE]: {
+    displayName: 'エンドフェイズ時',
+    defaultActivation: ACTIVATION_TYPES.AUTOMATIC,
+    category: 'phase',
+  },
+
+  // 攻撃系
+  [TRIGGER_TYPES.ON_ATTACK]: {
+    displayName: '攻撃時',
+    defaultActivation: ACTIVATION_TYPES.AUTOMATIC,
+    category: 'attack',
+  },
+  [TRIGGER_TYPES.ON_ATTACKED]: {
+    displayName: '被攻撃時',
+    defaultActivation: ACTIVATION_TYPES.AUTOMATIC,
+    category: 'attack',
+  },
+  [TRIGGER_TYPES.ON_ATTACK_SUCCESS]: {
+    displayName: '攻撃成功時',
+    defaultActivation: ACTIVATION_TYPES.AUTOMATIC,
+    category: 'attack',
+  },
+  [TRIGGER_TYPES.ON_OPPONENT_ATTACK]: {
+    displayName: '相手攻撃時',
+    defaultActivation: ACTIVATION_TYPES.AUTOMATIC,
+    category: 'attack',
+  },
+
+  // 墓地発動系
+  [TRIGGER_TYPES.ON_MAIN_PHASE_FROM_GRAVEYARD]: {
+    displayName: 'メインフェイズ時（墓地）',
+    defaultActivation: ACTIVATION_TYPES.OPTIONAL,
+    category: 'graveyard',
+    note: '墓地UIでカード選択時に表示',
+  },
+  [TRIGGER_TYPES.ON_END_PHASE_FROM_GRAVEYARD]: {
+    displayName: 'エンドフェイズ時（墓地）',
+    defaultActivation: ACTIVATION_TYPES.AUTOMATIC,
+    category: 'graveyard',
+  },
+
+  // 常時効果
+  [TRIGGER_TYPES.CONTINUOUS]: {
+    displayName: '常時',
+    defaultActivation: ACTIVATION_TYPES.AUTOMATIC,
+    category: 'continuous',
+  },
+
+  // 条件系
+  [TRIGGER_TYPES.ON_LIFE_CONDITION]: {
+    displayName: 'ライフ条件時',
+    defaultActivation: ACTIVATION_TYPES.AUTOMATIC,
+    category: 'condition',
+  },
+  [TRIGGER_TYPES.ON_FIELD_CONDITION]: {
+    displayName: 'フィールド条件時',
+    defaultActivation: ACTIVATION_TYPES.AUTOMATIC,
+    category: 'condition',
+  },
+
+  // ダメージ系
+  [TRIGGER_TYPES.ON_DAMAGE_RECEIVED]: {
+    displayName: 'ダメージ受け時',
+    defaultActivation: ACTIVATION_TYPES.AUTOMATIC,
+    category: 'damage',
+  },
+  [TRIGGER_TYPES.ON_DAMAGE_DEALT]: {
+    displayName: 'ダメージ与え時',
+    defaultActivation: ACTIVATION_TYPES.AUTOMATIC,
+    category: 'damage',
+  },
+
+  // カードアクション系
+  [TRIGGER_TYPES.ON_OPPONENT_MAGIC_ACTIVATED]: {
+    displayName: '相手魔法発動時',
+    defaultActivation: ACTIVATION_TYPES.AUTOMATIC,
+    category: 'action',
+  },
 };
 
 /**
