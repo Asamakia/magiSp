@@ -3,6 +3,7 @@
 // ========================================
 
 import {
+  getPlayerContext,
   millOpponentDeck,
   conditionalDamage,
   searchCard,
@@ -19,22 +20,11 @@ export const darkCardEffects = {
    * 基本技：墓地の闇属性モンスター1体を自分の場に戻す（攻撃力300、HP800、効果無効）
    */
   C0000078: (skillText, context) => {
-    const {
-      addLog,
-      currentPlayer,
-      p1Graveyard, p2Graveyard,
-      setP1Graveyard, setP2Graveyard,
-      p1Field, p2Field,
-      setP1Field, setP2Field,
-    } = context;
+    const { addLog } = context;
+    const { myGraveyard, setMyGraveyard, myField, setMyField, currentPlayer } = getPlayerContext(context);
 
     if (context.skillType === 'basic') {
-      const currentGraveyard = currentPlayer === 1 ? p1Graveyard : p2Graveyard;
-      const setGraveyard = currentPlayer === 1 ? setP1Graveyard : setP2Graveyard;
-      const currentField = currentPlayer === 1 ? p1Field : p2Field;
-      const setField = currentPlayer === 1 ? setP1Field : setP2Field;
-
-      const darkMonster = currentGraveyard.find(card =>
+      const darkMonster = myGraveyard.find(card =>
         card.type === 'monster' && card.attribute === '闇'
       );
 
@@ -43,15 +33,15 @@ export const darkCardEffects = {
         return false;
       }
 
-      const emptySlotIndex = currentField.findIndex(slot => slot === null);
+      const emptySlotIndex = myField.findIndex(slot => slot === null);
       if (emptySlotIndex === -1) {
         addLog('場が満杯です', 'info');
         return false;
       }
 
       // 墓地から蘇生（攻撃力300、HP800固定）
-      setGraveyard(prev => prev.filter(c => c.uniqueId !== darkMonster.uniqueId));
-      setField(prev => {
+      setMyGraveyard(prev => prev.filter(c => c.uniqueId !== darkMonster.uniqueId));
+      setMyField(prev => {
         const newField = [...prev];
         newField[emptySlotIndex] = {
           ...darkMonster,
@@ -90,19 +80,10 @@ export const darkCardEffects = {
    * 【召喚時】相手の手札を1枚選び、それがモンスターなら墓地に送る
    */
   C0000096: (skillText, context) => {
-    const {
-      addLog,
-      currentPlayer,
-      p1Hand, p2Hand,
-      setP1Hand, setP2Hand,
-      setP1Graveyard, setP2Graveyard,
-    } = context;
+    const { addLog } = context;
+    const { opponentHand, setOpponentHand, setOpponentGraveyard } = getPlayerContext(context);
 
     if (skillText.includes('【召喚時】')) {
-      const opponentHand = currentPlayer === 1 ? p2Hand : p1Hand;
-      const setOpponentHand = currentPlayer === 1 ? setP2Hand : setP1Hand;
-      const setOpponentGraveyard = currentPlayer === 1 ? setP2Graveyard : setP1Graveyard;
-
       if (opponentHand.length === 0) {
         addLog('相手の手札がありません', 'info');
         return true;
@@ -163,17 +144,10 @@ export const darkCardEffects = {
    * 【召喚時】相手モンスター全体の攻撃力を300ダウン
    */
   C0000126: (skillText, context) => {
-    const {
-      addLog,
-      currentPlayer,
-      p1Field, p2Field,
-      setP1Field, setP2Field,
-    } = context;
+    const { addLog } = context;
+    const { opponentField, setOpponentField } = getPlayerContext(context);
 
     if (skillText.includes('【召喚時】')) {
-      const opponentField = currentPlayer === 1 ? p2Field : p1Field;
-      const setOpponentField = currentPlayer === 1 ? setP2Field : setP1Field;
-
       const monsters = opponentField.filter(m => m !== null);
       if (monsters.length === 0) {
         addLog('相手モンスターがいません', 'info');
@@ -213,25 +187,13 @@ export const darkCardEffects = {
    * 【召喚時】自分のSPトークンを１つアクティブにする
    */
   C0000232: (skillText, context) => {
-    const {
-      addLog,
-      currentPlayer,
-      p1RestedSP, p2RestedSP,
-      setP1ActiveSP, setP2ActiveSP,
-      setP1RestedSP, setP2RestedSP,
-    } = context;
+    const { addLog } = context;
+    const { myRestedSP, setMyActiveSP, setMyRestedSP } = getPlayerContext(context);
 
     if (skillText.includes('【召喚時】')) {
-      const restedSP = currentPlayer === 1 ? p1RestedSP : p2RestedSP;
-
-      if (restedSP > 0) {
-        if (currentPlayer === 1) {
-          setP1ActiveSP(prev => prev + 1);
-          setP1RestedSP(prev => prev - 1);
-        } else {
-          setP2ActiveSP(prev => prev + 1);
-          setP2RestedSP(prev => prev - 1);
-        }
+      if (myRestedSP > 0) {
+        setMyActiveSP(prev => prev + 1);
+        setMyRestedSP(prev => prev - 1);
         addLog('レストSPを1個アクティブにした', 'info');
         return true;
       } else {
@@ -247,25 +209,12 @@ export const darkCardEffects = {
    * 基本技: 自分の墓地の《黒呪》魔法カード1枚を手札に戻す（ターンに1度）
    */
   C0000384: (skillText, context) => {
-    const {
-      addLog,
-      currentPlayer,
-      p1Graveyard,
-      p2Graveyard,
-      setP1Graveyard,
-      setP2Graveyard,
-      setP1Hand,
-      setP2Hand,
-      setPendingGraveyardSelection,
-    } = context;
+    const { addLog, setPendingGraveyardSelection } = context;
+    const { myGraveyard, setMyGraveyard, setMyHand } = getPlayerContext(context);
 
     if (context.skillType === 'basic') {
-      const graveyard = currentPlayer === 1 ? p1Graveyard : p2Graveyard;
-      const setGraveyard = currentPlayer === 1 ? setP1Graveyard : setP2Graveyard;
-      const setHand = currentPlayer === 1 ? setP1Hand : setP2Hand;
-
       // 墓地から《黒呪》魔法カードを検索
-      const blackCurseMagics = graveyard.filter(
+      const blackCurseMagics = myGraveyard.filter(
         (card) => card.type === 'magic' && card.name && card.name.includes('黒呪')
       );
 
@@ -281,9 +230,9 @@ export const darkCardEffects = {
           cards: blackCurseMagics,
           callback: (selectedCard) => {
             // 墓地から除去
-            setGraveyard((prev) => prev.filter((c) => c.uniqueId !== selectedCard.uniqueId));
+            setMyGraveyard((prev) => prev.filter((c) => c.uniqueId !== selectedCard.uniqueId));
             // 手札に追加
-            setHand((prev) => [...prev, selectedCard]);
+            setMyHand((prev) => [...prev, selectedCard]);
             addLog(`${selectedCard.name}を手札に戻した`, 'info');
           },
         });
@@ -292,8 +241,8 @@ export const darkCardEffects = {
 
       // 1枚だけの場合は自動選択
       const targetCard = blackCurseMagics[0];
-      setGraveyard((prev) => prev.filter((c) => c.uniqueId !== targetCard.uniqueId));
-      setHand((prev) => [...prev, targetCard]);
+      setMyGraveyard((prev) => prev.filter((c) => c.uniqueId !== targetCard.uniqueId));
+      setMyHand((prev) => [...prev, targetCard]);
       addLog(`${targetCard.name}を手札に戻した`, 'info');
       return true;
     }
@@ -306,26 +255,10 @@ export const darkCardEffects = {
    * 基本技: 自分のライフを600減らし、相手モンスター1体のHPを1200減らす（ターンに1度）
    */
   C0000424: (skillText, context) => {
-    const {
-      addLog,
-      currentPlayer,
-      setP1Life,
-      setP2Life,
-      p1Field,
-      p2Field,
-      setP1Field,
-      setP2Field,
-      setP1Graveyard,
-      setP2Graveyard,
-      setPendingMonsterTarget,
-    } = context;
+    const { addLog, setPendingMonsterTarget } = context;
+    const { setMyLife, opponentField, setOpponentField, setOpponentGraveyard } = getPlayerContext(context);
 
     if (context.skillType === 'basic') {
-      const setCurrentLife = currentPlayer === 1 ? setP1Life : setP2Life;
-      const opponentField = currentPlayer === 1 ? p2Field : p1Field;
-      const setOpponentField = currentPlayer === 1 ? setP2Field : setP1Field;
-      const setOpponentGraveyard = currentPlayer === 1 ? setP2Graveyard : setP1Graveyard;
-
       // 相手モンスターがいるか確認
       const opponentMonsters = opponentField
         .map((m, idx) => ({ monster: m, index: idx }))
@@ -338,7 +271,7 @@ export const darkCardEffects = {
 
       // ライフが足りるか確認（0以下にはなれるが、自滅するかどうかはゲームルール次第）
       // ライフコストとして600減らす
-      setCurrentLife((prev) => prev - 600);
+      setMyLife((prev) => prev - 600);
       addLog('呪灰の翼ダスクドラゴンの基本技！ライフを600支払った', 'damage');
 
       // 1体だけの場合は自動選択
@@ -415,33 +348,11 @@ export const darkCardEffects = {
    * 上級技: 自分の墓地の《黒呪》魔法カード1枚をデッキに戻し、そのカードの効果を発動する
    */
   C0000396: (skillText, context) => {
-    const {
-      addLog,
-      currentPlayer,
-      p1Graveyard,
-      p2Graveyard,
-      setP1Graveyard,
-      setP2Graveyard,
-      p1Deck,
-      p2Deck,
-      setP1Deck,
-      setP2Deck,
-      p1Field,
-      p2Field,
-      setP1Field,
-      setP2Field,
-      monsterIndex,
-      setPendingGraveyardSelection,
-    } = context;
-
-    const graveyard = currentPlayer === 1 ? p1Graveyard : p2Graveyard;
-    const setGraveyard = currentPlayer === 1 ? setP1Graveyard : setP2Graveyard;
-    const setDeck = currentPlayer === 1 ? setP1Deck : setP2Deck;
-    const currentField = currentPlayer === 1 ? p1Field : p2Field;
-    const setField = currentPlayer === 1 ? setP1Field : setP2Field;
+    const { addLog, monsterIndex, setPendingGraveyardSelection } = context;
+    const { myGraveyard, setMyGraveyard, setMyDeck, setMyField } = getPlayerContext(context);
 
     // 墓地から《黒呪》魔法カードを検索
-    const blackCurseMagics = graveyard.filter(
+    const blackCurseMagics = myGraveyard.filter(
       (card) => card.type === 'magic' && card.name && card.name.includes('黒呪')
     );
 
@@ -454,9 +365,9 @@ export const darkCardEffects = {
     if (context.skillType === 'basic') {
       const executeBasicEffect = (selectedCard) => {
         // 墓地から除去
-        setGraveyard((prev) => prev.filter((c) => c.uniqueId !== selectedCard.uniqueId));
+        setMyGraveyard((prev) => prev.filter((c) => c.uniqueId !== selectedCard.uniqueId));
         // デッキに戻す（シャッフル）
-        setDeck((prev) => {
+        setMyDeck((prev) => {
           const newDeck = [...prev, selectedCard];
           // シャッフル
           for (let i = newDeck.length - 1; i > 0; i--) {
@@ -469,7 +380,7 @@ export const darkCardEffects = {
 
         // 攻撃力800アップ
         if (monsterIndex !== undefined && monsterIndex !== null) {
-          setField((prev) =>
+          setMyField((prev) =>
             prev.map((m, idx) => {
               if (idx === monsterIndex && m) {
                 const newAtk = m.currentAttack + 800;
@@ -503,9 +414,9 @@ export const darkCardEffects = {
 
       const executeAdvancedEffect = (selectedCard) => {
         // 墓地から除去
-        setGraveyard((prev) => prev.filter((c) => c.uniqueId !== selectedCard.uniqueId));
+        setMyGraveyard((prev) => prev.filter((c) => c.uniqueId !== selectedCard.uniqueId));
         // デッキに戻す（シャッフル）
-        setDeck((prev) => {
+        setMyDeck((prev) => {
           const newDeck = [...prev, selectedCard];
           // シャッフル
           for (let i = newDeck.length - 1; i > 0; i--) {
@@ -546,28 +457,11 @@ export const darkCardEffects = {
    * 場に《呪縛の塔・ヴェルナクール》がある場合、このカードのダメージを2000に変更。
    */
   C0000393: (skillText, context) => {
-    const {
-      addLog,
-      currentPlayer,
-      p1Field,
-      p2Field,
-      setP1Field,
-      setP2Field,
-      p1FieldCard,
-      p2FieldCard,
-      p1Graveyard,
-      p2Graveyard,
-      setP1Graveyard,
-      setP2Graveyard,
-    } = context;
+    const { addLog } = context;
+    const { opponentField, setOpponentField, setOpponentGraveyard, myFieldCard } = getPlayerContext(context);
 
     // ステータス効果エンジンをインポート
     const { statusEffectEngine, STATUS_EFFECT_TYPES } = require('../statusEffects');
-
-    const opponentField = currentPlayer === 1 ? p2Field : p1Field;
-    const setOpponentField = currentPlayer === 1 ? setP2Field : setP1Field;
-    const setOpponentGraveyard = currentPlayer === 1 ? setP2Graveyard : setP1Graveyard;
-    const myFieldCard = currentPlayer === 1 ? p1FieldCard : p2FieldCard;
 
     // 《呪縛の塔・ヴェルナクール》があるかチェック
     const hasVernacool = myFieldCard && myFieldCard.id === 'C0000386';

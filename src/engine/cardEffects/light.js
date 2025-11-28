@@ -3,6 +3,7 @@
 // ========================================
 
 import {
+  getPlayerContext,
   conditionalDamage,
   searchCard,
   reviveFromGraveyard,
@@ -23,31 +24,19 @@ export const lightCardEffects = {
    * 基本技：手札から光属性カード1枚を捨てるとレスト状態のSPトークン1つをアクティブにする
    */
   C0000062: (skillText, context) => {
-    const {
-      addLog,
-      currentPlayer,
-      p1Hand, p2Hand,
-      setP1Hand, setP2Hand,
-      setP1Graveyard, setP2Graveyard,
-      p1RestedSP, p2RestedSP,
-      setP1RestedSP, setP2RestedSP,
-      setP1ActiveSP, setP2ActiveSP,
-      setPendingHandSelection,
-    } = context;
+    const { addLog, setPendingHandSelection } = context;
+    const { myHand, myRestedSP, setMyHand, setMyGraveyard, setMyRestedSP, setMyActiveSP } = getPlayerContext(context);
 
     if (context.skillType === 'basic') {
-      const hand = currentPlayer === 1 ? p1Hand : p2Hand;
-      const restedSP = currentPlayer === 1 ? p1RestedSP : p2RestedSP;
-
       // 手札に光属性カードがあるか確認
-      const lightCards = hand.filter(c => c.attribute === '光');
+      const lightCards = myHand.filter(c => c.attribute === '光');
       if (lightCards.length === 0) {
         addLog('手札に光属性カードがありません', 'info');
         return false;
       }
 
       // レストSPがあるか確認
-      if (restedSP <= 0) {
+      if (myRestedSP <= 0) {
         addLog('レスト状態のSPトークンがありません', 'info');
         return false;
       }
@@ -57,18 +46,13 @@ export const lightCardEffects = {
         message: '捨てる光属性カードを選択',
         filter: (card) => card.attribute === '光',
         callback: (selectedCard) => {
-          const setHand = currentPlayer === 1 ? setP1Hand : setP2Hand;
-          const setGraveyard = currentPlayer === 1 ? setP1Graveyard : setP2Graveyard;
-          const setRestedSP = currentPlayer === 1 ? setP1RestedSP : setP2RestedSP;
-          const setActiveSP = currentPlayer === 1 ? setP1ActiveSP : setP2ActiveSP;
-
           // 手札から削除して墓地に送る
-          setHand(prev => prev.filter(c => c.uniqueId !== selectedCard.uniqueId));
-          setGraveyard(prev => [...prev, selectedCard]);
+          setMyHand(prev => prev.filter(c => c.uniqueId !== selectedCard.uniqueId));
+          setMyGraveyard(prev => [...prev, selectedCard]);
 
           // レストSPを1つアクティブにする
-          setRestedSP(prev => prev - 1);
-          setActiveSP(prev => prev + 1);
+          setMyRestedSP(prev => prev - 1);
+          setMyActiveSP(prev => prev + 1);
 
           addLog(`「${selectedCard.name}」を捨ててSPを1つアクティブにした`, 'info');
         },
@@ -108,27 +92,18 @@ export const lightCardEffects = {
    * 【召喚時】自分の手札から光属性モンスター1体を公開し、デッキに戻す。その後、1枚ドローする
    */
   C0000121: (skillText, context) => {
-    const {
-      addLog,
-      currentPlayer,
-      p1Hand, p2Hand,
-      setP1Hand, setP2Hand,
-      setP1Deck, setP2Deck,
-    } = context;
+    const { addLog } = context;
+    const { myHand, setMyHand, setMyDeck } = getPlayerContext(context);
 
     if (skillText.includes('【召喚時】')) {
-      const currentHand = currentPlayer === 1 ? p1Hand : p2Hand;
-      const setHand = currentPlayer === 1 ? setP1Hand : setP2Hand;
-      const setDeck = currentPlayer === 1 ? setP1Deck : setP2Deck;
-
-      const lightMonster = currentHand.find(card =>
+      const lightMonster = myHand.find(card =>
         card.type === 'monster' && card.attribute === '光'
       );
 
       if (lightMonster) {
         // 手札からデッキに戻す
-        setHand(prev => prev.filter(c => c.uniqueId !== lightMonster.uniqueId));
-        setDeck(prev => [...prev, lightMonster]);
+        setMyHand(prev => prev.filter(c => c.uniqueId !== lightMonster.uniqueId));
+        setMyDeck(prev => [...prev, lightMonster]);
         addLog(`手札から「${lightMonster.name}」をデッキに戻した`, 'info');
 
         // 1枚ドロー
@@ -147,28 +122,19 @@ export const lightCardEffects = {
    * 【召喚時】デッキからコスト3以下のプラントモンスター1体を墓地に送る
    */
   C0000211: (skillText, context) => {
-    const {
-      addLog,
-      currentPlayer,
-      p1Deck, p2Deck,
-      setP1Deck, setP2Deck,
-      setP1Graveyard, setP2Graveyard,
-    } = context;
+    const { addLog } = context;
+    const { myDeck, setMyDeck, setMyGraveyard } = getPlayerContext(context);
 
     if (skillText.includes('【召喚時】')) {
-      const currentDeck = currentPlayer === 1 ? p1Deck : p2Deck;
-      const setDeck = currentPlayer === 1 ? setP1Deck : setP2Deck;
-      const setGraveyard = currentPlayer === 1 ? setP1Graveyard : setP2Graveyard;
-
-      const plantCard = currentDeck.find(card =>
+      const plantCard = myDeck.find(card =>
         card.type === 'monster' &&
         card.cost <= 3 &&
         hasCategory(card, '【プラント】')
       );
 
       if (plantCard) {
-        setDeck(prev => prev.filter(c => c.uniqueId !== plantCard.uniqueId));
-        setGraveyard(prev => [...prev, plantCard]);
+        setMyDeck(prev => prev.filter(c => c.uniqueId !== plantCard.uniqueId));
+        setMyGraveyard(prev => [...prev, plantCard]);
         addLog(`デッキから「${plantCard.name}」を墓地に送った`, 'info');
         return true;
       } else {
@@ -257,28 +223,18 @@ export const lightCardEffects = {
    * 上級技: 手札から光属性モンスター1体をコストなしで召喚可能。
    */
   C0000056: (skillText, context) => {
-    const {
-      currentPlayer,
-      monsterIndex,
-      p1Field, p2Field,
-      p1Hand, p2Hand,
-      setP1Field, setP2Field,
-      setP1Hand, setP2Hand,
-      addLog,
-      setPendingHandSelection,
-    } = context;
+    const { addLog, monsterIndex, setPendingHandSelection } = context;
+    const { currentPlayer } = getPlayerContext(context);
+    const { myField, myHand, setMyField, setMyHand } = getPlayerContext(context);
 
     // 基本技: HPを300回復
     if (context.skillType === 'basic') {
-      const field = currentPlayer === 1 ? p1Field : p2Field;
-      const setField = currentPlayer === 1 ? setP1Field : setP2Field;
-
-      if (monsterIndex === undefined || !field[monsterIndex]) {
+      if (monsterIndex === undefined || !myField[monsterIndex]) {
         addLog('対象のモンスターが見つかりません', 'info');
         return false;
       }
 
-      const monster = field[monsterIndex];
+      const monster = myField[monsterIndex];
       const healAmount = Math.min(300, monster.maxHp - monster.currentHp);
 
       if (healAmount <= 0) {
@@ -286,7 +242,7 @@ export const lightCardEffects = {
         return false;
       }
 
-      setField(prev => {
+      setMyField(prev => {
         const newField = [...prev];
         newField[monsterIndex] = {
           ...newField[monsterIndex],
@@ -301,11 +257,8 @@ export const lightCardEffects = {
 
     // 上級技: 手札から光属性モンスター1体をコストなしで召喚
     if (context.skillType === 'advanced') {
-      const hand = currentPlayer === 1 ? p1Hand : p2Hand;
-      const field = currentPlayer === 1 ? p1Field : p2Field;
-
       // 手札に光属性モンスターがあるか確認
-      const lightMonsters = hand.filter(card =>
+      const lightMonsters = myHand.filter(card =>
         card.type === 'monster' && card.attribute === '光'
       );
 
@@ -315,7 +268,7 @@ export const lightCardEffects = {
       }
 
       // フィールドに空きがあるか確認
-      const emptySlotIndex = field.findIndex(slot => slot === null);
+      const emptySlotIndex = myField.findIndex(slot => slot === null);
       if (emptySlotIndex === -1) {
         addLog('フィールドに空きがありません', 'info');
         return false;
@@ -326,12 +279,8 @@ export const lightCardEffects = {
         message: '特殊召喚する光属性モンスターを選択',
         filter: (card) => card.type === 'monster' && card.attribute === '光',
         callback: (selectedCard) => {
-          const setHand = currentPlayer === 1 ? setP1Hand : setP2Hand;
-          const setField = currentPlayer === 1 ? setP1Field : setP2Field;
-          const currentField = currentPlayer === 1 ? p1Field : p2Field;
-
           // フィールドの空きスロットを再確認
-          const targetSlot = currentField.findIndex(slot => slot === null);
+          const targetSlot = myField.findIndex(slot => slot === null);
           if (targetSlot === -1) {
             addLog('フィールドに空きがありません', 'info');
             return;
@@ -341,10 +290,10 @@ export const lightCardEffects = {
           const monsterInstance = createMonsterInstance(selectedCard, currentPlayer);
 
           // 手札から削除
-          setHand(prev => prev.filter(c => c.uniqueId !== selectedCard.uniqueId));
+          setMyHand(prev => prev.filter(c => c.uniqueId !== selectedCard.uniqueId));
 
           // フィールドに配置
-          setField(prev => {
+          setMyField(prev => {
             const newField = [...prev];
             newField[targetSlot] = monsterInstance;
             return newField;

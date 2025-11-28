@@ -3,6 +3,7 @@
 // ========================================
 
 import {
+  getPlayerContext,
   millDeck,
   conditionalDamage,
   searchCard,
@@ -25,16 +26,8 @@ export const waterCardEffects = {
    * 召喚時効果は cardTriggers/waterCards.js に実装済み
    */
   C0000142: (skillText, context) => {
-    const {
-      addLog,
-      currentPlayer,
-      p1Field, p2Field,
-      setP1Field, setP2Field,
-      setPendingTargetSelection,
-    } = context;
-
-    const opponentField = currentPlayer === 1 ? p2Field : p1Field;
-    const setOpponentField = currentPlayer === 1 ? setP2Field : setP1Field;
+    const { addLog, setPendingTargetSelection } = context;
+    const { opponentField, setOpponentField } = getPlayerContext(context);
 
     // 相手モンスターを取得
     const validTargets = opponentField
@@ -165,20 +158,13 @@ export const waterCardEffects = {
    * 基本技：自分の水属性モンスター1体の状態異常を回復する。
    */
   C0000045: (skillText, context) => {
-    const {
-      addLog,
-      currentPlayer,
-      p1Field, p2Field,
-      setP1Field, setP2Field,
-      setPendingTargetSelection,
-    } = context;
+    const { addLog, setPendingTargetSelection } = context;
+    const { myField, setMyField } = getPlayerContext(context);
 
     if (context.skillType === 'basic') {
-      const currentField = currentPlayer === 1 ? p1Field : p2Field;
-      const setField = currentPlayer === 1 ? setP1Field : setP2Field;
 
       // 自分の水属性モンスターを取得
-      const waterMonsters = currentField
+      const waterMonsters = myField
         .map((m, idx) => ({ monster: m, index: idx }))
         .filter(({ monster }) => monster !== null && monster.attribute === '水');
 
@@ -198,7 +184,7 @@ export const waterCardEffects = {
       }
 
       const clearStatusEffects = (targetIndex) => {
-        setField(prev => {
+        setMyField(prev => {
           const newField = [...prev];
           const target = newField[targetIndex];
           if (target && target.statusEffects && target.statusEffects.length > 0) {
@@ -243,24 +229,16 @@ export const waterCardEffects = {
    * 基本技：1度のみ使用可能、手札を1枚捨て自分の墓地の《ブリザードキャット》1体を場に戻す（HP半分）
    */
   C0000148: (skillText, context) => {
-    const {
-      addLog,
-      currentPlayer,
-      p1Hand, p2Hand,
-      setP1Hand, setP2Hand,
-      setP1Graveyard, setP2Graveyard,
-    } = context;
+    const { addLog } = context;
+    const { myHand, setMyHand, setMyGraveyard } = getPlayerContext(context);
 
     if (context.skillType === 'basic') {
-      const currentHand = currentPlayer === 1 ? p1Hand : p2Hand;
-      const setHand = currentPlayer === 1 ? setP1Hand : setP2Hand;
-      const setGraveyard = currentPlayer === 1 ? setP1Graveyard : setP2Graveyard;
 
-      if (currentHand.length > 0) {
+      if (myHand.length > 0) {
         // 手札を1枚捨てる
-        const discardedCard = currentHand[0];
-        setHand(prev => prev.slice(1));
-        setGraveyard(prev => [...prev, discardedCard]);
+        const discardedCard = myHand[0];
+        setMyHand(prev => prev.slice(1));
+        setMyGraveyard(prev => [...prev, discardedCard]);
         addLog(`手札から「${discardedCard.name}」を墓地に送った`, 'info');
 
         // 墓地からブリザードキャットを蘇生（HP半減）
@@ -280,16 +258,10 @@ export const waterCardEffects = {
    * 【召喚時】相手の場にいるモンスター全ての攻撃力をターン終了時まで500下げる
    */
   C0000313: (skillText, context) => {
-    const {
-      addLog,
-      currentPlayer,
-      p1Field, p2Field,
-      setP1Field, setP2Field,
-    } = context;
+    const { addLog } = context;
+    const { opponentField, setOpponentField } = getPlayerContext(context);
 
     if (skillText.includes('【召喚時】')) {
-      const opponentField = currentPlayer === 1 ? p2Field : p1Field;
-      const setOpponentField = currentPlayer === 1 ? setP2Field : setP1Field;
 
       const monsters = opponentField.filter(m => m !== null);
       if (monsters.length === 0) {
@@ -316,42 +288,25 @@ export const waterCardEffects = {
    * 【召喚時】墓地の『アクアレギア』と名の付くモンスター1体をデッキに戻すと、レスト状態のSPトークンをアクティブにする
    */
   C0000330: (skillText, context) => {
-    const {
-      addLog,
-      currentPlayer,
-      p1Graveyard, p2Graveyard,
-      setP1Graveyard, setP2Graveyard,
-      setP1Deck, setP2Deck,
-      p1RestedSP, p2RestedSP,
-      setP1ActiveSP, setP2ActiveSP,
-      setP1RestedSP, setP2RestedSP,
-    } = context;
+    const { addLog } = context;
+    const { myGraveyard, setMyGraveyard, setMyDeck, myRestedSP, setMyActiveSP, setMyRestedSP } = getPlayerContext(context);
 
     if (skillText.includes('【召喚時】')) {
-      const currentGraveyard = currentPlayer === 1 ? p1Graveyard : p2Graveyard;
-      const setGraveyard = currentPlayer === 1 ? setP1Graveyard : setP2Graveyard;
-      const setDeck = currentPlayer === 1 ? setP1Deck : setP2Deck;
-      const restedSP = currentPlayer === 1 ? p1RestedSP : p2RestedSP;
 
-      const aquaCard = currentGraveyard.find(card =>
+      const aquaCard = myGraveyard.find(card =>
         card.name && card.name.includes('アクアレギア')
       );
 
       if (aquaCard) {
         // デッキに戻す
-        setGraveyard(prev => prev.filter(c => c.uniqueId !== aquaCard.uniqueId));
-        setDeck(prev => [...prev, aquaCard]);
+        setMyGraveyard(prev => prev.filter(c => c.uniqueId !== aquaCard.uniqueId));
+        setMyDeck(prev => [...prev, aquaCard]);
         addLog(`墓地から「${aquaCard.name}」をデッキに戻した`, 'info');
 
         // SPをアクティブに
-        if (restedSP > 0) {
-          if (currentPlayer === 1) {
-            setP1ActiveSP(prev => prev + 1);
-            setP1RestedSP(prev => prev - 1);
-          } else {
-            setP2ActiveSP(prev => prev + 1);
-            setP2RestedSP(prev => prev - 1);
-          }
+        if (myRestedSP > 0) {
+          setMyActiveSP(prev => prev + 1);
+          setMyRestedSP(prev => prev - 1);
           addLog('レストSPを1個アクティブにした', 'info');
         }
         return true;
@@ -369,16 +324,8 @@ export const waterCardEffects = {
    * 相手はターン開始時にSP1支払いで解除可能
    */
   C0000150: (skillText, context) => {
-    const {
-      addLog,
-      currentPlayer,
-      p1Field, p2Field,
-      setP1Field, setP2Field,
-      setPendingTargetSelection,
-    } = context;
-
-    const opponentField = currentPlayer === 1 ? p2Field : p1Field;
-    const setOpponentField = currentPlayer === 1 ? setP2Field : setP1Field;
+    const { addLog, setPendingTargetSelection } = context;
+    const { opponentField, setOpponentField } = getPlayerContext(context);
 
     // 対象となる相手モンスターを取得
     const validTargets = opponentField
@@ -484,19 +431,11 @@ export const waterCardEffects = {
    * 相手モンスター全体に、場にいる水属性モンスターの数×400ダメージを与える
    */
   C0000051: (skillText, context) => {
-    const {
-      addLog,
-      currentPlayer,
-      p1Field, p2Field,
-      setP1Field, setP2Field,
-    } = context;
-
-    const currentField = currentPlayer === 1 ? p1Field : p2Field;
-    const opponentField = currentPlayer === 1 ? p2Field : p1Field;
-    const setOpponentField = currentPlayer === 1 ? setP2Field : setP1Field;
+    const { addLog } = context;
+    const { myField, opponentField, setOpponentField } = getPlayerContext(context);
 
     // 水属性モンスターの数をカウント
-    const waterCount = currentField.filter(m =>
+    const waterCount = myField.filter(m =>
       m && m.attribute === '水'
     ).length;
 
@@ -540,23 +479,11 @@ export const waterCardEffects = {
    * デッキからコスト3以下の《ブリザードキャット》モンスター1体を場に召喚（コスト不要）
    */
   C0000151: (skillText, context) => {
-    const {
-      addLog,
-      currentPlayer,
-      p1Deck, p2Deck,
-      setP1Deck, setP2Deck,
-      p1Field, p2Field,
-      setP1Field, setP2Field,
-      setPendingDeckReview,
-    } = context;
-
-    const currentDeck = currentPlayer === 1 ? p1Deck : p2Deck;
-    const setDeck = currentPlayer === 1 ? setP1Deck : setP2Deck;
-    const currentField = currentPlayer === 1 ? p1Field : p2Field;
-    const setField = currentPlayer === 1 ? setP1Field : setP2Field;
+    const { addLog, setPendingDeckReview } = context;
+    const { myDeck, setMyDeck, myField, setMyField, currentPlayer } = getPlayerContext(context);
 
     // 空きスロットを確認
-    const emptySlotIndex = currentField.findIndex(slot => slot === null);
+    const emptySlotIndex = myField.findIndex(slot => slot === null);
     if (emptySlotIndex === -1) {
       addLog('場が満杯で召喚できません', 'info');
       return false;
@@ -568,7 +495,7 @@ export const waterCardEffects = {
       card.cost <= 3 &&
       card.name && card.name.includes('ブリザードキャット');
 
-    const matchingCards = currentDeck.filter(targetFilter);
+    const matchingCards = myDeck.filter(targetFilter);
 
     if (matchingCards.length === 0) {
       addLog('条件に合うブリザードキャットがデッキにいません', 'info');
@@ -577,8 +504,8 @@ export const waterCardEffects = {
 
     // 召喚処理を共通化
     const summonMonster = (target) => {
-      setDeck(prev => prev.filter(c => c.uniqueId !== target.uniqueId));
-      setField(prev => {
+      setMyDeck(prev => prev.filter(c => c.uniqueId !== target.uniqueId));
+      setMyField(prev => {
         const newField = [...prev];
         // 最新の空きスロットを再確認
         const slotIndex = newField.findIndex(slot => slot === null);
@@ -640,19 +567,11 @@ export const waterCardEffects = {
    * 相手モンスターへの攻撃を2回行えるようにする
    */
   C0000154: (skillText, context) => {
-    const {
-      addLog,
-      currentPlayer,
-      p1Field, p2Field,
-      setP1Field, setP2Field,
-      setPendingTargetSelection,
-    } = context;
-
-    const currentField = currentPlayer === 1 ? p1Field : p2Field;
-    const setField = currentPlayer === 1 ? setP1Field : setP2Field;
+    const { addLog, setPendingTargetSelection } = context;
+    const { myField, setMyField } = getPlayerContext(context);
 
     // ブリザードキャットを取得
-    const blizzardCats = currentField
+    const blizzardCats = myField
       .map((m, idx) => ({ monster: m, index: idx }))
       .filter(({ monster }) => monster && monster.name && monster.name.includes('ブリザードキャット'));
 
@@ -662,7 +581,7 @@ export const waterCardEffects = {
     }
 
     const applyAwakening = (targetIndex) => {
-      setField(prev => prev.map((m, idx) => {
+      setMyField(prev => prev.map((m, idx) => {
         if (idx === targetIndex && m) {
           const newAtk = m.currentAttack * 2;
           addLog(`${m.name}の攻撃力が${newAtk}に倍増！`, 'heal');
@@ -707,16 +626,8 @@ export const waterCardEffects = {
    * 【刹那詠唱】
    */
   C0000288: (skillText, context) => {
-    const {
-      addLog,
-      currentPlayer,
-      p1Field, p2Field,
-      setP1Field, setP2Field,
-      setPendingTargetSelection,
-    } = context;
-
-    const opponentField = currentPlayer === 1 ? p2Field : p1Field;
-    const setOpponentField = currentPlayer === 1 ? setP2Field : setP1Field;
+    const { addLog, setPendingTargetSelection } = context;
+    const { opponentField, setOpponentField } = getPlayerContext(context);
 
     // 相手モンスターを取得
     const validTargets = opponentField
@@ -771,20 +682,11 @@ export const waterCardEffects = {
    * 場に『ヴェルゼファール』モンスターがいる場合、この効果をターン終了時まで全体に変更
    */
   C0000344: (skillText, context) => {
-    const {
-      addLog,
-      currentPlayer,
-      p1Field, p2Field,
-      setP1Field, setP2Field,
-      setPendingTargetSelection,
-    } = context;
-
-    const currentField = currentPlayer === 1 ? p1Field : p2Field;
-    const opponentField = currentPlayer === 1 ? p2Field : p1Field;
-    const setOpponentField = currentPlayer === 1 ? setP2Field : setP1Field;
+    const { addLog, setPendingTargetSelection } = context;
+    const { myField, opponentField, setOpponentField } = getPlayerContext(context);
 
     // ヴェルゼファールがいるかチェック
-    const hasVerzefaal = currentField.some(m =>
+    const hasVerzefaal = myField.some(m =>
       m && m.name && m.name.includes('ヴェルゼファール')
     );
 
@@ -862,16 +764,8 @@ export const waterCardEffects = {
    * 【刹那詠唱】
    */
   C0000402: (skillText, context) => {
-    const {
-      addLog,
-      currentPlayer,
-      p1Field, p2Field,
-      setP1Field, setP2Field,
-      setPendingTargetSelection,
-    } = context;
-
-    const opponentField = currentPlayer === 1 ? p2Field : p1Field;
-    const setOpponentField = currentPlayer === 1 ? setP2Field : setP1Field;
+    const { addLog, setPendingTargetSelection } = context;
+    const { opponentField, setOpponentField } = getPlayerContext(context);
 
     // 相手モンスターを取得
     const validTargets = opponentField
@@ -940,48 +834,35 @@ export const waterCardEffects = {
    * 基本技：このカードをリリースすると、次の水属性モンスターの召喚コストを2軽減する
    */
   C0000046: (skillText, context) => {
-    const {
-      addLog,
-      currentPlayer,
-      p1Field, p2Field,
-      setP1Field, setP2Field,
-      setP1Graveyard, setP2Graveyard,
-      p1Hand, p2Hand,
-      setP1Hand, setP2Hand,
-      monsterIndex,
-    } = context;
+    const { addLog, monsterIndex } = context;
+    const { myField, setMyField, setMyGraveyard, myHand, setMyHand } = getPlayerContext(context);
 
     if (context.skillType === 'basic') {
-      const currentField = currentPlayer === 1 ? p1Field : p2Field;
-      const setField = currentPlayer === 1 ? setP1Field : setP2Field;
-      const setGraveyard = currentPlayer === 1 ? setP1Graveyard : setP2Graveyard;
-      const hand = currentPlayer === 1 ? p1Hand : p2Hand;
-      const setHand = currentPlayer === 1 ? setP1Hand : setP2Hand;
 
-      const monster = currentField[monsterIndex];
+      const monster = myField[monsterIndex];
       if (!monster) {
         addLog('対象のモンスターが存在しません', 'info');
         return false;
       }
 
       // 手札に水属性モンスターがいるかチェック
-      const waterMonsters = hand.filter(c => c.type === 'monster' && c.attribute === '水');
+      const waterMonsters = myHand.filter(c => c.type === 'monster' && c.attribute === '水');
       if (waterMonsters.length === 0) {
         addLog('手札に水属性モンスターがいないため発動できません', 'info');
         return false;
       }
 
       // 自身を墓地に送る
-      setField(prev => {
+      setMyField(prev => {
         const newField = [...prev];
         newField[monsterIndex] = null;
         return newField;
       });
-      setGraveyard(prev => [...prev, monster]);
+      setMyGraveyard(prev => [...prev, monster]);
       addLog(`${monster.name}をリリース！`, 'info');
 
       // 手札のすべての水属性モンスターにコスト軽減を付与（次の1体のみ使用）
-      setHand(prev => prev.map(c => {
+      setMyHand(prev => prev.map(c => {
         if (c.type === 'monster' && c.attribute === '水') {
           return {
             ...c,
@@ -1004,17 +885,10 @@ export const waterCardEffects = {
    * 基本技：相手の場にいるモンスター1体を指定し、その効果をターン終了時まで無効化。
    */
   C0000145: (skillText, context) => {
-    const {
-      addLog,
-      currentPlayer,
-      p1Field, p2Field,
-      setP2Field, setP1Field,
-      setPendingTargetSelection,
-    } = context;
+    const { addLog, setPendingTargetSelection } = context;
+    const { opponentField } = getPlayerContext(context);
 
     if (context.skillType === 'basic') {
-      const opponentField = currentPlayer === 1 ? p2Field : p1Field;
-      const setOpponentField = currentPlayer === 1 ? setP2Field : setP1Field;
 
       // 相手フィールドのモンスターをチェック
       const validTargets = opponentField
@@ -1068,21 +942,12 @@ export const waterCardEffects = {
    * 基本技：自身の攻撃力の半分のダメージを相手モンスター1体に与える。
    */
   C0000144: (skillText, context) => {
-    const {
-      addLog,
-      currentPlayer,
-      monsterIndex,
-      p1Field, p2Field,
-      setP1Field, setP2Field,
-      setPendingTargetSelection,
-    } = context;
+    const { addLog, monsterIndex, setPendingTargetSelection } = context;
+    const { myField, opponentField, setOpponentField } = getPlayerContext(context);
 
     if (context.skillType === 'basic') {
-      const currentField = currentPlayer === 1 ? p1Field : p2Field;
-      const opponentField = currentPlayer === 1 ? p2Field : p1Field;
-      const setOpponentField = currentPlayer === 1 ? setP2Field : setP1Field;
 
-      const monster = currentField[monsterIndex];
+      const monster = myField[monsterIndex];
       if (!monster) {
         addLog('モンスターが存在しません', 'damage');
         return false;
@@ -1167,24 +1032,11 @@ export const waterCardEffects = {
    * 場にいる水属性モンスター1体をデッキに戻し、デッキから同じコスト以下の別の水属性モンスターを場に出す（コスト不要）
    */
   C0000049: (skillText, context) => {
-    const {
-      addLog,
-      currentPlayer,
-      p1Field, p2Field,
-      setP1Field, setP2Field,
-      p1Deck, p2Deck,
-      setP1Deck, setP2Deck,
-      setPendingTargetSelection,
-      setPendingDeckReview,
-    } = context;
-
-    const currentField = currentPlayer === 1 ? p1Field : p2Field;
-    const setField = currentPlayer === 1 ? setP1Field : setP2Field;
-    const currentDeck = currentPlayer === 1 ? p1Deck : p2Deck;
-    const setDeck = currentPlayer === 1 ? setP1Deck : setP2Deck;
+    const { addLog, setPendingTargetSelection, setPendingDeckReview } = context;
+    const { myField, setMyField, myDeck, setMyDeck, currentPlayer } = getPlayerContext(context);
 
     // 自分の場の水属性モンスターを取得
-    const waterMonsters = currentField
+    const waterMonsters = myField
       .map((m, idx) => ({ monster: m, index: idx }))
       .filter(({ monster }) => monster !== null && monster.attribute === '水');
 
@@ -1195,13 +1047,13 @@ export const waterCardEffects = {
 
     // モンスターを選択してシフトする処理
     const performTidalShift = (selectedIndex) => {
-      const selectedMonster = currentField[selectedIndex];
+      const selectedMonster = myField[selectedIndex];
       if (!selectedMonster) return;
 
       const targetCost = selectedMonster.cost;
 
       // デッキから同コスト以下の別の水属性モンスターを検索
-      const eligibleMonsters = currentDeck.filter(card =>
+      const eligibleMonsters = myDeck.filter(card =>
         card.type === 'monster' &&
         card.attribute === '水' &&
         card.cost <= targetCost &&
@@ -1215,18 +1067,18 @@ export const waterCardEffects = {
       }
 
       // 選択したモンスターをデッキに戻す
-      setField(prev => {
+      setMyField(prev => {
         const newField = [...prev];
         newField[selectedIndex] = null;
         return newField;
       });
-      setDeck(prev => [...prev, selectedMonster]);
+      setMyDeck(prev => [...prev, selectedMonster]);
       addLog(`${selectedMonster.name}をデッキに戻した`, 'info');
 
       // 召喚処理
       const summonReplacement = (newMonster) => {
-        setDeck(prev => prev.filter(c => c.uniqueId !== newMonster.uniqueId));
-        setField(prev => {
+        setMyDeck(prev => prev.filter(c => c.uniqueId !== newMonster.uniqueId));
+        setMyField(prev => {
           const newField = [...prev];
           newField[selectedIndex] = {
             ...newMonster,
@@ -1328,22 +1180,11 @@ export const waterCardEffects = {
    * 【刹那詠唱】
    */
   C0000050: (skillText, context) => {
-    const {
-      addLog,
-      currentPlayer,
-      p1Graveyard, p2Graveyard,
-      setP1Graveyard, setP2Graveyard,
-      setP1Hand, setP2Hand,
-      setPendingGraveyardSelection,
-      setShowGraveyardViewer,
-    } = context;
-
-    const currentGraveyard = currentPlayer === 1 ? p1Graveyard : p2Graveyard;
-    const setGraveyard = currentPlayer === 1 ? setP1Graveyard : setP2Graveyard;
-    const setHand = currentPlayer === 1 ? setP1Hand : setP2Hand;
+    const { addLog, setPendingGraveyardSelection, setShowGraveyardViewer } = context;
+    const { myGraveyard, setMyGraveyard, setMyHand, currentPlayer } = getPlayerContext(context);
 
     // 墓地の水属性モンスターを検索
-    const waterMonsters = currentGraveyard.filter(card =>
+    const waterMonsters = myGraveyard.filter(card =>
       card.type === 'monster' && card.attribute === '水'
     );
 
@@ -1355,14 +1196,14 @@ export const waterCardEffects = {
     // カードを手札に加える処理（コスト-1付き）
     const returnToHand = (targetCard) => {
       // 墓地から除去
-      setGraveyard(prev => prev.filter(c => c.uniqueId !== targetCard.uniqueId));
+      setMyGraveyard(prev => prev.filter(c => c.uniqueId !== targetCard.uniqueId));
       // 手札に加える（コスト-1を付与）
       const cardWithCostReduction = {
         ...targetCard,
         tempCostModifier: (targetCard.tempCostModifier || 0) - 1,
         tempCostModifierSource: 'クラーケンの呼び声',
       };
-      setHand(prev => [...prev, cardWithCostReduction]);
+      setMyHand(prev => [...prev, cardWithCostReduction]);
       addLog(`クラーケンの呼び声: ${targetCard.name}を手札に戻した（召喚コスト-1）`, 'heal');
     };
 

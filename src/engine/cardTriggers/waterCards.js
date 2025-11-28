@@ -7,6 +7,7 @@
 
 import { TRIGGER_TYPES, ACTIVATION_TYPES, TRIGGER_PRIORITIES } from '../triggerTypes';
 import {
+  getPlayerContext,
   millDeck,
   conditionalDamage,
   searchCard,
@@ -60,10 +61,11 @@ export const waterCardTriggers = {
       activationType: ACTIVATION_TYPES.AUTOMATIC,
       description: '召喚時: 相手全体に3000、破壊数×800',
       effect: (context) => {
-        const { p2Field, setP2Field, addLog } = context;
+        const { addLog } = context;
+        const { setOpponentField } = getPlayerContext(context);
         let destroyedCount = 0;
 
-        setP2Field((prev) => {
+        setOpponentField((prev) => {
           return prev.map((monster) => {
             if (monster) {
               const newHp = monster.currentHp - 3000;
@@ -98,16 +100,11 @@ export const waterCardTriggers = {
       activationType: ACTIVATION_TYPES.AUTOMATIC,
       description: '召喚時: 手札の水属性カード1枚のコスト-1',
       effect: (context) => {
-        const {
-          currentPlayer, p1Hand, p2Hand, setP1Hand, setP2Hand,
-          addLog, setPendingHandSelection,
-        } = context;
-
-        const hand = currentPlayer === 1 ? p1Hand : p2Hand;
-        const setHand = currentPlayer === 1 ? setP1Hand : setP2Hand;
+        const { addLog, setPendingHandSelection } = context;
+        const { myHand, setMyHand } = getPlayerContext(context);
 
         // 水属性カードをフィルタ（自分自身以外）
-        const waterCards = hand.filter(c => c.attribute === '水');
+        const waterCards = myHand.filter(c => c.attribute === '水');
 
         if (waterCards.length === 0) {
           addLog('潮の乙女の効果: 手札に水属性カードがありません', 'info');
@@ -117,7 +114,7 @@ export const waterCardTriggers = {
         // 1枚のみの場合は自動選択
         if (waterCards.length === 1) {
           const targetCard = waterCards[0];
-          setHand(prev => prev.map(c =>
+          setMyHand(prev => prev.map(c =>
             c.uniqueId === targetCard.uniqueId
               ? { ...c, tempCostModifier: (c.tempCostModifier || 0) - 1, tempCostModifierSource: '潮の乙女' }
               : c
@@ -132,7 +129,7 @@ export const waterCardTriggers = {
             message: 'コストを1軽減する水属性カードを選択してください',
             filter: (card) => card.attribute === '水',
             callback: (selectedCard) => {
-              setHand(prev => prev.map(c =>
+              setMyHand(prev => prev.map(c =>
                 c.uniqueId === selectedCard.uniqueId
                   ? { ...c, tempCostModifier: (c.tempCostModifier || 0) - 1, tempCostModifierSource: '潮の乙女' }
                   : c
@@ -145,7 +142,7 @@ export const waterCardTriggers = {
 
         // フォールバック: 最初の水属性カードを選択
         const targetCard = waterCards[0];
-        setHand(prev => prev.map(c =>
+        setMyHand(prev => prev.map(c =>
           c.uniqueId === targetCard.uniqueId
             ? { ...c, tempCostModifier: (c.tempCostModifier || 0) - 1, tempCostModifierSource: '潮の乙女' }
             : c

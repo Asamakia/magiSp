@@ -3,6 +3,7 @@
 // ========================================
 
 import {
+  getPlayerContext,
   millDeck,
   millOpponentDeck,
   checkAttribute,
@@ -79,7 +80,8 @@ export const futureCardEffects = {
    * 【召喚時】デッキの上から1枚を墓地に送る。そのカードが未来属性の場合、次のターン終了時までこのカードの攻撃力を600に変更
    */
   C0000085: (skillText, context) => {
-    const { addLog, monsterIndex, currentPlayer, setP1Field, setP2Field, p1Field, p2Field } = context;
+    const { addLog, monsterIndex } = context;
+    const { setMyField } = getPlayerContext(context);
 
     if (skillText.includes('【召喚時】')) {
       const milledCards = millDeck(context, 1);
@@ -90,8 +92,7 @@ export const futureCardEffects = {
       const milledCard = milledCards[0];
       if (checkAttribute(milledCard, '未来')) {
         // 攻撃力を600に変更
-        const setCurrentField = currentPlayer === 1 ? setP1Field : setP2Field;
-        setCurrentField(prev => prev.map((m, idx) => {
+        setMyField(prev => prev.map((m, idx) => {
           if (idx === monsterIndex && m) {
             addLog(`${m.name}の攻撃力が600に変更！`, 'info');
             return { ...m, attack: 600 };
@@ -110,30 +111,19 @@ export const futureCardEffects = {
    * 基本技: 自分の手札1枚をデッキに戻しシャッフルする。その後、1枚ドローする
    */
   C0000090: (skillText, context) => {
-    const {
-      addLog,
-      currentPlayer,
-      p1Hand, p2Hand,
-      setP1Hand, setP2Hand,
-      setP1Deck, setP2Deck,
-      p1Deck, p2Deck,
-    } = context;
+    const { addLog } = context;
+    const { myHand, setMyHand, setMyDeck } = getPlayerContext(context);
 
     if (context.skillType === 'basic') {
-      const currentHand = currentPlayer === 1 ? p1Hand : p2Hand;
-      const setHand = currentPlayer === 1 ? setP1Hand : setP2Hand;
-      const currentDeck = currentPlayer === 1 ? p1Deck : p2Deck;
-      const setDeck = currentPlayer === 1 ? setP1Deck : setP2Deck;
-
-      if (currentHand.length === 0) {
+      if (myHand.length === 0) {
         addLog('手札がありません', 'info');
         return false;
       }
 
       // 手札の最初のカードをデッキに戻す（本来はプレイヤーが選択）
-      const cardToReturn = currentHand[0];
-      setHand(prev => prev.slice(1));
-      setDeck(prev => {
+      const cardToReturn = myHand[0];
+      setMyHand(prev => prev.slice(1));
+      setMyDeck(prev => {
         // シャッフル（簡易実装）
         const newDeck = [...prev, cardToReturn];
         return newDeck.sort(() => Math.random() - 0.5);
@@ -153,26 +143,17 @@ export const futureCardEffects = {
    * 【召喚時】自分の墓地の未来属性カード1枚をデッキに戻す。その後、相手プレイヤーに300ダメージを与える
    */
   C0000105: (skillText, context) => {
-    const {
-      addLog,
-      currentPlayer,
-      p1Graveyard, p2Graveyard,
-      setP1Graveyard, setP2Graveyard,
-      setP1Deck, setP2Deck,
-    } = context;
+    const { addLog } = context;
+    const { myGraveyard, setMyGraveyard, setMyDeck } = getPlayerContext(context);
 
     if (skillText.includes('【召喚時】')) {
-      const currentGraveyard = currentPlayer === 1 ? p1Graveyard : p2Graveyard;
-      const setGraveyard = currentPlayer === 1 ? setP1Graveyard : setP2Graveyard;
-      const setDeck = currentPlayer === 1 ? setP1Deck : setP2Deck;
-
       // 墓地から未来属性カードを検索
-      const futureCard = currentGraveyard.find(card => checkAttribute(card, '未来'));
+      const futureCard = myGraveyard.find(card => checkAttribute(card, '未来'));
 
       if (futureCard) {
         // デッキに戻す
-        setGraveyard(prev => prev.filter(c => c.uniqueId !== futureCard.uniqueId));
-        setDeck(prev => [...prev, futureCard]);
+        setMyGraveyard(prev => prev.filter(c => c.uniqueId !== futureCard.uniqueId));
+        setMyDeck(prev => [...prev, futureCard]);
         addLog(`墓地から「${futureCard.name}」をデッキに戻した`, 'info');
       } else {
         addLog('墓地に未来属性カードがありません', 'info');
@@ -191,13 +172,8 @@ export const futureCardEffects = {
    * 【召喚時】1枚ドローする。その後、手札を1枚デッキの下に戻す
    */
   C0000116: (skillText, context) => {
-    const {
-      addLog,
-      currentPlayer,
-      p1Hand, p2Hand,
-      setP1Hand, setP2Hand,
-      setP1Deck, setP2Deck,
-    } = context;
+    const { addLog } = context;
+    const { myHand, setMyHand, setMyDeck } = getPlayerContext(context);
 
     if (skillText.includes('【召喚時】')) {
       // 1枚ドロー
@@ -206,19 +182,15 @@ export const futureCardEffects = {
         return false;
       }
 
-      const currentHand = currentPlayer === 1 ? p1Hand : p2Hand;
-      const setHand = currentPlayer === 1 ? setP1Hand : setP2Hand;
-      const setDeck = currentPlayer === 1 ? setP1Deck : setP2Deck;
-
-      if (currentHand.length === 0) {
+      if (myHand.length === 0) {
         addLog('手札がありません', 'info');
         return true; // ドローは成功したのでtrue
       }
 
       // 手札の最初のカードをデッキの下に戻す（本来はプレイヤーが選択）
-      const cardToReturn = currentHand[0];
-      setHand(prev => prev.slice(1));
-      setDeck(prev => [...prev, cardToReturn]);
+      const cardToReturn = myHand[0];
+      setMyHand(prev => prev.slice(1));
+      setMyDeck(prev => [...prev, cardToReturn]);
       addLog(`手札から「${cardToReturn.name}」をデッキの下に戻した`, 'info');
 
       return true;
@@ -232,17 +204,10 @@ export const futureCardEffects = {
    * 【召喚時】相手フィールド全体に600ダメージを与える
    */
   C0000183: (skillText, context) => {
-    const {
-      addLog,
-      currentPlayer,
-      p1Field, p2Field,
-      setP1Field, setP2Field,
-    } = context;
+    const { addLog } = context;
+    const { opponentField, setOpponentField } = getPlayerContext(context);
 
     if (skillText.includes('【召喚時】')) {
-      const opponentField = currentPlayer === 1 ? p2Field : p1Field;
-      const setOpponentField = currentPlayer === 1 ? setP2Field : setP1Field;
-
       const monsters = opponentField.filter(m => m !== null);
       if (monsters.length === 0) {
         addLog('相手フィールドにモンスターがいません', 'info');
@@ -277,21 +242,16 @@ export const futureCardEffects = {
    * 【召喚時】デッキの上から3枚を見て、好きな順番で戻す
    */
   C0000249: (skillText, context) => {
-    const {
-      addLog,
-      currentPlayer,
-      p1Deck, p2Deck,
-    } = context;
+    const { addLog } = context;
+    const { myDeck } = getPlayerContext(context);
 
     if (skillText.includes('【召喚時】')) {
-      const currentDeck = currentPlayer === 1 ? p1Deck : p2Deck;
-
-      if (currentDeck.length >= 3) {
-        const topCards = currentDeck.slice(0, 3);
+      if (myDeck.length >= 3) {
+        const topCards = myDeck.slice(0, 3);
         addLog(`デッキの上から3枚を確認: ${topCards.map(c => c.name).join(', ')}`, 'info');
         addLog('（順番はそのまま戻しました）', 'info');
       } else {
-        addLog(`デッキの残りは${currentDeck.length}枚です`, 'info');
+        addLog(`デッキの残りは${myDeck.length}枚です`, 'info');
       }
 
       // 実際の順番変更は UI が必要なので、現在は何もしない
@@ -306,19 +266,10 @@ export const futureCardEffects = {
    * 【召喚時】相手の手札を1枚ランダムに墓地に送る
    */
   C0000250: (skillText, context) => {
-    const {
-      addLog,
-      currentPlayer,
-      p1Hand, p2Hand,
-      setP1Hand, setP2Hand,
-      setP1Graveyard, setP2Graveyard,
-    } = context;
+    const { addLog } = context;
+    const { opponentHand, setOpponentHand, setOpponentGraveyard } = getPlayerContext(context);
 
     if (skillText.includes('【召喚時】')) {
-      const opponentHand = currentPlayer === 1 ? p2Hand : p1Hand;
-      const setOpponentHand = currentPlayer === 1 ? setP2Hand : setP1Hand;
-      const setOpponentGraveyard = currentPlayer === 1 ? setP2Graveyard : setP1Graveyard;
-
       if (opponentHand.length === 0) {
         addLog('相手の手札がありません', 'info');
         return true;
@@ -358,25 +309,16 @@ export const futureCardEffects = {
    * 【召喚時】自分の墓地の「未来属性」カード1枚を手札に加える
    */
   C0000256: (skillText, context) => {
-    const {
-      addLog,
-      currentPlayer,
-      p1Graveyard, p2Graveyard,
-      setP1Graveyard, setP2Graveyard,
-      setP1Hand, setP2Hand,
-    } = context;
+    const { addLog } = context;
+    const { myGraveyard, setMyGraveyard, setMyHand } = getPlayerContext(context);
 
     if (skillText.includes('【召喚時】')) {
-      const currentGraveyard = currentPlayer === 1 ? p1Graveyard : p2Graveyard;
-      const setGraveyard = currentPlayer === 1 ? setP1Graveyard : setP2Graveyard;
-      const setHand = currentPlayer === 1 ? setP1Hand : setP2Hand;
-
       // 墓地から未来属性カードを検索
-      const futureCard = currentGraveyard.find(card => checkAttribute(card, '未来'));
+      const futureCard = myGraveyard.find(card => checkAttribute(card, '未来'));
 
       if (futureCard) {
-        setGraveyard(prev => prev.filter(c => c.uniqueId !== futureCard.uniqueId));
-        setHand(prev => [...prev, futureCard]);
+        setMyGraveyard(prev => prev.filter(c => c.uniqueId !== futureCard.uniqueId));
+        setMyHand(prev => [...prev, futureCard]);
         addLog(`墓地から「${futureCard.name}」を手札に加えた`, 'info');
         return true;
       } else {
@@ -393,24 +335,12 @@ export const futureCardEffects = {
    * 基本技: デッキからコスト4以下の「未来属性」モンスター1体を召喚。このカードをデッキの下に戻す。
    */
   C0000267: (skillText, context) => {
-    const {
-      addLog,
-      currentPlayer,
-      p1Deck, p2Deck,
-      setP1Deck, setP2Deck,
-      p1Field, p2Field,
-      setP1Field, setP2Field,
-      monsterIndex,
-    } = context;
+    const { addLog, monsterIndex } = context;
+    const { myDeck, setMyDeck, myField, setMyField, currentPlayer } = getPlayerContext(context);
 
     if (context.skillType === 'basic') {
-      const currentDeck = currentPlayer === 1 ? p1Deck : p2Deck;
-      const setDeck = currentPlayer === 1 ? setP1Deck : setP2Deck;
-      const currentField = currentPlayer === 1 ? p1Field : p2Field;
-      const setField = currentPlayer === 1 ? setP1Field : setP2Field;
-
       // デッキからコスト4以下の未来属性モンスターを検索
-      const targetIndex = currentDeck.findIndex(card =>
+      const targetIndex = myDeck.findIndex(card =>
         card.type === 'monster' &&
         checkAttribute(card, '未来') &&
         card.cost <= 4
@@ -422,18 +352,18 @@ export const futureCardEffects = {
       }
 
       // 空きスロットを探す
-      const emptySlotIndex = currentField.findIndex(slot => slot === null);
+      const emptySlotIndex = myField.findIndex(slot => slot === null);
       if (emptySlotIndex === -1) {
         addLog('フィールドに空きがありません', 'info');
         return false;
       }
 
       // デッキからカードを取得
-      const targetCard = currentDeck[targetIndex];
-      const newDeck = currentDeck.filter((_, idx) => idx !== targetIndex);
+      const targetCard = myDeck[targetIndex];
+      const newDeck = myDeck.filter((_, idx) => idx !== targetIndex);
 
       // このカード（エクラオン）を取得
-      const thisCard = currentField[monsterIndex];
+      const thisCard = myField[monsterIndex];
       if (!thisCard) {
         addLog('エラー: カードが見つかりません', 'info');
         return false;
@@ -453,7 +383,7 @@ export const futureCardEffects = {
       };
 
       // フィールドを更新：召喚＆このカードを除去
-      setField(prev => prev.map((slot, idx) => {
+      setMyField(prev => prev.map((slot, idx) => {
         if (idx === emptySlotIndex) {
           return monsterInstance;
         }
@@ -464,7 +394,7 @@ export const futureCardEffects = {
       }));
 
       // デッキを更新：このカードをデッキの下に追加
-      setDeck([...newDeck, thisCard]);
+      setMyDeck([...newDeck, thisCard]);
 
       addLog(`デッキから「${targetCard.name}」を召喚！`, 'info');
       addLog(`「${thisCard.name}」をデッキの下に戻した`, 'info');
@@ -483,23 +413,12 @@ export const futureCardEffects = {
    * 基本技: 場に《エクラリア》モンスターがいる場合、自分のデッキからコスト4以下「未来属性」魔法カード1枚を手札に加える。
    */
   C0000274: (skillText, context) => {
-    const {
-      addLog,
-      currentPlayer,
-      p1Field, p2Field,
-      p1Deck, p2Deck,
-      setP1Deck, setP2Deck,
-      setP1Hand, setP2Hand,
-    } = context;
+    const { addLog } = context;
+    const { myField, myDeck, setMyDeck, setMyHand } = getPlayerContext(context);
 
     if (context.skillType === 'basic') {
-      const currentField = currentPlayer === 1 ? p1Field : p2Field;
-      const currentDeck = currentPlayer === 1 ? p1Deck : p2Deck;
-      const setDeck = currentPlayer === 1 ? setP1Deck : setP2Deck;
-      const setHand = currentPlayer === 1 ? setP1Hand : setP2Hand;
-
       // 場に「エクラリア」モンスターがいるか確認
-      const hasEclaria = currentField.some(monster =>
+      const hasEclaria = myField.some(monster =>
         monster !== null &&
         (monster.name.includes('エクラリア') || hasCategory(monster, '【エクラリア】'))
       );
@@ -510,7 +429,7 @@ export const futureCardEffects = {
       }
 
       // デッキからコスト4以下の未来属性魔法カードを検索
-      const targetIndex = currentDeck.findIndex(card =>
+      const targetIndex = myDeck.findIndex(card =>
         card.type === 'magic' &&
         checkAttribute(card, '未来') &&
         card.cost <= 4
@@ -522,9 +441,9 @@ export const futureCardEffects = {
       }
 
       // カードを手札に加える
-      const targetCard = currentDeck[targetIndex];
-      setDeck(prev => prev.filter((_, idx) => idx !== targetIndex));
-      setHand(prev => [...prev, targetCard]);
+      const targetCard = myDeck[targetIndex];
+      setMyDeck(prev => prev.filter((_, idx) => idx !== targetIndex));
+      setMyHand(prev => [...prev, targetCard]);
 
       addLog(`デッキから「${targetCard.name}」を手札に加えた`, 'info');
       return true;
@@ -550,27 +469,13 @@ export const futureCardEffects = {
    * 基本技: 自分の墓地の「未来属性」カード1枚をデッキに戻し、このカードの攻撃力をターン終了時まで800アップ。
    */
   C0000268: (skillText, context) => {
-    const {
-      addLog,
-      currentPlayer,
-      monsterIndex,
-      p1Graveyard, p2Graveyard,
-      setP1Graveyard, setP2Graveyard,
-      setP1Deck, setP2Deck,
-      p1Field, p2Field,
-      setP1Field, setP2Field,
-    } = context;
+    const { addLog, monsterIndex } = context;
+    const { myGraveyard, setMyGraveyard, setMyDeck, myField, setMyField } = getPlayerContext(context);
 
     // 基本技
     if (context.skillType === 'basic') {
-      const currentGraveyard = currentPlayer === 1 ? p1Graveyard : p2Graveyard;
-      const setGraveyard = currentPlayer === 1 ? setP1Graveyard : setP2Graveyard;
-      const setDeck = currentPlayer === 1 ? setP1Deck : setP2Deck;
-      const currentField = currentPlayer === 1 ? p1Field : p2Field;
-      const setField = currentPlayer === 1 ? setP1Field : setP2Field;
-
       // 墓地から未来属性カードを検索
-      const futureCard = currentGraveyard.find(card => checkAttribute(card, '未来'));
+      const futureCard = myGraveyard.find(card => checkAttribute(card, '未来'));
 
       if (!futureCard) {
         addLog('墓地に未来属性カードがありません', 'info');
@@ -578,14 +483,14 @@ export const futureCardEffects = {
       }
 
       // 墓地からデッキに戻す
-      setGraveyard(prev => prev.filter(c => c.uniqueId !== futureCard.uniqueId));
-      setDeck(prev => [...prev, futureCard]);
+      setMyGraveyard(prev => prev.filter(c => c.uniqueId !== futureCard.uniqueId));
+      setMyDeck(prev => [...prev, futureCard]);
       addLog(`墓地から「${futureCard.name}」をデッキに戻した`, 'info');
 
       // このカードの攻撃力を800アップ（ターン終了時まで）
-      const thisCard = currentField[monsterIndex];
+      const thisCard = myField[monsterIndex];
       if (thisCard) {
-        setField(prev => prev.map((m, idx) => {
+        setMyField(prev => prev.map((m, idx) => {
           if (idx === monsterIndex && m) {
             const newAttack = (m.currentAttack || m.attack) + 800;
             addLog(`${m.name}の攻撃力が800アップ（${newAttack}）！`, 'info');
@@ -611,20 +516,12 @@ export const futureCardEffects = {
    * 基本技: このカードの攻撃力をターン終了時まで1800に変更。
    */
   C0000106: (skillText, context) => {
-    const {
-      addLog,
-      currentPlayer,
-      monsterIndex,
-      p1Field, p2Field,
-      setP1Field, setP2Field,
-    } = context;
+    const { addLog, monsterIndex } = context;
+    const { myField, setMyField } = getPlayerContext(context);
 
     // 基本技
     if (context.skillType === 'basic') {
-      const currentField = currentPlayer === 1 ? p1Field : p2Field;
-      const setField = currentPlayer === 1 ? setP1Field : setP2Field;
-
-      const thisCard = currentField[monsterIndex];
+      const thisCard = myField[monsterIndex];
       if (!thisCard) {
         return false;
       }
@@ -640,7 +537,7 @@ export const futureCardEffects = {
 
       // 攻撃力を1800に変更（ターン終了時まで）
       const buffAmount = targetAttack - currentAttack;
-      setField(prev => prev.map((m, idx) => {
+      setMyField(prev => prev.map((m, idx) => {
         if (idx === monsterIndex && m) {
           addLog(`${m.name}の攻撃力が${targetAttack}に変更！`, 'info');
           return {
@@ -683,32 +580,22 @@ export const futureCardEffects = {
    * 【刹那詠唱】自分のデッキ上3枚を見て、1枚を手札に加え、残りを好きな順番で戻す。
    */
   C0000277: (skillText, context) => {
-    const {
-      addLog,
-      currentPlayer,
-      p1Deck, p2Deck,
-      setP1Deck, setP2Deck,
-      setP1Hand, setP2Hand,
-      setPendingDeckReview,
-    } = context;
+    const { addLog, setPendingDeckReview } = context;
+    const { myDeck, setMyDeck, setMyHand } = getPlayerContext(context);
 
-    const deck = currentPlayer === 1 ? p1Deck : p2Deck;
-    const setDeck = currentPlayer === 1 ? setP1Deck : setP2Deck;
-    const setHand = currentPlayer === 1 ? setP1Hand : setP2Hand;
-
-    if (deck.length === 0) {
+    if (myDeck.length === 0) {
       addLog('デッキにカードがありません', 'info');
       return true; // 効果処理は完了（対象なし）
     }
 
-    const cardCount = Math.min(3, deck.length);
-    const topCards = deck.slice(0, cardCount);
+    const cardCount = Math.min(3, myDeck.length);
+    const topCards = myDeck.slice(0, cardCount);
     addLog(`星屑の時導術: デッキ上${cardCount}枚を確認`, 'info');
 
     if (cardCount === 1) {
       // 1枚しかない場合、その1枚を手札に加える
-      setHand((prev) => [...prev, topCards[0]]);
-      setDeck((prev) => prev.slice(1));
+      setMyHand((prev) => [...prev, topCards[0]]);
+      setMyDeck((prev) => prev.slice(1));
       addLog(`${topCards[0].name}を手札に加えた`, 'info');
       return true;
     }
@@ -722,7 +609,7 @@ export const futureCardEffects = {
       selectMode: { enabled: true, count: 1 },
       onSelect: (selectedCards, remainingCards) => {
         const cardToHand = selectedCards[0];
-        setHand((prev) => [...prev, cardToHand]);
+        setMyHand((prev) => [...prev, cardToHand]);
         addLog(`${cardToHand.name}を手札に加えた`, 'info');
 
         if (remainingCards.length > 1) {
@@ -733,13 +620,13 @@ export const futureCardEffects = {
             message: 'デッキに戻すカードの順番を決めてください（上から順）',
             allowReorder: true,
             onConfirm: (reorderedCards) => {
-              setDeck((prev) => [...reorderedCards, ...prev.slice(cardCount)]);
+              setMyDeck((prev) => [...reorderedCards, ...prev.slice(cardCount)]);
               addLog(`残りをデッキに戻した: ${reorderedCards.map((c) => c.name).join(' → ')}`, 'info');
             },
           });
         } else if (remainingCards.length === 1) {
           // 残りが1枚なら自動で戻す
-          setDeck((prev) => [remainingCards[0], ...prev.slice(cardCount)]);
+          setMyDeck((prev) => [remainingCards[0], ...prev.slice(cardCount)]);
           addLog(`${remainingCards[0].name}をデッキに戻した`, 'info');
         }
       },
@@ -753,32 +640,22 @@ export const futureCardEffects = {
    * 自分のデッキの上から5枚を見て、1枚を手札に加え、残りを好きな順番で戻す。
    */
   C0000255: (skillText, context) => {
-    const {
-      addLog,
-      currentPlayer,
-      p1Deck, p2Deck,
-      setP1Deck, setP2Deck,
-      setP1Hand, setP2Hand,
-      setPendingDeckReview,
-    } = context;
+    const { addLog, setPendingDeckReview } = context;
+    const { myDeck, setMyDeck, setMyHand } = getPlayerContext(context);
 
-    const deck = currentPlayer === 1 ? p1Deck : p2Deck;
-    const setDeck = currentPlayer === 1 ? setP1Deck : setP2Deck;
-    const setHand = currentPlayer === 1 ? setP1Hand : setP2Hand;
-
-    if (deck.length === 0) {
+    if (myDeck.length === 0) {
       addLog('デッキにカードがありません', 'info');
       return true; // 効果処理は完了（対象なし）
     }
 
-    const cardCount = Math.min(5, deck.length);
-    const topCards = deck.slice(0, cardCount);
+    const cardCount = Math.min(5, myDeck.length);
+    const topCards = myDeck.slice(0, cardCount);
     addLog(`未来の鴉予言: デッキ上${cardCount}枚を確認`, 'info');
 
     if (cardCount === 1) {
       // 1枚しかない場合、その1枚を手札に加える
-      setHand((prev) => [...prev, topCards[0]]);
-      setDeck((prev) => prev.slice(1));
+      setMyHand((prev) => [...prev, topCards[0]]);
+      setMyDeck((prev) => prev.slice(1));
       addLog(`${topCards[0].name}を手札に加えた`, 'info');
       return true;
     }
@@ -792,7 +669,7 @@ export const futureCardEffects = {
       selectMode: { enabled: true, count: 1 },
       onSelect: (selectedCards, remainingCards) => {
         const cardToHand = selectedCards[0];
-        setHand((prev) => [...prev, cardToHand]);
+        setMyHand((prev) => [...prev, cardToHand]);
         addLog(`${cardToHand.name}を手札に加えた`, 'info');
 
         if (remainingCards.length > 1) {
@@ -803,13 +680,13 @@ export const futureCardEffects = {
             message: 'デッキに戻すカードの順番を決めてください（上から順）',
             allowReorder: true,
             onConfirm: (reorderedCards) => {
-              setDeck((prev) => [...reorderedCards, ...prev.slice(cardCount)]);
+              setMyDeck((prev) => [...reorderedCards, ...prev.slice(cardCount)]);
               addLog(`残りをデッキに戻した`, 'info');
             },
           });
         } else if (remainingCards.length === 1) {
           // 残りが1枚なら自動で戻す
-          setDeck((prev) => [remainingCards[0], ...prev.slice(cardCount)]);
+          setMyDeck((prev) => [remainingCards[0], ...prev.slice(cardCount)]);
           addLog(`${remainingCards[0].name}をデッキに戻した`, 'info');
         }
       },
