@@ -3215,6 +3215,8 @@ export default function MagicSpiritGame() {
                       padding: '2px',
                     }}
                     onClick={currentPlayer === 2 ? handleFieldCardZoneClick : undefined}
+                    onMouseEnter={() => setSelectedFieldCardInfo({ card: p2FieldCard, type: 'field', player: 2 })}
+                    onMouseLeave={() => setSelectedFieldCardInfo(null)}
                   >
                     <Card card={p2FieldCard} small />
                   </div>
@@ -3247,6 +3249,8 @@ export default function MagicSpiritGame() {
                       padding: '2px',
                     }}
                     onClick={currentPlayer === 2 ? handlePhaseCardZoneClick : undefined}
+                    onMouseEnter={() => setSelectedFieldCardInfo({ card: p2PhaseCard, type: 'phasecard', player: 2 })}
+                    onMouseLeave={() => setSelectedFieldCardInfo(null)}
                   >
                     <Card card={p2PhaseCard} small />
                     <div style={{ fontSize: '10px', color: '#ffd700', textAlign: 'center', marginTop: '4px' }}>
@@ -3830,6 +3834,8 @@ export default function MagicSpiritGame() {
                       padding: '2px',
                     }}
                     onClick={currentPlayer === 1 ? handleFieldCardZoneClick : undefined}
+                    onMouseEnter={() => setSelectedFieldCardInfo({ card: p1FieldCard, type: 'field', player: 1 })}
+                    onMouseLeave={() => setSelectedFieldCardInfo(null)}
                   >
                     <Card card={p1FieldCard} small />
                   </div>
@@ -3862,6 +3868,8 @@ export default function MagicSpiritGame() {
                       padding: '2px',
                     }}
                     onClick={currentPlayer === 1 ? handlePhaseCardZoneClick : undefined}
+                    onMouseEnter={() => setSelectedFieldCardInfo({ card: p1PhaseCard, type: 'phasecard', player: 1 })}
+                    onMouseLeave={() => setSelectedFieldCardInfo(null)}
                   >
                     <Card card={p1PhaseCard} small />
                     <div style={{ fontSize: '10px', color: '#ffd700', textAlign: 'center', marginTop: '4px' }}>
