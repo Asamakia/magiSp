@@ -224,6 +224,132 @@ export const getPackInfo = () => {
 };
 
 // ========================================
+// まとめ買い・まとめ開封
+// ========================================
+
+/**
+ * 複数パックを購入して開封
+ * @param {Object} playerData - プレイヤーデータ
+ * @param {Object[]} allCards - 全カードデータ
+ * @param {number} packCount - 購入パック数
+ * @param {Map} [cardValueMap] - カードID -> 価値情報のマップ（省略時は計算）
+ * @returns {Object} { success, error?, cards?, playerData?, packCount? }
+ */
+export const buyAndOpenMultiplePacks = (playerData, allCards, packCount, cardValueMap = null) => {
+  const totalCost = ECONOMY.PACK_PRICE * packCount;
+
+  // ゴールドチェック
+  if (!currencyManager.canAfford(playerData, totalCost)) {
+    return {
+      success: false,
+      error: 'ゴールドが足りません',
+    };
+  }
+
+  // 価値マップがない場合は計算
+  const valueMap = cardValueMap || valueCalculator.calculateAllCardValues(allCards);
+
+  // ゴールドを消費
+  let newData = currencyManager.spendGold(playerData, totalCost, 'pack_multi');
+  if (!newData) {
+    return {
+      success: false,
+      error: 'ゴールドの消費に失敗しました',
+    };
+  }
+
+  // パック開封統計を更新
+  newData = {
+    ...newData,
+    stats: {
+      ...newData.stats,
+      packsOpened: (newData.stats.packsOpened || 0) + packCount,
+    },
+  };
+
+  // 全パックを開封してカードを統合
+  const allOpenedCards = [];
+  for (let i = 0; i < packCount; i++) {
+    const packCards = openPack(allCards, valueMap);
+    allOpenedCards.push(...packCards);
+  }
+
+  // 各カードをコレクションに追加
+  for (const { cardId, rarity } of allOpenedCards) {
+    newData = collectionManager.addCard(newData, cardId, rarity);
+  }
+
+  return {
+    success: true,
+    cards: allOpenedCards,
+    playerData: newData,
+    packCount,
+  };
+};
+
+/**
+ * 複数の未開封パックを開封
+ * @param {Object} playerData - プレイヤーデータ
+ * @param {Object[]} allCards - 全カードデータ
+ * @param {number} packCount - 開封パック数
+ * @param {Map} [cardValueMap] - カードID -> 価値情報のマップ
+ * @returns {Object} { success, error?, cards?, playerData?, packCount? }
+ */
+export const openMultipleUnopenedPacks = (playerData, allCards, packCount, cardValueMap = null) => {
+  // 未開封パックの確認
+  const availablePacks = playerData.unopenedPacks || 0;
+  if (availablePacks < packCount) {
+    return {
+      success: false,
+      error: `未開封パックが足りません（${availablePacks}個しかありません）`,
+    };
+  }
+
+  // 価値マップがない場合は計算
+  const valueMap = cardValueMap || valueCalculator.calculateAllCardValues(allCards);
+
+  // 全パックを開封してカードを統合
+  const allOpenedCards = [];
+  for (let i = 0; i < packCount; i++) {
+    const packCards = openPack(allCards, valueMap);
+    allOpenedCards.push(...packCards);
+  }
+
+  // 各カードをコレクションに追加 & 未開封パック数を減らす
+  let newData = {
+    ...playerData,
+    unopenedPacks: playerData.unopenedPacks - packCount,
+    stats: {
+      ...playerData.stats,
+      packsOpened: (playerData.stats.packsOpened || 0) + packCount,
+    },
+  };
+
+  for (const { cardId, rarity } of allOpenedCards) {
+    newData = collectionManager.addCard(newData, cardId, rarity);
+  }
+
+  return {
+    success: true,
+    cards: allOpenedCards,
+    playerData: newData,
+    packCount,
+  };
+};
+
+/**
+ * まとめ買いオプションを取得
+ * @returns {Array<{count: number, totalPrice: number, discountRate: number}>}
+ */
+export const getBulkBuyOptions = () => {
+  return [
+    { count: 3, totalPrice: ECONOMY.PACK_PRICE * 3, discountRate: 0 },
+    { count: 5, totalPrice: ECONOMY.PACK_PRICE * 5, discountRate: 0 },
+    { count: 10, totalPrice: ECONOMY.PACK_PRICE * 10, discountRate: 0 },
+  ];
+};
+
+// ========================================
 // エクスポート
 // ========================================
 
@@ -233,6 +359,10 @@ export const packSystem = {
   openFreePack,
   openUnopenedPack,
   getPackInfo,
+  // まとめ買い・まとめ開封
+  buyAndOpenMultiplePacks,
+  openMultipleUnopenedPacks,
+  getBulkBuyOptions,
 };
 
 export default packSystem;

@@ -173,6 +173,81 @@ const styles = {
     transform: 'translateY(-2px)',
     boxShadow: '0 4px 15px rgba(107,76,230,0.5)',
   },
+  // まとめ買いセクション
+  bulkBuySection: {
+    marginTop: '16px',
+    padding: '16px',
+    background: 'rgba(107,76,230,0.1)',
+    borderRadius: '12px',
+    border: '1px dashed rgba(107,76,230,0.4)',
+    width: '100%',
+    boxSizing: 'border-box',
+  },
+  bulkBuyTitle: {
+    fontSize: '14px',
+    fontWeight: 'bold',
+    color: '#b0a0e0',
+    marginBottom: '12px',
+    textAlign: 'center',
+  },
+  bulkBuyButtons: {
+    display: 'flex',
+    gap: '8px',
+    flexWrap: 'wrap',
+    justifyContent: 'center',
+  },
+  bulkBuyButton: {
+    padding: '8px 16px',
+    borderRadius: '6px',
+    border: '1px solid rgba(107,76,230,0.5)',
+    cursor: 'pointer',
+    fontWeight: 'bold',
+    fontSize: '13px',
+    background: 'rgba(107,76,230,0.2)',
+    color: '#e0e0e0',
+    transition: 'all 0.2s ease',
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    gap: '4px',
+    minWidth: '90px',
+  },
+  bulkBuyButtonDisabled: {
+    background: 'rgba(50,50,50,0.5)',
+    borderColor: 'rgba(100,100,100,0.3)',
+    color: '#606060',
+    cursor: 'not-allowed',
+  },
+  bulkBuyCount: {
+    fontSize: '16px',
+    fontWeight: 'bold',
+  },
+  bulkBuyPrice: {
+    fontSize: '11px',
+    color: '#ffd700',
+  },
+  bulkBuyPriceDisabled: {
+    color: '#606060',
+  },
+  // まとめ開封セクション
+  bulkOpenSection: {
+    marginTop: '12px',
+    display: 'flex',
+    gap: '8px',
+    flexWrap: 'wrap',
+    justifyContent: 'center',
+  },
+  bulkOpenButton: {
+    padding: '8px 12px',
+    borderRadius: '6px',
+    border: '1px solid rgba(255,215,0,0.5)',
+    cursor: 'pointer',
+    fontWeight: 'bold',
+    fontSize: '12px',
+    background: 'rgba(255,215,0,0.15)',
+    color: '#ffd700',
+    transition: 'all 0.2s ease',
+  },
   unopenedPackSection: {
     display: 'flex',
     flexDirection: 'column',
@@ -526,6 +601,7 @@ const ShopScreen = ({
 
   const packInfo = packSystem.getPackInfo();
   const canBuy = currencyManager.canBuyPack(playerData);
+  const bulkBuyOptions = packSystem.getBulkBuyOptions();
 
   // MSIデータ取得
   const priceHistory = playerData.market?.priceHistory;
@@ -578,6 +654,44 @@ const ShopScreen = ({
     if (result.success) {
       onPlayerDataUpdate(result.playerData);
       onOpenPack(result.cards);
+    } else {
+      setMessage({ type: 'error', text: result.error });
+    }
+
+    setIsProcessing(false);
+  };
+
+  // まとめ買い処理
+  const handleBulkBuy = async (packCount) => {
+    if (isProcessing) return;
+
+    setIsProcessing(true);
+    setMessage(null);
+
+    const result = packSystem.buyAndOpenMultiplePacks(playerData, allCards, packCount, cardValueMap);
+
+    if (result.success) {
+      onPlayerDataUpdate(result.playerData);
+      onOpenPack(result.cards, result.packCount);
+    } else {
+      setMessage({ type: 'error', text: result.error });
+    }
+
+    setIsProcessing(false);
+  };
+
+  // まとめ開封処理
+  const handleBulkOpen = (packCount) => {
+    if (isProcessing) return;
+
+    setIsProcessing(true);
+    setMessage(null);
+
+    const result = packSystem.openMultipleUnopenedPacks(playerData, allCards, packCount, cardValueMap);
+
+    if (result.success) {
+      onPlayerDataUpdate(result.playerData);
+      onOpenPack(result.cards, result.packCount);
     } else {
       setMessage({ type: 'error', text: result.error });
     }
@@ -875,8 +989,54 @@ const ShopScreen = ({
                     e.target.style.boxShadow = 'none';
                   }}
                 >
-                  {isProcessing ? '開封中...' : '🎴 パックを開ける'}
+                  {isProcessing ? '開封中...' : '🎴 1個開ける'}
                 </button>
+
+                {/* まとめ開封ボタン */}
+                {playerData.unopenedPacks >= 3 && (
+                  <div style={styles.bulkOpenSection}>
+                    {[3, 5, 10].filter(n => playerData.unopenedPacks >= n).map((count) => (
+                      <button
+                        key={count}
+                        style={styles.bulkOpenButton}
+                        onClick={() => handleBulkOpen(count)}
+                        disabled={isProcessing}
+                        onMouseEnter={(e) => {
+                          e.target.style.background = 'rgba(255,215,0,0.3)';
+                          e.target.style.borderColor = 'rgba(255,215,0,0.8)';
+                        }}
+                        onMouseLeave={(e) => {
+                          e.target.style.background = 'rgba(255,215,0,0.15)';
+                          e.target.style.borderColor = 'rgba(255,215,0,0.5)';
+                        }}
+                      >
+                        {count}個まとめ開封
+                      </button>
+                    ))}
+                    {playerData.unopenedPacks > 1 && (
+                      <button
+                        style={{
+                          ...styles.bulkOpenButton,
+                          background: 'rgba(255,100,100,0.15)',
+                          borderColor: 'rgba(255,100,100,0.5)',
+                          color: '#ff9999',
+                        }}
+                        onClick={() => handleBulkOpen(playerData.unopenedPacks)}
+                        disabled={isProcessing}
+                        onMouseEnter={(e) => {
+                          e.target.style.background = 'rgba(255,100,100,0.3)';
+                          e.target.style.borderColor = 'rgba(255,100,100,0.8)';
+                        }}
+                        onMouseLeave={(e) => {
+                          e.target.style.background = 'rgba(255,100,100,0.15)';
+                          e.target.style.borderColor = 'rgba(255,100,100,0.5)';
+                        }}
+                      >
+                        全部開封 ({playerData.unopenedPacks}個)
+                      </button>
+                    )}
+                  </div>
+                )}
               </div>
             </div>
           )}
@@ -918,6 +1078,47 @@ const ShopScreen = ({
                   あと {currencyManager.formatGold(ECONOMY.PACK_PRICE - playerData.gold)} 必要
                 </div>
               )}
+
+              {/* まとめ買いセクション */}
+              <div style={styles.bulkBuySection}>
+                <div style={styles.bulkBuyTitle}>📦 まとめ買い</div>
+                <div style={styles.bulkBuyButtons}>
+                  {bulkBuyOptions.map((option) => {
+                    const canAfford = currencyManager.canAfford(playerData, option.totalPrice);
+                    return (
+                      <button
+                        key={option.count}
+                        style={{
+                          ...styles.bulkBuyButton,
+                          ...((!canAfford || isProcessing) ? styles.bulkBuyButtonDisabled : {}),
+                        }}
+                        onClick={() => handleBulkBuy(option.count)}
+                        disabled={!canAfford || isProcessing}
+                        onMouseEnter={(e) => {
+                          if (canAfford && !isProcessing) {
+                            e.target.style.background = 'rgba(107,76,230,0.4)';
+                            e.target.style.borderColor = 'rgba(107,76,230,0.8)';
+                          }
+                        }}
+                        onMouseLeave={(e) => {
+                          if (canAfford && !isProcessing) {
+                            e.target.style.background = 'rgba(107,76,230,0.2)';
+                            e.target.style.borderColor = 'rgba(107,76,230,0.5)';
+                          }
+                        }}
+                      >
+                        <span style={styles.bulkBuyCount}>{option.count}パック</span>
+                        <span style={{
+                          ...styles.bulkBuyPrice,
+                          ...((!canAfford || isProcessing) ? styles.bulkBuyPriceDisabled : {}),
+                        }}>
+                          {currencyManager.formatGold(option.totalPrice)}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
             </div>
           </div>
 

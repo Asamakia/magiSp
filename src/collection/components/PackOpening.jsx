@@ -488,6 +488,7 @@ const PackOpening = ({
   onClose,
   existingCollection = [],
   effectLevel = EFFECT_LEVELS.FULL,
+  packCount = 1,
 }) => {
   const [flippedCards, setFlippedCards] = useState(new Set());
   const [allRevealed, setAllRevealed] = useState(false);
@@ -585,11 +586,33 @@ const PackOpening = ({
 
       {/* タイトル */}
       <div style={styles.title}>
-        パック開封！
+        {packCount > 1 ? `${packCount}パック開封！` : 'パック開封！'}
       </div>
 
+      {/* カード枚数表示 */}
+      {packCount > 1 && (
+        <div style={{
+          fontSize: '14px',
+          color: '#a0a0a0',
+          marginBottom: '16px',
+          marginTop: '-20px',
+        }}>
+          {cards.length}枚のカード
+        </div>
+      )}
+
       {/* カード表示 */}
-      <div style={styles.cardsContainer}>
+      <div style={{
+        ...styles.cardsContainer,
+        // 多数のカードの場合はスクロール可能に
+        ...(cards.length > 10 ? {
+          maxHeight: '60vh',
+          overflowY: 'auto',
+          padding: '16px',
+        } : {}),
+        // カードが多い場合は小さめのギャップ
+        ...(cards.length > 15 ? { gap: '10px' } : {}),
+      }}>
         {cards.map((cardData, index) => (
           <PackCard
             key={`${cardData.cardId}_${cardData.rarity}_${index}`}
