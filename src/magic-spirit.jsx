@@ -499,11 +499,13 @@ export default function MagicSpiritGame() {
     setP2Graveyard([]);
 
     setTurn(1);
-    setCurrentPlayer(1);
+    // 先行・後攻をランダムに決定
+    const firstPlayer = Math.random() < 0.5 ? 1 : 2;
+    setCurrentPlayer(firstPlayer);
     setPhase(0);
     setIsFirstTurn(true);
     setWinner(null);
-    setLogs([]);
+    setLogs([{ message: `🎲 ${firstPlayer === 1 ? 'P1' : 'P2'} が先行！`, type: 'info' }]);
     setSelectedHandCard(null);
     setSelectedFieldMonster(null);
     setAttackingMonster(null);
