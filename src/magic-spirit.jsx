@@ -4019,7 +4019,8 @@ export default function MagicSpiritGame() {
             <div style={{ ...styles.handArea, minHeight: '80px' }}>
               {p2Hand.map((card, i) => {
                 const costInfo = currentPlayer === 2 ? getModifiedCostInfo(card, 2) : {};
-                return currentPlayer === 2 ? (
+                // P2が人間でP2のターンの場合のみ手札を表示、AIの場合は常に裏向き
+                return (currentPlayer === 2 && p2PlayerType === 'human') ? (
                   <Card
                     key={card.uniqueId}
                     card={card}
@@ -4640,7 +4641,11 @@ export default function MagicSpiritGame() {
             <div style={styles.handArea}>
               {p1Hand.map((card) => {
                 const costInfo = currentPlayer === 1 ? getModifiedCostInfo(card, 1) : {};
-                return (
+                // P1がAIでP2が人間の場合は裏向き
+                const shouldHideP1Hand = p1PlayerType === 'ai' && p2PlayerType === 'human';
+                return shouldHideP1Hand ? (
+                  <Card key={card.uniqueId} card={card} faceDown />
+                ) : (
                   <Card
                     key={card.uniqueId}
                     card={card}
