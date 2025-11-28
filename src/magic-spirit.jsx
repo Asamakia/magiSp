@@ -75,6 +75,9 @@ import {
   PackOpening,
   DeckBuilder,
   DeckList,
+  MarketAnalysis,
+  advanceDay,
+  recordPriceHistory,
 } from './collection';
 
 // ========================================
@@ -112,6 +115,7 @@ export default function MagicSpiritGame() {
   const [pendingPackCards, setPendingPackCards] = useState(null); // 開封待ちパックカード
   const [battleReward, setBattleReward] = useState(null); // 対戦報酬 { goldReward, packReward, isWin }
   const [editingDeck, setEditingDeck] = useState(null); // デッキ編集中のデッキ（nullなら新規）
+  const [showMarketAnalysis, setShowMarketAnalysis] = useState(false); // 市場分析画面表示
 
   // プレイヤー1の状態
   const [p1Life, setP1Life] = useState(INITIAL_LIFE);
@@ -292,13 +296,51 @@ export default function MagicSpiritGame() {
     if (!playerData) return;
 
     const result = currencyManager.awardBattleReward(playerData, isWin);
-    updatePlayerData(result.playerData);
+    let updatedPlayerData = result.playerData;
+
+    // 市場データを更新（対戦ごとに1日進める）
+    if (updatedPlayerData.market) {
+      // 市場日を進める
+      const newMarketState = advanceDay(updatedPlayerData.market);
+
+      // 価格履歴を記録
+      const getBaseValue = (card) => {
+        if (cardValueMap && cardValueMap[card.id]) {
+          return cardValueMap[card.id].baseValue;
+        }
+        return valueCalculator.calculateBaseValue(card);
+      };
+      const getTier = (card) => {
+        if (cardValueMap && cardValueMap[card.id]) {
+          return cardValueMap[card.id].tier;
+        }
+        return valueCalculator.calculateTier(card);
+      };
+
+      const newPriceHistory = recordPriceHistory(
+        newMarketState.priceHistory,
+        newMarketState,
+        allCards || [],
+        getBaseValue,
+        getTier
+      );
+
+      updatedPlayerData = {
+        ...updatedPlayerData,
+        market: {
+          ...newMarketState,
+          priceHistory: newPriceHistory,
+        },
+      };
+    }
+
+    updatePlayerData(updatedPlayerData);
     setBattleReward({
       goldReward: result.goldReward,
       packReward: result.packReward,
       isWin,
     });
-  }, [playerData, updatePlayerData]);
+  }, [playerData, updatePlayerData, cardValueMap, allCards]);
 
   // パック開封画面へ遷移
   const handleOpenPack = useCallback((cards) => {
@@ -3158,15 +3200,25 @@ export default function MagicSpiritGame() {
   // ショップ画面
   if (gameState === 'shop') {
     return (
-      <ShopScreen
-        playerData={playerData}
-        allCards={allCards}
-        cardValueMap={cardValueMap}
-        onBack={() => setGameState('title')}
-        onOpenPack={handleOpenPack}
-        onGoToCollection={() => setGameState('collection')}
-        onPlayerDataUpdate={updatePlayerData}
-      />
+      <>
+        <ShopScreen
+          playerData={playerData}
+          allCards={allCards}
+          cardValueMap={cardValueMap}
+          onBack={() => setGameState('title')}
+          onOpenPack={handleOpenPack}
+          onGoToCollection={() => setGameState('collection')}
+          onPlayerDataUpdate={updatePlayerData}
+          onOpenMarketAnalysis={() => setShowMarketAnalysis(true)}
+        />
+        {showMarketAnalysis && (
+          <MarketAnalysis
+            marketState={playerData?.market}
+            allCards={allCards}
+            onClose={() => setShowMarketAnalysis(false)}
+          />
+        )}
+      </>
     );
   }
 
