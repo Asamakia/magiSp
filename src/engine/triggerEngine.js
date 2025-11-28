@@ -27,6 +27,7 @@ import { getLightCardTriggers, hasLightCardTrigger } from './cardTriggers/lightC
 import { getDarkCardTriggers, hasDarkCardTrigger } from './cardTriggers/darkCards';
 import { getPrimitiveCardTriggers, hasPrimitiveCardTrigger } from './cardTriggers/primitiveCards';
 import { getNeutralCardTriggers, hasNeutralCardTrigger } from './cardTriggers/neutralCards';
+import { getEffectDefinition } from './continuousEffects';
 
 /**
  * グローバルトリガーレジストリ
@@ -316,10 +317,19 @@ export const parseCardTriggers = (card) => {
 
   // 【常時】パターン
   if (effectText.includes('【常時】')) {
+    // continuousEffects の定義から description を取得
+    let description = '常時効果';
+    if (card.id) {
+      const effectDef = getEffectDefinition(card.id);
+      if (effectDef && effectDef.length > 0 && effectDef[0].description) {
+        description = effectDef[0].description;
+      }
+    }
+
     triggers.push({
       type: TRIGGER_TYPES.CONTINUOUS,
       activationType: ACTIVATION_TYPES.AUTOMATIC,
-      description: '常時効果',
+      description: description,
       effect: (context) => {
         // 常時効果は別の仕組みで処理する予定
         // context.addLog(`${card.name}の常時効果が有効！`, 'info');

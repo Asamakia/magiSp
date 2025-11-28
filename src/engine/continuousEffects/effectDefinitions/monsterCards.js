@@ -23,6 +23,7 @@ export const monsterCardEffects = {
   C0000007: [
     {
       type: CONTINUOUS_EFFECT_TYPES.ATK_MODIFIER,
+      description: '場にいる粘液獣1体につき自身の攻撃力を1500アップ（自身は含めない）',
       valueCalculator: VALUE_CALCULATOR_TYPES.COUNT_MULTIPLY,
       baseValue: 1500,
       countCondition: { category: '【粘液獣】', excludeSelf: true },
@@ -37,6 +38,7 @@ export const monsterCardEffects = {
   C0000138: [
     {
       type: CONTINUOUS_EFFECT_TYPES.SP_RESTRICTION,
+      description: '自分のSPトークンはすべてレスト状態になる',
       restriction: 'ALL_RESTED',
       target: TARGET_TYPES.SELF_CARD,
     },
@@ -53,6 +55,7 @@ export const monsterCardEffects = {
   C0000028: [
     {
       type: CONTINUOUS_EFFECT_TYPES.DAMAGE_IMMUNITY,
+      description: '自分の［ドラゴン］モンスターは効果でダメージを受けない',
       damageSource: 'effect',
       target: TARGET_TYPES.SELF_MONSTERS,
       condition: { category: '【ドラゴン】' },
@@ -66,6 +69,7 @@ export const monsterCardEffects = {
   C0000029: [
     {
       type: CONTINUOUS_EFFECT_TYPES.ATK_MODIFIER,
+      description: '［ドラゴン］モンスターがいる時、このカードの攻撃力は400アップする',
       valueCalculator: VALUE_CALCULATOR_TYPES.CONDITIONAL,
       value: 400,
       ifCondition: { hasCategoryOnField: '【ドラゴン】' },
@@ -80,6 +84,7 @@ export const monsterCardEffects = {
   C0000170: [
     {
       type: CONTINUOUS_EFFECT_TYPES.ATK_MODIFIER,
+      description: '場にいる［マグマフォージ］モンスター1体につき攻撃力500アップ',
       valueCalculator: VALUE_CALCULATOR_TYPES.COUNT_MULTIPLY,
       baseValue: 500,
       countCondition: { category: '【マグマフォージ】' },
@@ -98,6 +103,7 @@ export const monsterCardEffects = {
   C0000149: [
     {
       type: CONTINUOUS_EFFECT_TYPES.ATK_MODIFIER,
+      description: '場に《ブリザードマスター》がいる場合、攻撃力が1000アップ',
       valueCalculator: VALUE_CALCULATOR_TYPES.CONDITIONAL,
       value: 1000,
       ifCondition: { hasNameOnField: 'ブリザードマスター' },
@@ -112,6 +118,7 @@ export const monsterCardEffects = {
   C0000380: [
     {
       type: CONTINUOUS_EFFECT_TYPES.ATK_MODIFIER,
+      description: 'このカードの攻撃力は、自分の場の《虹羽密林》モンスター1体につき500アップ',
       valueCalculator: VALUE_CALCULATOR_TYPES.COUNT_MULTIPLY,
       baseValue: 500,
       countCondition: { nameIncludes: '虹羽密林' },
@@ -127,6 +134,7 @@ export const monsterCardEffects = {
   C0000399: [
     {
       type: CONTINUOUS_EFFECT_TYPES.ATK_MODIFIER,
+      description: '相手の闇属性モンスターの攻撃力を300ダウン',
       value: -300,
       target: TARGET_TYPES.OPPONENT_MONSTERS,
       condition: { attribute: '闇' },
@@ -144,6 +152,7 @@ export const monsterCardEffects = {
   C0000020: [
     {
       type: CONTINUOUS_EFFECT_TYPES.DAMAGE_REDUCTION,
+      description: '自分の光属性モンスターが受けるダメージを200軽減する（1ターンに1度）',
       value: 200,
       target: TARGET_TYPES.SELF_MONSTERS,
       condition: { attribute: '光' },
@@ -158,6 +167,7 @@ export const monsterCardEffects = {
   C0000091: [
     {
       type: CONTINUOUS_EFFECT_TYPES.ON_SUMMON_BUFF,
+      description: '自分の光属性モンスターが召喚されるたび、そのモンスターのHPを200アップ',
       statType: 'hp',
       value: 200,
       condition: { attribute: '光' },
@@ -171,6 +181,7 @@ export const monsterCardEffects = {
   C0000234: [
     {
       type: CONTINUOUS_EFFECT_TYPES.MAGIC_NEGATION,
+      description: '相手の魔法カードの発動をターンに1度無効化',
       usesPerTurn: 1,
     },
   ],
@@ -182,6 +193,7 @@ export const monsterCardEffects = {
   C0000215: [
     {
       type: CONTINUOUS_EFFECT_TYPES.ATK_MODIFIER,
+      description: '場にいる［プラント］モンスター1体につき攻撃力400アップ',
       valueCalculator: VALUE_CALCULATOR_TYPES.COUNT_MULTIPLY,
       baseValue: 400,
       countCondition: { category: '【プラント】' },
@@ -196,6 +208,7 @@ export const monsterCardEffects = {
   C0000378: [
     {
       type: CONTINUOUS_EFFECT_TYPES.ON_SUMMON_BUFF,
+      description: '自分の《虹羽密林》モンスターが召喚されるたび、そのモンスターの攻撃力を400アップ',
       statType: 'atk',
       value: 400,
       condition: { nameIncludes: '虹羽密林' },
@@ -209,6 +222,7 @@ export const monsterCardEffects = {
   C0000248: [
     {
       type: CONTINUOUS_EFFECT_TYPES.ATK_MODIFIER,
+      description: '場に『鎖縛の幻姫リアノン』または『鎖縛の禁忌姫リアノン・エターナル』がいる場合、このカードの攻撃力を1000アップする',
       valueCalculator: VALUE_CALCULATOR_TYPES.CONDITIONAL,
       value: 1000,
       ifCondition: { hasNameOnField: '鎖縛の幻姫リアノン' },
@@ -233,6 +247,7 @@ export const monsterCardEffects = {
   C0000397: [
     {
       type: CONTINUOUS_EFFECT_TYPES.DAMAGE_RECEIVED_MODIFIER,
+      description: '相手の闘属性モンスターが受けるダメージを400アップ',
       value: 400,
       condition: { attribute: '闇' },
     },
@@ -249,6 +264,7 @@ export const monsterCardEffects = {
   C0000080: [
     {
       type: CONTINUOUS_EFFECT_TYPES.MAGIC_COST_MODIFIER,
+      description: '相手の魔法カードのコストを1増加する',
       value: 1,
       target: TARGET_TYPES.OPPONENT_MAGIC,
     },
@@ -261,6 +277,7 @@ export const monsterCardEffects = {
   C0000114: [
     {
       type: CONTINUOUS_EFFECT_TYPES.ATTACK_RESTRICTION,
+      description: 'このカードは攻撃できない',
       target: TARGET_TYPES.SELF_CARD,
       restriction: 'CANNOT_ATTACK',
     },
@@ -273,6 +290,7 @@ export const monsterCardEffects = {
   C0000246: [
     {
       type: CONTINUOUS_EFFECT_TYPES.MAGIC_NEGATION,
+      description: '相手の魔法カードを1ターンに1度無効化する',
       usesPerTurn: 1,
     },
   ],
@@ -286,6 +304,7 @@ export const monsterCardEffects = {
   C0000370: [
     {
       type: CONTINUOUS_EFFECT_TYPES.DAMAGE_DEALT_MODIFIER,
+      description: '自分の《ヴォランティス》モンスターが相手モンスターを戦闘で破壊するたび、そのモンスターの攻撃力の半分を相手プレイヤーにダメージとして与える',
       value: 0, // 実際のダメージはトリガーで計算
       target: TARGET_TYPES.SELF_DAMAGE_DEALT,
       condition: { nameIncludes: 'ヴォランティス' },
@@ -301,6 +320,7 @@ export const monsterCardEffects = {
   C0000384: [
     {
       type: CONTINUOUS_EFFECT_TYPES.MAGIC_COST_MODIFIER,
+      description: '自分の《黒呪》魔法カードのコストを1軽減（重複不可）',
       value: -1,
       target: TARGET_TYPES.SELF_MAGIC,
       condition: { nameIncludes: '黒呪' },
@@ -319,6 +339,7 @@ export const monsterCardEffects = {
   C0000219: [
     {
       type: CONTINUOUS_EFFECT_TYPES.ATK_MODIFIER,
+      description: '場にいる間、［蛮族］モンスターの攻撃力300アップ',
       value: 300,
       target: TARGET_TYPES.SELF_MONSTERS,
       condition: { category: '【蛮族】' },
@@ -332,6 +353,7 @@ export const monsterCardEffects = {
   C0000222: [
     {
       type: CONTINUOUS_EFFECT_TYPES.ATK_MODIFIER,
+      description: '《プニリーヌ》モンスターが場にいるときこのカードの攻撃力を500アップする',
       valueCalculator: VALUE_CALCULATOR_TYPES.CONDITIONAL,
       value: 500,
       ifCondition: { hasNameOnField: 'プニリーヌ' },
@@ -346,6 +368,7 @@ export const monsterCardEffects = {
   C0000317: [
     {
       type: CONTINUOUS_EFFECT_TYPES.ATK_MODIFIER,
+      description: '自分の《鉄槍》モンスターの攻撃力を300アップ',
       value: 300,
       target: TARGET_TYPES.SELF_MONSTERS,
       condition: { nameIncludes: '鉄槍' },
@@ -359,6 +382,7 @@ export const monsterCardEffects = {
   C0000401: [
     {
       type: CONTINUOUS_EFFECT_TYPES.DAMAGE_DEALT_MODIFIER,
+      description: '自分の他のモンスターが闇属性モンスターに与えるダメージを200アップ',
       value: 200,
       condition: { notAttribute: '闇' }, // 自分が闘属性でない場合
       // Note: 相手が闇属性の場合にダメージ増加。これは特殊な条件

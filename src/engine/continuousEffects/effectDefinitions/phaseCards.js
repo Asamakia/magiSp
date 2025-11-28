@@ -44,6 +44,7 @@ export const phaseCardEffectsByStage = {
     0: [
       {
         type: CONTINUOUS_EFFECT_TYPES.ATK_MODIFIER,
+        description: '場にいる《岩狸》モンスターの攻撃力を300アップ',
         value: 300,
         target: TARGET_TYPES.SELF_MONSTERS,
         condition: { nameIncludes: '岩狸' },
@@ -53,6 +54,7 @@ export const phaseCardEffectsByStage = {
     2: [
       {
         type: CONTINUOUS_EFFECT_TYPES.ATK_MODIFIER,
+        description: '場にいる《岩狸》モンスターの攻撃力を800アップ',
         value: 800,
         target: TARGET_TYPES.SELF_MONSTERS,
         condition: { nameIncludes: '岩狸' },
@@ -75,6 +77,7 @@ export const phaseCardEffectsByStage = {
     1: [
       {
         type: CONTINUOUS_EFFECT_TYPES.ATK_MODIFIER,
+        description: '「未来属性」モンスターの攻撃力を400アップ',
         value: 400,
         target: TARGET_TYPES.SELF_MONSTERS,
         condition: { attribute: '未来' },
@@ -83,6 +86,7 @@ export const phaseCardEffectsByStage = {
     2: [
       {
         type: CONTINUOUS_EFFECT_TYPES.SUMMON_COST_MODIFIER,
+        description: '［エクラシア］モンスターの召喚コストを1軽減',
         value: -1,
         target: TARGET_TYPES.SELF_SUMMON,
         condition: { category: '【エクラシア】' },
@@ -103,6 +107,7 @@ export const phaseCardEffectsByStage = {
     0: [
       {
         type: CONTINUOUS_EFFECT_TYPES.ATK_MODIFIER,
+        description: '『アクアレギナ』または『ヴェルゼファール』モンスターの攻撃力を400アップ',
         value: 400,
         target: TARGET_TYPES.SELF_MONSTERS,
         condition: { nameIncludes: 'アクアレギナ' },
@@ -131,6 +136,7 @@ export const phaseCardEffectsByStage = {
     0: [
       {
         type: CONTINUOUS_EFFECT_TYPES.ATK_MODIFIER,
+        description: '《ヴォランティス》モンスターの攻撃力を400アップ',
         value: 400,
         target: TARGET_TYPES.SELF_MONSTERS,
         condition: { nameIncludes: 'ヴォランティス' },
