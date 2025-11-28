@@ -33,6 +33,7 @@ import {
 } from './engine/phaseCardEffects';
 import { continuousEffectEngine } from './engine/continuousEffects';
 import { statusEffectEngine, STATUS_EFFECT_TYPES, getStatusDisplayName } from './engine/statusEffects';
+import { processStatusEffectsTurnStart, processStatusEffectsEndPhase } from './engine/effectHelpers';
 import {
   isSetsunaMagic,
   getSetsunaCost,
@@ -119,6 +120,10 @@ export default function MagicSpiritGame() {
   // 次のターンのSP増加ボーナス（マーメイドの恵み等）
   const [p1NextTurnSPBonus, setP1NextTurnSPBonus] = useState(0);
   const [p2NextTurnSPBonus, setP2NextTurnSPBonus] = useState(0);
+
+  // 魔法カード使用制限（触覚持ち粘液獣等）
+  const [p1MagicBlocked, setP1MagicBlocked] = useState(false);
+  const [p2MagicBlocked, setP2MagicBlocked] = useState(false);
 
   // UI状態
   const [selectedHandCard, setSelectedHandCard] = useState(null);
@@ -248,6 +253,8 @@ export default function MagicSpiritGame() {
     setP2RestedSP(0);
     setP1NextTurnSPBonus(0);
     setP2NextTurnSPBonus(0);
+    setP1MagicBlocked(false);
+    setP2MagicBlocked(false);
     setP1Field([null, null, null, null, null]);
     setP2Field([null, null, null, null, null]);
     setP1FieldCard(null);
@@ -419,17 +426,8 @@ export default function MagicSpiritGame() {
         player.setField(prev => prev.map(m => m ? { ...m, canAttack: true } : null));
         setChargeUsedThisTurn(false);
 
-        // 状態異常のターン開始時処理（眠り・凍結の解除判定）
-        player.setField(prev => prev.map(m => {
-          if (!m) return null;
-          const result = statusEffectEngine.processTurnStart(m);
-          if (result.removedEffects.length > 0) {
-            result.removedEffects.forEach(effect => {
-              addLog(`${m.name}の${getStatusDisplayName(effect.type)}が解除された！`, 'info');
-            });
-          }
-          return result.monster;
-        }));
+        // 状態異常のターン開始時処理（眠り・凍結の解除判定、寄生ATK減少）
+        processStatusEffectsTurnStart({ setP1Field, setP2Field, addLog });
 
         // ターン開始時トリガーを発火
         fireTrigger(TRIGGER_TYPES.ON_TURN_START_SELF, triggerContext);
@@ -536,6 +534,18 @@ export default function MagicSpiritGame() {
         // ターン終了時に使用済みフラグをリセット
         resetTurnFlags();
         continuousEffectEngine.resetTurnFlags();
+
+        // 魔法カード使用制限の解除（触覚持ち粘液獣の効果は相手エンドフェイズで終了）
+        if (currentPlayer === 1 && p1MagicBlocked) {
+          setP1MagicBlocked(false);
+          addLog('プレイヤー1: 魔法カード使用制限が解除された', 'info');
+        } else if (currentPlayer === 2 && p2MagicBlocked) {
+          setP2MagicBlocked(false);
+          addLog('プレイヤー2: 魔法カード使用制限が解除された', 'info');
+        }
+
+        // 寄生効果の無効化解除（相手エンドフェイズで効果無効化が終了）
+        processStatusEffectsEndPhase({ setP1Field, setP2Field, addLog }, currentPlayer);
 
         // ターン終了時までの効果をリセット（攻撃力バフ、破壊耐性等）
         const clearEndOfTurnEffects = (setField) => {
@@ -869,6 +879,9 @@ export default function MagicSpiritGame() {
       addLog,
       setPendingMonsterTarget,
       setPendingHandSelection,
+      // 魔法ブロック設定（触覚持ち粘液獣等）
+      setP1MagicBlocked,
+      setP2MagicBlocked,
     };
 
     // カードIDを渡して効果を実行（カード固有処理がある場合は優先）
@@ -879,7 +892,7 @@ export default function MagicSpiritGame() {
       addLog, setP1Life, setP2Life, setP1Field, setP2Field, setP1Hand, setP2Hand,
       setP1Deck, setP2Deck, setP1Graveyard, setP2Graveyard,
       setP1ActiveSP, setP2ActiveSP, setP1RestedSP, setP2RestedSP, setPendingMonsterTarget,
-      setPendingHandSelection]);
+      setPendingHandSelection, setP1MagicBlocked, setP2MagicBlocked]);
 
   // カード召喚
   const summonCard = useCallback((card, slotIndex) => {
@@ -1095,6 +1108,13 @@ export default function MagicSpiritGame() {
     }
 
     if (card.type === 'magic') {
+      // 魔法カード使用制限チェック（触覚持ち粘液獣等）
+      const isMagicBlocked = currentPlayer === 1 ? p1MagicBlocked : p2MagicBlocked;
+      if (isMagicBlocked) {
+        addLog('魔法カードを使用できません！（触覚持ち粘液獣の効果）', 'damage');
+        return false;
+      }
+
       // 魔法カードのコスト軽減を計算
       const magicCostContext = {
         currentPlayer,
@@ -2289,21 +2309,35 @@ export default function MagicSpiritGame() {
   const canUseSetsunaMagic = useCallback(() => {
     // 非アクティブプレイヤー（相手ターン中の自分）の手札とSPをチェック
     const nonActivePlayer = currentPlayer === 1 ? 2 : 1;
+
+    // 魔法カード使用制限チェック（触覚持ち粘液獣等）
+    const isMagicBlocked = nonActivePlayer === 1 ? p1MagicBlocked : p2MagicBlocked;
+    if (isMagicBlocked) {
+      return false;
+    }
+
     const hand = nonActivePlayer === 1 ? p1Hand : p2Hand;
     const activeSP = nonActivePlayer === 1 ? p1ActiveSP : p2ActiveSP;
 
     const activatableCards = getActivatableSetsunaMagics(hand, activeSP);
     return activatableCards.length > 0;
-  }, [currentPlayer, p1Hand, p2Hand, p1ActiveSP, p2ActiveSP]);
+  }, [currentPlayer, p1Hand, p2Hand, p1ActiveSP, p2ActiveSP, p1MagicBlocked, p2MagicBlocked]);
 
   // 刹那詠唱発動可能カード一覧を取得
   const getSetsunaMagicsForNonActivePlayer = useCallback(() => {
     const nonActivePlayer = currentPlayer === 1 ? 2 : 1;
+
+    // 魔法カード使用制限チェック（触覚持ち粘液獣等）
+    const isMagicBlocked = nonActivePlayer === 1 ? p1MagicBlocked : p2MagicBlocked;
+    if (isMagicBlocked) {
+      return [];
+    }
+
     const hand = nonActivePlayer === 1 ? p1Hand : p2Hand;
     const activeSP = nonActivePlayer === 1 ? p1ActiveSP : p2ActiveSP;
 
     return getActivatableSetsunaMagics(hand, activeSP);
-  }, [currentPlayer, p1Hand, p2Hand, p1ActiveSP, p2ActiveSP]);
+  }, [currentPlayer, p1Hand, p2Hand, p1ActiveSP, p2ActiveSP, p1MagicBlocked, p2MagicBlocked]);
 
   // 刹那詠唱カードを発動
   const activateSetsunaMagic = useCallback((card) => {
@@ -2314,6 +2348,14 @@ export default function MagicSpiritGame() {
 
     // 発動するプレイヤーは非アクティブプレイヤー
     const castingPlayer = currentPlayer === 1 ? 2 : 1;
+
+    // 魔法カード使用制限チェック（触覚持ち粘液獣等）
+    const isMagicBlocked = castingPlayer === 1 ? p1MagicBlocked : p2MagicBlocked;
+    if (isMagicBlocked) {
+      addLog('魔法カードを使用できません！（触覚持ち粘液獣の効果）', 'damage');
+      return false;
+    }
+
     const setsunaCost = getSetsunaCost(card);
     const activeSP = castingPlayer === 1 ? p1ActiveSP : p2ActiveSP;
 

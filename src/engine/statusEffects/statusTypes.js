@@ -130,6 +130,15 @@ export const STATUS_EFFECT_TYPES = {
    */
   ATK_DOWN: 'atk_down',
 
+  /**
+   * 寄生（粘液獣・寄生）
+   * - 毎ターン開始時に攻撃力減少（500 or 1000）
+   * - 効果無効化（技・トリガー使用不可）
+   * - 相手のエンドフェイズで効果無効のみ解除
+   * - 寄生カード参照を保持（破壊時墓地送り用）
+   */
+  PARASITE: 'parasite',
+
   // ========================================
   // プレイヤー状態異常
   // ========================================
@@ -322,6 +331,19 @@ export const STATUS_EFFECT_METADATA = {
     },
     // expiresAfterEndPhasesで管理（durationは使用しない）
     defaultDuration: -1,
+  },
+  [STATUS_EFFECT_TYPES.PARASITE]: {
+    displayName: '寄生',
+    icon: '🦠',
+    color: '#8B4513',
+    category: 'debuff',
+    target: 'monster',
+    effects: {
+      canUseSkill: false,     // 効果無効化
+      canUseTrigger: false,   // トリガー無効化
+      turnStartAtkDown: true, // ターン開始時ATK減少
+    },
+    defaultDuration: -1, // 永続（特殊処理で管理）
   },
 
   // ========================================

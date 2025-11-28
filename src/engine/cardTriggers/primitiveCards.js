@@ -65,13 +65,18 @@ export const primitiveCardTriggers = {
           return;
         }
 
-        // 分裂: 攻撃力半分のコピーを生成
+        // 分裂: 同じステータスのコピーを生成
         const copy = {
           ...card,
           uniqueId: `${card.id}_split_${Date.now()}`,
-          attack: Math.floor(card.attack / 2),
-          currentAttack: Math.floor(card.attack / 2),
-          owner: currentPlayer, // 常時効果のターゲット判定用
+          attack: card.attack,
+          currentAttack: card.currentAttack || card.attack,
+          hp: card.hp,
+          currentHp: card.currentHp || card.hp,
+          canAttack: card.canAttack, // 分裂前と同じ状態を引き継ぐ
+          charges: [],
+          statusEffects: [],
+          owner: currentPlayer,
         };
 
         const newField = [...currentField];
@@ -190,17 +195,14 @@ export const primitiveCardTriggers = {
           currentPlayer,
           p1Field,
           p2Field,
-          setP1Field,
-          setP2Field,
           card,
           slotIndex,
           addLog,
+          setPendingMonsterTarget,
         } = context;
 
         const currentField = currentPlayer === 1 ? p1Field : p2Field;
         const opponentField = currentPlayer === 1 ? p2Field : p1Field;
-        const setOpponentField = currentPlayer === 1 ? setP2Field : setP1Field;
-        const setField = currentPlayer === 1 ? setP1Field : setP2Field;
 
         // 場の粘液獣の数をカウント
         const slimeCount = currentField.filter(
@@ -215,29 +217,53 @@ export const primitiveCardTriggers = {
           return false;
         }
 
-        // 相手モンスターを破壊可能かチェック
-        const targetIndex = opponentField.findIndex((m) => m !== null);
-        if (targetIndex === -1) {
+        // 相手モンスターがいるかチェック
+        const hasOpponentMonster = opponentField.some((m) => m !== null);
+        if (!hasOpponentMonster) {
           addLog('苗床粘液獣: 捕食する対象がいない', 'info');
           return false;
         }
 
-        // TODO: UI実装時に対象選択が必要
-        // 現在は最初のモンスターを対象とする
-        destroyMonster(context, targetIndex, true);
-
-        // 攻撃力アップ（最大1500まで）
-        const currentField2 = currentPlayer === 1 ? p1Field : p2Field;
-        const currentMonster = currentField2[slotIndex];
+        // 攻撃力上限チェック
+        const currentMonster = currentField[slotIndex];
         if (currentMonster) {
-          const currentBonus = (currentMonster.currentAttack || currentMonster.attack) - currentMonster.attack;
-          if (currentBonus < 1500) {
-            modifyAttack(context, 300, slotIndex, false, true);
-            addLog('苗床粘液獣が相手モンスターを捕食し、攻撃力+300！', 'info');
-          } else {
-            addLog('苗床粘液獣: 攻撃力上昇は最大値に達している', 'info');
+          const baseAttack = currentMonster.attack - (currentMonster.predationBonus || 0);
+          const currentBonus = currentMonster.predationBonus || 0;
+          if (currentBonus >= 1500) {
+            addLog('苗床粘液獣: 攻撃力上昇は最大値(+1500)に達している', 'info');
+            return false;
           }
         }
+
+        // モンスター選択UIを表示
+        setPendingMonsterTarget({
+          message: '捕食する相手モンスターを選択してください',
+          targetPlayer: 'opponent',
+          callback: (targetIndex) => {
+            // 破壊処理
+            destroyMonster(context, targetIndex, true);
+
+            // 攻撃力アップ（最大1500まで）
+            modifyAttack(context, 300, slotIndex, false, true);
+
+            // 捕食ボーナスを記録（上限管理用）
+            const field = currentPlayer === 1 ? p1Field : p2Field;
+            const setField = currentPlayer === 1 ? context.setP1Field : context.setP2Field;
+            setField((prev) =>
+              prev.map((m, idx) => {
+                if (idx === slotIndex && m) {
+                  return {
+                    ...m,
+                    predationBonus: (m.predationBonus || 0) + 300,
+                  };
+                }
+                return m;
+              })
+            );
+
+            addLog('苗床粘液獣が相手モンスターを捕食した！', 'info');
+          },
+        });
 
         return true;
       },
@@ -289,6 +315,7 @@ export const primitiveCardTriggers = {
   /**
    * C0000006: 新・超覚醒粘液獣ハイパー
    * 【召喚時】場にいる粘液獣1体につき、自身の攻撃力を1000アップ。
+   * 【基本技】相手モンスター1体を飲み込む（2ターン後に消化、破壊時は吐き出す）
    */
   C0000006: [
     {
@@ -324,6 +351,141 @@ export const primitiveCardTriggers = {
         } else {
           addLog(
             '新・超覚醒粘液獣ハイパー: 場に他の粘液獣がいないため強化なし',
+            'info'
+          );
+        }
+      },
+    },
+    {
+      type: TRIGGER_TYPES.ON_END_PHASE_SELF,
+      activationType: ACTIVATION_TYPES.AUTOMATIC,
+      description: 'エンド時: 飲み込んだモンスターを消化中',
+      effect: (context) => {
+        const {
+          currentPlayer,
+          p1Field,
+          p2Field,
+          setP1Field,
+          setP2Field,
+          setP1Graveyard,
+          setP2Graveyard,
+          slotIndex,
+          card,
+          addLog,
+        } = context;
+
+        // 飲み込んだモンスターがいない場合はスキップ
+        if (!card || !card.swallowedMonster) {
+          return;
+        }
+
+        const setField = currentPlayer === 1 ? setP1Field : setP2Field;
+        // 相手の墓地に送る
+        const setOpponentGraveyard = currentPlayer === 1 ? setP2Graveyard : setP1Graveyard;
+
+        const newDigestCounter = (card.digestCounter || 1) - 1;
+
+        if (newDigestCounter <= 0) {
+          // 消化完了：相手の墓地に送る
+          const digestedMonster = { ...card.swallowedMonster };
+          delete digestedMonster.originalSlotIndex;
+
+          setOpponentGraveyard((prev) => [...prev, digestedMonster]);
+
+          // 飲み込み情報をクリア
+          setField((prev) =>
+            prev.map((m, idx) => {
+              if (idx === slotIndex && m) {
+                const updated = { ...m };
+                delete updated.swallowedMonster;
+                delete updated.digestCounter;
+                return updated;
+              }
+              return m;
+            })
+          );
+
+          addLog(
+            `新・超覚醒粘液獣ハイパーが${digestedMonster.name}を完全に消化した！`,
+            'damage'
+          );
+        } else {
+          // 消化中：カウンターを減らす
+          setField((prev) =>
+            prev.map((m, idx) => {
+              if (idx === slotIndex && m) {
+                return { ...m, digestCounter: newDigestCounter };
+              }
+              return m;
+            })
+          );
+
+          addLog(
+            `新・超覚醒粘液獣ハイパーが${card.swallowedMonster.name}を消化中...（あと${newDigestCounter}ターン）`,
+            'info'
+          );
+        }
+      },
+    },
+    {
+      type: TRIGGER_TYPES.ON_DESTROY_SELF,
+      activationType: ACTIVATION_TYPES.AUTOMATIC,
+      description: '破壊時: 飲み込んだモンスターを吐き出す',
+      effect: (context) => {
+        const {
+          currentPlayer,
+          p1Field,
+          p2Field,
+          setP1Field,
+          setP2Field,
+          setP1Graveyard,
+          setP2Graveyard,
+          card,
+          addLog,
+        } = context;
+
+        // 飲み込んだモンスターがいない場合はスキップ
+        if (!card || !card.swallowedMonster) {
+          return;
+        }
+
+        const swallowed = card.swallowedMonster;
+        const opponentField = currentPlayer === 1 ? p2Field : p1Field;
+        const setOpponentField = currentPlayer === 1 ? setP2Field : setP1Field;
+        const setOpponentGraveyard = currentPlayer === 1 ? setP2Graveyard : setP1Graveyard;
+
+        // 相手フィールドの空きスロットを探す
+        const emptySlotIndex = opponentField.findIndex((slot) => slot === null);
+
+        if (emptySlotIndex !== -1) {
+          // 空きがあればフィールドに戻す
+          const restoredMonster = {
+            ...swallowed,
+            canAttack: false, // 戻った直後は攻撃不可
+            currentHp: swallowed.currentHp || swallowed.hp,
+            currentAttack: swallowed.currentAttack || swallowed.attack,
+          };
+          delete restoredMonster.originalSlotIndex;
+
+          setOpponentField((prev) => {
+            const newField = [...prev];
+            newField[emptySlotIndex] = restoredMonster;
+            return newField;
+          });
+
+          addLog(
+            `新・超覚醒粘液獣ハイパーが破壊され、${swallowed.name}が吐き出された！`,
+            'info'
+          );
+        } else {
+          // 空きがなければ墓地に送る
+          const deadMonster = { ...swallowed };
+          delete deadMonster.originalSlotIndex;
+
+          setOpponentGraveyard((prev) => [...prev, deadMonster]);
+
+          addLog(
+            `新・超覚醒粘液獣ハイパーが破壊されたが、場が満杯のため${swallowed.name}は墓地へ`,
             'info'
           );
         }

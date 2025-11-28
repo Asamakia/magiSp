@@ -73,6 +73,10 @@ class StatusEffectEngine {
       stackable: options.stackable || false,
       // エンドフェイズ回数ベースの解除（「次のターン終了時まで」= 2）
       expiresAfterEndPhases: options.expiresAfterEndPhases !== undefined ? options.expiresAfterEndPhases : null,
+      // 寄生効果用の追加プロパティ
+      parasiteCard: options.parasiteCard || null,
+      parasiteOwner: options.parasiteOwner || null,
+      effectNegated: options.effectNegated !== undefined ? options.effectNegated : false,
     };
 
     monster.statusEffects.push(statusEffect);
@@ -111,18 +115,30 @@ class StatusEffectEngine {
   /**
    * ターン開始時の処理
    * - 確率解除判定（眠り、凍結など）
+   * - 寄生のATK減少
    * @param {Object} monster - 対象モンスター
-   * @returns {Object} { monster: Object, removedEffects: Array }
+   * @returns {Object} { monster: Object, removedEffects: Array, parasiteAtkReduction: number }
    */
   processTurnStart(monster) {
     if (!monster || !monster.statusEffects || monster.statusEffects.length === 0) {
-      return { monster, removedEffects: [] };
+      return { monster, removedEffects: [], parasiteAtkReduction: 0 };
     }
 
     const removedEffects = [];
     const remainingEffects = [];
+    let parasiteAtkReduction = 0;
+    let newAttack = monster.currentAttack;
 
     monster.statusEffects.forEach(status => {
+      // 寄生のATK減少処理（毎ターン開始時）
+      if (status.type === STATUS_EFFECT_TYPES.PARASITE) {
+        const atkDown = status.value || 500;
+        newAttack = Math.max(0, newAttack - atkDown);
+        parasiteAtkReduction = atkDown;
+        remainingEffects.push(status);
+        return;
+      }
+
       // 確率解除判定
       if (status.removeChance > 0 && Math.random() < status.removeChance) {
         removedEffects.push(status);
@@ -134,10 +150,11 @@ class StatusEffectEngine {
     // イミュータブルに更新
     const updatedMonster = {
       ...monster,
+      currentAttack: newAttack,
       statusEffects: remainingEffects,
     };
 
-    return { monster: updatedMonster, removedEffects };
+    return { monster: updatedMonster, removedEffects, parasiteAtkReduction };
   }
 
   /**
@@ -209,6 +226,39 @@ class StatusEffectEngine {
     return { monster: updatedMonster, removedEffects, atkReduction };
   }
 
+  /**
+   * 相手エンドフェイズ時の処理（寄生の効果無効解除）
+   * @param {Object} monster - 対象モンスター
+   * @param {number} currentPlayer - 現在のターンプレイヤー
+   * @returns {Object} { monster: Object, parasiteEffectNegationRemoved: boolean }
+   */
+  processOpponentEndPhase(monster, currentPlayer) {
+    if (!monster || !monster.statusEffects || monster.statusEffects.length === 0) {
+      return { monster, parasiteEffectNegationRemoved: false };
+    }
+
+    let parasiteEffectNegationRemoved = false;
+    const updatedEffects = monster.statusEffects.map(status => {
+      // 寄生の効果無効解除判定
+      // 寄生者（parasiteOwner）と現在ターンプレイヤーが異なる場合、
+      // つまり被寄生者のエンドフェイズで効果無効を解除
+      if (status.type === STATUS_EFFECT_TYPES.PARASITE && status.effectNegated) {
+        if (status.parasiteOwner !== currentPlayer) {
+          parasiteEffectNegationRemoved = true;
+          return { ...status, effectNegated: false };
+        }
+      }
+      return status;
+    });
+
+    const updatedMonster = {
+      ...monster,
+      statusEffects: updatedEffects,
+    };
+
+    return { monster: updatedMonster, parasiteEffectNegationRemoved };
+  }
+
   // ========================================
   // 状態チェック
   // ========================================
@@ -262,6 +312,9 @@ class StatusEffectEngine {
     if (this.hasStatus(monster, STATUS_EFFECT_TYPES.SILENCE)) return false;
     if (this.hasStatus(monster, STATUS_EFFECT_TYPES.THUNDER)) return false;
 
+    // 寄生（effectNegatedがtrueの場合のみ）
+    if (this.isParasiteEffectNegated(monster)) return false;
+
     return true;
   }
 
@@ -277,7 +330,38 @@ class StatusEffectEngine {
     if (this.hasStatus(monster, STATUS_EFFECT_TYPES.SLEEP)) return false;
     if (this.hasStatus(monster, STATUS_EFFECT_TYPES.SILENCE)) return false;
 
+    // 寄生（effectNegatedがtrueの場合のみ）
+    if (this.isParasiteEffectNegated(monster)) return false;
+
     return true;
+  }
+
+  /**
+   * 寄生による効果無効が有効かチェック
+   * @param {Object} monster - 対象モンスター
+   * @returns {boolean}
+   */
+  isParasiteEffectNegated(monster) {
+    if (!monster?.statusEffects) return false;
+    const parasite = monster.statusEffects.find(s => s.type === STATUS_EFFECT_TYPES.PARASITE);
+    return parasite?.effectNegated === true;
+  }
+
+  /**
+   * 寄生カード情報を取得（破壊時墓地送り用）
+   * @param {Object} monster - 対象モンスター
+   * @returns {Object|null} { parasiteCard, parasiteOwner } または null
+   */
+  getParasiteInfo(monster) {
+    if (!monster?.statusEffects) return null;
+    const parasite = monster.statusEffects.find(s => s.type === STATUS_EFFECT_TYPES.PARASITE);
+    if (parasite && parasite.parasiteCard) {
+      return {
+        parasiteCard: parasite.parasiteCard,
+        parasiteOwner: parasite.parasiteOwner,
+      };
+    }
+    return null;
   }
 
   /**
@@ -298,6 +382,7 @@ class StatusEffectEngine {
       if (this.hasStatus(monster, STATUS_EFFECT_TYPES.STUN)) return getStatusDisplayName(STATUS_EFFECT_TYPES.STUN);
       if (this.hasStatus(monster, STATUS_EFFECT_TYPES.SILENCE)) return getStatusDisplayName(STATUS_EFFECT_TYPES.SILENCE);
       if (this.hasStatus(monster, STATUS_EFFECT_TYPES.THUNDER)) return getStatusDisplayName(STATUS_EFFECT_TYPES.THUNDER);
+      if (this.isParasiteEffectNegated(monster)) return getStatusDisplayName(STATUS_EFFECT_TYPES.PARASITE);
     }
 
     return '不明な状態';
@@ -318,6 +403,7 @@ class StatusEffectEngine {
     if (this.hasStatus(monster, STATUS_EFFECT_TYPES.STUN)) return { canUseSkill: false, reason: '行動不能状態' };
     if (this.hasStatus(monster, STATUS_EFFECT_TYPES.SILENCE)) return { canUseSkill: false, reason: '効果無効状態' };
     if (this.hasStatus(monster, STATUS_EFFECT_TYPES.THUNDER)) return { canUseSkill: false, reason: '雷撃状態' };
+    if (this.isParasiteEffectNegated(monster)) return { canUseSkill: false, reason: '寄生状態' };
     return { canUseSkill: true };
   }
 
@@ -325,6 +411,7 @@ class StatusEffectEngine {
     if (!monster) return { canUseTrigger: false, reason: '対象が存在しません' };
     if (this.hasStatus(monster, STATUS_EFFECT_TYPES.SLEEP)) return { canUseTrigger: false, reason: '眠り状態' };
     if (this.hasStatus(monster, STATUS_EFFECT_TYPES.SILENCE)) return { canUseTrigger: false, reason: '効果無効状態' };
+    if (this.isParasiteEffectNegated(monster)) return { canUseTrigger: false, reason: '寄生状態' };
     return { canUseTrigger: true };
   }
 

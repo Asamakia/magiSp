@@ -108,7 +108,7 @@ Currently a **prototype version** with local 2-player gameplay and AI opponent s
   - Fixed: ドラゴンの火山 end phase trigger now fires correctly (only on owner's turn, damages opponent monsters)
 - **2025-11-27 (Status Effect System)**: Comprehensive status effect system implemented ⭐⭐
   - **Status effect engine** (`src/engine/statusEffects/`) with ~580 lines of new code
-  - **13 status effect types**: SLEEP, FREEZE, THUNDER, WET, STUN, SILENCE, GUARD, INVINCIBLE, CORRODE, AWAKENED, ATK_UP, HP_UP, POISON
+  - **14 status effect types**: SLEEP, FREEZE, THUNDER, WET, STUN, SILENCE, GUARD, INVINCIBLE, CORRODE, AWAKENED, ATK_UP, HP_UP, ATK_DOWN, PARASITE, POISON
   - **Game integration**: Turn start/end phase processing, attack/skill restrictions, damage calculation
   - **Status effect helpers** in effectHelpers.js for applying status effects
   - **UI display**: Status icons on field monsters (FieldMonster.jsx)
@@ -167,12 +167,21 @@ Currently a **prototype version** with local 2-player gameplay and AI opponent s
     - C0000049 タイダルシフト（手札とフィールドの入れ替え）
     - C0000047 マーメイドの恵み（水属性モンスターHP回復）
     - C0000050 クラーケンの呼び声（深海モンスター蘇生）
-- **2025-11-28 (Trigger System Fix)**: トリガー実行エラー修正 ⭐⭐ **NEW**
+- **2025-11-28 (Trigger System Fix)**: トリガー実行エラー修正 ⭐⭐
   - **トリガー実行時カード情報追加**: fireTrigger/activateTriggerでcontext.cardが未設定だったバグを修正
     - フィールドからカードを検索してコンテキストに追加
     - フォールバック: triggerCard → context.card → context.destroyedCard
   - **ON_DESTROY_SELFトリガースコープ修正**: 破壊されたカード自身のトリガーのみ発火するように修正
     - 同名カード複数時の重複発動バグを修正（例: 粘液獣・開花3体中1体破壊で種子1体のみ生成）
+- **2025-11-28 (Parasite Status Effect System)**: 寄生状態異常システム化 ⭐⭐ **NEW**
+  - **PARASITE状態異常タイプ追加**: 寄生効果を状態異常システムで管理
+    - 毎ターン開始時ATK減少（500 or 1000）
+    - 効果無効化（技・トリガー使用不可）
+    - 寄生カード参照保持（破壊時墓地送り用）
+    - 相手エンドフェイズで効果無効のみ解除
+  - **新API**: `processOpponentEndPhase()`, `getParasiteInfo()`, `isParasiteEffectNegated()`
+  - **ヘルパー関数追加**: `processStatusEffectsTurnStart()`, `processStatusEffectsEndPhase()`
+  - **magic-spirit.jsx簡素化**: ターン開始/エンドフェイズの状態異常処理をヘルパーに移動（約30行削減）
 
 ---
 
@@ -1199,7 +1208,7 @@ The status effect system manages temporary status conditions applied to monsters
 - **Continuous Effects**: State-based, continuously apply while card is on field
 - **Status Effects**: Temporary conditions with duration/removal mechanics
 
-**Status Effect Types (13 types)**:
+**Status Effect Types (14 types)**:
 ```javascript
 STATUS_EFFECT_TYPES = {
   // Debuffs (Monster)
@@ -1210,6 +1219,7 @@ STATUS_EFFECT_TYPES = {
   STUN,       // 行動不能 - 攻撃・効果不可
   SILENCE,    // 効果無効 - 効果発動不可
   CORRODE,    // 深蝕 - エンド時ATKダウン
+  PARASITE,   // 寄生 - ターン開始時ATK減少、効果無効化、寄生カード参照保持
 
   // Buffs (Monster)
   GUARD,      // 守護 - ダメージ半減（1回）
@@ -1217,6 +1227,7 @@ STATUS_EFFECT_TYPES = {
   AWAKENED,   // 覚醒 - ATK上昇
   ATK_UP,     // 攻撃力上昇
   HP_UP,      // HP上昇
+  ATK_DOWN,   // 攻撃力低下
 
   // Player
   POISON,     // 毒 - 毎ターン100ダメージ
@@ -1246,11 +1257,18 @@ const atkMod = statusEffectEngine.getAttackModifier(monster); // number
 const dmgMult = statusEffectEngine.getDamageMultiplier(monster); // number
 
 // Turn processing
-const { monster: updated, removedEffects } = statusEffectEngine.processTurnStart(monster);
+const { monster: updated, removedEffects, parasiteAtkReduction } = statusEffectEngine.processTurnStart(monster);
 const { monster: updated, removedEffects, atkReduction } = statusEffectEngine.processEndPhase(monster);
+
+// Opponent end phase (parasite effect negation removal)
+const { monster: updated, effectNegatedRemoved } = statusEffectEngine.processOpponentEndPhase(monster, currentPlayer);
 
 // Damage reduction (Guard)
 const { reduction, usedGuard, updatedMonster } = statusEffectEngine.calculateDamageReduction(monster, damage);
+
+// Parasite helpers
+const parasiteInfo = statusEffectEngine.getParasiteInfo(monster); // { parasiteCard, parasiteOwner } | null
+const isNegated = statusEffectEngine.isParasiteEffectNegated(monster); // boolean
 
 // Clear all (game init)
 statusEffectEngine.clear();
@@ -1263,6 +1281,8 @@ import {
   applyStatusToOpponentMonster,      // Apply to specific slot
   applyStatusToAllOpponentMonsters,  // Apply to all
   applyStatusToOwnMonster,           // Apply to own monster
+  processStatusEffectsTurnStart,     // Turn start processing (both fields)
+  processStatusEffectsEndPhase,      // End phase processing (both fields)
 } from './engine/effectHelpers';
 
 // Example: Apply freeze to selected opponent monster
@@ -1276,18 +1296,25 @@ applyStatusToAllOpponentMonsters(context, STATUS_EFFECT_TYPES.FREEZE, {
   duration: -1,
   removeChance: 0.5,
 }, 'ブリザードキャット・エターナル');
+
+// Example: Turn start status processing (replaces inline code in magic-spirit.jsx)
+processStatusEffectsTurnStart({ setP1Field, setP2Field, addLog });
+
+// Example: End phase status processing (handles opponent end phase for parasite)
+processStatusEffectsEndPhase({ setP1Field, setP2Field, addLog }, currentPlayer);
 ```
 
 **Integration in magic-spirit.jsx**:
 - **initGame()**: `statusEffectEngine.clear()` - Reset system
-- **processPhase(0)**: `processTurnStart()` - Check removal at turn start
-- **processPhase(4)**: `processEndPhase()` - Apply end phase effects
+- **processPhase(0)**: `processStatusEffectsTurnStart()` - Turn start processing (via effectHelpers)
+- **processPhase(4)**: `processStatusEffectsEndPhase()` - End phase processing including opponent parasite handling (via effectHelpers)
 - **processPhase(4)**: `processPlayerEndPhase()` - Apply player poison damage
 - **attack()**: `canAttack()` - Check if attack allowed
 - **attack()**: `getAttackModifier()` - Apply ATK modifiers (freeze, etc.)
 - **attack()**: `getDamageMultiplier()` - Apply damage multipliers (wet)
 - **attack()**: `calculateDamageReduction()` - Apply guard
 - **executeSkill()**: `canUseSkill()` - Check if skill allowed
+- **handleMonsterDestruction()**: `getParasiteInfo()` - Get parasite card for graveyard transfer
 
 ---
 
@@ -1821,6 +1848,6 @@ This is suitable for expansion into a full game or as a learning project for Rea
 
 ---
 
-**Document Version**: 4.9
-**Last Updated**: 2025-11-28 (Trigger system fix - context.card & ON_DESTROY_SELF scope)
+**Document Version**: 5.0
+**Last Updated**: 2025-11-28 (PARASITE status effect system - 寄生状態異常化)
 **For**: Magic Spirit (magiSp) Repository

@@ -161,6 +161,14 @@ const handleMonsterDestruction = (context, monster, slotIndex, ownerPlayer) => {
   });
   setGraveyard(prev => [...prev, monster]);
   addLog(`${monster.name}は破壊された！`, 'damage');
+
+  // 寄生状態異常があれば寄生カードを寄生者の墓地に送る
+  const parasiteInfo = statusEffectEngine.getParasiteInfo(monster);
+  if (parasiteInfo) {
+    const setParasiteGraveyard = parasiteInfo.parasiteOwner === 1 ? setP1Graveyard : setP2Graveyard;
+    setParasiteGraveyard(prev => [...prev, parasiteInfo.parasiteCard]);
+    addLog(`${parasiteInfo.parasiteCard.name}も墓地に送られた`, 'info');
+  }
 };
 
 /**
@@ -609,10 +617,13 @@ export const modifyAttack = (context, amount, targetIndex = null, isOpponent = f
 
   setTargetField(prev => prev.map((m, idx) => {
     if (idx === useIndex && m) {
-      const newAttack = Math.max(0, m.attack + amount);
+      const baseAttack = m.attack;
+      const currentAtk = m.currentAttack !== undefined ? m.currentAttack : m.attack;
+      const newAttack = Math.max(0, baseAttack + amount);
+      const newCurrentAttack = Math.max(0, currentAtk + amount);
       const actionText = amount > 0 ? 'アップ' : 'ダウン';
-      addLog(`${m.name}の攻撃力が${Math.abs(amount)}${actionText}！（攻撃力: ${newAttack}）`, amount > 0 ? 'heal' : 'damage');
-      return { ...m, attack: newAttack };
+      addLog(`${m.name}の攻撃力が${Math.abs(amount)}${actionText}！（攻撃力: ${newCurrentAttack}）`, amount > 0 ? 'heal' : 'damage');
+      return { ...m, attack: newAttack, currentAttack: newCurrentAttack };
     }
     return m;
   }));
@@ -1053,4 +1064,75 @@ export const applyTemporaryAtkDownToAllOpponents = (context, value, endPhases, s
   }));
 
   return count;
+};
+
+// ========================================
+// 状態異常の一括処理（ターン開始・エンドフェイズ）
+// ========================================
+
+/**
+ * 両プレイヤーのフィールドに対して状態異常のターン開始時処理を実行
+ * - 確率解除判定（眠り、凍結など）
+ * - 寄生のATK減少
+ * @param {Object} context - ゲームコンテキスト
+ */
+export const processStatusEffectsTurnStart = (context) => {
+  const {
+    setP1Field, setP2Field,
+    addLog,
+  } = context;
+
+  const processField = (setField) => {
+    setField(prev => prev.map(m => {
+      if (!m) return null;
+      const result = statusEffectEngine.processTurnStart(m);
+
+      // 状態異常解除をログ出力
+      if (result.removedEffects.length > 0) {
+        result.removedEffects.forEach(effect => {
+          addLog(`${m.name}の${getStatusDisplayName(effect.type)}が解除された！`, 'info');
+        });
+      }
+
+      // 寄生によるATK減少をログ出力
+      if (result.parasiteAtkReduction > 0) {
+        addLog(`${m.name}は寄生により攻撃力-${result.parasiteAtkReduction}！（${result.monster.currentAttack}）`, 'damage');
+      }
+
+      return result.monster;
+    }));
+  };
+
+  processField(setP1Field);
+  processField(setP2Field);
+};
+
+/**
+ * 両プレイヤーのフィールドに対して状態異常のエンドフェイズ時処理を実行
+ * - 寄生の効果無効解除（相手エンドフェイズで解除）
+ * @param {Object} context - ゲームコンテキスト
+ * @param {number} currentPlayer - 現在のターンプレイヤー
+ */
+export const processStatusEffectsEndPhase = (context, currentPlayer) => {
+  const {
+    setP1Field, setP2Field,
+    addLog,
+  } = context;
+
+  const processField = (setField) => {
+    setField(prev => prev.map(m => {
+      if (!m) return m;
+      const result = statusEffectEngine.processOpponentEndPhase(m, currentPlayer);
+
+      // 寄生の効果無効解除をログ出力
+      if (result.parasiteEffectNegationRemoved) {
+        addLog(`${m.name}の効果無効化が解除された（寄生効果）`, 'info');
+      }
+
+      return result.monster;
+    }));
+  };
+
+  processField(setP1Field);
+  processField(setP2Field);
 };
