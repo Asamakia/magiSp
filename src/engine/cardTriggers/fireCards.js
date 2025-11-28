@@ -16,8 +16,10 @@ import {
   healLife,
   destroyMonster,
   modifyAttack,
+  applyStatusToOpponentMonster,
 } from '../effectHelpers';
 import { hasCategory } from '../../utils/helpers';
+import { STATUS_EFFECT_TYPES } from '../statusEffects/statusTypes';
 
 /**
  * 炎属性カードのトリガー定義
@@ -313,9 +315,39 @@ export const fireCardTriggers = {
       activationType: ACTIVATION_TYPES.AUTOMATIC,
       description: '攻撃時: 相手モンスター1体の効果無効化',
       effect: (context) => {
-        const { addLog } = context;
-        addLog('岩狸・地割れ狸の効果: 相手モンスターの効果を無効化（未実装）', 'info');
-        // TODO: 効果無効化の仕組みが必要
+        const { addLog, targetIndex } = context;
+        const { opponentField } = getPlayerContext(context);
+
+        // 攻撃対象が相手モンスターの場合、そのモンスターに効果無効を付与
+        if (targetIndex !== undefined && targetIndex !== -1 && opponentField[targetIndex]) {
+          const success = applyStatusToOpponentMonster(
+            context,
+            targetIndex,
+            STATUS_EFFECT_TYPES.SILENCE,
+            { duration: 1 }, // ターン終了時まで（1ターン）
+            '岩狸・地割れ狸'
+          );
+          if (success) {
+            addLog(`岩狸・地割れ狸の効果: ${opponentField[targetIndex].name}の効果をターン終了時まで無効化！`, 'info');
+          }
+        } else {
+          // 攻撃対象がプレイヤーの場合、相手モンスター1体を選んで効果無効化
+          const firstMonsterIndex = opponentField.findIndex(m => m !== null);
+          if (firstMonsterIndex !== -1) {
+            const success = applyStatusToOpponentMonster(
+              context,
+              firstMonsterIndex,
+              STATUS_EFFECT_TYPES.SILENCE,
+              { duration: 1 },
+              '岩狸・地割れ狸'
+            );
+            if (success) {
+              addLog(`岩狸・地割れ狸の効果: ${opponentField[firstMonsterIndex].name}の効果をターン終了時まで無効化！`, 'info');
+            }
+          } else {
+            addLog('岩狸・地割れ狸の効果: 相手フィールドにモンスターがいません', 'info');
+          }
+        }
       },
     },
   ],
