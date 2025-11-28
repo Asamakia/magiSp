@@ -773,6 +773,27 @@ export default function MagicSpiritGame() {
     addLog(`${monster.name}の${skillName}を発動！`, 'info');
     addLog(`効果: ${skill.text}`, 'info');
 
+    // チャージ消費処理
+    const setField = currentPlayer === 1 ? setP1Field : setP2Field;
+    const setGraveyard = currentPlayer === 1 ? setP1Graveyard : setP2Graveyard;
+
+    // 消費するチャージを取得
+    const chargesToConsume = monster.charges.slice(0, requiredCharges);
+
+    // フィールドからチャージを削除
+    setField(prev => prev.map((m, idx) => {
+      if (idx !== monsterIndex || !m) return m;
+      return {
+        ...m,
+        charges: m.charges.slice(requiredCharges),
+      };
+    }));
+
+    // 消費したチャージを墓地に送る
+    if (chargesToConsume.length > 0) {
+      setGraveyard(prev => [...prev, ...chargesToConsume]);
+    }
+
     // 効果実行エンジンを使用
     const context = {
       currentPlayer,

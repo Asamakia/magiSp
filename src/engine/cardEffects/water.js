@@ -30,7 +30,7 @@ export const waterCardEffects = {
       currentPlayer,
       p1Field, p2Field,
       setP1Field, setP2Field,
-      setPendingTargetSelection,
+      setPendingMonsterTarget,
     } = context;
 
     const opponentField = currentPlayer === 1 ? p2Field : p1Field;
@@ -74,10 +74,10 @@ export const waterCardEffects = {
       }
 
       // 複数いる場合は選択UI
-      if (setPendingTargetSelection) {
-        setPendingTargetSelection({
+      if (setPendingMonsterTarget) {
+        setPendingMonsterTarget({
           message: '攻撃力ダウン+ダメージを与える相手モンスターを選択',
-          targetType: 'opponent_monster',
+          targetPlayer: 'opponent',
           callback: (selectedIndex) => {
             applyBasicSkill(selectedIndex);
           },
@@ -116,10 +116,10 @@ export const waterCardEffects = {
       }
 
       // 複数いる場合は選択UI
-      if (setPendingTargetSelection) {
-        setPendingTargetSelection({
+      if (setPendingMonsterTarget) {
+        setPendingMonsterTarget({
           message: '凍結させる相手モンスターを選択',
-          targetType: 'opponent_monster',
+          targetPlayer: 'opponent',
           callback: (selectedIndex) => {
             applyFreeze(selectedIndex);
           },
@@ -170,7 +170,7 @@ export const waterCardEffects = {
       currentPlayer,
       p1Field, p2Field,
       setP1Field, setP2Field,
-      setPendingTargetSelection,
+      setPendingMonsterTarget,
     } = context;
 
     if (context.skillType === 'basic') {
@@ -219,12 +219,12 @@ export const waterCardEffects = {
       }
 
       // 複数いる場合は選択UI
-      if (setPendingTargetSelection) {
-        setPendingTargetSelection({
+      if (setPendingMonsterTarget) {
+        setPendingMonsterTarget({
           message: '状態異常を回復する水属性モンスターを選択',
-          validTargets: afflictedMonsters.map(t => t.index),
-          isOpponent: false,
+          targetPlayer: 'self',
           callback: (selectedIndex) => {
+            if (selectedIndex === null || selectedIndex === undefined) return;
             clearStatusEffects(selectedIndex);
           },
         });
@@ -374,7 +374,7 @@ export const waterCardEffects = {
       currentPlayer,
       p1Field, p2Field,
       setP1Field, setP2Field,
-      setPendingTargetSelection,
+      setPendingMonsterTarget,
     } = context;
 
     const opponentField = currentPlayer === 1 ? p2Field : p1Field;
@@ -420,10 +420,10 @@ export const waterCardEffects = {
     }
 
     // 複数体の場合は選択UI表示
-    if (setPendingTargetSelection) {
-      setPendingTargetSelection({
+    if (setPendingMonsterTarget) {
+      setPendingMonsterTarget({
         message: '凍結を与える相手モンスターを選択してください',
-        targetType: 'opponent_monster',
+        targetPlayer: 'opponent',
         callback: (selectedIndex) => {
           const targetMonster = opponentField[selectedIndex];
           if (!targetMonster) return;
@@ -453,7 +453,7 @@ export const waterCardEffects = {
       return true;
     }
 
-    // setPendingTargetSelectionがない場合は最初の対象を選択
+    // setPendingMonsterTargetがない場合は最初の対象を選択
     const targetIndex = validTargets[0].index;
     const targetMonster = validTargets[0].monster;
 
@@ -645,7 +645,7 @@ export const waterCardEffects = {
       currentPlayer,
       p1Field, p2Field,
       setP1Field, setP2Field,
-      setPendingTargetSelection,
+      setPendingMonsterTarget,
     } = context;
 
     const currentField = currentPlayer === 1 ? p1Field : p2Field;
@@ -685,10 +685,10 @@ export const waterCardEffects = {
     }
 
     // 複数いる場合は選択UI
-    if (setPendingTargetSelection) {
-      setPendingTargetSelection({
+    if (setPendingMonsterTarget) {
+      setPendingMonsterTarget({
         message: '覚醒させるブリザードキャットを選択してください',
-        targetType: 'self_monster',
+        targetPlayer: 'self',
         callback: (selectedIndex) => {
           applyAwakening(selectedIndex);
         },
@@ -712,7 +712,7 @@ export const waterCardEffects = {
       currentPlayer,
       p1Field, p2Field,
       setP1Field, setP2Field,
-      setPendingTargetSelection,
+      setPendingMonsterTarget,
     } = context;
 
     const opponentField = currentPlayer === 1 ? p2Field : p1Field;
@@ -749,10 +749,10 @@ export const waterCardEffects = {
     }
 
     // 複数いる場合は選択UI
-    if (setPendingTargetSelection) {
-      setPendingTargetSelection({
+    if (setPendingMonsterTarget) {
+      setPendingMonsterTarget({
         message: '攻撃力を0にする相手モンスターを選択してください',
-        targetType: 'opponent_monster',
+        targetPlayer: 'opponent',
         callback: (selectedIndex) => {
           applyAcidFog(selectedIndex);
         },
@@ -776,7 +776,7 @@ export const waterCardEffects = {
       currentPlayer,
       p1Field, p2Field,
       setP1Field, setP2Field,
-      setPendingTargetSelection,
+      setPendingMonsterTarget,
     } = context;
 
     const currentField = currentPlayer === 1 ? p1Field : p2Field;
@@ -839,10 +839,10 @@ export const waterCardEffects = {
     }
 
     // 複数いる場合は選択UI
-    if (setPendingTargetSelection) {
-      setPendingTargetSelection({
+    if (setPendingMonsterTarget) {
+      setPendingMonsterTarget({
         message: '汚染する相手モンスターを選択してください',
-        targetType: 'opponent_monster',
+        targetPlayer: 'opponent',
         callback: (selectedIndex) => {
           applySislagonPollution(selectedIndex);
         },
@@ -867,7 +867,7 @@ export const waterCardEffects = {
       currentPlayer,
       p1Field, p2Field,
       setP1Field, setP2Field,
-      setPendingTargetSelection,
+      setPendingMonsterTarget,
     } = context;
 
     const opponentField = currentPlayer === 1 ? p2Field : p1Field;
@@ -919,10 +919,10 @@ export const waterCardEffects = {
     }
 
     // 複数いる場合は選択UI
-    if (setPendingTargetSelection) {
-      setPendingTargetSelection({
+    if (setPendingMonsterTarget) {
+      setPendingMonsterTarget({
         message: '封印する相手モンスターを選択してください',
-        targetType: 'opponent_monster',
+        targetPlayer: 'opponent',
         callback: (selectedIndex) => {
           applySealingChain(selectedIndex);
         },
@@ -1009,7 +1009,7 @@ export const waterCardEffects = {
       currentPlayer,
       p1Field, p2Field,
       setP2Field, setP1Field,
-      setPendingTargetSelection,
+      setPendingMonsterTarget,
     } = context;
 
     if (context.skillType === 'basic') {
@@ -1044,12 +1044,12 @@ export const waterCardEffects = {
       }
 
       // 複数の場合はターゲット選択UI
-      if (setPendingTargetSelection) {
-        setPendingTargetSelection({
+      if (setPendingMonsterTarget) {
+        setPendingMonsterTarget({
           message: '効果を無効化する相手モンスターを選択',
-          validTargets: validTargets.map(t => t.index),
-          isOpponent: true,
+          targetPlayer: 'opponent',
           callback: (targetIndex) => {
+            if (targetIndex === null || targetIndex === undefined) return;
             applySilence(targetIndex);
           },
         });
@@ -1074,7 +1074,7 @@ export const waterCardEffects = {
       monsterIndex,
       p1Field, p2Field,
       setP1Field, setP2Field,
-      setPendingTargetSelection,
+      setPendingMonsterTarget,
     } = context;
 
     if (context.skillType === 'basic') {
@@ -1120,24 +1120,29 @@ export const waterCardEffects = {
       }
 
       // 複数の場合はターゲット選択UI
-      if (setPendingTargetSelection) {
-        setPendingTargetSelection({
+      if (setPendingMonsterTarget) {
+        setPendingMonsterTarget({
           message: `${damage}ダメージを与える相手モンスターを選択`,
-          validTargets: validTargets.map(t => t.index),
-          isOpponent: true,
+          targetPlayer: 'opponent',
           callback: (targetIndex) => {
-            setOpponentField(prev => prev.map((m, idx) => {
-              if (idx === targetIndex && m) {
-                const newHp = m.currentHp - damage;
-                addLog(`${monster.name}の基本技: ${m.name}に${damage}ダメージ！`, 'damage');
-                if (newHp <= 0) {
-                  addLog(`${m.name}は破壊された！`, 'damage');
-                  return null;
+            if (targetIndex === null || targetIndex === undefined) return;
+            const targetMonster = opponentField[targetIndex];
+            if (!targetMonster) return;
+
+            const newHp = targetMonster.currentHp - damage;
+            addLog(`${monster.name}の基本技: ${targetMonster.name}に${damage}ダメージ！`, 'damage');
+
+            if (newHp <= 0) {
+              addLog(`${targetMonster.name}は破壊された！`, 'damage');
+              setOpponentField(prev => prev.map((m, idx) => idx === targetIndex ? null : m));
+            } else {
+              setOpponentField(prev => prev.map((m, idx) => {
+                if (idx === targetIndex && m) {
+                  return { ...m, currentHp: newHp };
                 }
-                return { ...m, currentHp: newHp };
-              }
-              return m;
-            }));
+                return m;
+              }));
+            }
           },
         });
         return true;

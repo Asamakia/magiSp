@@ -27,7 +27,7 @@ export const fireCardEffects = {
       monsterIndex,
       p1Field, p2Field,
       setP1Field, setP2Field,
-      setPendingTargetSelection,
+      setPendingMonsterTarget,
     } = context;
 
     if (context.skillType === 'basic') {
@@ -73,24 +73,30 @@ export const fireCardEffects = {
       }
 
       // 複数の場合はターゲット選択UI
-      if (setPendingTargetSelection) {
-        setPendingTargetSelection({
+      if (setPendingMonsterTarget) {
+        setPendingMonsterTarget({
           message: `${damage}ダメージを与える相手モンスターを選択`,
-          validTargets: validTargets.map(t => t.index),
-          isOpponent: true,
+          targetPlayer: 'opponent',
           callback: (targetIndex) => {
-            setOpponentField(prev => prev.map((m, idx) => {
-              if (idx === targetIndex && m) {
-                const newHp = m.currentHp - damage;
-                addLog(`${monster.name}の基本技: ${m.name}に${damage}ダメージ！`, 'damage');
-                if (newHp <= 0) {
-                  addLog(`${m.name}は破壊された！`, 'damage');
-                  return null;
+            if (targetIndex === null || targetIndex === undefined) return;
+            const targetMonster = opponentField[targetIndex];
+            if (!targetMonster) return;
+
+            const newHp = targetMonster.currentHp - damage;
+            addLog(`${monster.name}の基本技: ${targetMonster.name}に${damage}ダメージ！`, 'damage');
+
+            if (newHp <= 0) {
+              addLog(`${targetMonster.name}は破壊された！`, 'damage');
+              setOpponentField(prev => prev.map((m, idx) => idx === targetIndex ? null : m));
+              // 墓地送りは別途必要
+            } else {
+              setOpponentField(prev => prev.map((m, idx) => {
+                if (idx === targetIndex && m) {
+                  return { ...m, currentHp: newHp };
                 }
-                return { ...m, currentHp: newHp };
-              }
-              return m;
-            }));
+                return m;
+              }));
+            }
           },
         });
         return true;
@@ -98,18 +104,21 @@ export const fireCardEffects = {
 
       // フォールバック: 最初のターゲットを選択
       const target = validTargets[0];
-      setOpponentField(prev => prev.map((m, idx) => {
-        if (idx === target.index && m) {
-          const newHp = m.currentHp - damage;
-          addLog(`${monster.name}の基本技: ${m.name}に${damage}ダメージ！`, 'damage');
-          if (newHp <= 0) {
-            addLog(`${m.name}は破壊された！`, 'damage');
-            return null;
+      const targetMonster = opponentField[target.index];
+      const newHp = targetMonster.currentHp - damage;
+      addLog(`${monster.name}の基本技: ${targetMonster.name}に${damage}ダメージ！`, 'damage');
+
+      if (newHp <= 0) {
+        addLog(`${targetMonster.name}は破壊された！`, 'damage');
+        setOpponentField(prev => prev.map((m, idx) => idx === target.index ? null : m));
+      } else {
+        setOpponentField(prev => prev.map((m, idx) => {
+          if (idx === target.index && m) {
+            return { ...m, currentHp: newHp };
           }
-          return { ...m, currentHp: newHp };
-        }
-        return m;
-      }));
+          return m;
+        }));
+      }
       return true;
     }
     return false;
@@ -500,7 +509,7 @@ export const fireCardEffects = {
       p1Field, p2Field,
       setP1Field, setP2Field,
       setP1Graveyard, setP2Graveyard,
-      setPendingTargetSelection,
+      setPendingMonsterTarget,
     } = context;
 
     if (context.skillType === 'basic') {
@@ -557,12 +566,12 @@ export const fireCardEffects = {
       }
 
       // 複数の場合はターゲット選択UI
-      if (setPendingTargetSelection) {
-        setPendingTargetSelection({
+      if (setPendingMonsterTarget) {
+        setPendingMonsterTarget({
           message: `${damage}ダメージを与える相手モンスターを選択`,
-          validTargets: validTargets.map(t => t.index),
-          isOpponent: true,
+          targetPlayer: 'opponent',
           callback: (targetIndex) => {
+            if (targetIndex === null || targetIndex === undefined) return;
             const targetMonster = opponentField[targetIndex];
             if (!targetMonster) return;
 
