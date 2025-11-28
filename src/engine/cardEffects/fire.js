@@ -488,5 +488,110 @@ export const fireCardEffects = {
     return false;
   },
 
+  /**
+   * C0000025: ブレイズ・ドラゴン
+   * 基本技：自身の攻撃力の半分のダメージを相手モンスター1体に与える
+   */
+  C0000025: (skillText, context) => {
+    const {
+      addLog,
+      currentPlayer,
+      monsterIndex,
+      p1Field, p2Field,
+      setP1Field, setP2Field,
+      setP1Graveyard, setP2Graveyard,
+      setPendingTargetSelection,
+    } = context;
+
+    if (context.skillType === 'basic') {
+      const currentField = currentPlayer === 1 ? p1Field : p2Field;
+      const opponentField = currentPlayer === 1 ? p2Field : p1Field;
+      const setOpponentField = currentPlayer === 1 ? setP2Field : setP1Field;
+      const setOpponentGraveyard = currentPlayer === 1 ? setP2Graveyard : setP1Graveyard;
+
+      const monster = currentField[monsterIndex];
+      if (!monster) {
+        addLog('モンスターが存在しません', 'damage');
+        return false;
+      }
+
+      // ダメージ量 = 攻撃力の半分
+      const damage = Math.floor(monster.attack / 2);
+
+      // 相手フィールドのモンスターをチェック
+      const validTargets = opponentField
+        .map((m, idx) => ({ monster: m, index: idx }))
+        .filter(t => t.monster !== null);
+
+      if (validTargets.length === 0) {
+        addLog('相手フィールドにモンスターがいません', 'info');
+        return false;
+      }
+
+      // ダメージを与えてHP0なら破壊する関数
+      const applyDamage = (targetIndex) => {
+        const targetMonster = opponentField[targetIndex];
+        if (!targetMonster) return;
+
+        const newHp = targetMonster.currentHp - damage;
+        addLog(`${monster.name}の基本技: ${targetMonster.name}に${damage}ダメージ！`, 'damage');
+
+        if (newHp <= 0) {
+          addLog(`${targetMonster.name}は破壊された！`, 'damage');
+          setOpponentField(prev => prev.map((m, idx) => idx === targetIndex ? null : m));
+          setOpponentGraveyard(prev => [...prev, targetMonster]);
+        } else {
+          setOpponentField(prev => prev.map((m, idx) => {
+            if (idx === targetIndex && m) {
+              return { ...m, currentHp: newHp };
+            }
+            return m;
+          }));
+        }
+      };
+
+      // 1体のみの場合は自動選択
+      if (validTargets.length === 1) {
+        applyDamage(validTargets[0].index);
+        return true;
+      }
+
+      // 複数の場合はターゲット選択UI
+      if (setPendingTargetSelection) {
+        setPendingTargetSelection({
+          message: `${damage}ダメージを与える相手モンスターを選択`,
+          validTargets: validTargets.map(t => t.index),
+          isOpponent: true,
+          callback: (targetIndex) => {
+            const targetMonster = opponentField[targetIndex];
+            if (!targetMonster) return;
+
+            const newHp = targetMonster.currentHp - damage;
+            addLog(`${monster.name}の基本技: ${targetMonster.name}に${damage}ダメージ！`, 'damage');
+
+            if (newHp <= 0) {
+              addLog(`${targetMonster.name}は破壊された！`, 'damage');
+              setOpponentField(prev => prev.map((m, idx) => idx === targetIndex ? null : m));
+              setOpponentGraveyard(prev => [...prev, targetMonster]);
+            } else {
+              setOpponentField(prev => prev.map((m, idx) => {
+                if (idx === targetIndex && m) {
+                  return { ...m, currentHp: newHp };
+                }
+                return m;
+              }));
+            }
+          },
+        });
+        return true;
+      }
+
+      // フォールバック: 最初のターゲットを選択
+      applyDamage(validTargets[0].index);
+      return true;
+    }
+    return false;
+  },
+
   // 他の炎属性カードを追加...
 };
