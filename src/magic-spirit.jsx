@@ -1524,6 +1524,25 @@ export default function MagicSpiritGame() {
         executeSkillEffects(card.effect, context, card.id);
       }
 
+      // 相手のON_OPPONENT_MAGIC_ACTIVATEDトリガーを発火（マグマ・ドラゴン等）
+      const opponentPlayer = currentPlayer === 1 ? 2 : 1;
+      const opponentMagicTriggerContext = {
+        currentPlayer: opponentPlayer, // トリガー発動者は相手
+        magicCard: card,               // 発動された魔法カード
+        p1Field,
+        p2Field,
+        p1Life,
+        p2Life,
+        setP1Life,
+        setP2Life,
+        setP1Field,
+        setP2Field,
+        p1ActiveSP,
+        p2ActiveSP,
+        addLog,
+      };
+      fireTrigger(TRIGGER_TYPES.ON_OPPONENT_MAGIC_ACTIVATED, opponentMagicTriggerContext);
+
       return true;
     }
 

@@ -26,18 +26,17 @@ import { STATUS_EFFECT_TYPES } from '../statusEffects/statusTypes';
 export const fireCardTriggers = {
   /**
    * C0000021: フレア・ドラゴン
-   * 【召喚時】バトルフェイズ開始時、相手プレイヤーに300ダメージを与える。
+   * 【バトルフェイズ開始時】相手プレイヤーに300ダメージを与える。
+   * 基本技：自身の攻撃力の半分のダメージを相手モンスター1体に与える（cardEffects/fire.jsで実装）
    */
   C0000021: [
     {
-      type: TRIGGER_TYPES.ON_SUMMON,
+      type: TRIGGER_TYPES.ON_BATTLE_PHASE_START,
       activationType: ACTIVATION_TYPES.AUTOMATIC,
-      description: '召喚時: 次のバトルフェイズ開始時に300ダメージ',
+      description: 'バトルフェイズ開始時: 相手プレイヤーに300ダメージ',
       effect: (context) => {
         const { addLog } = context;
-        addLog('フレア・ドラゴンの召喚時効果: 次のバトルフェイズで300ダメージを与える', 'info');
-        // TODO: バトルフェイズ開始時のトリガーを予約する仕組みが必要
-        // 現時点では即座に300ダメージ
+        addLog('フレア・ドラゴンの効果: 相手プレイヤーに300ダメージ', 'damage');
         conditionalDamage(context, 300, 'opponent');
       },
     },
@@ -91,13 +90,56 @@ export const fireCardTriggers = {
   ],
 
   /**
+   * C0000026: インフェルノ・ドラゴン
+   * 【自攻撃前】攻撃対象モンスターの攻撃力を300ダウン。
+   * 【自攻撃後】相手モンスターを破壊した場合、相手プレイヤーに500ダメージを与える。
+   */
+  C0000026: [
+    {
+      type: TRIGGER_TYPES.ON_ATTACK,
+      activationType: ACTIVATION_TYPES.AUTOMATIC,
+      description: '攻撃時: 攻撃対象の攻撃力を300ダウン',
+      effect: (context) => {
+        const { targetIndex, addLog } = context;
+        const { opponentField, setOpponentField } = getPlayerContext(context);
+
+        if (targetIndex !== undefined && targetIndex !== null && opponentField[targetIndex]) {
+          setOpponentField(prev => {
+            const newField = [...prev];
+            const target = newField[targetIndex];
+            if (target) {
+              const newAttack = Math.max(0, (target.currentAttack || target.attack) - 300);
+              addLog(`インフェルノ・ドラゴンの効果: ${target.name}の攻撃力を300ダウン！`, 'damage');
+              newField[targetIndex] = { ...target, currentAttack: newAttack };
+            }
+            return newField;
+          });
+        }
+      },
+    },
+    {
+      type: TRIGGER_TYPES.ON_ATTACK_SUCCESS,
+      activationType: ACTIVATION_TYPES.AUTOMATIC,
+      description: '攻撃成功時: 相手モンスター破壊で500ダメージ',
+      effect: (context) => {
+        const { destroyedTarget, addLog } = context;
+
+        // 相手モンスターを破壊した場合
+        if (destroyedTarget) {
+          addLog('インフェルノ・ドラゴンの効果: 相手モンスター破壊で500ダメージ！', 'damage');
+          conditionalDamage(context, 500, 'opponent');
+        }
+      },
+    },
+  ],
+
+  /**
    * C0000027: マグマ・ドラゴン
    * 【相手が魔法カードを発動時】相手プレイヤーに200ダメージを与える。
-   * 注: このトリガーは現在のトリガーシステムでは未実装（魔法カード発動トリガーが必要）
    */
   C0000027: [
     {
-      type: TRIGGER_TYPES.ON_OPPONENT_MAGIC_ACTIVATED, // TODO: triggerTypes.jsに追加必要
+      type: TRIGGER_TYPES.ON_OPPONENT_MAGIC_ACTIVATED,
       activationType: ACTIVATION_TYPES.AUTOMATIC,
       description: '相手が魔法カード発動時: 200ダメージ',
       effect: (context) => {
@@ -111,6 +153,7 @@ export const fireCardTriggers = {
    * C0000028: 炎竜母フレイマ
    * 【召喚時】墓地の［ドラゴン］モンスター1体を攻撃力半減で場に戻す。
    * 【常時】自分の［ドラゴン］モンスターは効果でダメージを受けない。
+   * ※常時効果はcontinuousEffects/monsterCards.jsで処理
    */
   C0000028: [
     {
@@ -128,43 +171,13 @@ export const fireCardTriggers = {
         }
       },
     },
-    {
-      type: TRIGGER_TYPES.CONTINUOUS,
-      activationType: ACTIVATION_TYPES.AUTOMATIC,
-      description: '常時: 自分の［ドラゴン］は効果ダメージ無効',
-      effect: (context) => {
-        // 常時効果は別途実装が必要（継続的な効果管理）
-        context.addLog('炎竜母フレイマの常時効果: ［ドラゴン］は効果ダメージを受けない', 'info');
-      },
-    },
+    // 【常時】効果はcontinuousEffects/monsterCards.jsのDAMAGE_IMMUNITYで処理
   ],
 
-  /**
-   * C0000029: クリムゾン・ワイバーン
-   * 【常時】［ドラゴン］モンスターがいる時、このカードの攻撃力は400アップする。
-   */
-  C0000029: [
-    {
-      type: TRIGGER_TYPES.CONTINUOUS,
-      activationType: ACTIVATION_TYPES.AUTOMATIC,
-      description: '常時: ［ドラゴン］がいる時、攻撃力+400',
-      effect: (context) => {
-        const { monsterIndex } = context;
-        const { myField } = getPlayerContext(context);
-
-        // 場に［ドラゴン］がいるかチェック
-        const hasDragon = myField.some((monster, idx) =>
-          monster &&
-          idx !== monsterIndex &&
-          hasCategory(monster, '【ドラゴン】')
-        );
-
-        if (hasDragon) {
-          modifyAttack(context, 400, monsterIndex, false, true);
-        }
-      },
-    },
-  ],
+  // C0000029: クリムゾン・ワイバーン
+  // 【常時】［ドラゴン］モンスターがいる時、このカードの攻撃力は400アップする。
+  // ※常時効果はcontinuousEffects/monsterCards.jsのATK_MODIFIERで処理済み
+  // トリガーは不要
 
   /**
    * C0000161: 灯魔龍ランプデビル
