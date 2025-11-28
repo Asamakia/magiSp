@@ -110,6 +110,7 @@ export const APPEARANCE_CHANCE = {
 
 export const INVENTORY = {
   maxPerMerchant: 20,
+  maxAge: 7,  // 在庫最大保持日数
   stockChance: {
     [MERCHANT_TYPES.GENERAL]: 0.80,
     [MERCHANT_TYPES.ATTRIBUTE]: 0.60,

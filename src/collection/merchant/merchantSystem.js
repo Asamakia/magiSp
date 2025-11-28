@@ -14,6 +14,7 @@ import {
   APPEARANCE_CHANCE,
   WEEKDAY_MERCHANTS,
   COLLECTOR_APPEARANCE_THRESHOLD,
+  INVENTORY,
 } from './constants';
 import { MERCHANTS, COLLECTORS } from './merchantData';
 
@@ -634,6 +635,19 @@ export const purchaseFromMerchant = (merchantData, merchantName, cardId, rarity,
     };
   }
 
+  // pendingStock（プレイヤー売却品）からも削除
+  if (newData.pendingStock) {
+    const pendingIndex = newData.pendingStock.findIndex(
+      item => item.merchant === merchantName && item.cardId === cardId && item.rarity === rarity
+    );
+    if (pendingIndex >= 0) {
+      newData.pendingStock = [
+        ...newData.pendingStock.slice(0, pendingIndex),
+        ...newData.pendingStock.slice(pendingIndex + 1),
+      ];
+    }
+  }
+
   return newData;
 };
 
@@ -667,18 +681,93 @@ export const sellToMerchant = (merchantData, merchantName, card, rarity, dayId) 
     newData.categorySoldCount = newCategorySoldCount;
   }
 
-  // 在庫化判定（旅商人以外）
-  if (merchant && merchant.type !== MERCHANT_TYPES.TRAVELER) {
-    // コレクターは専門のみ
+  // 在庫化判定
+  if (merchant) {
+    // 旅商人は在庫化しない（その場でトレードのみ）
+    if (merchant.type === MERCHANT_TYPES.TRAVELER) {
+      return newData;
+    }
+
+    // コレクターは専門のみ在庫化
     if (merchant.type === MERCHANT_TYPES.COLLECTOR && !isSpecialty(merchant, card)) {
       return newData;
     }
 
-    // TODO: 在庫化確率と遅延を適用
-    // Phase 4で実装
+    // 在庫化確率判定
+    const stockChance = INVENTORY.stockChance[merchant.type] || 0;
+    if (Math.random() < stockChance) {
+      // 出現遅延を計算
+      let delay = 1;
+      const delayConfig = INVENTORY.appearDelay[merchant.type];
+      if (delayConfig) {
+        if (typeof delayConfig === 'number') {
+          delay = delayConfig;
+        } else {
+          // min〜max の範囲でランダム
+          delay = delayConfig.min + Math.floor(Math.random() * (delayConfig.max - delayConfig.min + 1));
+        }
+      }
+      // 闇商人・旅商人は出現時に在庫化判定するため、遅延なし扱い
+      if (merchant.type === MERCHANT_TYPES.DARK || merchant.type === MERCHANT_TYPES.TRAVELER) {
+        delay = 0;
+      }
+
+      // pendingStockに追加
+      const newPendingStock = [...(newData.pendingStock || [])];
+      newPendingStock.push({
+        merchant: merchantName,
+        cardId: card.id,
+        rarity,
+        addedAt: dayId,
+        availableAt: dayId + delay,
+        fromPlayer: true,
+      });
+
+      // 商人ごとの在庫上限をチェック
+      const merchantStock = newPendingStock.filter(item => item.merchant === merchantName);
+      if (merchantStock.length > INVENTORY.maxPerMerchant) {
+        // 古いものから削除
+        const oldestIndex = newPendingStock.findIndex(
+          item => item.merchant === merchantName
+        );
+        if (oldestIndex >= 0) {
+          newPendingStock.splice(oldestIndex, 1);
+        }
+      }
+
+      newData.pendingStock = newPendingStock;
+    }
   }
 
   return newData;
+};
+
+/**
+ * pendingStockの古いアイテムをクリーンアップ
+ * @param {Object} merchantData - 商人データ状態
+ * @param {number} dayId - 現在の日
+ * @returns {Object} 更新されたmerchantData
+ */
+export const cleanupPendingStock = (merchantData, dayId) => {
+  if (!merchantData.pendingStock || merchantData.pendingStock.length === 0) {
+    return merchantData;
+  }
+
+  const maxAge = INVENTORY.maxAge || 7;
+  const newPendingStock = merchantData.pendingStock.filter(item => {
+    // availableAtからmaxAge日以上経過したアイテムを削除
+    const age = dayId - item.availableAt;
+    return age < maxAge;
+  });
+
+  if (newPendingStock.length === merchantData.pendingStock.length) {
+    return merchantData;
+  }
+
+  return {
+    ...merchantData,
+    pendingStock: newPendingStock,
+  };
 };
 
 export default {
@@ -699,4 +788,5 @@ export default {
   createInitialMerchantData,
   purchaseFromMerchant,
   sellToMerchant,
+  cleanupPendingStock,
 };

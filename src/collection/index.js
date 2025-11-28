@@ -161,6 +161,7 @@ export {
   createInitialMerchantData,
   purchaseFromMerchant,
   sellToMerchant,
+  cleanupPendingStock,
   merchantSystem,
 } from './merchant';
 

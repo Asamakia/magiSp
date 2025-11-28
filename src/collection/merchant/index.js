@@ -51,6 +51,8 @@ export {
   // 取引処理
   purchaseFromMerchant,
   sellToMerchant,
+  // 在庫管理
+  cleanupPendingStock,
 } from './merchantSystem';
 
 export { default as merchantSystem } from './merchantSystem';
