@@ -65,13 +65,18 @@ export const primitiveCardTriggers = {
           return;
         }
 
-        // 分裂: 攻撃力半分のコピーを生成
+        // 分裂: 同じステータスのコピーを生成
         const copy = {
           ...card,
           uniqueId: `${card.id}_split_${Date.now()}`,
-          attack: Math.floor(card.attack / 2),
-          currentAttack: Math.floor(card.attack / 2),
-          owner: currentPlayer, // 常時効果のターゲット判定用
+          attack: card.attack,
+          currentAttack: card.currentAttack || card.attack,
+          hp: card.hp,
+          currentHp: card.currentHp || card.hp,
+          canAttack: false, // 分裂直後は攻撃不可
+          charges: [],
+          statusEffects: [],
+          owner: currentPlayer,
         };
 
         const newField = [...currentField];

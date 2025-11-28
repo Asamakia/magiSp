@@ -8,6 +8,7 @@ import {
   reviveFromGraveyard,
   modifyAttack,
 } from '../effectHelpers';
+import { hasCategory } from '../../utils/helpers';
 
 /**
  * 原始属性カードの固有効果
@@ -220,6 +221,67 @@ export const primitiveCardEffects = {
       return true;
     }
     return false;
+  },
+
+  /**
+   * C0000012: 粘液の増殖
+   * 場にいる《粘液獣》1体を分裂させる（攻撃力は半分になる）。
+   */
+  C0000012: (skillText, context) => {
+    const {
+      addLog,
+      currentPlayer,
+      p1Field,
+      p2Field,
+      setP1Field,
+      setP2Field,
+    } = context;
+
+    const currentField = currentPlayer === 1 ? p1Field : p2Field;
+    const setField = currentPlayer === 1 ? setP1Field : setP2Field;
+
+    // 場の粘液獣を探す
+    const slimeIndex = currentField.findIndex(
+      (m) => m && hasCategory(m, '【スライム】')
+    );
+
+    if (slimeIndex === -1) {
+      addLog('粘液の増殖: 場に粘液獣がいません', 'info');
+      return false;
+    }
+
+    // 空きスロットを探す
+    const emptySlotIndex = currentField.findIndex((slot) => slot === null);
+    if (emptySlotIndex === -1) {
+      addLog('粘液の増殖: 場が満杯のため分裂できない', 'info');
+      return false;
+    }
+
+    const targetSlime = currentField[slimeIndex];
+
+    // 分裂: 攻撃力半分のコピーを生成
+    const copy = {
+      ...targetSlime,
+      uniqueId: `${targetSlime.id}_magic_split_${Date.now()}`,
+      attack: Math.floor(targetSlime.attack / 2),
+      currentAttack: Math.floor((targetSlime.currentAttack || targetSlime.attack) / 2),
+      hp: targetSlime.hp,
+      currentHp: targetSlime.currentHp || targetSlime.hp,
+      canAttack: false, // 分裂直後は攻撃不可
+      charges: [],
+      statusEffects: [],
+      owner: currentPlayer,
+    };
+
+    const newField = [...currentField];
+    newField[emptySlotIndex] = copy;
+    setField(newField);
+
+    addLog(
+      `粘液の増殖: ${targetSlime.name}が分裂した！（攻撃力${copy.currentAttack}）`,
+      'info'
+    );
+    return true;
   },
 
   // 他の原始属性カードを追加...
