@@ -82,7 +82,9 @@ export const recordPriceHistory = (priceHistory, marketState, allCards, getBaseV
   for (const card of allCards) {
     const baseValue = getBaseValue ? getBaseValue(card) : (card.baseValue || 100);
     const tier = getTier ? getTier(card) : 'B';
-    const attribute = card.attribute || 'なし';
+    // 属性が空文字列やundefinedの場合は'なし'を使用
+    const rawAttribute = card.attribute?.trim?.() || card.attribute;
+    const attribute = (rawAttribute && rawAttribute !== '') ? rawAttribute : 'なし';
     const category = card.category && typeof card.category === 'string'
       ? card.category.replace(/【|】/g, '').split('】')[0]
       : null;
