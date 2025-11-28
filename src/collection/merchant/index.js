@@ -56,6 +56,11 @@ export {
   // チケット操作
   purchaseTicket,
   callAttributeMerchant,
+  // ウィッシュリスト
+  addToWishlist,
+  removeFromWishlist,
+  isInWishlist,
+  getWishlistMatches,
 } from './merchantSystem';
 
 export { default as merchantSystem } from './merchantSystem';

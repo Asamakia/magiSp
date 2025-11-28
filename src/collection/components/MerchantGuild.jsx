@@ -386,10 +386,20 @@ const MerchantGuild = ({
   }), [appearances]);
 
   // ウィッシュリストに含まれるカードを持つ商人をチェック
-  // TODO: 品揃え生成後に実装
   const merchantsWithWishlist = useMemo(() => {
-    return new Set();
-  }, [wishlist]);
+    if (!wishlist || wishlist.length === 0) return new Set();
+
+    const stocks = merchantData.todayStock?.stocks || {};
+    const result = new Set();
+
+    for (const [merchantName, stock] of Object.entries(stocks)) {
+      if (stock && stock.some(item => wishlist.includes(item.cardId))) {
+        result.add(merchantName);
+      }
+    }
+
+    return result;
+  }, [wishlist, merchantData.todayStock]);
 
   const handleEnterShop = (merchant) => {
     if (onEnterShop) {

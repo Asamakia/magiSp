@@ -850,6 +850,78 @@ export const cleanupPendingStock = (merchantData, dayId) => {
   };
 };
 
+// ========================================
+// ウィッシュリスト
+// ========================================
+
+/**
+ * ウィッシュリストにカードを追加
+ * @param {Object} merchantData - 商人データ状態
+ * @param {string} cardId - カードID
+ * @returns {Object} 更新されたmerchantData
+ */
+export const addToWishlist = (merchantData, cardId) => {
+  const wishlist = merchantData.wishlist || [];
+
+  // 既に追加済み
+  if (wishlist.includes(cardId)) {
+    return merchantData;
+  }
+
+  // 最大10枚まで
+  if (wishlist.length >= 10) {
+    return merchantData;
+  }
+
+  return {
+    ...merchantData,
+    wishlist: [...wishlist, cardId],
+  };
+};
+
+/**
+ * ウィッシュリストからカードを削除
+ * @param {Object} merchantData - 商人データ状態
+ * @param {string} cardId - カードID
+ * @returns {Object} 更新されたmerchantData
+ */
+export const removeFromWishlist = (merchantData, cardId) => {
+  const wishlist = merchantData.wishlist || [];
+
+  if (!wishlist.includes(cardId)) {
+    return merchantData;
+  }
+
+  return {
+    ...merchantData,
+    wishlist: wishlist.filter(id => id !== cardId),
+  };
+};
+
+/**
+ * カードがウィッシュリストに含まれているか
+ * @param {Object} merchantData - 商人データ状態
+ * @param {string} cardId - カードID
+ * @returns {boolean}
+ */
+export const isInWishlist = (merchantData, cardId) => {
+  const wishlist = merchantData.wishlist || [];
+  return wishlist.includes(cardId);
+};
+
+/**
+ * 商人の品揃えにウィッシュリストのカードがあるかチェック
+ * @param {Array} stock - 商人の品揃え
+ * @param {Array} wishlist - ウィッシュリスト
+ * @returns {Array} マッチしたカードIDリスト
+ */
+export const getWishlistMatches = (stock, wishlist) => {
+  if (!stock || !wishlist || wishlist.length === 0) return [];
+  return stock
+    .filter(item => wishlist.includes(item.cardId))
+    .map(item => item.cardId);
+};
+
 export default {
   getFavorabilityLevel,
   getFavorabilityInfo,
@@ -871,4 +943,8 @@ export default {
   cleanupPendingStock,
   purchaseTicket,
   callAttributeMerchant,
+  addToWishlist,
+  removeFromWishlist,
+  isInWishlist,
+  getWishlistMatches,
 };

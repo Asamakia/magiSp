@@ -8,6 +8,7 @@ import React, { useState, useMemo, useEffect } from 'react';
 import {
   MERCHANTS,
   MERCHANT_TYPES,
+  TICKETS,
   generateStock,
   calculateSellPrice,
   calculateBuyPrice,
@@ -17,6 +18,10 @@ import {
   isSpecialty,
   purchaseFromMerchant,
   sellToMerchant,
+  purchaseTicket,
+  addToWishlist,
+  removeFromWishlist,
+  isInWishlist,
 } from '../merchant';
 import { RARITY_COLORS, RARITY_NAMES } from '../data/constants';
 import { getCardMarketPrice } from '../market/marketEngine';
@@ -195,6 +200,7 @@ const styles = {
     border: '2px solid #4a4a6a',
     cursor: 'pointer',
     transition: 'all 0.3s ease',
+    position: 'relative',
   },
   cardItemHover: {
     borderColor: '#6b4ce6',
@@ -357,6 +363,98 @@ const styles = {
     display: 'flex',
     alignItems: 'center',
     gap: '8px',
+  },
+  // チケット購入セクション
+  ticketSection: {
+    background: 'linear-gradient(135deg, #2a2a4a 0%, #3a3a5a 100%)',
+    borderRadius: '12px',
+    padding: '16px',
+    marginTop: '16px',
+    border: '2px solid #6b4ce6',
+  },
+  ticketSectionTitle: {
+    fontSize: '14px',
+    fontWeight: 'bold',
+    color: '#fff',
+    marginBottom: '12px',
+    display: 'flex',
+    alignItems: 'center',
+    gap: '8px',
+  },
+  ticketItem: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: '10px 12px',
+    background: 'rgba(107,76,230,0.1)',
+    borderRadius: '8px',
+    marginBottom: '8px',
+  },
+  ticketInfo: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '2px',
+  },
+  ticketName: {
+    fontSize: '13px',
+    color: '#e0e0e0',
+  },
+  ticketPrice: {
+    fontSize: '12px',
+    color: '#ffd700',
+  },
+  ticketOwned: {
+    fontSize: '11px',
+    color: '#808080',
+  },
+  ticketBuyButton: {
+    padding: '6px 12px',
+    borderRadius: '6px',
+    border: 'none',
+    cursor: 'pointer',
+    fontWeight: 'bold',
+    fontSize: '12px',
+    background: 'linear-gradient(90deg, #4caf50, #66bb6a)',
+    color: '#fff',
+    transition: 'all 0.3s ease',
+  },
+  ticketBuyButtonDisabled: {
+    background: '#444',
+    cursor: 'not-allowed',
+    opacity: 0.5,
+  },
+  // ウィッシュリストボタン
+  wishlistButton: {
+    position: 'absolute',
+    top: '8px',
+    right: '8px',
+    width: '28px',
+    height: '28px',
+    borderRadius: '50%',
+    border: 'none',
+    cursor: 'pointer',
+    background: 'rgba(0,0,0,0.5)',
+    fontSize: '16px',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    transition: 'all 0.2s ease',
+    zIndex: 1,
+  },
+  wishlistButtonActive: {
+    background: 'rgba(255,100,100,0.8)',
+  },
+  wishlistBadge: {
+    position: 'absolute',
+    top: '8px',
+    left: '8px',
+    background: '#ff6b6b',
+    color: '#fff',
+    padding: '2px 6px',
+    borderRadius: '4px',
+    fontSize: '10px',
+    fontWeight: 'bold',
+    zIndex: 1,
   },
 };
 
@@ -542,6 +640,46 @@ const MerchantShop = ({
     setConfirmModal(null);
   };
 
+  // チケット購入処理（マルクス専用）
+  const handlePurchaseTicket = (ticketType) => {
+    if (!playerData || !onPlayerDataChange) return;
+
+    const result = purchaseTicket(merchantData, ticketType, playerData.gold);
+    if (result.success) {
+      onPlayerDataChange({
+        ...playerData,
+        gold: result.newGold,
+        merchantData: result.newMerchantData,
+      });
+    } else {
+      alert(result.message);
+    }
+  };
+
+  // 所持チケット数
+  const tickets = merchantData.tickets || { attribute: 0, dark: 0, traveler: 0 };
+
+  // ウィッシュリスト
+  const wishlist = merchantData.wishlist || [];
+
+  // ウィッシュリストトグル
+  const handleToggleWishlist = (cardId, e) => {
+    e.stopPropagation();
+    if (!onPlayerDataChange) return;
+
+    const isInList = isInWishlist(merchantData, cardId);
+    const newMerchantData = isInList
+      ? removeFromWishlist(merchantData, cardId)
+      : addToWishlist(merchantData, cardId);
+
+    if (newMerchantData !== merchantData) {
+      onPlayerDataChange({
+        ...playerData,
+        merchantData: newMerchantData,
+      });
+    }
+  };
+
   if (!merchant) {
     return (
       <div style={styles.container}>
@@ -643,6 +781,37 @@ const MerchantShop = ({
               )}
             </div>
           )}
+
+          {/* チケット購入セクション（マルクス専用） */}
+          {merchant.type === MERCHANT_TYPES.GENERAL && (
+            <div style={styles.ticketSection}>
+              <div style={styles.ticketSectionTitle}>
+                📜 呼び出しチケット販売
+              </div>
+              {Object.entries(TICKETS).map(([type, info]) => {
+                const canAfford = (playerData?.gold || 0) >= info.price;
+                return (
+                  <div key={type} style={styles.ticketItem}>
+                    <div style={styles.ticketInfo}>
+                      <div style={styles.ticketName}>{info.name}</div>
+                      <div style={styles.ticketPrice}>{info.price.toLocaleString()} G</div>
+                      <div style={styles.ticketOwned}>所持: {tickets[type] || 0}枚</div>
+                    </div>
+                    <button
+                      style={{
+                        ...styles.ticketBuyButton,
+                        ...(!canAfford ? styles.ticketBuyButtonDisabled : {}),
+                      }}
+                      onClick={() => canAfford && handlePurchaseTicket(type)}
+                      disabled={!canAfford}
+                    >
+                      購入
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </div>
 
         {/* 右パネル: カード一覧 */}
@@ -700,6 +869,7 @@ const MerchantShop = ({
                 const card = item.card;
                 const price = mode === 'buy' ? item.price : item.buyPrice;
                 const canAfford = mode === 'buy' ? playerData.gold >= price : true;
+                const inWishlist = wishlist.includes(item.cardId);
 
                 return (
                   <div
@@ -710,6 +880,21 @@ const MerchantShop = ({
                     }}
                     onClick={() => canAfford && (mode === 'buy' ? handlePurchase(item) : handleSell(item))}
                   >
+                    {/* ウィッシュリストボタン */}
+                    <button
+                      style={{
+                        ...styles.wishlistButton,
+                        ...(inWishlist ? styles.wishlistButtonActive : {}),
+                      }}
+                      onClick={(e) => handleToggleWishlist(item.cardId, e)}
+                      title={inWishlist ? 'ウィッシュリストから削除' : 'ウィッシュリストに追加'}
+                    >
+                      {inWishlist ? '❤️' : '🤍'}
+                    </button>
+                    {/* ウィッシュリストバッジ */}
+                    {inWishlist && mode === 'buy' && (
+                      <div style={styles.wishlistBadge}>欲しい</div>
+                    )}
                     <div style={styles.cardName}>{card.name}</div>
                     <div style={{
                       ...styles.cardRarity,

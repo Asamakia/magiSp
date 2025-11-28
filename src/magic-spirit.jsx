@@ -3420,6 +3420,7 @@ export default function MagicSpiritGame() {
           };
           updatePlayerData(newPlayerData);
         }}
+        onPlayerDataChange={updatePlayerData}
       />
     );
   }
