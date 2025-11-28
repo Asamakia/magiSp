@@ -316,14 +316,18 @@ export default function MagicSpiritGame() {
 
       // 価格履歴を記録
       const getBaseValue = (card) => {
-        if (cardValueMap && cardValueMap[card.id]) {
-          return cardValueMap[card.id].baseValue;
+        // cardValueMapはMapオブジェクトなので.get()を使用
+        const cardValue = cardValueMap?.get?.(card.id);
+        if (cardValue) {
+          return cardValue.baseValue;
         }
         return valueCalculator.calculateBaseValue(card);
       };
       const getTier = (card) => {
-        if (cardValueMap && cardValueMap[card.id]) {
-          return cardValueMap[card.id].tier;
+        // cardValueMapはMapオブジェクトなので.get()を使用
+        const cardValue = cardValueMap?.get?.(card.id);
+        if (cardValue) {
+          return cardValue.tier;
         }
         // determineTierはbaseValueを受け取る
         const baseValue = valueCalculator.calculateBaseValue(card);
@@ -337,6 +341,16 @@ export default function MagicSpiritGame() {
         getBaseValue,
         getTier
       );
+
+      // デバッグ: 保存前のpriceHistoryを確認
+      console.log('[awardBattleRewards] newPriceHistory to save:', {
+        hasAttributes: !!newPriceHistory.attributes,
+        attributeKeys: Object.keys(newPriceHistory.attributes || {}),
+        attributeSample: newPriceHistory.attributes ? Object.fromEntries(
+          Object.entries(newPriceHistory.attributes).map(([k, v]) => [k, Array.isArray(v) ? `len=${v.length}, last=${v[v.length-1]}` : 'not array'])
+        ) : 'no attributes',
+        marketIndexLen: newPriceHistory.marketIndex?.length || 0,
+      });
 
       updatedPlayerData = {
         ...updatedPlayerData,

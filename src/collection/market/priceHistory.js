@@ -146,6 +146,9 @@ export const recordPriceHistory = (priceHistory, marketState, allCards, getBaseV
   console.log('[recordPriceHistory] Attribute counts:', Object.fromEntries(
     Object.entries(attributeTotals).map(([k, v]) => [k, v.count])
   ));
+  console.log('[recordPriceHistory] Attribute sums:', Object.fromEntries(
+    Object.entries(attributeTotals).map(([k, v]) => [k, v.sum])
+  ));
 
   // 属性別平均を記録
   if (!newHistory.attributes) newHistory.attributes = {};
@@ -159,6 +162,9 @@ export const recordPriceHistory = (priceHistory, marketState, allCards, getBaseV
       newHistory.attributes[attr].shift();
     }
   }
+  console.log('[recordPriceHistory] newHistory.attributes after recording:', JSON.stringify(
+    Object.fromEntries(Object.entries(newHistory.attributes).map(([k, v]) => [k, v.length > 0 ? `len=${v.length}, last=${v[v.length-1]}` : 'empty']))
+  ));
 
   // カテゴリ別平均を記録
   if (!newHistory.categories) newHistory.categories = {};

@@ -880,6 +880,16 @@ const MarketAnalysis = ({ marketState, allCards, onClose, onCardSelect }) => {
     events: [],
   };
 
+  // デバッグ: priceHistoryの内容を確認
+  console.log('[MarketAnalysis] priceHistory received:', {
+    hasAttributes: !!priceHistory.attributes,
+    attributeKeys: Object.keys(priceHistory.attributes || {}),
+    attributeSample: priceHistory.attributes ? Object.fromEntries(
+      Object.entries(priceHistory.attributes).map(([k, v]) => [k, Array.isArray(v) ? `len=${v.length}` : 'not array'])
+    ) : 'no attributes',
+    marketIndexLen: priceHistory.marketIndex?.length || 0,
+  });
+
   const renderTabContent = () => {
     switch (activeTab) {
       case 'overview':
