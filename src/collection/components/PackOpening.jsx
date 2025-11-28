@@ -7,6 +7,8 @@
 import React, { useState, useEffect } from 'react';
 import { ATTRIBUTE_COLORS } from '../../utils/constants';
 import { RARITY_COLORS, RARITY_NAMES } from '../data/constants';
+import { valueCalculator } from '../systems/valueCalculator';
+import CardDetail from './CardDetail';
 
 // ========================================
 // スタイル定義
@@ -220,12 +222,20 @@ const keyframeStyles = `
 // カードコンポーネント
 // ========================================
 
-const PackCard = ({ cardData, index, isFlipped, onFlip, isNew }) => {
+const PackCard = ({ cardData, index, isFlipped, onFlip, onShowDetail, isNew }) => {
   const { card, rarity } = cardData;
   const colors = ATTRIBUTE_COLORS[card.attribute] || ATTRIBUTE_COLORS['なし'];
   const rarityColor = RARITY_COLORS[rarity] || '#808080';
   const isMonster = card.type === 'monster';
   const isRare = ['SR', 'UR', 'HR', 'SEC', 'ALT', 'SP', 'GR'].includes(rarity);
+
+  const handleClick = () => {
+    if (!isFlipped) {
+      onFlip(index);
+    } else {
+      onShowDetail(cardData);
+    }
+  };
 
   return (
     <div
@@ -233,7 +243,7 @@ const PackCard = ({ cardData, index, isFlipped, onFlip, isNew }) => {
         ...styles.cardWrapper,
         animation: `cardAppear 0.5s ease-out ${index * 0.1}s both`,
       }}
-      onClick={() => !isFlipped && onFlip(index)}
+      onClick={handleClick}
     >
       <div style={{
         ...styles.cardInner,
@@ -306,6 +316,17 @@ const PackOpening = ({
 }) => {
   const [flippedCards, setFlippedCards] = useState(new Set());
   const [allRevealed, setAllRevealed] = useState(false);
+  const [selectedCardForDetail, setSelectedCardForDetail] = useState(null);
+
+  // カード詳細を表示
+  const handleShowDetail = (cardData) => {
+    setSelectedCardForDetail(cardData);
+  };
+
+  // カード詳細を閉じる
+  const handleCloseDetail = () => {
+    setSelectedCardForDetail(null);
+  };
 
   // スタイルシートを追加
   useEffect(() => {
@@ -378,6 +399,7 @@ const PackOpening = ({
             index={index}
             isFlipped={flippedCards.has(index)}
             onFlip={flipCard}
+            onShowDetail={handleShowDetail}
             isNew={isNewCard(cardData.cardId, cardData.rarity)}
           />
         ))}
@@ -447,6 +469,17 @@ const PackOpening = ({
           {allRevealed ? '閉じる' : 'スキップして閉じる'}
         </button>
       </div>
+
+      {/* カード詳細モーダル（売却なし） */}
+      {selectedCardForDetail && (
+        <CardDetail
+          card={selectedCardForDetail.card}
+          rarity={selectedCardForDetail.rarity}
+          quantity={1}
+          valueInfo={valueCalculator.calculateCardValue(selectedCardForDetail.card)}
+          onClose={handleCloseDetail}
+        />
+      )}
     </div>
   );
 };
