@@ -8,6 +8,7 @@ import React, { useState } from 'react';
 import { ATTRIBUTE_COLORS } from '../../utils/constants';
 import { RARITY_COLORS, RARITY_NAMES, RARITY_MULTIPLIERS } from '../data/constants';
 import { currencyManager } from '../systems/currencyManager';
+import { getSellPrice } from '../systems/shopSystem';
 import {
   getCardChartData,
   getTrendIcon,
@@ -323,6 +324,7 @@ const CardDetail = ({
   quantity,
   valueInfo,
   priceHistory,
+  marketState,
   onClose,
   onSell,
 }) => {
@@ -333,10 +335,13 @@ const CardDetail = ({
   const rarityColor = RARITY_COLORS[rarity] || '#808080';
   const isMonster = card.type === 'monster';
 
-  // 売却価格計算
+  // 売却価格計算（市場変動込み）
   const baseValue = valueInfo?.baseValue || 0;
   const tier = valueInfo?.tier || 'D';
-  const sellPrice = valueInfo?.rarityValues?.[rarity] || baseValue;
+  const baseSellPrice = valueInfo?.rarityValues?.[rarity] || baseValue;
+  const sellPriceInfo = getSellPrice(card, rarity, marketState);
+  const sellPrice = sellPriceInfo.price;
+  const marketModifier = sellPriceInfo.modifier;
   const totalSellPrice = sellPrice * sellQuantity;
 
   // 価格チャートデータ
@@ -486,9 +491,25 @@ const CardDetail = ({
             <span style={styles.valueLabel}>レアリティ倍率</span>
             <span style={{...styles.valueAmount, color: '#e0e0e0'}}>×{RARITY_MULTIPLIERS[rarity] || 1}</span>
           </div>
+          {marketModifier !== 0 && (
+            <div style={styles.valueRow}>
+              <span style={styles.valueLabel}>市場変動</span>
+              <span style={{
+                ...styles.valueAmount,
+                color: marketModifier > 0 ? '#4ade80' : '#ff6b6b',
+              }}>
+                {marketModifier > 0 ? '+' : ''}{marketModifier}%
+              </span>
+            </div>
+          )}
           <div style={{...styles.valueRow, borderTop: '1px solid rgba(255,255,255,0.1)', paddingTop: '8px'}}>
             <span style={styles.valueLabel}>売却価格（1枚）</span>
-            <span style={styles.valueAmount}>{sellPrice.toLocaleString()}G</span>
+            <span style={{
+              ...styles.valueAmount,
+              color: marketModifier > 0 ? '#4ade80' : marketModifier < 0 ? '#ff6b6b' : '#ffd700',
+            }}>
+              {sellPrice.toLocaleString()}G
+            </span>
           </div>
 
           {/* 価格推移トグル */}
