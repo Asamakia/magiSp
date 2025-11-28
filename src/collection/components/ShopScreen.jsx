@@ -69,9 +69,30 @@ const styles = {
     flex: 1,
     padding: '32px 24px',
     display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'flex-start',
     gap: '32px',
+    maxWidth: '1200px',
+    margin: '0 auto',
+    width: '100%',
+    boxSizing: 'border-box',
+  },
+  // 左カラム（情報系）
+  leftColumn: {
+    flex: '1 1 400px',
+    maxWidth: '500px',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '24px',
+  },
+  // 右カラム（アクション系）
+  rightColumn: {
+    flex: '1 1 350px',
+    maxWidth: '400px',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '24px',
   },
   sectionTitle: {
     fontSize: '20px',
@@ -84,13 +105,14 @@ const styles = {
     display: 'flex',
     flexDirection: 'column',
     alignItems: 'center',
-    gap: '24px',
+    gap: '16px',
+    width: '100%',
   },
   packCard: {
     background: 'linear-gradient(135deg, #2a2a4a 0%, #3a3a5a 50%, #2a2a4a 100%)',
     borderRadius: '16px',
-    padding: '32px',
-    width: '300px',
+    padding: '24px',
+    width: '100%',
     border: '2px solid #6b4ce6',
     boxShadow: '0 0 30px rgba(107,76,230,0.3)',
     display: 'flex',
@@ -98,6 +120,7 @@ const styles = {
     alignItems: 'center',
     gap: '16px',
     transition: 'all 0.3s ease',
+    boxSizing: 'border-box',
   },
   packName: {
     fontSize: '20px',
@@ -153,7 +176,6 @@ const styles = {
     alignItems: 'center',
     gap: '16px',
     width: '100%',
-    maxWidth: '350px',
   },
   unopenedPackCard: {
     background: 'linear-gradient(135deg, #3a2a1a 0%, #5a4a2a 50%, #3a2a1a 100%)',
@@ -203,6 +225,12 @@ const styles = {
     flexDirection: 'column',
     alignItems: 'center',
     gap: '12px',
+    width: '100%',
+    padding: '16px',
+    background: 'rgba(30,30,50,0.5)',
+    borderRadius: '12px',
+    border: '1px solid rgba(107,76,230,0.3)',
+    boxSizing: 'border-box',
   },
   sellButton: {
     padding: '12px 32px',
@@ -258,12 +286,12 @@ const styles = {
   // マーケットニュースパネル
   marketNewsPanel: {
     width: '100%',
-    maxWidth: '500px',
     background: 'linear-gradient(135deg, rgba(20,30,50,0.9) 0%, rgba(30,40,60,0.9) 100%)',
     borderRadius: '12px',
     border: '1px solid rgba(107,156,230,0.5)',
     padding: '16px',
     boxShadow: '0 4px 20px rgba(107,156,230,0.2)',
+    boxSizing: 'border-box',
   },
   marketNewsHeader: {
     display: 'flex',
@@ -396,12 +424,12 @@ const styles = {
   // MSI（市場指数）セクション
   msiSection: {
     width: '100%',
-    maxWidth: '500px',
     background: 'linear-gradient(135deg, rgba(255,215,0,0.1) 0%, rgba(255,165,0,0.08) 100%)',
     borderRadius: '12px',
     border: '2px solid rgba(255,215,0,0.4)',
     padding: '16px',
     boxShadow: '0 4px 20px rgba(255,215,0,0.15)',
+    boxSizing: 'border-box',
   },
   msiHeader: {
     display: 'flex',
@@ -585,313 +613,315 @@ const ShopScreen = ({
         </div>
       </div>
 
-      {/* メインコンテンツ */}
-      <div style={styles.mainContent}>
-        {/* メッセージ表示 */}
-        {message && (
+      {/* メッセージ表示（カラムの外） */}
+      {message && (
+        <div style={{ display: 'flex', justifyContent: 'center', padding: '16px 24px 0' }}>
           <div style={message.type === 'error' ? styles.errorMessage : styles.successMessage}>
             {message.text}
           </div>
-        )}
+        </div>
+      )}
 
-        {/* MSI（市場指数）セクション */}
-        {msiData && msiData.currentPrice > 0 && (
-          <div style={styles.msiSection}>
-            <div style={styles.msiHeader}>
-              <div style={styles.msiTitle}>
-                <span style={styles.msiIcon}>📊</span>
-                <span style={styles.msiLabel}>Magic Spirit Index (MSI)</span>
-              </div>
-              {onOpenMarketAnalysis && (
-                <button
-                  style={styles.msiDetailButton}
-                  onClick={onOpenMarketAnalysis}
-                  onMouseEnter={(e) => {
-                    e.target.style.background = 'rgba(255,215,0,0.3)';
-                    e.target.style.borderColor = 'rgba(255,215,0,0.8)';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.target.style.background = 'rgba(255,215,0,0.1)';
-                    e.target.style.borderColor = 'rgba(255,215,0,0.5)';
-                  }}
-                >
-                  詳細分析 →
-                </button>
-              )}
-            </div>
-            <div style={styles.msiBody}>
-              <div style={styles.msiValue}>
-                {msiData.currentPrice.toLocaleString()}
-              </div>
-              <div style={styles.msiChange}>
-                <span
-                  style={{
-                    ...styles.msiChangeValue,
-                    color: getTrendColor(msiData.changePercent),
-                  }}
-                >
-                  {getTrendIcon(msiData.changePercent)}{' '}
-                  {msiData.changePercent > 0 ? '+' : ''}
-                  {msiData.changePercent}%
-                </span>
-                <span
-                  style={{
-                    ...styles.msiCondition,
-                    backgroundColor: getConditionStyle(msiData.marketCondition).bg,
-                    color: getConditionStyle(msiData.marketCondition).color,
-                  }}
-                >
-                  {msiData.marketCondition}
-                </span>
-              </div>
-              {sparklineData.length > 0 && (
-                <div style={styles.msiSparkline}>
-                  {sparklineData.map((value, index) => (
-                    <div
-                      key={index}
-                      style={{
-                        ...styles.msiSparklineBar,
-                        height: `${Math.max(value, 5)}%`,
-                      }}
-                    />
-                  ))}
+      {/* メインコンテンツ - 2カラムレイアウト */}
+      <div style={styles.mainContent}>
+        {/* 左カラム - 情報系 */}
+        <div style={styles.leftColumn}>
+          {/* MSI（市場指数）セクション */}
+          {msiData && msiData.currentPrice > 0 && (
+            <div style={styles.msiSection}>
+              <div style={styles.msiHeader}>
+                <div style={styles.msiTitle}>
+                  <span style={styles.msiIcon}>📊</span>
+                  <span style={styles.msiLabel}>Magic Spirit Index (MSI)</span>
                 </div>
-              )}
-            </div>
-          </div>
-        )}
-
-        {/* マーケットニュースパネル */}
-        {playerData.market && (
-          <div style={styles.marketNewsPanel}>
-            <div style={styles.marketNewsHeader}>
-              <span style={styles.marketNewsIcon}>📰</span>
-              <span style={styles.marketNewsTitle}>マーケットニュース</span>
-              <span style={styles.marketDayCounter}>
-                Day {playerData.market.currentDay + 1}
-              </span>
-            </div>
-
-            {/* 週間トレンド */}
-            {playerData.market.weeklyTrend && (
-              <div style={styles.trendSection}>
-                <div style={styles.trendLabel}>📅 週間トレンド</div>
-                <div style={styles.trendName}>
-                  {playerData.market.weeklyTrend.name}
+                {onOpenMarketAnalysis && (
+                  <button
+                    style={styles.msiDetailButton}
+                    onClick={onOpenMarketAnalysis}
+                    onMouseEnter={(e) => {
+                      e.target.style.background = 'rgba(255,215,0,0.3)';
+                      e.target.style.borderColor = 'rgba(255,215,0,0.8)';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.target.style.background = 'rgba(255,215,0,0.1)';
+                      e.target.style.borderColor = 'rgba(255,215,0,0.5)';
+                    }}
+                  >
+                    詳細分析 →
+                  </button>
+                )}
+              </div>
+              <div style={styles.msiBody}>
+                <div style={styles.msiValue}>
+                  {msiData.currentPrice.toLocaleString()}
                 </div>
-                <div style={styles.trendEffects}>
-                  {playerData.market.weeklyTrend.effects?.map((effect, i) => {
-                    const target = effect?.target || {};
-                    const targetText = target.attribute
-                      ? `${target.attribute}属性`
-                      : target.all
-                        ? '全体'
-                        : target.maxCost !== undefined
-                          ? `コスト${target.maxCost}以下`
-                          : target.minCost !== undefined
-                            ? `コスト${target.minCost}以上`
-                            : target.keyword
-                              ? `${target.keyword}`
-                              : target.tiers
-                                ? `${target.tiers.join('/')}ティア`
-                                : target.minRarity
-                                  ? `${target.minRarity}以上`
-                                  : '対象';
-                    const modifierStyle = effect.modifier > 0
-                      ? styles.trendEffectUp
-                      : effect.modifier < 0
-                        ? styles.trendEffectDown
-                        : {};
-                    return (
-                      <span key={i} style={{ marginRight: '12px', ...modifierStyle }}>
-                        {targetText} {effect.modifier > 0 ? '+' : ''}{effect.modifier}%
-                      </span>
-                    );
-                  })}
-                </div>
-                {/* 週進行バー */}
-                <div style={styles.weekProgress}>
-                  <span>次週まで</span>
-                  <div style={styles.weekProgressBar}>
-                    <div
-                      style={{
-                        ...styles.weekProgressFill,
-                        width: `${((playerData.market.currentDay - playerData.market.weeklyTrend.startDay) / DAYS_PER_WEEK) * 100}%`,
-                      }}
-                    />
-                  </div>
-                  <span>
-                    {DAYS_PER_WEEK - (playerData.market.currentDay - playerData.market.weeklyTrend.startDay)}戦
+                <div style={styles.msiChange}>
+                  <span
+                    style={{
+                      ...styles.msiChangeValue,
+                      color: getTrendColor(msiData.changePercent),
+                    }}
+                  >
+                    {getTrendIcon(msiData.changePercent)}{' '}
+                    {msiData.changePercent > 0 ? '+' : ''}
+                    {msiData.changePercent}%
+                  </span>
+                  <span
+                    style={{
+                      ...styles.msiCondition,
+                      backgroundColor: getConditionStyle(msiData.marketCondition).bg,
+                      color: getConditionStyle(msiData.marketCondition).color,
+                    }}
+                  >
+                    {msiData.marketCondition}
                   </span>
                 </div>
+                {sparklineData.length > 0 && (
+                  <div style={styles.msiSparkline}>
+                    {sparklineData.map((value, index) => (
+                      <div
+                        key={index}
+                        style={{
+                          ...styles.msiSparklineBar,
+                          height: `${Math.max(value, 5)}%`,
+                        }}
+                      />
+                    ))}
+                  </div>
+                )}
               </div>
-            )}
+            </div>
+          )}
 
-            {/* デイリーニュース */}
-            {playerData.market.dailyNews && (
-              <div style={styles.newsSection}>
-                <div style={styles.newsLabel}>📰 本日のニュース</div>
-                <div style={styles.newsText}>
-                  「{playerData.market.dailyNews.text}」
-                </div>
-                <div
-                  style={{
-                    ...styles.newsModifier,
-                    ...(playerData.market.dailyNews.modifier > 0
-                      ? styles.modifierUp
-                      : styles.modifierDown),
-                  }}
-                >
-                  → {playerData.market.dailyNews.target?.category
-                    ? `[${playerData.market.dailyNews.target.category}]`
-                    : playerData.market.dailyNews.target?.attribute
-                      ? `[${playerData.market.dailyNews.target.attribute}属性]`
-                      : '[全体]'}
-                  {' '}
-                  {playerData.market.dailyNews.modifier > 0 ? '+' : ''}
-                  {playerData.market.dailyNews.modifier}%
-                </div>
+          {/* マーケットニュースパネル */}
+          {playerData.market && (
+            <div style={styles.marketNewsPanel}>
+              <div style={styles.marketNewsHeader}>
+                <span style={styles.marketNewsIcon}>📰</span>
+                <span style={styles.marketNewsTitle}>マーケットニュース</span>
+                <span style={styles.marketDayCounter}>
+                  Day {playerData.market.currentDay + 1}
+                </span>
               </div>
-            )}
 
-            {/* 突発イベント */}
-            {playerData.market.suddenEvent && (
-              <div style={styles.suddenEventSection}>
-                <div style={styles.suddenEventLabel}>
-                  <span>⚡</span>
-                  <span>突発イベント発生中！</span>
-                </div>
-                <div style={styles.suddenEventName}>
-                  {playerData.market.suddenEvent.name}
-                </div>
-                <div style={styles.suddenEventEffects}>
-                  {playerData.market.suddenEvent.effects?.map((effect, i) => {
-                    // ターゲットの説明テキストを生成
-                    let targetText = '';
-                    const t = effect?.target || {};
-                    if (t.all) targetText = '全カード';
-                    else if (t.attribute) targetText = `${t.attribute}属性`;
-                    else if (t.category) targetText = `[${t.category}]`;
-                    else if (t.minRarity) targetText = `${t.minRarity}以上`;
-                    else if (t.maxRarity) targetText = `${t.maxRarity}以下`;
-                    else if (t.minCost !== undefined) targetText = `コスト${t.minCost}以上`;
-                    else if (t.maxCost !== undefined) targetText = `コスト${t.maxCost}以下`;
-                    else if (t.tiers) targetText = `${t.tiers.join('/')}ティア`;
-                    else if (t.keyword) targetText = t.keyword;
-                    else if (t.type) targetText = `${t.type}カード`;
-                    else targetText = '対象';
-
-                    const isUp = effect.modifier > 0;
-                    return (
-                      <div key={i} style={styles.suddenEventEffect}>
-                        <span>{targetText}: </span>
-                        <span style={isUp ? styles.modifierUp : styles.modifierDown}>
-                          {isUp ? '+' : ''}{effect.modifier}%
+              {/* 週間トレンド */}
+              {playerData.market.weeklyTrend && (
+                <div style={styles.trendSection}>
+                  <div style={styles.trendLabel}>📅 週間トレンド</div>
+                  <div style={styles.trendName}>
+                    {playerData.market.weeklyTrend.name}
+                  </div>
+                  <div style={styles.trendEffects}>
+                    {playerData.market.weeklyTrend.effects?.map((effect, i) => {
+                      const target = effect?.target || {};
+                      const targetText = target.attribute
+                        ? `${target.attribute}属性`
+                        : target.all
+                          ? '全体'
+                          : target.maxCost !== undefined
+                            ? `コスト${target.maxCost}以下`
+                            : target.minCost !== undefined
+                              ? `コスト${target.minCost}以上`
+                              : target.keyword
+                                ? `${target.keyword}`
+                                : target.tiers
+                                  ? `${target.tiers.join('/')}ティア`
+                                  : target.minRarity
+                                    ? `${target.minRarity}以上`
+                                    : '対象';
+                      const modifierStyle = effect.modifier > 0
+                        ? styles.trendEffectUp
+                        : effect.modifier < 0
+                          ? styles.trendEffectDown
+                          : {};
+                      return (
+                        <span key={i} style={{ marginRight: '12px', ...modifierStyle }}>
+                          {targetText} {effect.modifier > 0 ? '+' : ''}{effect.modifier}%
                         </span>
-                      </div>
-                    );
-                  })}
+                      );
+                    })}
+                  </div>
+                  {/* 週進行バー */}
+                  <div style={styles.weekProgress}>
+                    <span>次週まで</span>
+                    <div style={styles.weekProgressBar}>
+                      <div
+                        style={{
+                          ...styles.weekProgressFill,
+                          width: `${((playerData.market.currentDay - playerData.market.weeklyTrend.startDay) / DAYS_PER_WEEK) * 100}%`,
+                        }}
+                      />
+                    </div>
+                    <span>
+                      {DAYS_PER_WEEK - (playerData.market.currentDay - playerData.market.weeklyTrend.startDay)}戦
+                    </span>
+                  </div>
                 </div>
-              </div>
-            )}
-          </div>
-        )}
+              )}
 
-        {/* 未開封パックセクション */}
-        {playerData.unopenedPacks > 0 && (
-          <div style={styles.unopenedPackSection}>
-            <div style={styles.sectionTitle}>未開封パック</div>
-            <div style={styles.unopenedPackCard}>
-              <div style={styles.unopenedPackTitle}>🎁 報酬パック</div>
-              <div style={styles.unopenedPackCount}>
-                {playerData.unopenedPacks}個
-              </div>
-              <button
-                style={styles.openPackButton}
-                onClick={handleOpenUnopenedPack}
-                disabled={isProcessing}
-                onMouseEnter={(e) => {
-                  e.target.style.transform = 'translateY(-2px)';
-                  e.target.style.boxShadow = '0 4px 15px rgba(255,149,0,0.5)';
-                }}
-                onMouseLeave={(e) => {
-                  e.target.style.transform = 'translateY(0)';
-                  e.target.style.boxShadow = 'none';
-                }}
-              >
-                {isProcessing ? '開封中...' : '🎴 パックを開ける'}
-              </button>
+              {/* デイリーニュース */}
+              {playerData.market.dailyNews && (
+                <div style={styles.newsSection}>
+                  <div style={styles.newsLabel}>📰 本日のニュース</div>
+                  <div style={styles.newsText}>
+                    「{playerData.market.dailyNews.text}」
+                  </div>
+                  <div
+                    style={{
+                      ...styles.newsModifier,
+                      ...(playerData.market.dailyNews.modifier > 0
+                        ? styles.modifierUp
+                        : styles.modifierDown),
+                    }}
+                  >
+                    → {playerData.market.dailyNews.target?.category
+                      ? `[${playerData.market.dailyNews.target.category}]`
+                      : playerData.market.dailyNews.target?.attribute
+                        ? `[${playerData.market.dailyNews.target.attribute}属性]`
+                        : '[全体]'}
+                    {' '}
+                    {playerData.market.dailyNews.modifier > 0 ? '+' : ''}
+                    {playerData.market.dailyNews.modifier}%
+                  </div>
+                </div>
+              )}
+
+              {/* 突発イベント */}
+              {playerData.market.suddenEvent && (
+                <div style={styles.suddenEventSection}>
+                  <div style={styles.suddenEventLabel}>
+                    <span>⚡</span>
+                    <span>突発イベント発生中！</span>
+                  </div>
+                  <div style={styles.suddenEventName}>
+                    {playerData.market.suddenEvent.name}
+                  </div>
+                  <div style={styles.suddenEventEffects}>
+                    {playerData.market.suddenEvent.effects?.map((effect, i) => {
+                      // ターゲットの説明テキストを生成
+                      let targetText = '';
+                      const t = effect?.target || {};
+                      if (t.all) targetText = '全カード';
+                      else if (t.attribute) targetText = `${t.attribute}属性`;
+                      else if (t.category) targetText = `[${t.category}]`;
+                      else if (t.minRarity) targetText = `${t.minRarity}以上`;
+                      else if (t.maxRarity) targetText = `${t.maxRarity}以下`;
+                      else if (t.minCost !== undefined) targetText = `コスト${t.minCost}以上`;
+                      else if (t.maxCost !== undefined) targetText = `コスト${t.maxCost}以下`;
+                      else if (t.tiers) targetText = `${t.tiers.join('/')}ティア`;
+                      else if (t.keyword) targetText = t.keyword;
+                      else if (t.type) targetText = `${t.type}カード`;
+                      else targetText = '対象';
+
+                      const isUp = effect.modifier > 0;
+                      return (
+                        <div key={i} style={styles.suddenEventEffect}>
+                          <span>{targetText}: </span>
+                          <span style={isUp ? styles.modifierUp : styles.modifierDown}>
+                            {isUp ? '+' : ''}{effect.modifier}%
+                          </span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
             </div>
-          </div>
-        )}
-
-        {/* 区切り線 */}
-        {playerData.unopenedPacks > 0 && <div style={styles.divider} />}
-
-        {/* パック購入セクション */}
-        <div style={styles.packSection}>
-          <div style={styles.sectionTitle}>パック購入</div>
-
-          <div
-            style={{
-              ...styles.packCard,
-              ...(isHovered && canBuy ? { transform: 'translateY(-4px)' } : {}),
-            }}
-          >
-            <div style={styles.packName}>スタンダードパック</div>
-
-            <div style={styles.packImage}>🎴</div>
-
-            <div style={styles.packInfo}>
-              {packInfo.cardsPerPack}枚入り
-            </div>
-
-            <div style={styles.packPrice}>
-              {packInfo.priceFormatted}
-            </div>
-
-            <button
-              style={getBuyButtonStyle()}
-              onClick={handleBuyPack}
-              onMouseEnter={() => setIsHovered(true)}
-              onMouseLeave={() => setIsHovered(false)}
-              disabled={!canBuy || isProcessing}
-            >
-              {isProcessing ? '処理中...' : canBuy ? '購入する' : 'G不足'}
-            </button>
-
-            {!canBuy && (
-              <div style={{ fontSize: '12px', color: '#ff6b6b' }}>
-                あと {currencyManager.formatGold(ECONOMY.PACK_PRICE - playerData.gold)} 必要
-              </div>
-            )}
-          </div>
+          )}
         </div>
 
-        {/* 区切り線 */}
-        <div style={styles.divider} />
+        {/* 右カラム - アクション系 */}
+        <div style={styles.rightColumn}>
+          {/* 未開封パックセクション */}
+          {playerData.unopenedPacks > 0 && (
+            <div style={styles.unopenedPackSection}>
+              <div style={styles.sectionTitle}>未開封パック</div>
+              <div style={styles.unopenedPackCard}>
+                <div style={styles.unopenedPackTitle}>🎁 報酬パック</div>
+                <div style={styles.unopenedPackCount}>
+                  {playerData.unopenedPacks}個
+                </div>
+                <button
+                  style={styles.openPackButton}
+                  onClick={handleOpenUnopenedPack}
+                  disabled={isProcessing}
+                  onMouseEnter={(e) => {
+                    e.target.style.transform = 'translateY(-2px)';
+                    e.target.style.boxShadow = '0 4px 15px rgba(255,149,0,0.5)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.target.style.transform = 'translateY(0)';
+                    e.target.style.boxShadow = 'none';
+                  }}
+                >
+                  {isProcessing ? '開封中...' : '🎴 パックを開ける'}
+                </button>
+              </div>
+            </div>
+          )}
 
-        {/* カード売却セクション */}
-        <div style={styles.sellSection}>
-          <div style={styles.sectionTitle}>カード売却</div>
+          {/* パック購入セクション */}
+          <div style={styles.packSection}>
+            <div style={styles.sectionTitle}>パック購入</div>
 
-          <button
-            style={styles.sellButton}
-            onClick={onGoToCollection}
-            onMouseEnter={(e) => {
-              e.target.style.background = 'rgba(107,76,230,0.3)';
-              e.target.style.borderColor = 'rgba(107,76,230,0.8)';
-            }}
-            onMouseLeave={(e) => {
-              e.target.style.background = 'rgba(30,30,50,0.8)';
-              e.target.style.borderColor = 'rgba(107,76,230,0.5)';
-            }}
-          >
-            コレクションから選択 →
-          </button>
+            <div
+              style={{
+                ...styles.packCard,
+                ...(isHovered && canBuy ? { transform: 'translateY(-4px)' } : {}),
+              }}
+            >
+              <div style={styles.packName}>スタンダードパック</div>
 
-          <div style={styles.sellHint}>
-            コレクション画面でカードを選択して売却できます
+              <div style={styles.packImage}>🎴</div>
+
+              <div style={styles.packInfo}>
+                {packInfo.cardsPerPack}枚入り
+              </div>
+
+              <div style={styles.packPrice}>
+                {packInfo.priceFormatted}
+              </div>
+
+              <button
+                style={getBuyButtonStyle()}
+                onClick={handleBuyPack}
+                onMouseEnter={() => setIsHovered(true)}
+                onMouseLeave={() => setIsHovered(false)}
+                disabled={!canBuy || isProcessing}
+              >
+                {isProcessing ? '処理中...' : canBuy ? '購入する' : 'G不足'}
+              </button>
+
+              {!canBuy && (
+                <div style={{ fontSize: '12px', color: '#ff6b6b' }}>
+                  あと {currencyManager.formatGold(ECONOMY.PACK_PRICE - playerData.gold)} 必要
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* カード売却セクション */}
+          <div style={styles.sellSection}>
+            <div style={styles.sectionTitle}>カード売却</div>
+
+            <button
+              style={styles.sellButton}
+              onClick={onGoToCollection}
+              onMouseEnter={(e) => {
+                e.target.style.background = 'rgba(107,76,230,0.3)';
+                e.target.style.borderColor = 'rgba(107,76,230,0.8)';
+              }}
+              onMouseLeave={(e) => {
+                e.target.style.background = 'rgba(30,30,50,0.8)';
+                e.target.style.borderColor = 'rgba(107,76,230,0.5)';
+              }}
+            >
+              コレクションから選択 →
+            </button>
+
+            <div style={styles.sellHint}>
+              コレクション画面でカードを選択して売却できます
+            </div>
           </div>
         </div>
       </div>
