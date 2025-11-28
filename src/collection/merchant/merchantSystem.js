@@ -103,7 +103,8 @@ export const isSpecialty = (merchant, card) => {
  * @returns {boolean}
  */
 export const isForbidden = (card) => {
-  return card.forbidden === true || card.forbidden === 'true';
+  // cardManager.js では isForbidden プロパティで設定される
+  return card.isForbidden === true || card.forbidden === true || card.forbidden === 'true';
 };
 
 /**
@@ -391,18 +392,40 @@ export const generateStock = (merchant, cardPool, dayId, options = {}) => {
   const remainingCount = totalCount - stock.length;
   const shuffledPool = [...filteredPool].sort(() => Math.random() - 0.5);
 
+  // 禁忌カードプール（闇商人用）
+  const forbiddenPool = cardPool.filter(c => isForbidden(c));
+
   for (let i = 0; i < remainingCount && shuffledPool.length > 0; i++) {
-    // 重複を避ける
     let card;
-    let attempts = 0;
-    do {
-      card = shuffledPool[Math.floor(Math.random() * shuffledPool.length)];
-      attempts++;
-    } while (usedCardIds.has(card.id) && attempts < 50);
+    let rarity;
+    let isForbiddenCard = false;
 
-    if (usedCardIds.has(card.id)) continue;
+    // 闇商人の場合: 二重抽選（禁忌判定 → カード選択 → レアリティ抽選）
+    if (stockConfig.forbiddenChance && stockConfig.forbiddenRates && forbiddenPool.length > 0) {
+      if (Math.random() < stockConfig.forbiddenChance) {
+        // 禁忌カードプールから選択
+        const availableForbidden = forbiddenPool.filter(c => !usedCardIds.has(c.id));
+        if (availableForbidden.length > 0) {
+          card = availableForbidden[Math.floor(Math.random() * availableForbidden.length)];
+          rarity = drawRarity(stockConfig.forbiddenRates);
+          isForbiddenCard = true;
+        }
+      }
+    }
 
-    const rarity = drawRarity(stockConfig.rates);
+    // 禁忌カードが選ばれなかった場合: 通常カードプールから選択
+    if (!card) {
+      let attempts = 0;
+      do {
+        card = shuffledPool[Math.floor(Math.random() * shuffledPool.length)];
+        attempts++;
+      } while (usedCardIds.has(card.id) && attempts < 50);
+
+      if (usedCardIds.has(card.id)) continue;
+
+      rarity = drawRarity(stockConfig.rates);
+    }
+
     const marketPrice = getMarketPrice(card, rarity);
     const price = calculateSellPrice(merchant, card, marketPrice, favorabilityLevel);
 
@@ -411,6 +434,7 @@ export const generateStock = (merchant, cardPool, dayId, options = {}) => {
       rarity,
       price,
       isPlayerSold: false,
+      isForbidden: isForbiddenCard,
     });
     usedCardIds.add(card.id);
   }
@@ -479,6 +503,7 @@ export const generateStock = (merchant, cardPool, dayId, options = {}) => {
       stock[bargainIndex].price = Math.floor(stock[bargainIndex].price * 0.5);
       stock[bargainIndex].isBargain = true;
     }
+
   }
 
   return stock;
