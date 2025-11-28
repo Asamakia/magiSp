@@ -329,7 +329,7 @@ export const darkCardEffects = {
 
       if (opponentMonsters.length === 0) {
         addLog('相手フィールドにモンスターがいません', 'info');
-        return false;
+        return true; // 対象がいなくても技の発動自体は成功として扱う
       }
 
       // ライフが足りるか確認（0以下にはなれるが、自滅するかどうかはゲームルール次第）
