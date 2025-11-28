@@ -203,7 +203,7 @@ const styles = {
     position: 'relative',
   },
   cardItemHover: {
-    borderColor: '#6b4ce6',
+    border: '2px solid #6b4ce6',
     boxShadow: '0 0 15px rgba(107,76,230,0.4)',
     transform: 'translateY(-2px)',
   },
@@ -301,7 +301,7 @@ const styles = {
   },
   sortButtonActive: {
     background: 'rgba(107,76,230,0.3)',
-    borderColor: '#6b4ce6',
+    border: '1px solid #6b4ce6',
     color: '#fff',
   },
   confirmModal: {
