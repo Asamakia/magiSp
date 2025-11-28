@@ -147,6 +147,50 @@ const styles = {
     transform: 'translateY(-2px)',
     boxShadow: '0 4px 15px rgba(107,76,230,0.5)',
   },
+  unopenedPackSection: {
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    gap: '16px',
+    width: '100%',
+    maxWidth: '350px',
+  },
+  unopenedPackCard: {
+    background: 'linear-gradient(135deg, #3a2a1a 0%, #5a4a2a 50%, #3a2a1a 100%)',
+    borderRadius: '16px',
+    padding: '24px',
+    width: '100%',
+    border: '2px solid #ffd700',
+    boxShadow: '0 0 30px rgba(255,215,0,0.3)',
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    gap: '12px',
+    transition: 'all 0.3s ease',
+  },
+  unopenedPackTitle: {
+    fontSize: '18px',
+    fontWeight: 'bold',
+    color: '#ffd700',
+    textAlign: 'center',
+  },
+  unopenedPackCount: {
+    fontSize: '32px',
+    fontWeight: 'bold',
+    color: '#fff',
+  },
+  openPackButton: {
+    padding: '12px 32px',
+    borderRadius: '8px',
+    border: 'none',
+    cursor: 'pointer',
+    fontWeight: 'bold',
+    fontSize: '16px',
+    background: 'linear-gradient(135deg, #ff9500 0%, #ffd700 100%)',
+    color: '#1a1a2e',
+    transition: 'all 0.3s ease',
+    width: '100%',
+  },
   divider: {
     width: '80%',
     maxWidth: '400px',
@@ -491,6 +535,25 @@ const ShopScreen = ({
     setIsProcessing(false);
   };
 
+  // 未開封パック開封処理
+  const handleOpenUnopenedPack = () => {
+    if (!playerData.unopenedPacks || playerData.unopenedPacks <= 0 || isProcessing) return;
+
+    setIsProcessing(true);
+    setMessage(null);
+
+    const result = packSystem.openUnopenedPack(playerData, allCards, cardValueMap);
+
+    if (result.success) {
+      onPlayerDataUpdate(result.playerData);
+      onOpenPack(result.cards);
+    } else {
+      setMessage({ type: 'error', text: result.error });
+    }
+
+    setIsProcessing(false);
+  };
+
   // ボタンスタイル計算
   const getBuyButtonStyle = () => {
     if (!canBuy || isProcessing) {
@@ -733,6 +796,37 @@ const ShopScreen = ({
             )}
           </div>
         )}
+
+        {/* 未開封パックセクション */}
+        {playerData.unopenedPacks > 0 && (
+          <div style={styles.unopenedPackSection}>
+            <div style={styles.sectionTitle}>未開封パック</div>
+            <div style={styles.unopenedPackCard}>
+              <div style={styles.unopenedPackTitle}>🎁 報酬パック</div>
+              <div style={styles.unopenedPackCount}>
+                {playerData.unopenedPacks}個
+              </div>
+              <button
+                style={styles.openPackButton}
+                onClick={handleOpenUnopenedPack}
+                disabled={isProcessing}
+                onMouseEnter={(e) => {
+                  e.target.style.transform = 'translateY(-2px)';
+                  e.target.style.boxShadow = '0 4px 15px rgba(255,149,0,0.5)';
+                }}
+                onMouseLeave={(e) => {
+                  e.target.style.transform = 'translateY(0)';
+                  e.target.style.boxShadow = 'none';
+                }}
+              >
+                {isProcessing ? '開封中...' : '🎴 パックを開ける'}
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* 区切り線 */}
+        {playerData.unopenedPacks > 0 && <div style={styles.divider} />}
 
         {/* パック購入セクション */}
         <div style={styles.packSection}>

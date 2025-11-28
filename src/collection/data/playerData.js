@@ -89,6 +89,9 @@ export const createInitialPlayerData = (starterCards = STARTER_DECK_CARDS) => {
     // 通貨
     gold: ECONOMY.INITIAL_GOLD,
 
+    // 未開封パック数
+    unopenedPacks: 0,
+
     // 所持カード
     collection: Array.from(collectionMap.values()),
 
@@ -124,12 +127,14 @@ export const createInitialPlayerData = (starterCards = STARTER_DECK_CARDS) => {
  * @returns {boolean} 有効かどうか
  */
 export const validatePlayerData = (data) => {
-  if (!data || typeof data !== 'object') return false;
-  if (typeof data.gold !== 'number' || data.gold < 0) return false;
-  if (!Array.isArray(data.collection)) return false;
-  if (!Array.isArray(data.userDecks)) return false;
-  if (!data.stats || typeof data.stats !== 'object') return false;
-  return true;
+  if (!data || typeof data !== 'object') return { valid: false };
+  if (typeof data.gold !== 'number' || data.gold < 0) return { valid: false };
+  if (!Array.isArray(data.collection)) return { valid: false };
+  if (!Array.isArray(data.userDecks)) return { valid: false };
+  if (!data.stats || typeof data.stats !== 'object') return { valid: false };
+  // unopenedPacksが存在しない場合は修復が必要
+  if (typeof data.unopenedPacks !== 'number') return { valid: false, needsRepair: true };
+  return { valid: true };
 };
 
 /**
@@ -141,6 +146,7 @@ export const repairPlayerData = (data) => {
   const defaults = createInitialPlayerData([]);
   return {
     gold: typeof data.gold === 'number' ? data.gold : defaults.gold,
+    unopenedPacks: typeof data.unopenedPacks === 'number' ? data.unopenedPacks : 0,
     collection: Array.isArray(data.collection) ? data.collection : [],
     userDecks: Array.isArray(data.userDecks) ? data.userDecks : [],
     market: data.market || createInitialMarketState(),

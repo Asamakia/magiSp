@@ -3364,17 +3364,17 @@ export default function MagicSpiritGame() {
             )}
 
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px' }}>
-              {/* 勝利ボーナスパック開封ボタン */}
-              {battleReward?.packReward > 0 && (
+              {/* 未開封パック開封ボタン */}
+              {playerData?.unopenedPacks > 0 && (
                 <button
                   onClick={() => {
-                    // 無料パックを開封
+                    // 未開封パックを開封
                     const { packSystem } = require('./collection');
-                    const result = packSystem.openFreePack(playerData, allCards, cardValueMap);
-                    updatePlayerData(result.playerData);
-                    // パック報酬を消費済みにする（何度も開封できないように）
-                    setBattleReward(prev => ({ ...prev, packReward: prev.packReward - 1 }));
-                    handleOpenPack(result.cards);
+                    const result = packSystem.openUnopenedPack(playerData, allCards, cardValueMap);
+                    if (result.success) {
+                      updatePlayerData(result.playerData);
+                      handleOpenPack(result.cards);
+                    }
                   }}
                   style={{
                     ...styles.actionButton,
@@ -3384,7 +3384,7 @@ export default function MagicSpiritGame() {
                     padding: '12px 32px',
                   }}
                 >
-                  🎴 パックを開ける
+                  🎴 パックを開ける ({playerData.unopenedPacks}個)
                 </button>
               )}
 
