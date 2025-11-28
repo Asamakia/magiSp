@@ -314,7 +314,9 @@ export default function MagicSpiritGame() {
         if (cardValueMap && cardValueMap[card.id]) {
           return cardValueMap[card.id].tier;
         }
-        return valueCalculator.calculateTier(card);
+        // determineTierはbaseValueを受け取る
+        const baseValue = valueCalculator.calculateBaseValue(card);
+        return valueCalculator.determineTier(baseValue);
       };
 
       const newPriceHistory = recordPriceHistory(
