@@ -385,8 +385,8 @@ export default function MagicSpiritGame() {
   }, [playerData, updatePlayerData, cardValueMap, allCards]);
 
   // パック開封画面へ遷移
-  const handleOpenPack = useCallback((cards) => {
-    setPendingPackCards(cards);
+  const handleOpenPack = useCallback((cards, packCount = 1) => {
+    setPendingPackCards({ cards, packCount });
     setGameState('packOpening');
   }, []);
 
@@ -3442,7 +3442,8 @@ export default function MagicSpiritGame() {
   if (gameState === 'packOpening' && pendingPackCards) {
     return (
       <PackOpening
-        cards={pendingPackCards}
+        cards={pendingPackCards.cards}
+        packCount={pendingPackCards.packCount}
         onClose={handlePackOpeningClose}
         existingCollection={playerData?.collection || []}
         effectLevel={playerData?.settings?.rarityEffectLevel}
