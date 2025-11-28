@@ -7,6 +7,8 @@
 import { MAX_MODIFIER_UP, MAX_MODIFIER_DOWN, DAYS_PER_WEEK, SUDDEN_EVENT_CHANCE } from './constants';
 import { createWeeklyTrend } from './weeklyTrend';
 import { generateDailyNews } from './newsGenerator';
+import { generateSuddenEvent } from './suddenEvents';
+import { createInitialPriceHistory } from './priceHistory';
 
 // ========================================
 // 市場変動計算
@@ -264,12 +266,8 @@ export const createInitialMarketState = () => {
     dailyNews,
     suddenEvent: null,
     recentNews: [dailyNews],
-    priceHistory: {
-      cards: {},
-      attributes: {},
-      marketIndex: [],
-      events: [],
-    },
+    recentSuddenEvents: [],
+    priceHistory: createInitialPriceHistory(),
   };
 };
 
@@ -297,12 +295,16 @@ export const advanceDay = (marketState) => {
   // 直近ニュース履歴を更新
   newState.recentNews = [...recentNews.slice(-29), newNews];
 
-  // 突発イベントの判定
+  // 突発イベントの判定（10%の確率）
+  const recentSuddenEvents = marketState.recentSuddenEvents || [];
   if (Math.random() < SUDDEN_EVENT_CHANCE) {
-    // TODO: 突発イベントの実装（Phase M-6）
-    newState.suddenEvent = null;
+    const newEvent = generateSuddenEvent(recentSuddenEvents);
+    newState.suddenEvent = newEvent;
+    // 直近イベント履歴を更新（最大5件保持）
+    newState.recentSuddenEvents = [...recentSuddenEvents.slice(-4), newEvent];
   } else {
     newState.suddenEvent = null;
+    newState.recentSuddenEvents = recentSuddenEvents;
   }
 
   return newState;

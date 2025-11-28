@@ -61,6 +61,23 @@ export {
   createWeeklyTrend,
   // ニュース生成
   generateDailyNews,
+  // 突発イベント
+  generateSuddenEvent,
+  SURGE_EVENTS,
+  CRASH_EVENTS,
+  SPECIAL_EVENTS,
+  // 価格履歴
+  createInitialPriceHistory,
+  recordPriceHistory,
+  getCardChartData,
+  getAttributeChartData,
+  getCategoryChartData,
+  getTierChartData,
+  getMarketIndexChartData,
+  getTrendIcon,
+  getTrendColor,
+  generateSparklineData,
+  HISTORY_LENGTH,
   // 定数
   DAYS_PER_WEEK,
   MAX_MODIFIER_UP,
@@ -89,3 +106,6 @@ export { default as PackOpening } from './components/PackOpening';
 // Phase 5: デッキ構築
 export { default as DeckBuilder } from './components/DeckBuilder';
 export { default as DeckList } from './components/DeckList';
+
+// Phase 6: 価格チャート
+export { PriceChart, MiniChart, MarketIndexDisplay, EventMarkers } from './components/PriceChart';
