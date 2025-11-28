@@ -216,13 +216,15 @@ Currently a **prototype version** with local 2-player gameplay and AI opponent s
   - **永続化**: localStorage（将来IndexedDB/クラウド移行可能な抽象化）
   - **Documentation**: `src/ルール/CardValueSystem/collection-system-design.md`
 - **2025-11-28 (Dynamic Market System)**: 動的市場システム実装完了 ⭐⭐⭐⭐
-  - **市場エンジン** (`src/collection/market/`): ~1,609行のコード
+  - **市場エンジン** (`src/collection/market/`): ~2,078行のコード
   - **週間トレンド**: 15種類（属性優勢、コスト環境、レアリティ注目、カオスなど）
   - **デイリーニュース**: 8パターンの自動生成システム
     - 基本（カテゴリ+理由）、人物（NPC+行動）、場所（ロケーション+イベント）
     - 噂話、比較（A vs B）、需給変動、季節、ストーリー
-  - **価格変動**: 週間トレンド + デイリーニュース + 突発イベント（準備中）
+  - **突発イベント**: 25種類（高騰10種、暴落8種、特殊7種）- suddenEvents.js
+  - **価格変動**: 週間トレンド + デイリーニュース + 突発イベント
     - 上限+100%、下限-50%の価格修正
+  - **価格履歴**: 30戦分の履歴保持 - priceHistory.js
   - **市場データ**: 64以上のエンティティ（人物、場所、理由、噂など）
   - **ショップ連携**: 売却価格が市場状況で変動
   - **Documentation**: `src/ルール/CardValueSystem/market_system.md`, `news-binding-tables-design.md`
@@ -267,27 +269,29 @@ Currently a **prototype version** with local 2-player gameplay and AI opponent s
 │   ├── App.js                  # Main app component (renders MagicSpiritGame)
 │   ├── magic-spirit.jsx        # Main game logic (~4300 lines) ⭐
 │   │
-│   ├── collection/             # Card collection system (~7,000 lines) ⭐⭐⭐⭐⭐
-│   │   ├── index.js              # Main exports (92 lines)
-│   │   ├── data/                 # Data management (~508 lines)
-│   │   │   ├── storage.js        # Persistence layer (localStorage abstraction, 140 lines)
-│   │   │   ├── playerData.js     # Player data structure & initialization (183 lines)
-│   │   │   ├── constants.js      # Economy constants (INITIAL_GOLD, PACK_PRICE, etc., 134 lines)
-│   │   │   └── migration.js      # Data migration for version upgrades (51 lines)
-│   │   ├── systems/              # Core systems (~1,220 lines)
-│   │   │   ├── valueCalculator.js    # Base value & tier calculation (240 lines)
-│   │   │   ├── raritySystem.js       # Rarity definitions & pull rates (169 lines)
-│   │   │   ├── collectionManager.js  # Card collection CRUD operations (274 lines)
-│   │   │   ├── currencyManager.js    # Gold management (177 lines)
-│   │   │   ├── packSystem.js         # Pack opening logic (195 lines)
-│   │   │   ├── shopSystem.js         # Buy/sell operations (165 lines)
-│   │   │   └── assetCalculator.js    # Asset value calculation & history (~240 lines) ⭐ NEW
-│   │   ├── market/               # Dynamic market system (~1,609 lines) ⭐ NEW
-│   │   │   ├── index.js          # Market module exports (33 lines)
-│   │   │   ├── marketEngine.js   # Price calculation & state management (323 lines)
-│   │   │   ├── weeklyTrend.js    # 15 weekly trend definitions (191 lines)
+│   ├── collection/             # Card collection system (~9,600 lines) ⭐⭐⭐⭐⭐
+│   │   ├── index.js              # Main exports (138 lines)
+│   │   ├── data/                 # Data management (~545 lines)
+│   │   │   ├── storage.js        # Persistence layer (localStorage abstraction, 139 lines)
+│   │   │   ├── playerData.js     # Player data structure & initialization (223 lines)
+│   │   │   ├── constants.js      # Economy constants (INITIAL_GOLD, PACK_PRICE, etc., 133 lines)
+│   │   │   └── migration.js      # Data migration for version upgrades (50 lines)
+│   │   ├── systems/              # Core systems (~1,509 lines)
+│   │   │   ├── valueCalculator.js    # Base value & tier calculation (239 lines)
+│   │   │   ├── raritySystem.js       # Rarity definitions & pull rates (168 lines)
+│   │   │   ├── collectionManager.js  # Card collection CRUD operations (273 lines)
+│   │   │   ├── currencyManager.js    # Gold management (182 lines)
+│   │   │   ├── packSystem.js         # Pack opening logic (238 lines)
+│   │   │   ├── shopSystem.js         # Buy/sell operations (164 lines)
+│   │   │   └── assetCalculator.js    # Asset value calculation & history (245 lines)
+│   │   ├── market/               # Dynamic market system (~2,078 lines)
+│   │   │   ├── index.js          # Market module exports (40 lines)
+│   │   │   ├── constants.js      # Market constants (125 lines)
+│   │   │   ├── marketEngine.js   # Price calculation & state management (329 lines)
+│   │   │   ├── weeklyTrend.js    # 15 weekly trend definitions (190 lines)
 │   │   │   ├── newsGenerator.js  # 8-pattern news generation (569 lines)
-│   │   │   ├── constants.js      # Market constants (126 lines)
+│   │   │   ├── suddenEvents.js   # Sudden events - 25 types (415 lines)
+│   │   │   ├── priceHistory.js   # Price history management (410 lines)
 │   │   │   └── data/             # Market data entities (~1,244 lines)
 │   │   │       ├── categories.js     # Card category mappings (102 lines)
 │   │   │       ├── persons.js        # NPC characters & actions (137 lines)
@@ -298,7 +302,10 @@ Currently a **prototype version** with local 2-player gameplay and AI opponent s
 │   │   │       ├── supplyDemand.js   # Supply/demand patterns (43 lines)
 │   │   │       ├── seasonal.js       # Seasonal effects (114 lines)
 │   │   │       └── characters.js     # Story characters (244 lines)
-│   │   └── components/           # Collection UI (~3,313 lines)
+│   │   ├── hooks/                # Custom hooks
+│   │   │   ├── index.js          # Hook exports (10 lines)
+│   │   │   └── useMediaQuery.js  # Responsive design hooks (73 lines)
+│   │   └── components/           # Collection UI (~4,313 lines)
 │   │       ├── CollectionScreen.jsx  # Collection view (380 lines)
 │   │       ├── ShopScreen.jsx        # Shop view with market info (576 lines)
 │   │       ├── PackOpening.jsx       # Pack opening animation (487 lines)
@@ -306,7 +313,8 @@ Currently a **prototype version** with local 2-player gameplay and AI opponent s
 │   │       ├── CardDetail.jsx        # Card detail modal (473 lines)
 │   │       ├── DeckList.jsx          # Deck management (446 lines)
 │   │       ├── DeckBuilder.jsx       # Deck building from collection (689 lines)
-│   │       └── MarketAnalysis.jsx    # Market analysis screen (952 lines) ⭐ NEW
+│   │       ├── PriceChart.jsx        # Price chart components (320 lines)
+│   │       └── MarketAnalysis.jsx    # Market analysis screen (680 lines)
 │   │
 │   ├── utils/                  # Utility functions
 │   │   ├── constants.js        # Game constants (30 lines)
@@ -399,11 +407,12 @@ Currently a **prototype version** with local 2-player gameplay and AI opponent s
 │   │   │   └── status-effect-system-design.md (~1050 lines) - System design
 │   │   ├── AI Player System Documentation - 1 file (~1400 lines) ⭐⭐⭐⭐⭐
 │   │   │   └── ai-player-system-design.md (~1400 lines) - AI system design
-│   │   └── Card Value System Documentation - 4 files (~3,000 lines) ⭐⭐⭐⭐⭐
+│   │   └── Card Value System Documentation - 5 files (~4,000 lines) ⭐⭐⭐⭐⭐
 │   │       ├── card_value_system_v2.1.md (~593 lines) - Value calculation spec
-│   │       ├── collection-system-design.md (~748 lines) - Collection system design
-│   │       ├── market_system.md (~740 lines) - Market mechanics spec + 市場分析画面使い方
-│   │       └── news-binding-tables-design.md (~975 lines) - News pattern definitions
+│   │       ├── collection-system-design.md (~830 lines) - Collection system design
+│   │       ├── market_system.md (~867 lines) - Market mechanics spec + 市場分析画面使い方
+│   │       ├── news-binding-tables-design.md (~975 lines) - News pattern definitions
+│   │       └── merchant_system.md (~520 lines) - Merchant NPC system spec (未実装)
 │   │
 │   ├── index.js                # React entry point
 │   ├── App.css                 # App styling
@@ -2000,6 +2009,6 @@ This is suitable for expansion into a full game or as a learning project for Rea
 
 ---
 
-**Document Version**: 5.5
-**Last Updated**: 2025-11-28 (Assets Trend Chart - 総資産推移システム)
+**Document Version**: 5.6
+**Last Updated**: 2025-11-28 (Collection System Documentation Update)
 **For**: Magic Spirit (magiSp) Repository
