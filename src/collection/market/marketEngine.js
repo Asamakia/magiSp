@@ -157,7 +157,18 @@ export const calculateMarketModifier = (card, marketState, rarity = null, tier =
   if (marketState.suddenEvent && marketState.suddenEvent.effects) {
     for (const effect of marketState.suddenEvent.effects) {
       if (isCardAffected(card, effect.target, rarity, tier)) {
-        totalModifier += effect.modifier;
+        // 乱高下イベント: 全カードに±30%のランダム変動
+        if (effect.wildFluctuation) {
+          totalModifier += Math.floor(Math.random() * 61) - 30; // -30 ~ +30
+        }
+        // 安定期イベント: 変動を±5%に収束
+        else if (effect.stabilize) {
+          // 既存の変動を抑制（このループ後に適用）
+          totalModifier = Math.max(-5, Math.min(5, totalModifier));
+        }
+        else {
+          totalModifier += effect.modifier;
+        }
       }
     }
   }

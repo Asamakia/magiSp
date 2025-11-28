@@ -798,6 +798,24 @@ const ShopScreen = ({
                   </div>
                   <div style={styles.suddenEventEffects}>
                     {playerData.market.suddenEvent.effects?.map((effect, i) => {
+                      // 特殊効果の場合
+                      if (effect.wildFluctuation) {
+                        return (
+                          <div key={i} style={styles.suddenEventEffect}>
+                            <span>全カード: </span>
+                            <span style={{ color: '#ffaa00' }}>±30% ランダム</span>
+                          </div>
+                        );
+                      }
+                      if (effect.stabilize) {
+                        return (
+                          <div key={i} style={styles.suddenEventEffect}>
+                            <span>全カード: </span>
+                            <span style={{ color: '#88ccff' }}>変動±5%に収束</span>
+                          </div>
+                        );
+                      }
+
                       // ターゲットの説明テキストを生成
                       let targetText = '';
                       const t = effect?.target || {};
