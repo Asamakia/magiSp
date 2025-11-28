@@ -156,10 +156,10 @@ Currently a **prototype version** with local 2-player gameplay and AI opponent s
     - 後方互換性: `true`/`false` の旧形式もサポート
   - **currentAttack初期化漏れ修正**: 蘇生・特殊召喚時のプロパティ初期化を修正
     - effectHelpers.js: reviveFromGraveyardでcurrentAttack, charges, statusEffectsを正しく設定
-    - darkCards.js: 闇属性の特殊召喚、攻撃力半減/増加効果でcurrentAttackも更新
+    - darkCards.js: 闘属性の特殊召喚、攻撃力半減/増加効果でcurrentAttackも更新
     - waterCards.js, primitiveCards.js, cardEffects/dark.js, future.js, water.js: 同様の修正
   - **常時効果との連携**: ドラゴンの火山などの攻撃力修正が蘇生モンスターにも正しく適用
-- **2025-11-28 (AI Fix & Card Implementations)**: AIフリーズ修正と新カード効果実装 ⭐⭐ **NEW**
+- **2025-11-28 (AI Fix & Card Implementations)**: AIフリーズ修正と新カード効果実装 ⭐⭐
   - **AIフリーズ修正**: AIアクション空振り時（有効なアクションがない場合）のフリーズを修正
   - **新デッキ追加**: 粘液獣スウォームデッキ「無限増殖」
   - **ブリザードマスター技実装**: 基本技・上級技を実装
@@ -167,6 +167,12 @@ Currently a **prototype version** with local 2-player gameplay and AI opponent s
     - C0000049 タイダルシフト（手札とフィールドの入れ替え）
     - C0000047 マーメイドの恵み（水属性モンスターHP回復）
     - C0000050 クラーケンの呼び声（深海モンスター蘇生）
+- **2025-11-28 (Trigger System Fix)**: トリガー実行エラー修正 ⭐⭐ **NEW**
+  - **トリガー実行時カード情報追加**: fireTrigger/activateTriggerでcontext.cardが未設定だったバグを修正
+    - フィールドからカードを検索してコンテキストに追加
+    - フォールバック: triggerCard → context.card → context.destroyedCard
+  - **ON_DESTROY_SELFトリガースコープ修正**: 破壊されたカード自身のトリガーのみ発火するように修正
+    - 同名カード複数時の重複発動バグを修正（例: 粘液獣・開花3体中1体破壊で種子1体のみ生成）
 
 ---
 
@@ -1815,6 +1821,6 @@ This is suitable for expansion into a full game or as a learning project for Rea
 
 ---
 
-**Document Version**: 4.8
-**Last Updated**: 2025-11-28 (AI fix, new cards & deck additions)
+**Document Version**: 4.9
+**Last Updated**: 2025-11-28 (Trigger system fix - context.card & ON_DESTROY_SELF scope)
 **For**: Magic Spirit (magiSp) Repository
