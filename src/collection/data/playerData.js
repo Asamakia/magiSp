@@ -7,6 +7,7 @@
 import { ECONOMY } from './constants';
 import { createInitialMarketState } from '../market/marketEngine';
 import { createInitialAssetHistory } from '../systems/assetCalculator';
+import { createInitialMerchantData } from '../merchant/merchantSystem';
 
 // ========================================
 // スターターデッキ定義
@@ -105,6 +106,9 @@ export const createInitialPlayerData = (starterCards = STARTER_DECK_CARDS) => {
     // 資産履歴
     assetHistory: createInitialAssetHistory(),
 
+    // 商人システム
+    merchantData: createInitialMerchantData(),
+
     // 統計
     stats: {
       totalBattles: 0,
@@ -143,6 +147,8 @@ export const validatePlayerData = (data) => {
   if (!data.market.priceHistory || typeof data.market.priceHistory !== 'object') return { valid: false, needsRepair: true };
   // assetHistoryが存在しない場合は修復が必要
   if (!data.assetHistory || typeof data.assetHistory !== 'object') return { valid: false, needsRepair: true };
+  // merchantDataが存在しない場合は修復が必要
+  if (!data.merchantData || typeof data.merchantData !== 'object') return { valid: false, needsRepair: true };
   return { valid: true };
 };
 
@@ -178,6 +184,20 @@ export const repairPlayerData = (data) => {
     };
   }
 
+  // merchantDataの修復
+  let repairedMerchantData;
+  if (!data.merchantData || typeof data.merchantData !== 'object') {
+    repairedMerchantData = createInitialMerchantData();
+  } else {
+    const defaultMerchant = createInitialMerchantData();
+    repairedMerchantData = {
+      ...defaultMerchant,
+      ...data.merchantData,
+      favorability: data.merchantData.favorability || defaultMerchant.favorability,
+      tickets: data.merchantData.tickets || defaultMerchant.tickets,
+    };
+  }
+
   return {
     gold: typeof data.gold === 'number' ? data.gold : defaults.gold,
     unopenedPacks: typeof data.unopenedPacks === 'number' ? data.unopenedPacks : 0,
@@ -185,6 +205,7 @@ export const repairPlayerData = (data) => {
     userDecks: Array.isArray(data.userDecks) ? data.userDecks : [],
     market: repairedMarket,
     assetHistory: repairedAssetHistory,
+    merchantData: repairedMerchantData,
     stats: {
       ...defaults.stats,
       ...(data.stats || {}),

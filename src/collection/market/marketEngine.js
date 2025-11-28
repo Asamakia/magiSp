@@ -41,7 +41,10 @@ export const isCardAffected = (card, target, rarity = null, tier = null) => {
 
   // カテゴリチェック
   if (target.category) {
-    const cardCategory = card.category || '';
+    // card.categoryは文字列または配列の可能性がある
+    const cardCategory = Array.isArray(card.category)
+      ? card.category.join(' ')
+      : (card.category || '');
     if (!cardCategory.includes(target.category) && !cardCategory.includes(`【${target.category}】`)) {
       return false;
     }

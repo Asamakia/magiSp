@@ -80,10 +80,15 @@ import {
   DeckBuilder,
   DeckList,
   MarketAnalysis,
+  MerchantGuild,
+  MerchantShop,
   advanceDay,
   recordPriceHistory,
   calculateMarketModifier,
   recordAssetSnapshot,
+  purchaseFromMerchant,
+  sellToMerchant,
+  collectionManager,
 } from './collection';
 
 // ========================================
@@ -107,7 +112,7 @@ export default function MagicSpiritGame() {
   const [isLoadingCards, setIsLoadingCards] = useState(true);
 
   // ゲーム状態
-  const [gameState, setGameState] = useState('title'); // title, playing, gameOver, collection, shop, packOpening, deckList, deckEdit
+  const [gameState, setGameState] = useState('title'); // title, playing, gameOver, collection, shop, packOpening, deckList, deckEdit, merchantGuild, merchantShop
   const [turn, setTurn] = useState(1);
   const [currentPlayer, setCurrentPlayer] = useState(1);
   const [phase, setPhase] = useState(0);
@@ -122,6 +127,7 @@ export default function MagicSpiritGame() {
   const [battleReward, setBattleReward] = useState(null); // 対戦報酬 { goldReward, packReward, isWin }
   const [editingDeck, setEditingDeck] = useState(null); // デッキ編集中のデッキ（nullなら新規）
   const [showMarketAnalysis, setShowMarketAnalysis] = useState(false); // 市場分析画面表示
+  const [currentMerchant, setCurrentMerchant] = useState(null); // 現在訪問中の商人名
 
   // プレイヤー1の状態
   const [p1Life, setP1Life] = useState(INITIAL_LIFE);
@@ -3249,6 +3255,17 @@ export default function MagicSpiritGame() {
                   🛒 ショップ
                 </button>
                 <button
+                  onClick={() => setGameState('merchantGuild')}
+                  style={{
+                    ...styles.actionButton,
+                    background: 'linear-gradient(135deg, #8b4513 0%, #d2691e 100%)',
+                    fontSize: '14px',
+                    padding: '10px 20px',
+                  }}
+                >
+                  🏪 商人ギルド
+                </button>
+                <button
                   onClick={() => setGameState('deckList')}
                   style={{
                     ...styles.actionButton,
@@ -3310,6 +3327,103 @@ export default function MagicSpiritGame() {
           />
         )}
       </>
+    );
+  }
+
+  // 商人ギルド画面
+  if (gameState === 'merchantGuild') {
+    // 禁忌カード所持数を計算
+    const forbiddenCount = (playerData?.collection || []).reduce((count, item) => {
+      const card = allCards.find(c => c.id === item.cardId);
+      if (card && (card.forbidden === true || card.forbidden === 'true')) {
+        return count + item.quantity;
+      }
+      return count;
+    }, 0);
+
+    // 総資産を計算（所持金 + コレクション価値の概算）
+    const totalAssets = (playerData?.gold || 0) +
+      (playerData?.collection || []).reduce((total, item) => {
+        const valueInfo = cardValueMap?.get?.(item.cardId);
+        if (valueInfo) {
+          return total + (valueInfo.rarityValues?.[item.rarity] || valueInfo.baseValue || 0) * item.quantity;
+        }
+        return total;
+      }, 0);
+
+    return (
+      <MerchantGuild
+        playerData={playerData}
+        dayId={playerData?.market?.currentDay || 0}
+        onBack={() => setGameState('title')}
+        onEnterShop={(merchantName) => {
+          setCurrentMerchant(merchantName);
+          setGameState('merchantShop');
+        }}
+        onMerchantDataUpdate={(newMerchantData) => {
+          updatePlayerData({
+            ...playerData,
+            merchantData: newMerchantData,
+          });
+        }}
+        allCards={allCards}
+        forbiddenCount={forbiddenCount}
+        totalAssets={totalAssets}
+      />
+    );
+  }
+
+  // 商人店内画面
+  if (gameState === 'merchantShop' && currentMerchant) {
+    return (
+      <MerchantShop
+        merchantName={currentMerchant}
+        playerData={playerData}
+        allCards={allCards}
+        cardValueMap={cardValueMap}
+        dayId={playerData?.market?.currentDay || 0}
+        onBack={() => {
+          setCurrentMerchant(null);
+          setGameState('merchantGuild');
+        }}
+        onPurchase={(cardId, rarity, price) => {
+          const updatedMerchantData = purchaseFromMerchant(
+            playerData.merchantData,
+            currentMerchant,
+            cardId,
+            rarity,
+            price
+          );
+          if (updatedMerchantData) {
+            // ゴールド消費とカード追加
+            const newPlayerData = {
+              ...playerData,
+              gold: playerData.gold - price,
+              collection: collectionManager.addCard(playerData, cardId, rarity).collection,
+              merchantData: updatedMerchantData,
+            };
+            updatePlayerData(newPlayerData);
+          }
+        }}
+        onSell={(card, rarity, sellPrice) => {
+          const updatedMerchantData = sellToMerchant(
+            playerData.merchantData,
+            currentMerchant,
+            card,
+            rarity,
+            playerData?.market?.currentDay || 0
+          );
+          // ゴールド獲得とカード削除
+          const newPlayerData = {
+            ...playerData,
+            gold: playerData.gold + sellPrice,
+            collection: collectionManager.removeCard(playerData, card.id, rarity).collection,
+            merchantData: updatedMerchantData,
+          };
+          updatePlayerData(newPlayerData);
+        }}
+        onPlayerDataChange={updatePlayerData}
+      />
     );
   }
 
