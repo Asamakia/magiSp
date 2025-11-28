@@ -53,7 +53,9 @@ export { default as CollectionScreen } from './components/CollectionScreen';
 export { default as CardGrid } from './components/CardGrid';
 export { default as CardDetail } from './components/CardDetail';
 
-// Phase 4で実装予定
-// export { default as ShopScreen } from './components/ShopScreen';
-// export { default as PackOpening } from './components/PackOpening';
+// Phase 4: ショップ・パック
+export { default as ShopScreen } from './components/ShopScreen';
+export { default as PackOpening } from './components/PackOpening';
+
+// Phase 5で実装予定
 // export { default as DeckBuilder } from './components/DeckBuilder';
