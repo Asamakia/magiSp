@@ -147,7 +147,7 @@ Currently a **prototype version** with local 2-player gameplay and AI opponent s
     - 魔女エリザヴェット・ヴェイルの基本技
     - ブリザードキャット・スノウの基本技
     - フレア・ドラゴンの基本技
-- **2025-11-28 (Revival System & Attack Modifier Fix)**: 蘇生システム改善と攻撃力修正バグ修正 ⭐⭐ **NEW**
+- **2025-11-28 (Revival System & Attack Modifier Fix)**: 蘇生システム改善と攻撃力修正バグ修正 ⭐⭐
   - **reviveFromGraveyard柔軟化**: オプションオブジェクト形式に拡張
     - `{ attackHalf: true }`: 攻撃力のみ半減（フレイマ等）
     - `{ hpHalf: true }`: HPのみ半減（氷の双尾猫）
@@ -159,6 +159,14 @@ Currently a **prototype version** with local 2-player gameplay and AI opponent s
     - darkCards.js: 闇属性の特殊召喚、攻撃力半減/増加効果でcurrentAttackも更新
     - waterCards.js, primitiveCards.js, cardEffects/dark.js, future.js, water.js: 同様の修正
   - **常時効果との連携**: ドラゴンの火山などの攻撃力修正が蘇生モンスターにも正しく適用
+- **2025-11-28 (AI Fix & Card Implementations)**: AIフリーズ修正と新カード効果実装 ⭐⭐ **NEW**
+  - **AIフリーズ修正**: AIアクション空振り時（有効なアクションがない場合）のフリーズを修正
+  - **新デッキ追加**: 粘液獣スウォームデッキ「無限増殖」
+  - **ブリザードマスター技実装**: 基本技・上級技を実装
+  - **水属性魔法カード効果実装**:
+    - C0000049 タイダルシフト（手札とフィールドの入れ替え）
+    - C0000047 マーメイドの恵み（水属性モンスターHP回復）
+    - C0000050 クラーケンの呼び声（深海モンスター蘇生）
 
 ---
 
@@ -1807,6 +1815,6 @@ This is suitable for expansion into a full game or as a learning project for Rea
 
 ---
 
-**Document Version**: 4.7
-**Last Updated**: 2025-11-28 (Document consolidation and roadmap update)
+**Document Version**: 4.8
+**Last Updated**: 2025-11-28 (AI fix, new cards & deck additions)
 **For**: Magic Spirit (magiSp) Repository
