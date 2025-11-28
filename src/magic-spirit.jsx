@@ -511,6 +511,23 @@ export default function MagicSpiritGame() {
         resetTurnFlags();
         continuousEffectEngine.resetTurnFlags();
 
+        // ターン終了時までの攻撃力バフをリセット（虚蝕の魔導兵等）
+        const clearEndOfTurnBuffs = (setField) => {
+          setField(prev => prev.map(m => {
+            if (!m || !m.attackBuffUntilEndOfTurn) return m;
+            const newAttack = Math.max(0, (m.currentAttack || m.attack) - m.attackBuffUntilEndOfTurn);
+            addLog(`${m.name}の攻撃力バフが終了（${newAttack}）`, 'info');
+            const { attackBuffUntilEndOfTurn, ...rest } = m;
+            return { ...rest, currentAttack: newAttack };
+          }));
+        };
+        // 現在のプレイヤーのフィールドのみ処理（自分のターン終了時）
+        if (currentPlayer === 1) {
+          clearEndOfTurnBuffs(setP1Field);
+        } else {
+          clearEndOfTurnBuffs(setP2Field);
+        }
+
         // エンドフェイズまでの一時的コスト軽減をクリア（水晶のマーメイド等）
         const clearTempCostModifier = (hand) => hand.map(c => {
           if (c.tempCostModifierUntilEndPhase) {

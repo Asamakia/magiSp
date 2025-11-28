@@ -8,6 +8,7 @@
 import { TRIGGER_TYPES, ACTIVATION_TYPES } from '../triggerTypes';
 import {
   millDeck,
+  millOpponentDeck,
   conditionalDamage,
   searchCard,
   reviveFromGraveyard,
@@ -843,6 +844,43 @@ export const futureCardTriggers = {
               addLog(`${cardToHand.name}を手札に加え、${cardToBottom.name}をデッキの下に戻した`, 'info');
             },
           });
+        }
+      },
+    },
+  ],
+
+  /**
+   * C0000268: 虚蝕の魔導兵
+   * 【召喚時】相手のデッキ上2枚を墓地に送り、その中のモンスター1体につき300ダメージ。
+   */
+  C0000268: [
+    {
+      type: TRIGGER_TYPES.ON_SUMMON,
+      activationType: ACTIVATION_TYPES.AUTOMATIC,
+      description: '相手のデッキ上2枚を墓地に送り、モンスター1体につき300ダメージ',
+      effect: (context) => {
+        const { addLog } = context;
+
+        // 相手のデッキ上2枚を墓地に送る
+        const milledCards = millOpponentDeck(context, 2);
+
+        if (milledCards.length === 0) {
+          addLog('相手のデッキにカードがありませんでした', 'info');
+          return;
+        }
+
+        // 墓地に送ったカードを表示
+        addLog(`相手のデッキから${milledCards.length}枚を墓地に送った: ${milledCards.map(c => c.name).join(', ')}`, 'info');
+
+        // 墓地に送ったカードの中のモンスター数をカウント
+        const monsterCount = milledCards.filter(card => card.type === 'monster').length;
+
+        if (monsterCount > 0) {
+          const totalDamage = monsterCount * 300;
+          conditionalDamage(context, totalDamage, 'opponent');
+          addLog(`モンスター${monsterCount}体分、${totalDamage}ダメージ！`, 'damage');
+        } else {
+          addLog('墓地に送ったカードにモンスターはいませんでした', 'info');
         }
       },
     },

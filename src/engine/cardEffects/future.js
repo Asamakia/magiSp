@@ -544,5 +544,66 @@ export const futureCardEffects = {
     return false;
   },
 
+  /**
+   * C0000268: 虚蝕の魔導兵
+   * 召喚時効果はトリガー（futureCards.jsで実装）
+   * 基本技: 自分の墓地の「未来属性」カード1枚をデッキに戻し、このカードの攻撃力をターン終了時まで800アップ。
+   */
+  C0000268: (skillText, context) => {
+    const {
+      addLog,
+      currentPlayer,
+      monsterIndex,
+      p1Graveyard, p2Graveyard,
+      setP1Graveyard, setP2Graveyard,
+      setP1Deck, setP2Deck,
+      p1Field, p2Field,
+      setP1Field, setP2Field,
+    } = context;
+
+    // 基本技
+    if (context.skillType === 'basic') {
+      const currentGraveyard = currentPlayer === 1 ? p1Graveyard : p2Graveyard;
+      const setGraveyard = currentPlayer === 1 ? setP1Graveyard : setP2Graveyard;
+      const setDeck = currentPlayer === 1 ? setP1Deck : setP2Deck;
+      const currentField = currentPlayer === 1 ? p1Field : p2Field;
+      const setField = currentPlayer === 1 ? setP1Field : setP2Field;
+
+      // 墓地から未来属性カードを検索
+      const futureCard = currentGraveyard.find(card => checkAttribute(card, '未来'));
+
+      if (!futureCard) {
+        addLog('墓地に未来属性カードがありません', 'info');
+        return false;
+      }
+
+      // 墓地からデッキに戻す
+      setGraveyard(prev => prev.filter(c => c.uniqueId !== futureCard.uniqueId));
+      setDeck(prev => [...prev, futureCard]);
+      addLog(`墓地から「${futureCard.name}」をデッキに戻した`, 'info');
+
+      // このカードの攻撃力を800アップ（ターン終了時まで）
+      const thisCard = currentField[monsterIndex];
+      if (thisCard) {
+        setField(prev => prev.map((m, idx) => {
+          if (idx === monsterIndex && m) {
+            const newAttack = (m.currentAttack || m.attack) + 800;
+            addLog(`${m.name}の攻撃力が800アップ（${newAttack}）！`, 'info');
+            return {
+              ...m,
+              currentAttack: newAttack,
+              attackBuffUntilEndOfTurn: (m.attackBuffUntilEndOfTurn || 0) + 800,
+            };
+          }
+          return m;
+        }));
+      }
+
+      return true;
+    }
+
+    return false;
+  },
+
   // 他の未来属性カードを追加...
 };
