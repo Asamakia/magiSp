@@ -9,6 +9,7 @@ import {
   modifyAttack,
 } from '../effectHelpers';
 import { hasCategory } from '../../utils/helpers';
+import { statusEffectEngine, STATUS_EFFECT_TYPES } from '../statusEffects';
 
 /**
  * 原始属性カードの固有効果
@@ -68,13 +69,11 @@ export const primitiveCardEffects = {
         monsterIndex,
         p1Field, p2Field,
         setP1Field, setP2Field,
-        setP1Graveyard, setP2Graveyard,
         setPendingMonsterTarget,
       } = context;
 
       const currentField = currentPlayer === 1 ? p1Field : p2Field;
       const setField = currentPlayer === 1 ? setP1Field : setP2Field;
-      const setGraveyard = currentPlayer === 1 ? setP1Graveyard : setP2Graveyard;
       const opponentField = currentPlayer === 1 ? p2Field : p1Field;
       const setOpponentField = currentPlayer === 1 ? setP2Field : setP1Field;
 
@@ -97,6 +96,9 @@ export const primitiveCardEffects = {
         m && idx !== monsterIndex && hasCategory(m, '【スライム】')
       ).length;
 
+      // ATK減少量を計算
+      const atkReduction = slimeCount >= 3 ? 1000 : 500;
+
       // モンスター選択UIを表示
       setPendingMonsterTarget({
         message: '寄生する相手モンスターを選択してください',
@@ -113,21 +115,28 @@ export const primitiveCardEffects = {
             return m;
           }));
 
-          // 相手モンスターに寄生データを付与
+          // 相手モンスターにPARASITE状態異常を付与
           setOpponentField(prev => prev.map((m, idx) => {
             if (idx === targetIndex && m) {
-              return {
-                ...m,
+              // 状態異常を付与（直接mをmutateせず、新しいオブジェクトで返す）
+              const updatedMonster = { ...m };
+              if (!updatedMonster.statusEffects) {
+                updatedMonster.statusEffects = [];
+              }
+              // 寄生状態異常を追加
+              statusEffectEngine.applyStatus(updatedMonster, STATUS_EFFECT_TYPES.PARASITE, {
+                value: atkReduction,
                 parasiteCard: { ...thisMonster },
                 parasiteOwner: currentPlayer,
-                parasiteSlimeCount: slimeCount, // 寄生時の粘液獣数（攻撃力減少量計算用）
-                effectNegatedByParasite: true,
-              };
+                effectNegated: true, // 効果無効化フラグ
+                source: 'C0000009',
+                sourceName: '粘液獣・寄生',
+              });
+              return updatedMonster;
             }
             return m;
           }));
 
-          const atkReduction = slimeCount >= 3 ? 1000 : 500;
           addLog(`粘液獣・寄生が${target.name}に寄生した！`, 'info');
           addLog(`毎ターン開始時に攻撃力-${atkReduction}、効果無効化！`, 'info');
         },

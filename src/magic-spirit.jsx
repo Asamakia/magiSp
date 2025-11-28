@@ -425,39 +425,26 @@ export default function MagicSpiritGame() {
         player.setField(prev => prev.map(m => m ? { ...m, canAttack: true } : null));
         setChargeUsedThisTurn(false);
 
-        // 状態異常のターン開始時処理（眠り・凍結の解除判定）
-        player.setField(prev => prev.map(m => {
-          if (!m) return null;
-          const result = statusEffectEngine.processTurnStart(m);
-          if (result.removedEffects.length > 0) {
-            result.removedEffects.forEach(effect => {
-              addLog(`${m.name}の${getStatusDisplayName(effect.type)}が解除された！`, 'info');
-            });
-          }
-          return result.monster;
-        }));
-
-        // 寄生効果のターン開始時処理（両プレイヤーのフィールドを処理）
-        const processParasiteEffect = (setField, fieldOwner) => {
+        // 状態異常のターン開始時処理（眠り・凍結の解除判定、寄生ATK減少）
+        // 両プレイヤーのフィールドを処理（寄生は相手フィールドにも影響）
+        const processTurnStartStatusEffects = (setField) => {
           setField(prev => prev.map(m => {
-            if (!m || !m.parasiteCard) return m;
-
-            // 攻撃力減少: 基本500、粘液獣3体以上なら1000
-            const atkReduction = (m.parasiteSlimeCount >= 3) ? 1000 : 500;
-            const newAttack = Math.max(0, m.attack - atkReduction);
-            const newCurrentAttack = Math.max(0, (m.currentAttack || m.attack) - atkReduction);
-
-            addLog(`${m.name}は寄生により攻撃力-${atkReduction}！（${newCurrentAttack}）`, 'damage');
-
-            return {
-              ...m,
-              attack: newAttack,
-              currentAttack: newCurrentAttack,
-            };
+            if (!m) return null;
+            const result = statusEffectEngine.processTurnStart(m);
+            if (result.removedEffects.length > 0) {
+              result.removedEffects.forEach(effect => {
+                addLog(`${m.name}の${getStatusDisplayName(effect.type)}が解除された！`, 'info');
+              });
+            }
+            // 寄生によるATK減少をログ出力
+            if (result.parasiteAtkReduction > 0) {
+              addLog(`${m.name}は寄生により攻撃力-${result.parasiteAtkReduction}！（${result.monster.currentAttack}）`, 'damage');
+            }
+            return result.monster;
           }));
         };
-        processParasiteEffect(setP1Field, 1);
-        processParasiteEffect(setP2Field, 2);
+        processTurnStartStatusEffects(setP1Field);
+        processTurnStartStatusEffects(setP2Field);
 
         // ターン開始時トリガーを発火
         fireTrigger(TRIGGER_TYPES.ON_TURN_START_SELF, triggerContext);
@@ -575,23 +562,19 @@ export default function MagicSpiritGame() {
         }
 
         // 寄生効果の無効化解除（相手エンドフェイズで効果無効化が終了）
-        // 現在のターンプレイヤーのフィールドにいる寄生されたモンスターの効果無効化を解除
-        const clearParasiteNegation = (setField, fieldOwner) => {
+        // 両プレイヤーのフィールドを処理（寄生者と被寄生者が異なるプレイヤーの場合）
+        const processParasiteNegationEnd = (setField) => {
           setField(prev => prev.map(m => {
-            // 寄生されており、寄生者の相手（=このフィールドの持ち主）のエンドフェイズ
-            if (m && m.parasiteCard && m.effectNegatedByParasite && m.parasiteOwner !== fieldOwner) {
+            if (!m) return m;
+            const result = statusEffectEngine.processOpponentEndPhase(m, currentPlayer);
+            if (result.parasiteEffectNegationRemoved) {
               addLog(`${m.name}の効果無効化が解除された（寄生効果）`, 'info');
-              return { ...m, effectNegatedByParasite: false };
             }
-            return m;
+            return result.monster;
           }));
         };
-        // 現在のプレイヤー（ターンエンドするプレイヤー）のフィールドを処理
-        if (currentPlayer === 1) {
-          clearParasiteNegation(setP1Field, 1);
-        } else {
-          clearParasiteNegation(setP2Field, 2);
-        }
+        processParasiteNegationEnd(setP1Field);
+        processParasiteNegationEnd(setP2Field);
 
         // ターン終了時までの効果をリセット（攻撃力バフ、破壊耐性等）
         const clearEndOfTurnEffects = (setField) => {
