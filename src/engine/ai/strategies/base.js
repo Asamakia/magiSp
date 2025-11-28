@@ -185,6 +185,28 @@ export const baseStrategy = {
   },
 
   /**
+   * フィールドカードを配置するか判断
+   * @param {Array} placeableFieldCards - 配置可能なフィールドカード
+   * @param {Object} gameState - ゲーム状態
+   * @returns {Object|null} 配置するカード（nullの場合は配置しない）
+   */
+  chooseFieldCard(placeableFieldCards, gameState) {
+    // デフォルト: 配置しない
+    return null;
+  },
+
+  /**
+   * フェイズカードを配置するか判断
+   * @param {Array} placeablePhaseCards - 配置可能なフェイズカード
+   * @param {Object} gameState - ゲーム状態
+   * @returns {Object|null} 配置するカード（nullの場合は配置しない）
+   */
+  choosePhaseCard(placeablePhaseCards, gameState) {
+    // デフォルト: 配置しない
+    return null;
+  },
+
+  /**
    * メインフェイズを終了するか判断
    * @param {Object} gameState - ゲーム状態
    * @param {Object} actionsRemaining - 残りのアクション情報

@@ -100,6 +100,37 @@ export function getSummonableCards(gameState, costModifierFn = null) {
 }
 
 /**
+ * 配置可能なフィールドカードを取得
+ */
+export function getPlaceableFieldCards(gameState) {
+  const { myHand, myActiveSP, myFieldCard } = gameState;
+
+  // 既にフィールドカードが設置されている場合は空配列
+  // ※上書き配置を許可する場合はこの条件を削除
+  if (myFieldCard) return [];
+
+  return myHand.filter(card => {
+    if (card.type !== 'field') return false;
+    return card.cost <= myActiveSP;
+  });
+}
+
+/**
+ * 配置可能なフェイズカードを取得
+ */
+export function getPlaceablePhaseCards(gameState) {
+  const { myHand, myActiveSP, myPhaseCard } = gameState;
+
+  // 既にフェイズカードが設置されている場合は空配列
+  if (myPhaseCard) return [];
+
+  return myHand.filter(card => {
+    if (card.type !== 'phasecard') return false;
+    return card.cost <= myActiveSP;
+  });
+}
+
+/**
  * 使用可能な魔法カードを取得
  */
 export function getUsableMagicCards(gameState, costModifierFn = null) {
@@ -214,18 +245,24 @@ export function getActionsRemaining(gameState, options = {}) {
   const chargeableMonsters = getChargeableMonsters(gameState);
   const chargeableCards = getChargeableCards(gameState);
   const canCharge = !chargeUsedThisTurn && chargeableMonsters.length > 0 && chargeableCards.length > 0;
+  const placeableFieldCards = getPlaceableFieldCards(gameState);
+  const placeablePhaseCards = getPlaceablePhaseCards(gameState);
 
   return {
     canSummon: summonableCards.length > 0,
     canUseSkill: usableSkills.length > 0,
     canUseMagic: usableMagicCards.length > 0,
     canCharge,
+    canPlaceFieldCard: placeableFieldCards.length > 0,
+    canPlacePhaseCard: placeablePhaseCards.length > 0,
     canActivateTrigger: false, // トリガーは外部から渡す
     summonableCards,
     usableSkills,
     usableMagicCards,
     chargeableMonsters,
     chargeableCards,
+    placeableFieldCards,
+    placeablePhaseCards,
   };
 }
 
@@ -235,16 +272,34 @@ export function getActionsRemaining(gameState, options = {}) {
 
 /**
  * メインフェイズのAI行動を1アクション実行
- * @returns {string} 実行したアクション種別 ('summon' | 'skill' | 'magic' | 'charge' | 'trigger' | 'end')
+ * @returns {string} 実行したアクション種別 ('summon' | 'field' | 'phase' | 'skill' | 'magic' | 'charge' | 'trigger' | 'end')
  */
 export function executeAIMainPhaseAction(gameState, actions, strategy, options = {}) {
-  const { summonCard, executeSkill, activateMagicCard, activateTrigger, chargeCard, nextPhase } = actions;
+  const { summonCard, executeSkill, activateMagicCard, activateTrigger, chargeCard, placeFieldCard, placePhaseCard, nextPhase } = actions;
   const { costModifierFn, activatableTriggers = [], chargeUsedThisTurn = false } = options;
 
   // 残りアクションを取得
   const remaining = getActionsRemaining(gameState, { costModifierFn, chargeUsedThisTurn });
 
-  // 1. 召喚判断
+  // 1. フィールドカード配置判断（召喚前に判断、シナジーを活かすため）
+  if (remaining.canPlaceFieldCard && placeFieldCard) {
+    const fieldCardToPlace = strategy.chooseFieldCard(remaining.placeableFieldCards, gameState);
+    if (fieldCardToPlace) {
+      placeFieldCard(fieldCardToPlace);
+      return 'field';
+    }
+  }
+
+  // 2. フェイズカード配置判断
+  if (remaining.canPlacePhaseCard && placePhaseCard) {
+    const phaseCardToPlace = strategy.choosePhaseCard(remaining.placeablePhaseCards, gameState);
+    if (phaseCardToPlace) {
+      placePhaseCard(phaseCardToPlace);
+      return 'phase';
+    }
+  }
+
+  // 3. 召喚判断
   const cardToSummon = strategy.chooseSummon(remaining.summonableCards, gameState);
   if (cardToSummon) {
     const emptySlots = getEmptySlots(gameState);
@@ -255,7 +310,7 @@ export function executeAIMainPhaseAction(gameState, actions, strategy, options =
     }
   }
 
-  // 2. チャージ判断（スキル使用前に行う）
+  // 4. チャージ判断（スキル使用前に行う）
   if (remaining.canCharge && chargeCard) {
     const chargeDecision = strategy.chooseCharge(
       remaining.chargeableCards,
@@ -268,28 +323,28 @@ export function executeAIMainPhaseAction(gameState, actions, strategy, options =
     }
   }
 
-  // 3. スキル使用判断
+  // 5. スキル使用判断
   const skillToUse = strategy.chooseSkill(remaining.usableSkills, gameState);
   if (skillToUse) {
     executeSkill(skillToUse.monsterIndex, skillToUse.skillType);
     return 'skill';
   }
 
-  // 4. 魔法カード使用判断
+  // 6. 魔法カード使用判断
   const magicToUse = strategy.chooseMagicCard(remaining.usableMagicCards, gameState);
   if (magicToUse && activateMagicCard) {
     activateMagicCard(magicToUse);
     return 'magic';
   }
 
-  // 5. トリガー発動判断
+  // 7. トリガー発動判断
   const triggerToActivate = strategy.chooseTrigger(activatableTriggers, gameState);
   if (triggerToActivate) {
     activateTrigger(triggerToActivate);
     return 'trigger';
   }
 
-  // 6. アクションがなければバトルフェイズへ
+  // 8. アクションがなければバトルフェイズへ
   nextPhase();
   return 'end';
 }

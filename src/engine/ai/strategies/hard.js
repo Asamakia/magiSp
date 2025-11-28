@@ -232,4 +232,152 @@ export const hardStrategy = {
 
     return null;
   },
+
+  // フィールドカード配置（戦略的判断・スコアリング）
+  chooseFieldCard(placeableFieldCards, gameState) {
+    if (placeableFieldCards.length === 0) return null;
+
+    const myMonsters = gameState.myField.filter(m => m).length;
+    const opponentMonsters = gameState.opponentField.filter(m => m).length;
+    const turn = gameState.turn || 1;
+
+    // 相手にモンスターが2体以上いて、こちらにいない → モンスター優先
+    if (opponentMonsters >= 2 && myMonsters === 0) return null;
+
+    // 各フィールドカードをスコアリング
+    const scored = placeableFieldCards.map(fieldCard => {
+      let score = 0;
+      const effect = fieldCard.effect || '';
+
+      // === 序盤ボーナス（累積効果は早期配置が有利）===
+      if (turn <= 2) score += 30;
+      else if (turn <= 4) score += 15;
+
+      // === コスト軽減効果 → 最優先 ===
+      if (effect.includes('コスト') && (effect.includes('軽減') || effect.includes('-'))) {
+        score += 50;
+      }
+
+      // === 手札にシナジーモンスターがいるか ===
+      const synergisticMonstersInHand = gameState.myHand.filter(card => {
+        if (card.type !== 'monster') return false;
+        // 属性一致
+        if (card.attribute === fieldCard.attribute) return true;
+        // カテゴリ一致（《ドラゴン》《ブリザードキャット》等）
+        if (effect.includes('《') && card.category) {
+          const categoryMatch = effect.match(/《([^》]+)》/);
+          if (categoryMatch && card.category.includes(categoryMatch[1])) return true;
+        }
+        return false;
+      });
+      score += synergisticMonstersInHand.length * 20;
+
+      // === フィールドにシナジーモンスターがいるか ===
+      const synergisticMonstersOnField = gameState.myField.filter(monster => {
+        if (!monster) return false;
+        if (monster.attribute === fieldCard.attribute) return true;
+        // カテゴリ一致
+        if (effect.includes('《') && monster.category) {
+          const categoryMatch = effect.match(/《([^》]+)》/);
+          if (categoryMatch && monster.category.includes(categoryMatch[1])) return true;
+        }
+        return false;
+      });
+      score += synergisticMonstersOnField.length * 25;
+
+      // === エンドフェイズダメージ効果 ===
+      if (effect.includes('エンドフェイズ') && effect.includes('ダメージ')) {
+        score += opponentMonsters * 10; // 相手モンスターが多いほど有効
+        score += 10; // 基礎点
+      }
+
+      // === SP回復効果 ===
+      if (effect.includes('SP') && (effect.includes('回復') || effect.includes('アクティブ'))) {
+        score += 20;
+      }
+
+      // === 攻撃力アップ効果 ===
+      if (effect.includes('攻撃力') && effect.includes('アップ')) {
+        score += (synergisticMonstersOnField.length + synergisticMonstersInHand.length) * 10;
+      }
+
+      return { card: fieldCard, score };
+    });
+
+    // スコア順にソート
+    scored.sort((a, b) => b.score - a.score);
+
+    // スコア40以上なら配置（閾値で判断）
+    if (scored[0] && scored[0].score >= 40) {
+      return scored[0].card;
+    }
+
+    return null;
+  },
+
+  // フェイズカード配置（戦略的判断・スコアリング）
+  choosePhaseCard(placeablePhaseCards, gameState) {
+    if (placeablePhaseCards.length === 0) return null;
+
+    const myMonsters = gameState.myField.filter(m => m).length;
+    const opponentMonsters = gameState.opponentField.filter(m => m).length;
+    const turn = gameState.turn || 1;
+
+    // 相手にモンスターが2体以上いて、こちらにいない → モンスター優先
+    if (opponentMonsters >= 2 && myMonsters === 0) return null;
+
+    // 各フェイズカードをスコアリング
+    const scored = placeablePhaseCards.map(phaseCard => {
+      let score = 0;
+      const effect = phaseCard.effect || '';
+
+      // === 序盤ボーナス（段階強化のため早期配置が有利）===
+      if (turn <= 2) score += 35;
+      else if (turn <= 4) score += 20;
+
+      // === コスト軽減効果 → 最優先 ===
+      if (effect.includes('コスト') && (effect.includes('軽減') || effect.includes('-'))) {
+        score += 50;
+      }
+
+      // === 手札にシナジーモンスターがいるか ===
+      const synergisticMonstersInHand = gameState.myHand.filter(card => {
+        if (card.type !== 'monster') return false;
+        if (card.attribute === phaseCard.attribute) return true;
+        // カテゴリ一致
+        if (effect.includes('《') && card.category) {
+          const categoryMatch = effect.match(/《([^》]+)》/);
+          if (categoryMatch && card.category.includes(categoryMatch[1])) return true;
+        }
+        return false;
+      });
+      score += synergisticMonstersInHand.length * 20;
+
+      // === フィールドにシナジーモンスターがいるか ===
+      const synergisticMonstersOnField = gameState.myField.filter(monster => {
+        if (!monster) return false;
+        if (monster.attribute === phaseCard.attribute) return true;
+        return false;
+      });
+      score += synergisticMonstersOnField.length * 25;
+
+      // === 手札にチャージ用同属性カードがあるか（段階強化用）===
+      const chargeableCards = gameState.myHand.filter(card =>
+        card.attribute === phaseCard.attribute && card.uniqueId !== phaseCard.uniqueId
+      );
+      score += chargeableCards.length * 10;
+
+      return { card: phaseCard, score };
+    });
+
+    // スコア順にソート
+    scored.sort((a, b) => b.score - a.score);
+
+    // スコア40以上なら配置
+    if (scored[0] && scored[0].score >= 40) {
+      return scored[0].card;
+    }
+
+    return null;
+  },
 };

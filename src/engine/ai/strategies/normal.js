@@ -154,4 +154,74 @@ export const normalStrategy = {
     }
     return null;
   },
+
+  // フィールドカード配置（基本条件判断）
+  chooseFieldCard(placeableFieldCards, gameState) {
+    if (placeableFieldCards.length === 0) return null;
+
+    // 30%の確率で配置しない（判断ミス）
+    if (Math.random() < 0.3) return null;
+
+    const myMonsters = gameState.myField.filter(m => m).length;
+    const opponentMonsters = gameState.opponentField.filter(m => m).length;
+
+    // 相手にモンスターがいて、こちらにいない → モンスター優先（配置しない）
+    if (opponentMonsters > 0 && myMonsters === 0) return null;
+
+    // 同属性モンスターが手札にあるフィールドカードを探す
+    const matchingFieldCard = placeableFieldCards.find(fieldCard => {
+      return gameState.myHand.some(card =>
+        card.type === 'monster' && card.attribute === fieldCard.attribute
+      );
+    });
+
+    // 手札に相性の良いモンスターがあれば配置
+    if (matchingFieldCard) {
+      return matchingFieldCard;
+    }
+
+    // フィールドに同属性モンスターがいれば配置
+    const fieldMatchingCard = placeableFieldCards.find(fieldCard => {
+      return gameState.myField.some(monster =>
+        monster && monster.attribute === fieldCard.attribute
+      );
+    });
+
+    if (fieldMatchingCard) {
+      return fieldMatchingCard;
+    }
+
+    return null;
+  },
+
+  // フェイズカード配置（基本条件判断）
+  choosePhaseCard(placeablePhaseCards, gameState) {
+    if (placeablePhaseCards.length === 0) return null;
+
+    // 30%の確率で配置しない
+    if (Math.random() < 0.3) return null;
+
+    const myMonsters = gameState.myField.filter(m => m).length;
+    const opponentMonsters = gameState.opponentField.filter(m => m).length;
+
+    // 相手にモンスターがいて、こちらにいない → モンスター優先
+    if (opponentMonsters > 0 && myMonsters === 0) return null;
+
+    // 同属性モンスターが手札またはフィールドにあれば配置
+    const matchingPhaseCard = placeablePhaseCards.find(phaseCard => {
+      const hasInHand = gameState.myHand.some(card =>
+        card.type === 'monster' && card.attribute === phaseCard.attribute
+      );
+      const hasOnField = gameState.myField.some(monster =>
+        monster && monster.attribute === phaseCard.attribute
+      );
+      return hasInHand || hasOnField;
+    });
+
+    if (matchingPhaseCard) {
+      return matchingPhaseCard;
+    }
+
+    return null;
+  },
 };
