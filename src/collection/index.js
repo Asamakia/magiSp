@@ -43,6 +43,18 @@ export { collectionManager } from './systems/collectionManager';
 export { currencyManager } from './systems/currencyManager';
 export { packSystem } from './systems/packSystem';
 export { shopSystem } from './systems/shopSystem';
+export {
+  assetCalculator,
+  calculateCardValueBase,
+  calculateCardValueMarket,
+  calculateTotalAssets,
+  createInitialAssetHistory,
+  recordAssetSnapshot,
+  getAssetChartData,
+  getAssetBreakdown,
+  getAssetModeLabel,
+  ASSET_HISTORY_LENGTH,
+} from './systems/assetCalculator';
 
 // ========================================
 // 動的市場システム

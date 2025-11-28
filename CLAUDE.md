@@ -232,10 +232,23 @@ Currently a **prototype version** with local 2-player gameplay and AI opponent s
   - **プリセット連携**: プリセットデッキをレアリティ適用してインポート
 - **2025-11-28 (Market Analysis Screen)**: 市場分析画面実装 ⭐⭐
   - **MarketAnalysis.jsx**: 詳細な市場データの分析・可視化画面
-  - **6タブ構成**: 総合(MSI)・属性・カテゴリ・ティア・イベント・検索
+  - **7タブ構成**: 総合(MSI)・属性・カテゴリ・ティア・資産・イベント・検索
   - **価格履歴チャート**: スパークライン、属性別推移、個別カード検索
   - **注意**: 価格履歴は対戦ごと（1戦=1日）に蓄積。30戦程度で意味のあるデータに
   - **Documentation**: `src/ルール/CardValueSystem/market_system.md` に使い方追記
+- **2025-11-28 (Assets Trend Chart)**: 総資産推移システム実装 ⭐⭐
+  - **assetCalculator.js**: 資産価値計算システム (~240行)
+    - カード価値（基礎価格）計算
+    - カード価値（市場価格）計算
+    - 総資産計算（所持金 + カード価値）
+    - 資産スナップショット記録・履歴管理
+  - **資産タブ**: MarketAnalysis.jsx に💰資産タブを追加
+    - 総資産サマリー（市場価格ベース）
+    - 内訳表示（所持金・カード価値）
+    - 5つの表示モード選択（総資産市場/基礎、所持金、カード価値市場/基礎）
+    - 推移チャート（30戦分）
+  - **playerData拡張**: assetHistory フィールド追加
+  - **統合**: 対戦終了時に資産スナップショットを自動記録
 
 ---
 
@@ -267,7 +280,8 @@ Currently a **prototype version** with local 2-player gameplay and AI opponent s
 │   │   │   ├── collectionManager.js  # Card collection CRUD operations (274 lines)
 │   │   │   ├── currencyManager.js    # Gold management (177 lines)
 │   │   │   ├── packSystem.js         # Pack opening logic (195 lines)
-│   │   │   └── shopSystem.js         # Buy/sell operations (165 lines)
+│   │   │   ├── shopSystem.js         # Buy/sell operations (165 lines)
+│   │   │   └── assetCalculator.js    # Asset value calculation & history (~240 lines) ⭐ NEW
 │   │   ├── market/               # Dynamic market system (~1,609 lines) ⭐ NEW
 │   │   │   ├── index.js          # Market module exports (33 lines)
 │   │   │   ├── marketEngine.js   # Price calculation & state management (323 lines)
@@ -1986,6 +2000,6 @@ This is suitable for expansion into a full game or as a learning project for Rea
 
 ---
 
-**Document Version**: 5.4
-**Last Updated**: 2025-11-28 (Market Analysis Screen - 市場分析画面, ドキュメント更新)
+**Document Version**: 5.5
+**Last Updated**: 2025-11-28 (Assets Trend Chart - 総資産推移システム)
 **For**: Magic Spirit (magiSp) Repository
