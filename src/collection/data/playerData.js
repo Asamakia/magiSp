@@ -6,6 +6,7 @@
 
 import { ECONOMY } from './constants';
 import { createInitialMarketState } from '../market/marketEngine';
+import { createInitialAssetHistory } from '../systems/assetCalculator';
 
 // ========================================
 // スターターデッキ定義
@@ -101,6 +102,9 @@ export const createInitialPlayerData = (starterCards = STARTER_DECK_CARDS) => {
     // 動的市場状態
     market: createInitialMarketState(),
 
+    // 資産履歴
+    assetHistory: createInitialAssetHistory(),
+
     // 統計
     stats: {
       totalBattles: 0,
@@ -137,6 +141,8 @@ export const validatePlayerData = (data) => {
   // marketが存在しない、または不完全な場合は修復が必要
   if (!data.market || typeof data.market !== 'object') return { valid: false, needsRepair: true };
   if (!data.market.priceHistory || typeof data.market.priceHistory !== 'object') return { valid: false, needsRepair: true };
+  // assetHistoryが存在しない場合は修復が必要
+  if (!data.assetHistory || typeof data.assetHistory !== 'object') return { valid: false, needsRepair: true };
   return { valid: true };
 };
 
@@ -162,12 +168,23 @@ export const repairPlayerData = (data) => {
     };
   }
 
+  // assetHistoryの修復
+  let repairedAssetHistory;
+  if (!data.assetHistory || typeof data.assetHistory !== 'object') {
+    repairedAssetHistory = createInitialAssetHistory();
+  } else {
+    repairedAssetHistory = {
+      history: Array.isArray(data.assetHistory.history) ? data.assetHistory.history : [],
+    };
+  }
+
   return {
     gold: typeof data.gold === 'number' ? data.gold : defaults.gold,
     unopenedPacks: typeof data.unopenedPacks === 'number' ? data.unopenedPacks : 0,
     collection: Array.isArray(data.collection) ? data.collection : [],
     userDecks: Array.isArray(data.userDecks) ? data.userDecks : [],
     market: repairedMarket,
+    assetHistory: repairedAssetHistory,
     stats: {
       ...defaults.stats,
       ...(data.stats || {}),

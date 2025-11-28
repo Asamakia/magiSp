@@ -83,6 +83,7 @@ import {
   advanceDay,
   recordPriceHistory,
   calculateMarketModifier,
+  recordAssetSnapshot,
 } from './collection';
 
 // ========================================
@@ -356,6 +357,14 @@ export default function MagicSpiritGame() {
           priceHistory: newPriceHistory,
         },
       };
+
+      // 資産スナップショットを記録
+      updatedPlayerData = recordAssetSnapshot(
+        updatedPlayerData,
+        allCards || [],
+        newMarketState,
+        newMarketState.currentDay
+      );
     }
 
     updatePlayerData(updatedPlayerData);
@@ -3294,6 +3303,7 @@ export default function MagicSpiritGame() {
           <MarketAnalysis
             marketState={playerData?.market}
             allCards={allCards}
+            assetHistory={playerData?.assetHistory}
             onClose={() => setShowMarketAnalysis(false)}
           />
         )}

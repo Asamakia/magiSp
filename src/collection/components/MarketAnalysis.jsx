@@ -25,6 +25,11 @@ import {
   generateSparklineData,
 } from '../market/priceHistory';
 import { PriceChart, MiniChart, MarketIndexDisplay } from './PriceChart';
+import {
+  getAssetChartData,
+  getAssetBreakdown,
+  getAssetModeLabel,
+} from '../systems/assetCalculator';
 
 // ========================================
 // 定数
@@ -37,6 +42,7 @@ const TABS = [
   { id: 'attributes', label: '属性', icon: '🔮' },
   { id: 'categories', label: 'カテゴリ', icon: '🏷️' },
   { id: 'tiers', label: 'ティア', icon: '⭐' },
+  { id: 'assets', label: '資産', icon: '💰' },
   { id: 'events', label: 'イベント', icon: '📰' },
   { id: 'search', label: '検索', icon: '🔍' },
 ];
@@ -728,6 +734,170 @@ const EventsTab = ({ priceHistory, isMobile }) => {
 };
 
 /**
+ * 資産タブ
+ */
+const AssetsTab = ({ assetHistory, isMobile }) => {
+  const styles = createStyles(isMobile);
+  const [displayMode, setDisplayMode] = useState('totalMarket');
+
+  const DISPLAY_MODES = [
+    { id: 'totalMarket', label: '総資産（市場）' },
+    { id: 'totalBase', label: '総資産（基礎）' },
+    { id: 'gold', label: '所持金' },
+    { id: 'cardMarket', label: 'カード価値（市場）' },
+    { id: 'cardBase', label: 'カード価値（基礎）' },
+  ];
+
+  const chartData = getAssetChartData(assetHistory, displayMode);
+  const breakdown = getAssetBreakdown(assetHistory);
+  const hasData = (assetHistory?.history || []).length > 0;
+
+  // スパークラインデータ生成
+  const sparkData = useMemo(() => {
+    if (!chartData.prices || chartData.prices.length === 0) return [];
+    const max = Math.max(...chartData.prices);
+    const min = Math.min(...chartData.prices);
+    const range = max - min || 1;
+    return chartData.prices.map((v) => ((v - min) / range) * 100);
+  }, [chartData.prices]);
+
+  return (
+    <div>
+      {/* 総資産サマリー */}
+      <div style={styles.msiDisplay}>
+        <div style={styles.msiValue}>
+          {breakdown.totalMarket > 0 ? breakdown.totalMarket.toLocaleString() : '---'} G
+        </div>
+        <div style={styles.msiLabel}>総資産（市場価格ベース）</div>
+        {chartData.changePercent !== 0 && (
+          <div style={{ textAlign: 'center', marginTop: '12px' }}>
+            <span style={{ color: getTrendColor(chartData.changePercent), fontSize: '18px' }}>
+              {getTrendIcon(chartData.changePercent)} {chartData.changePercent > 0 ? '+' : ''}{chartData.changePercent}%
+            </span>
+          </div>
+        )}
+      </div>
+
+      {/* 内訳カード */}
+      <div style={{ ...styles.section, marginBottom: '24px' }}>
+        <h3 style={styles.sectionTitle}>📊 資産内訳</h3>
+        <div style={styles.grid}>
+          {/* 所持金 */}
+          <div style={styles.card}>
+            <div style={styles.cardHeader}>
+              <span style={styles.cardTitle}>💰 所持金</span>
+              <span
+                style={{
+                  ...styles.badge,
+                  backgroundColor: '#ffd700',
+                  color: '#000',
+                }}
+              >
+                {breakdown.goldPercent}%
+              </span>
+            </div>
+            <div style={{ fontSize: isMobile ? '20px' : '24px', fontWeight: 'bold', color: '#ffd700' }}>
+              {breakdown.gold.toLocaleString()} G
+            </div>
+          </div>
+
+          {/* カード価値（市場） */}
+          <div style={styles.card}>
+            <div style={styles.cardHeader}>
+              <span style={styles.cardTitle}>🃏 カード価値（市場）</span>
+              <span
+                style={{
+                  ...styles.badge,
+                  backgroundColor: '#4dabf7',
+                  color: '#000',
+                }}
+              >
+                {breakdown.cardPercent}%
+              </span>
+            </div>
+            <div style={{ fontSize: isMobile ? '20px' : '24px', fontWeight: 'bold', color: '#4dabf7' }}>
+              {breakdown.cardValueMarket.toLocaleString()} G
+            </div>
+            <div style={{ fontSize: '12px', color: '#888', marginTop: '4px' }}>
+              基礎: {breakdown.cardValueBase.toLocaleString()} G
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* 表示モード選択 */}
+      <div style={{ ...styles.section, marginBottom: '16px' }}>
+        <h3 style={styles.sectionTitle}>📈 推移チャート</h3>
+        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginBottom: '16px' }}>
+          {DISPLAY_MODES.map((mode) => (
+            <button
+              key={mode.id}
+              onClick={() => setDisplayMode(mode.id)}
+              style={{
+                ...styles.tab,
+                ...(displayMode === mode.id ? styles.tabActive : styles.tabInactive),
+              }}
+            >
+              {mode.label}
+            </button>
+          ))}
+        </div>
+
+        {/* チャート */}
+        {hasData ? (
+          <div style={styles.card}>
+            <div style={styles.cardHeader}>
+              <span style={styles.cardTitle}>{getAssetModeLabel(displayMode)}</span>
+              <span
+                style={{
+                  ...styles.badge,
+                  backgroundColor: getTrendColor(chartData.changePercent),
+                  color: '#000',
+                }}
+              >
+                {chartData.changePercent > 0 ? '+' : ''}{chartData.changePercent}%
+              </span>
+            </div>
+
+            <div style={styles.statRow}>
+              <span style={styles.statLabel}>現在</span>
+              <span style={styles.statValue}>{chartData.currentPrice.toLocaleString()} G</span>
+            </div>
+            <div style={styles.statRow}>
+              <span style={styles.statLabel}>最高</span>
+              <span style={{ ...styles.statValue, color: '#4caf50' }}>{chartData.highPrice.toLocaleString()} G</span>
+            </div>
+            <div style={styles.statRow}>
+              <span style={styles.statLabel}>最安</span>
+              <span style={{ ...styles.statValue, color: '#f44336' }}>{chartData.lowPrice.toLocaleString()} G</span>
+            </div>
+            <div style={styles.statRow}>
+              <span style={styles.statLabel}>変動額</span>
+              <span style={{ ...styles.statValue, color: getTrendColor(chartData.changeAmount) }}>
+                {chartData.changeAmount >= 0 ? '+' : ''}{chartData.changeAmount.toLocaleString()} G
+              </span>
+            </div>
+
+            {chartData.prices.length > 0 && (
+              <div style={{ marginTop: '16px' }}>
+                <Sparkline data={sparkData} color="#ffd700" isMobile={isMobile} />
+              </div>
+            )}
+          </div>
+        ) : (
+          <div style={styles.noData}>
+            <div>資産履歴がありません</div>
+            <div style={{ fontSize: '12px', marginTop: '8px', color: '#666' }}>
+              対戦を行うと資産データが蓄積されます
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+/**
  * 検索タブ
  */
 const SearchTab = ({ priceHistory, allCards, isMobile, onCardSelect }) => {
@@ -863,10 +1033,11 @@ const SearchTab = ({ priceHistory, allCards, isMobile, onCardSelect }) => {
  * @param {Object} props
  * @param {Object} props.marketState - 市場状態
  * @param {Object[]} props.allCards - 全カードデータ
+ * @param {Object} props.assetHistory - 資産履歴（オプション）
  * @param {Function} props.onClose - 閉じるコールバック
  * @param {Function} props.onCardSelect - カード選択コールバック（オプション）
  */
-const MarketAnalysis = ({ marketState, allCards, onClose, onCardSelect }) => {
+const MarketAnalysis = ({ marketState, allCards, assetHistory, onClose, onCardSelect }) => {
   const isMobile = useIsMobile();
   const styles = createStyles(isMobile);
   const [activeTab, setActiveTab] = useState('overview');
@@ -890,6 +1061,8 @@ const MarketAnalysis = ({ marketState, allCards, onClose, onCardSelect }) => {
         return <CategoriesTab priceHistory={priceHistory} isMobile={isMobile} />;
       case 'tiers':
         return <TiersTab priceHistory={priceHistory} isMobile={isMobile} />;
+      case 'assets':
+        return <AssetsTab assetHistory={assetHistory} isMobile={isMobile} />;
       case 'events':
         return <EventsTab priceHistory={priceHistory} isMobile={isMobile} />;
       case 'search':
