@@ -59,9 +59,11 @@
 
 ## ディレクトリ構成
 
+### 実装済み構成
+
 ```
 src/
-├── collection/                    # カードコレクション（新規）
+├── collection/                    # カードコレクションシステム
 │   ├── index.js                   # エクスポート
 │   │
 │   ├── data/                      # データ管理
@@ -86,18 +88,31 @@ src/
 │       ├── CardDetail.jsx         # カード詳細モーダル
 │       └── DeckBuilder.jsx        # デッキ構築
 │
-├── decks/                         # デッキ管理
-│   ├── prebuiltDecks.js           # プリセットデッキ（既存）
-│   └── userDecks.js               # ユーザー作成デッキ（新規）
+├── magic-spirit.jsx               # メインゲームロジック（対戦+UI統合）
+├── engine/                        # 対戦エンジン
+├── components/                    # 対戦UI
+├── decks/                         # プリセットデッキ
+│   └── prebuiltDecks.js
+├── utils/                         # ユーティリティ
+└── styles/                        # スタイル
+```
+
+### 将来の検討事項
+
+```
+# 以下は将来の拡張で検討
+src/
+├── game/                          # 対戦ゲーム（src/直下から移動）
+│   ├── magic-spirit.jsx
+│   ├── engine/
+│   └── components/
 │
-├── game/                          # 対戦ゲーム（既存を移動検討）
-│   ├── magic-spirit.jsx           # メインゲームロジック
-│   ├── engine/                    # 対戦エンジン
-│   └── components/                # 対戦UI
+├── decks/
+│   └── userDecks.js               # ユーザー作成デッキ専用モジュール
 │
-└── shared/                        # 共有
+└── shared/
     └── hooks/
-        └── usePlayerData.js       # プレイヤーデータフック
+        └── usePlayerData.js       # プレイヤーデータ用カスタムフック
 ```
 
 ---
@@ -569,44 +584,49 @@ function resolvePrebuiltDeckRarities(prebuiltDeck, playerData) {
 
 ## 実装フェーズ
 
-### Phase 1: データ基盤
+### Phase 1: データ基盤 ✅ 完了
 - `src/collection/data/storage.js`
 - `src/collection/data/playerData.js`
 - `src/collection/data/constants.js`
+- `src/collection/data/migration.js`
 - `src/collection/index.js`
 
-### Phase 2: コアシステム
+### Phase 2: コアシステム ✅ 完了
 - `src/collection/systems/valueCalculator.js`
 - `src/collection/systems/raritySystem.js`
 - `src/collection/systems/collectionManager.js`
 - `src/collection/systems/currencyManager.js`
 - `src/collection/systems/packSystem.js`
+- `src/collection/systems/shopSystem.js`
 
-### Phase 3: コレクションUI
+### Phase 3: コレクションUI ✅ 完了
 - `src/collection/components/CollectionScreen.jsx`
 - `src/collection/components/CardGrid.jsx`
 - `src/collection/components/CardDetail.jsx`
 - タイトル画面への導線追加
 
-### Phase 4: パック・ショップ
+### Phase 4: パック・ショップ ✅ 完了
 - `src/collection/components/ShopScreen.jsx`
 - `src/collection/components/PackOpening.jsx`
-- `src/collection/systems/shopSystem.js`
 
-### Phase 5: ゲーム統合
-- 対戦終了時の報酬付与
-- プリセットデッキのレアリティ解決
+### Phase 5: ゲーム統合 ✅ 完了
+- 対戦終了時の報酬付与（G + 勝利パック）
+- タイトル画面にコレクション/ショップ/デッキ編集ボタン
 - デッキ構築画面（`DeckBuilder.jsx`）
+- プレイヤーデータのlocalStorage永続化
 
 ---
 
 ## 将来の拡張予定
 
+- プリセットデッキのレアリティ解決（所持カードに最高レアリティ適用）
+- ユーザー作成デッキでの対戦
 - 属性別パック
 - 新カードパック
 - トレード機能
 - クラウド同期
 - 実績システム
+- src/game/ へのファイル構成移動
 
 ---
 
@@ -615,3 +635,4 @@ function resolvePrebuiltDeckRarities(prebuiltDeck, playerData) {
 | バージョン | 日付 | 変更内容 |
 |------------|------|----------|
 | 1.0 | 2025-11-28 | 初版作成 |
+| 1.1 | 2025-11-28 | 全フェーズ実装完了、ディレクトリ構成を実態に合わせて更新 |

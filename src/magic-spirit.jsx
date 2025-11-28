@@ -73,6 +73,7 @@ import {
   CollectionScreen,
   ShopScreen,
   PackOpening,
+  DeckBuilder,
 } from './collection';
 
 // ========================================
@@ -96,7 +97,7 @@ export default function MagicSpiritGame() {
   const [isLoadingCards, setIsLoadingCards] = useState(true);
 
   // ゲーム状態
-  const [gameState, setGameState] = useState('title'); // title, playing, gameOver, collection, shop, packOpening
+  const [gameState, setGameState] = useState('title'); // title, playing, gameOver, collection, shop, packOpening, deckEdit
   const [turn, setTurn] = useState(1);
   const [currentPlayer, setCurrentPlayer] = useState(1);
   const [phase, setPhase] = useState(0);
@@ -109,6 +110,7 @@ export default function MagicSpiritGame() {
   const [cardValueMap, setCardValueMap] = useState(null); // カード価値マップ
   const [pendingPackCards, setPendingPackCards] = useState(null); // 開封待ちパックカード
   const [battleReward, setBattleReward] = useState(null); // 対戦報酬 { goldReward, packReward, isWin }
+  const [editingDeck, setEditingDeck] = useState(null); // デッキ編集中のデッキ（nullなら新規）
 
   // プレイヤー1の状態
   const [p1Life, setP1Life] = useState(INITIAL_LIFE);
@@ -325,6 +327,34 @@ export default function MagicSpiritGame() {
       updatePlayerData(result.playerData);
     }
   }, [playerData, cardValueMap, updatePlayerData]);
+
+  // デッキ保存
+  const handleSaveDeck = useCallback((deck) => {
+    if (!playerData) return;
+
+    const userDecks = playerData.userDecks || [];
+    const existingIndex = userDecks.findIndex(d => d.id === deck.id);
+
+    let newUserDecks;
+    if (existingIndex >= 0) {
+      // 既存デッキの更新
+      newUserDecks = [...userDecks];
+      newUserDecks[existingIndex] = deck;
+    } else {
+      // 新規デッキの追加
+      newUserDecks = [...userDecks, deck];
+    }
+
+    const newPlayerData = {
+      ...playerData,
+      userDecks: newUserDecks,
+      updatedAt: Date.now(),
+    };
+
+    updatePlayerData(newPlayerData);
+    setEditingDeck(null);
+    setGameState('title');
+  }, [playerData, updatePlayerData]);
 
   // ========================================
   // ゲーム初期化
@@ -2993,11 +3023,13 @@ export default function MagicSpiritGame() {
                 ゲーム開始
               </button>
 
-              {/* コレクション・ショップボタン */}
+              {/* コレクション・ショップ・デッキ編集ボタン */}
               <div style={{
                 display: 'flex',
-                gap: '16px',
+                gap: '12px',
                 marginTop: '8px',
+                flexWrap: 'wrap',
+                justifyContent: 'center',
               }}>
                 <button
                   onClick={() => setGameState('collection')}
@@ -3005,7 +3037,7 @@ export default function MagicSpiritGame() {
                     ...styles.actionButton,
                     background: 'linear-gradient(135deg, #6b4ce6 0%, #9d4ce6 100%)',
                     fontSize: '14px',
-                    padding: '10px 24px',
+                    padding: '10px 20px',
                   }}
                 >
                   📚 コレクション
@@ -3017,10 +3049,24 @@ export default function MagicSpiritGame() {
                     background: 'linear-gradient(135deg, #ffd700 0%, #ff9500 100%)',
                     color: '#1a1a2e',
                     fontSize: '14px',
-                    padding: '10px 24px',
+                    padding: '10px 20px',
                   }}
                 >
                   🛒 ショップ
+                </button>
+                <button
+                  onClick={() => {
+                    setEditingDeck(null);
+                    setGameState('deckEdit');
+                  }}
+                  style={{
+                    ...styles.actionButton,
+                    background: 'linear-gradient(135deg, #4ecdc4 0%, #44a08d 100%)',
+                    fontSize: '14px',
+                    padding: '10px 20px',
+                  }}
+                >
+                  🃏 デッキ編集
                 </button>
               </div>
 
@@ -3072,6 +3118,23 @@ export default function MagicSpiritGame() {
         cards={pendingPackCards}
         onClose={handlePackOpeningClose}
         existingCollection={playerData?.collection || []}
+      />
+    );
+  }
+
+  // デッキ編集画面
+  if (gameState === 'deckEdit') {
+    return (
+      <DeckBuilder
+        playerData={playerData}
+        allCards={allCards}
+        cardValueMap={cardValueMap}
+        editingDeck={editingDeck}
+        onBack={() => {
+          setEditingDeck(null);
+          setGameState('title');
+        }}
+        onSave={handleSaveDeck}
       />
     );
   }

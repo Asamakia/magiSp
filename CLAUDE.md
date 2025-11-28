@@ -202,14 +202,17 @@ Currently a **prototype version** with local 2-player gameplay and AI opponent s
     - effectHelpers.js: reviveFromGraveyard() - usedSkillThisTurn初期化
     - FieldMonster.jsx: charge icon display (💠/🃏)
     - aiController.js: getUsableSkills() - 発動済みスキップ
-- **2025-11-28 (Card Collection System Design)**: カードコレクションシステム設計 ⭐⭐⭐⭐⭐ **NEW**
-  - **対戦システムとは独立したモジュール**として設計
+- **2025-11-28 (Card Collection System)**: カードコレクションシステム実装完了 ⭐⭐⭐⭐⭐
+  - **対戦システムとは独立したモジュール** `src/collection/`
   - **カード価値計算システム**: 基礎価値・ティア（S/A/B/C/D）・レアリティ（10種）
   - **コレクション管理**: 所持カード（カードID + レアリティ + 枚数）
   - **経済システム**: 通貨G、初期10,000G、対戦報酬5,000G、パック3,500G
   - **パック開封**: 5枚/パック、闇鍋形式（将来属性別パック拡張予定）
-  - **プリセットデッキ連携**: 未所持カードはC版、所持カードは最高レアリティ適用
-  - **スターターデッキ**: 新規プレイヤーに特定デッキをC版で付与
+  - **UI実装**: コレクション画面、ショップ画面、パック開封演出、デッキ構築
+  - **ゲーム統合**: タイトル画面にG表示・コレクション/ショップ/デッキ編集ボタン
+  - **対戦報酬**: ゲーム終了時に5,000G + 勝利時パック1個
+  - **デッキ構築**: 所持カードから40枚デッキを作成（同名4枚まで、禁忌1枚まで）
+  - **スターターデッキ**: 新規プレイヤーに炎ドラゴンデッキをC版で付与
   - **永続化**: localStorage（将来IndexedDB/クラウド移行可能な抽象化）
   - **Documentation**: `src/ルール/CardValueSystem/collection-system-design.md`
 

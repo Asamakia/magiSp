@@ -57,5 +57,5 @@ export { default as CardDetail } from './components/CardDetail';
 export { default as ShopScreen } from './components/ShopScreen';
 export { default as PackOpening } from './components/PackOpening';
 
-// Phase 5で実装予定
-// export { default as DeckBuilder } from './components/DeckBuilder';
+// Phase 5: デッキ構築
+export { default as DeckBuilder } from './components/DeckBuilder';
