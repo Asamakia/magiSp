@@ -1678,6 +1678,38 @@ if (selectMode && onSelect && result.selectedCards) {
 }
 ```
 
+#### AIアクション空振り時フリーズ問題 (2025-11-28)
+
+**症状**: AIがスキルを発動したが、ターゲットが存在しない場合（例：「相手フィールドにモンスターがいません」）、AIがフリーズして進まなくなる
+
+**原因**:
+- `executeAIMainPhaseAction` は1アクションごとに実行して戻る
+- useEffectは依存配列のstateが変化したときのみ再トリガーされる
+- スキルが「空振り」（対象なし）の場合、stateが変化しない
+- stateが変化しないためuseEffectが再トリガーされず、AIがフリーズ
+
+**修正**:
+```javascript
+// 新規state追加
+const [aiActionCounter, setAiActionCounter] = useState(0);
+
+// initGameでリセット
+setAiActionCounter(0);
+
+// AIアクション実行後にインクリメント（メインフェイズ・バトルフェイズ両方）
+setAiActionCounter(prev => prev + 1);
+
+// useEffectの依存配列に追加
+}, [
+  // ...既存の依存配列
+  aiActionCounter, // AIアクション空振り時も再トリガーするため
+]);
+```
+
+**影響範囲**: AI専用。人間プレイヤーには影響なし
+
+---
+
 ### 11.2 既知の制限事項
 
 | 項目 | 説明 |
@@ -1697,10 +1729,11 @@ if (selectMode && onSelect && result.selectedCards) {
 | 1.1 | 2025-11-27 | 実装完了、バトルフェイズ修正、デッキ確認修正 |
 | 1.2 | 2025-11-27 | チャージ機能追加（Normal/Hard）、属性チェック・技チェック条件追加 |
 | 1.3 | 2025-11-28 | フィールドカード/フェイズカード配置AI追加（Easy/Normal/Hard全難易度） |
+| 1.4 | 2025-11-28 | AIアクション空振り時フリーズ問題修正（aiActionCounter追加） |
 
 ---
 
-**ドキュメントバージョン**: 1.3
+**ドキュメントバージョン**: 1.4
 **作成日**: 2025-11-27
 **最終更新**: 2025-11-28
 **対象**: Magic Spirit AIプレイヤーシステム
