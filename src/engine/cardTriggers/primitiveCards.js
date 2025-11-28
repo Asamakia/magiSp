@@ -195,17 +195,14 @@ export const primitiveCardTriggers = {
           currentPlayer,
           p1Field,
           p2Field,
-          setP1Field,
-          setP2Field,
           card,
           slotIndex,
           addLog,
+          setPendingMonsterTarget,
         } = context;
 
         const currentField = currentPlayer === 1 ? p1Field : p2Field;
         const opponentField = currentPlayer === 1 ? p2Field : p1Field;
-        const setOpponentField = currentPlayer === 1 ? setP2Field : setP1Field;
-        const setField = currentPlayer === 1 ? setP1Field : setP2Field;
 
         // 場の粘液獣の数をカウント
         const slimeCount = currentField.filter(
@@ -220,29 +217,53 @@ export const primitiveCardTriggers = {
           return false;
         }
 
-        // 相手モンスターを破壊可能かチェック
-        const targetIndex = opponentField.findIndex((m) => m !== null);
-        if (targetIndex === -1) {
+        // 相手モンスターがいるかチェック
+        const hasOpponentMonster = opponentField.some((m) => m !== null);
+        if (!hasOpponentMonster) {
           addLog('苗床粘液獣: 捕食する対象がいない', 'info');
           return false;
         }
 
-        // TODO: UI実装時に対象選択が必要
-        // 現在は最初のモンスターを対象とする
-        destroyMonster(context, targetIndex, true);
-
-        // 攻撃力アップ（最大1500まで）
-        const currentField2 = currentPlayer === 1 ? p1Field : p2Field;
-        const currentMonster = currentField2[slotIndex];
+        // 攻撃力上限チェック
+        const currentMonster = currentField[slotIndex];
         if (currentMonster) {
-          const currentBonus = (currentMonster.currentAttack || currentMonster.attack) - currentMonster.attack;
-          if (currentBonus < 1500) {
-            modifyAttack(context, 300, slotIndex, false, true);
-            addLog('苗床粘液獣が相手モンスターを捕食し、攻撃力+300！', 'info');
-          } else {
-            addLog('苗床粘液獣: 攻撃力上昇は最大値に達している', 'info');
+          const baseAttack = currentMonster.attack - (currentMonster.predationBonus || 0);
+          const currentBonus = currentMonster.predationBonus || 0;
+          if (currentBonus >= 1500) {
+            addLog('苗床粘液獣: 攻撃力上昇は最大値(+1500)に達している', 'info');
+            return false;
           }
         }
+
+        // モンスター選択UIを表示
+        setPendingMonsterTarget({
+          message: '捕食する相手モンスターを選択してください',
+          targetPlayer: 'opponent',
+          callback: (targetIndex) => {
+            // 破壊処理
+            destroyMonster(context, targetIndex, true);
+
+            // 攻撃力アップ（最大1500まで）
+            modifyAttack(context, 300, slotIndex, false, true);
+
+            // 捕食ボーナスを記録（上限管理用）
+            const field = currentPlayer === 1 ? p1Field : p2Field;
+            const setField = currentPlayer === 1 ? context.setP1Field : context.setP2Field;
+            setField((prev) =>
+              prev.map((m, idx) => {
+                if (idx === slotIndex && m) {
+                  return {
+                    ...m,
+                    predationBonus: (m.predationBonus || 0) + 300,
+                  };
+                }
+                return m;
+              })
+            );
+
+            addLog('苗床粘液獣が相手モンスターを捕食した！', 'info');
+          },
+        });
 
         return true;
       },

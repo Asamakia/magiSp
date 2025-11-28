@@ -609,10 +609,13 @@ export const modifyAttack = (context, amount, targetIndex = null, isOpponent = f
 
   setTargetField(prev => prev.map((m, idx) => {
     if (idx === useIndex && m) {
-      const newAttack = Math.max(0, m.attack + amount);
+      const baseAttack = m.attack;
+      const currentAtk = m.currentAttack !== undefined ? m.currentAttack : m.attack;
+      const newAttack = Math.max(0, baseAttack + amount);
+      const newCurrentAttack = Math.max(0, currentAtk + amount);
       const actionText = amount > 0 ? 'アップ' : 'ダウン';
-      addLog(`${m.name}の攻撃力が${Math.abs(amount)}${actionText}！（攻撃力: ${newAttack}）`, amount > 0 ? 'heal' : 'damage');
-      return { ...m, attack: newAttack };
+      addLog(`${m.name}の攻撃力が${Math.abs(amount)}${actionText}！（攻撃力: ${newCurrentAttack}）`, amount > 0 ? 'heal' : 'damage');
+      return { ...m, attack: newAttack, currentAttack: newCurrentAttack };
     }
     return m;
   }));
