@@ -26,7 +26,7 @@ export const monsterCardEffects = {
       description: '場にいる粘液獣1体につき自身の攻撃力を1500アップ（自身は含めない）',
       valueCalculator: VALUE_CALCULATOR_TYPES.COUNT_MULTIPLY,
       baseValue: 1500,
-      countCondition: { category: '【粘液獣】', excludeSelf: true },
+      countCondition: { nameIncludes: '粘液獣', excludeSelf: true },
       target: TARGET_TYPES.SELF_CARD,
     },
   ],
