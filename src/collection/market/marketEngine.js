@@ -71,6 +71,21 @@ export const isCardAffected = (card, target, rarity = null, tier = null) => {
     }
   }
 
+  // レアリティチェック（最大）
+  if (target.maxRarity && rarity) {
+    const rarityOrder = ['C', 'UC', 'R', 'SR', 'UR', 'HR', 'SEC', 'ALT', 'SP', 'GR'];
+    const maxIndex = rarityOrder.indexOf(target.maxRarity);
+    const cardIndex = rarityOrder.indexOf(rarity);
+    if (cardIndex > maxIndex) {
+      return false;
+    }
+  }
+
+  // カードタイプチェック
+  if (target.type && card.type !== target.type) {
+    return false;
+  }
+
   // ティアチェック
   if (target.tiers && tier) {
     if (!target.tiers.includes(tier)) {
@@ -117,8 +132,19 @@ export const calculateMarketModifier = (card, marketState, rarity = null, tier =
 
   // 2. デイリーニュースの効果
   if (marketState.dailyNews) {
-    if (isCardAffected(card, marketState.dailyNews.target, rarity, tier)) {
-      totalModifier += marketState.dailyNews.modifier;
+    // 比較型ニュース（複数ターゲット）
+    if (marketState.dailyNews.type === 'comparison' && marketState.dailyNews.targets) {
+      for (const targetInfo of marketState.dailyNews.targets) {
+        if (isCardAffected(card, targetInfo.target, rarity, tier)) {
+          totalModifier += targetInfo.modifier;
+        }
+      }
+    }
+    // 通常ニュース（単一ターゲット）
+    else if (marketState.dailyNews.target) {
+      if (isCardAffected(card, marketState.dailyNews.target, rarity, tier)) {
+        totalModifier += marketState.dailyNews.modifier;
+      }
     }
   }
 
@@ -179,11 +205,26 @@ export const getCardMarketPrice = (card, baseValue, marketState, rarity = null, 
     }
   }
 
-  if (marketState.dailyNews && isCardAffected(card, marketState.dailyNews.target, rarity, tier)) {
-    breakdown.push({
-      source: 'デイリー',
-      modifier: `${marketState.dailyNews.modifier > 0 ? '+' : ''}${marketState.dailyNews.modifier}%`,
-    });
+  if (marketState.dailyNews) {
+    // 比較型ニュース（複数ターゲット）
+    if (marketState.dailyNews.type === 'comparison' && marketState.dailyNews.targets) {
+      for (const targetInfo of marketState.dailyNews.targets) {
+        if (isCardAffected(card, targetInfo.target, rarity, tier)) {
+          const label = targetInfo.target.label || (targetInfo.target.attribute ? `${targetInfo.target.attribute}属性` : '対象');
+          breakdown.push({
+            source: `デイリー: ${label}`,
+            modifier: `${targetInfo.modifier > 0 ? '+' : ''}${targetInfo.modifier}%`,
+          });
+        }
+      }
+    }
+    // 通常ニュース（単一ターゲット）
+    else if (marketState.dailyNews.target && isCardAffected(card, marketState.dailyNews.target, rarity, tier)) {
+      breakdown.push({
+        source: 'デイリー',
+        modifier: `${marketState.dailyNews.modifier > 0 ? '+' : ''}${marketState.dailyNews.modifier}%`,
+      });
+    }
   }
 
   if (marketState.suddenEvent) {
@@ -250,7 +291,7 @@ export const advanceDay = (marketState) => {
 
   // デイリーニュースの更新
   const recentNews = marketState.recentNews || [];
-  const newNews = generateDailyNews(recentNews.slice(-10));
+  const newNews = generateDailyNews(recentNews.slice(-10), newDay);
   newState.dailyNews = newNews;
 
   // 直近ニュース履歴を更新
