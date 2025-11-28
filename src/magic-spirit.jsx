@@ -89,7 +89,6 @@ import {
   purchaseFromMerchant,
   sellToMerchant,
   collectionManager,
-  getCardMarketPrice,
 } from './collection';
 
 // ========================================
@@ -3394,7 +3393,6 @@ export default function MagicSpiritGame() {
           };
           updatePlayerData(newPlayerData);
         }}
-        getMarketPrice={(cardId) => getCardMarketPrice(cardId, playerData?.market, cardValueMap)}
       />
     );
   }

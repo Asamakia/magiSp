@@ -383,6 +383,7 @@ const MerchantShop = ({
   playerData,
   dayId = 0,
   allCards = [],
+  cardValueMap = null,
   onBack,
   onPurchase,
   onSell,
@@ -400,10 +401,19 @@ const MerchantShop = ({
   const favInfo = getFavorabilityInfo(favLevel);
   const nextLevel = getNextLevelProgress(favorability.transactions);
 
-  // 市場価格取得関数
+  // 市場価格取得関数（cardValueMapを使用して正しく計算）
   const getMarketPrice = (card, rarity) => {
-    if (!playerData?.market) return 100;
-    return getCardMarketPrice(card, rarity, playerData.market);
+    if (!playerData?.market || !cardValueMap) return 100;
+
+    const valueInfo = cardValueMap.get(card.id);
+    if (!valueInfo) return 100;
+
+    // レアリティに応じた基礎価格を取得
+    const baseValue = valueInfo.rarityValues?.[rarity] || valueInfo.baseValue || 100;
+
+    // 市場価格を計算
+    const result = getCardMarketPrice(card, baseValue, playerData.market, rarity, valueInfo.tier);
+    return result?.price || baseValue;
   };
 
   // 品揃え生成

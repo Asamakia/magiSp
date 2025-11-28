@@ -2,13 +2,52 @@
 
 作成日: 2025年11月28日
 更新日: 2025年11月28日
-バージョン: v2.0
+バージョン: v2.1
 
-> **⚠️ 実装状況: 未実装（仕様書のみ）**
+> **📊 実装状況: Phase 1 完了（基盤実装済み）**
 >
-> このドキュメントは将来実装予定の商人NPCシステムの仕様書です。
-> 現在はパック購入とコレクション画面からの売却のみが実装されています。
+> - ✅ Phase 1: 商人ギルド画面、店内画面、基本売買
+> - ⚠️ Phase 2: 曜日制・出現判定（一部実装）
+> - ✅ Phase 3: 好感度システム（実装済み）
+> - ⏳ Phase 4-9: 未実装
+>
 > 関連ドキュメント: `collection-system-design.md`, `market_system.md`
+
+---
+
+## フォルダ構成
+
+```
+src/collection/
+├── merchant/                    # 商人システム (~850行)
+│   ├── index.js                 # モジュールエクスポート
+│   ├── constants.js             # 定数定義 (~200行)
+│   │   ├── MERCHANT_TYPES       # 商人タイプ
+│   │   ├── FAVORABILITY_LEVELS  # 好感度レベル定義
+│   │   ├── SELL_PRICE_MULTIPLIERS # 販売価格倍率
+│   │   ├── BUY_PRICE_MULTIPLIERS  # 買取価格倍率
+│   │   ├── PRICE_LAG            # 相場認識ラグ
+│   │   ├── STOCK_RARITY         # 品揃えレアリティ分布
+│   │   ├── WEEKDAY_MERCHANTS    # 曜日商人マッピング
+│   │   └── APPEARANCE_CHANCE    # 出現確率
+│   ├── merchantData.js          # 商人データ (~350行)
+│   │   ├── MERCHANTS            # 全15商人定義
+│   │   └── COLLECTORS           # コレクター6人定義
+│   └── merchantSystem.js        # コアロジック (~300行)
+│       ├── getFavorabilityLevel()    # 好感度レベル計算
+│       ├── calculateSellPrice()      # 販売価格計算
+│       ├── calculateBuyPrice()       # 買取価格計算
+│       ├── generateStock()           # 品揃え生成
+│       ├── purchaseFromMerchant()    # 購入処理
+│       └── sellToMerchant()          # 売却処理
+│
+├── components/
+│   ├── MerchantGuild.jsx        # 商人ギルド画面 (~380行)
+│   └── MerchantShop.jsx         # 商人店内画面 (~600行)
+│
+└── data/
+    └── playerData.js            # merchantData追加済み
+```
 
 ---
 
@@ -806,17 +845,38 @@ merchantData: {
 
 ## 実装フェーズ
 
-| フェーズ | 内容 | 規模 |
-|----------|------|------|
-| **Phase 1** | 商人ギルド画面、店内画面、基本売買 | 大 |
-| **Phase 2** | 曜日制、出現判定、品揃え生成 | 中 |
-| **Phase 3** | 好感度システム | 中 |
-| **Phase 4** | 在庫・仕入れシステム | 中 |
-| **Phase 5** | 呼び出しチケット | 小 |
-| **Phase 6** | ウィッシュリスト、UI/UX改善 | 小 |
-| **Phase 7** | 噂話システム（市場連動） | 中 |
-| **Phase 8** | 依頼システム | 大 |
-| **Phase 9** | トレードシステム | 中 |
+| フェーズ | 内容 | 規模 | 状況 |
+|----------|------|------|------|
+| **Phase 1** | 商人ギルド画面、店内画面、基本売買 | 大 | ✅ 完了 |
+| **Phase 2** | 曜日制、出現判定、品揃え生成 | 中 | ⚠️ 一部（品揃え生成済、曜日UIは未連携） |
+| **Phase 3** | 好感度システム | 中 | ✅ 完了（計算・UI表示） |
+| **Phase 4** | 在庫・仕入れシステム | 中 | ⏳ 未実装 |
+| **Phase 5** | 呼び出しチケット | 小 | ⏳ 未実装 |
+| **Phase 6** | ウィッシュリスト、UI/UX改善 | 小 | ⏳ 未実装 |
+| **Phase 7** | 噂話システム（市場連動） | 中 | ⏳ 未実装 |
+| **Phase 8** | 依頼システム | 大 | ⏳ 未実装 |
+| **Phase 9** | トレードシステム | 中 | ⏳ 未実装 |
+
+### Phase 1 実装詳細
+
+**実装ファイル:**
+- `src/collection/merchant/constants.js` (~200行)
+- `src/collection/merchant/merchantData.js` (~350行)
+- `src/collection/merchant/merchantSystem.js` (~300行)
+- `src/collection/components/MerchantGuild.jsx` (~380行)
+- `src/collection/components/MerchantShop.jsx` (~600行)
+- `src/collection/data/playerData.js` (merchantData追加)
+- `src/magic-spirit.jsx` (商人ギルドボタン、画面遷移)
+
+**実装済み機能:**
+- 15商人の定義（属性6、一般1、闇1、旅1、コレクター6）
+- 商人ギルド画面（カテゴリ分類表示）
+- 商人店内画面（購入/売却モード切替）
+- 品揃え生成（レアリティ分布、確定枠対応）
+- 価格計算（販売価格、買取価格）
+- 好感度表示・計算
+- 市場価格連動（cardValueMap + marketState使用）
+- ソート機能（価格、レアリティ、名前）
 
 ---
 
@@ -836,3 +896,4 @@ merchantData: {
 | v1.1 | 2025-11-28 | 属性商人を曜日制に変更 |
 | v1.2 | 2025-11-28 | 噂話、依頼、トレードシステム追加 |
 | v2.0 | 2025-11-28 | 大幅改訂: 価格設計詳細化、好感度システム、在庫システム、呼び出しチケット、ウィッシュリスト、品揃えレアリティ設計、データ構造、実装フェーズ追加 |
+| v2.1 | 2025-11-28 | Phase 1 実装完了、フォルダ構成追加、進捗状況更新 |
