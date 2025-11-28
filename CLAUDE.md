@@ -137,7 +137,7 @@ Currently a **prototype version** with local 2-player gameplay and AI opponent s
 - **2025-11-27 (AI Charge Mechanics)**: AI charge functionality ⭐
   - **AI charge decision**: AI can now charge monsters to empower them
   - **Charge conditions**: Intelligent targeting for charge actions
-- **2025-11-27 (Bug Fixes & Card Implementations)**: Multiple fixes and new card effects ⭐⭐ **NEW**
+- **2025-11-27 (Bug Fixes & Card Implementations)**: Multiple fixes and new card effects ⭐⭐
   - **Fixed log duplication**: setState callback内のaddLog呼び出しを修正
   - **Fixed monster removal**: 魔法・技によるダメージでHP0になったモンスターが墓地送りされないバグを修正
   - **Fixed field card overwrite**: フィールドカード上書き時に既存カードを墓地に送る処理を追加
@@ -147,6 +147,18 @@ Currently a **prototype version** with local 2-player gameplay and AI opponent s
     - 魔女エリザヴェット・ヴェイルの基本技
     - ブリザードキャット・スノウの基本技
     - フレア・ドラゴンの基本技
+- **2025-11-28 (Revival System & Attack Modifier Fix)**: 蘇生システム改善と攻撃力修正バグ修正 ⭐⭐ **NEW**
+  - **reviveFromGraveyard柔軟化**: オプションオブジェクト形式に拡張
+    - `{ attackHalf: true }`: 攻撃力のみ半減（フレイマ等）
+    - `{ hpHalf: true }`: HPのみ半減（氷の双尾猫）
+    - `{ attackHalf: true, hpHalf: true }`: 両方半減
+    - `{ fixedAttack: 300, fixedHp: 800 }`: 固定値指定
+    - 後方互換性: `true`/`false` の旧形式もサポート
+  - **currentAttack初期化漏れ修正**: 蘇生・特殊召喚時のプロパティ初期化を修正
+    - effectHelpers.js: reviveFromGraveyardでcurrentAttack, charges, statusEffectsを正しく設定
+    - darkCards.js: 闇属性の特殊召喚、攻撃力半減/増加効果でcurrentAttackも更新
+    - waterCards.js, primitiveCards.js, cardEffects/dark.js, future.js, water.js: 同様の修正
+  - **常時効果との連携**: ドラゴンの火山などの攻撃力修正が蘇生モンスターにも正しく適用
 
 ---
 
@@ -540,7 +552,7 @@ The game uses React hooks with extensive state:
 1. **`millDeck(context, count)`**: Mill cards from deck to graveyard
 2. **`conditionalDamage(context, damage, target, targetIndex)`**: Apply damage with targeting
 3. **`searchCard(context, condition)`**: Search deck for card matching condition
-4. **`reviveFromGraveyard(context, condition, weakened)`**: Revive monster from graveyard
+4. **`reviveFromGraveyard(context, condition, options)`**: Revive monster from graveyard (options: boolean or object)
 5. **`destroyMonster(context, targetIndex, isOpponent)`**: Destroy target monster
 6. **`drawCards(context, count)`**: Draw cards from deck
 7. **`healLife(context, amount, isSelf)`**: Heal life points
@@ -729,9 +741,13 @@ The effect helper library provides 9 reusable functions for common card effect p
 - Example: `(card) => card.attribute === '炎'`
 - Returns: Found card or null
 
-**5. reviveFromGraveyard(context, condition, weakened)**
+**5. reviveFromGraveyard(context, condition, options)**
 - Revive monster from graveyard matching condition
-- weakened=true: Half attack/HP
+- Options (boolean for backward compatibility, or object):
+  - `true` or `{ attackHalf: true }`: Attack halved only
+  - `{ hpHalf: true }`: HP halved only
+  - `{ attackHalf: true, hpHalf: true }`: Both halved
+  - `{ fixedAttack: 300, fixedHp: 800 }`: Fixed values
 - Returns: boolean (success)
 
 **6. destroyMonster(context, targetIndex, isOpponent)**
