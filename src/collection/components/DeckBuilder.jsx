@@ -167,7 +167,8 @@ const styles = {
   },
   cardQuantity: {
     fontSize: '10px',
-    color: '#a0a0a0',
+    color: '#ffffff',
+    textShadow: '0 1px 2px rgba(0,0,0,0.8)',
   },
   cardDisabled: {
     opacity: 0.4,
