@@ -9,7 +9,10 @@ import {
   searchCard,
   reviveFromGraveyard,
   modifyAttack,
+  applyAwakening,
+  selectAndApplyAwakening,
 } from '../effectHelpers';
+import { statusEffectEngine, STATUS_EFFECT_TYPES } from '../statusEffects';
 import { hasCategory } from '../../utils/helpers';
 
 /**
@@ -951,6 +954,89 @@ export const fireCardEffects = {
     addLog(`狸の業火: 相手プレイヤーに${damage}ダメージ！`, 'damage');
 
     return true;
+  },
+
+  /**
+   * C0000023: レッドバーストドラゴン
+   * 【覚醒】キーワード持ち
+   * 基本技：自分の手札を1枚捨てて、このカードの攻撃力をターン終了時まで1000アップ。
+   *         ※基本技発動で覚醒状態になる（覚醒時効果: 攻撃力+1000）
+   */
+  C0000023: (skillText, context) => {
+    const { addLog, monsterIndex, setPendingHandSelection } = context;
+    const { myField, myHand, setMyField, setMyHand, setMyGraveyard } = getPlayerContext(context);
+
+    if (context.skillType === 'basic') {
+      const monster = myField[monsterIndex];
+      if (!monster) {
+        addLog('モンスターが存在しません', 'info');
+        return false;
+      }
+
+      // 手札がない場合は発動不可
+      if (myHand.length === 0) {
+        addLog('手札がありません', 'info');
+        return false;
+      }
+
+      // 手札が1枚の場合は自動選択
+      if (myHand.length === 1) {
+        const discardedCard = myHand[0];
+        setMyHand([]);
+        setMyGraveyard(prev => [...prev, discardedCard]);
+        addLog(`${monster.name}の基本技: 手札から${discardedCard.name}を捨てた`, 'info');
+
+        // 覚醒状態にする（ATK+1000）
+        // ※基本技のATK+1000効果は覚醒状態のATK+1000として実装
+        applyAwakening(context, monsterIndex, 1000, 'レッドバーストドラゴン');
+        return true;
+      }
+
+      // 複数の場合は手札選択UI
+      if (setPendingHandSelection) {
+        setPendingHandSelection({
+          message: '捨てるカードを選択してください',
+          callback: (selectedCard) => {
+            setMyHand(prev => prev.filter(c => c.uniqueId !== selectedCard.uniqueId));
+            setMyGraveyard(prev => [...prev, selectedCard]);
+            addLog(`${monster.name}の基本技: 手札から${selectedCard.name}を捨てた`, 'info');
+
+            // 覚醒状態にする（ATK+1000）
+            applyAwakening(context, monsterIndex, 1000, 'レッドバーストドラゴン');
+          },
+        });
+        return true;
+      }
+
+      return false;
+    }
+
+    return false;
+  },
+
+  /**
+   * C0000033: 紅蓮の覚醒
+   * 場にいる［ドラゴン］モンスター1体を、このターン中「覚醒」状態にし、攻撃力を700アップ。
+   */
+  C0000033: (skillText, context) => {
+    const { addLog } = context;
+    const { myField } = getPlayerContext(context);
+
+    // ドラゴンモンスターを探す
+    const dragonCondition = (monster) => hasCategory(monster, 'ドラゴン');
+
+    // 条件を満たすモンスターがいるかチェック
+    const validTargets = myField
+      .map((m, idx) => ({ monster: m, index: idx }))
+      .filter(({ monster }) => monster && dragonCondition(monster));
+
+    if (validTargets.length === 0) {
+      addLog('紅蓮の覚醒: 場にドラゴンモンスターがいません', 'info');
+      return false;
+    }
+
+    // 覚醒を付与（ATK+700）
+    return selectAndApplyAwakening(context, dragonCondition, 700, '紅蓮の覚醒');
   },
 
   // 他の炎属性カードを追加...

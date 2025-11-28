@@ -3,7 +3,7 @@
 // カード固有処理で使用する共通処理
 // ========================================
 
-import { statusEffectEngine, getStatusDisplayName } from './statusEffects';
+import { statusEffectEngine, getStatusDisplayName, STATUS_EFFECT_TYPES } from './statusEffects';
 import { TRIGGER_TYPES } from './triggerTypes';
 import {
   fireTrigger,
@@ -1107,6 +1107,102 @@ export const applyStatusToOwnMonster = (context, targetIndex, statusType, option
     }
     return m;
   }));
+  return true;
+};
+
+/**
+ * 自分のモンスターを覚醒状態にする
+ * - 攻撃力が上昇する
+ * - ターン終了時に解除される（duration: 0）
+ * @param {Object} context - ゲームコンテキスト
+ * @param {number} targetIndex - 対象のモンスターインデックス
+ * @param {number} atkBonus - 攻撃力上昇量
+ * @param {string} sourceName - 発動源の名前
+ * @returns {boolean} 成功したかどうか
+ */
+export const applyAwakening = (context, targetIndex, atkBonus, sourceName = '') => {
+  const {
+    currentPlayer,
+    p1Field, p2Field,
+    setP1Field, setP2Field,
+    addLog,
+  } = context;
+
+  const ownField = currentPlayer === 1 ? p1Field : p2Field;
+  const setOwnField = currentPlayer === 1 ? setP1Field : setP2Field;
+
+  const target = ownField[targetIndex];
+  if (!target) {
+    addLog('対象のモンスターが存在しません', 'info');
+    return false;
+  }
+
+  // 既に覚醒状態かチェック
+  if (statusEffectEngine.hasStatus(target, STATUS_EFFECT_TYPES.AWAKENED)) {
+    addLog(`${target.name}は既に覚醒状態です`, 'info');
+    return false;
+  }
+
+  setOwnField(prev => prev.map((m, idx) => {
+    if (idx === targetIndex && m) {
+      const result = statusEffectEngine.applyStatus(m, STATUS_EFFECT_TYPES.AWAKENED, {
+        value: atkBonus,
+        duration: 0, // ターン終了時に解除
+        source: sourceName,
+        sourceName: sourceName,
+      });
+      if (result.success) {
+        addLog(`${m.name}が覚醒した！攻撃力が${atkBonus}アップ！`, 'damage');
+      }
+      return { ...m };
+    }
+    return m;
+  }));
+  return true;
+};
+
+/**
+ * 対象のモンスターを選択して覚醒状態にする（UI選択付き）
+ * @param {Object} context - ゲームコンテキスト
+ * @param {Function} condition - 対象モンスターの条件関数 (monster) => boolean
+ * @param {number} atkBonus - 攻撃力上昇量
+ * @param {string} sourceName - 発動源の名前
+ * @returns {boolean} 選択モードを開始したかどうか
+ */
+export const selectAndApplyAwakening = (context, condition, atkBonus, sourceName = '') => {
+  const {
+    currentPlayer,
+    p1Field, p2Field,
+    setPendingMonsterTarget,
+    addLog,
+  } = context;
+
+  const ownField = currentPlayer === 1 ? p1Field : p2Field;
+
+  // 条件を満たすモンスターがいるかチェック
+  const validTargets = ownField.map((m, idx) => ({ monster: m, index: idx }))
+    .filter(({ monster }) => monster && condition(monster));
+
+  if (validTargets.length === 0) {
+    addLog('対象となるモンスターがいません', 'info');
+    return false;
+  }
+
+  // 1体しかいない場合は自動選択
+  if (validTargets.length === 1) {
+    return applyAwakening(context, validTargets[0].index, atkBonus, sourceName);
+  }
+
+  // 複数いる場合は選択モード
+  setPendingMonsterTarget({
+    message: '覚醒させるモンスターを選択してください',
+    targetType: 'own',
+    condition: condition,
+    callback: (selectedIndex) => {
+      applyAwakening(context, selectedIndex, atkBonus, sourceName);
+    },
+  });
+
   return true;
 };
 
