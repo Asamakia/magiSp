@@ -5,6 +5,7 @@
  */
 
 import { ECONOMY } from './constants';
+import { createInitialMarketState } from '../market/marketEngine';
 
 // ========================================
 // スターターデッキ定義
@@ -94,6 +95,9 @@ export const createInitialPlayerData = (starterCards = STARTER_DECK_CARDS) => {
     // ユーザー作成デッキ
     userDecks: [],
 
+    // 動的市場状態
+    market: createInitialMarketState(),
+
     // 統計
     stats: {
       totalBattles: 0,
@@ -139,6 +143,7 @@ export const repairPlayerData = (data) => {
     gold: typeof data.gold === 'number' ? data.gold : defaults.gold,
     collection: Array.isArray(data.collection) ? data.collection : [],
     userDecks: Array.isArray(data.userDecks) ? data.userDecks : [],
+    market: data.market || createInitialMarketState(),
     stats: {
       ...defaults.stats,
       ...(data.stats || {}),

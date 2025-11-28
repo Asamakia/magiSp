@@ -45,6 +45,35 @@ export { packSystem } from './systems/packSystem';
 export { shopSystem } from './systems/shopSystem';
 
 // ========================================
+// 動的市場システム
+// ========================================
+
+export {
+  // 市場エンジン
+  createInitialMarketState,
+  advanceDay,
+  getCardMarketPrice,
+  calculateMarketModifier,
+  isCardAffected,
+  // 週間トレンド
+  WEEKLY_TRENDS,
+  getRandomTrend,
+  createWeeklyTrend,
+  // ニュース生成
+  generateDailyNews,
+  // 定数
+  DAYS_PER_WEEK,
+  MAX_MODIFIER_UP,
+  MAX_MODIFIER_DOWN,
+  SUDDEN_EVENT_CHANCE,
+  DIRECTIONS,
+  ATTRIBUTES,
+  // データ
+  CATEGORIES,
+  CATEGORY_ATTRIBUTES,
+} from './market';
+
+// ========================================
 // コンポーネント層
 // ========================================
 
