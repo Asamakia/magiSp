@@ -173,7 +173,7 @@ Currently a **prototype version** with local 2-player gameplay and AI opponent s
     - フォールバック: triggerCard → context.card → context.destroyedCard
   - **ON_DESTROY_SELFトリガースコープ修正**: 破壊されたカード自身のトリガーのみ発火するように修正
     - 同名カード複数時の重複発動バグを修正（例: 粘液獣・開花3体中1体破壊で種子1体のみ生成）
-- **2025-11-28 (Parasite Status Effect System)**: 寄生状態異常システム化 ⭐⭐ **NEW**
+- **2025-11-28 (Parasite Status Effect System)**: 寄生状態異常システム化 ⭐⭐
   - **PARASITE状態異常タイプ追加**: 寄生効果を状態異常システムで管理
     - 毎ターン開始時ATK減少（500 or 1000）
     - 効果無効化（技・トリガー使用不可）
@@ -182,6 +182,26 @@ Currently a **prototype version** with local 2-player gameplay and AI opponent s
   - **新API**: `processOpponentEndPhase()`, `getParasiteInfo()`, `isParasiteEffectNegated()`
   - **ヘルパー関数追加**: `processStatusEffectsTurnStart()`, `processStatusEffectsEndPhase()`
   - **magic-spirit.jsx簡素化**: ターン開始/エンドフェイズの状態異常処理をヘルパーに移動（約30行削減）
+- **2025-11-28 (Skill & SP Charge Rules)**: 技発動1ターン1回制限とSPチャージ機能を実装 ⭐⭐ **NEW**
+  - **技発動1ターン1回制限**: 公式ルール5.1準拠（各モンスター1ターンに一度のみ）
+    - `usedSkillThisTurn`フラグをモンスターに追加
+    - ターン開始時にフラグリセット
+    - 技発動後にフラグセット、UI表示「[発動済]」
+    - AI対応: `getUsableSkills()`で発動済みモンスターをスキップ
+  - **SPチャージ機能**: 公式ルール5.1準拠（SPトークン1個をチャージ）
+    - `chargeSP()`関数追加
+    - SPチャージはSPトークンを永続消費（総数減少）
+    - 属性チャージと同ターン不可（`chargeUsedThisTurn`フラグ共有）
+    - チャージ消費優先度: 同属性 > なし属性 > SPチャージ
+    - SPチャージは技発動時に消費、属性チャージは残存
+    - UI表示: 💠(SPチャージ) / 🃏(属性チャージ)
+    - AI非対応（長期的損失のため意図的に除外）
+  - **修正ファイル**:
+    - magic-spirit.jsx: chargeSP(), executeSkill(), processPhase(), UI buttons
+    - helpers.js: createMonsterInstance() - usedSkillThisTurn初期化
+    - effectHelpers.js: reviveFromGraveyard() - usedSkillThisTurn初期化
+    - FieldMonster.jsx: charge icon display (💠/🃏)
+    - aiController.js: getUsableSkills() - 発動済みスキップ
 
 ---
 
@@ -1848,6 +1868,6 @@ This is suitable for expansion into a full game or as a learning project for Rea
 
 ---
 
-**Document Version**: 5.0
-**Last Updated**: 2025-11-28 (PARASITE status effect system - 寄生状態異常化)
+**Document Version**: 5.1
+**Last Updated**: 2025-11-28 (Skill 1-turn limit & SP Charge - 技発動制限・SPチャージ)
 **For**: Magic Spirit (magiSp) Repository
