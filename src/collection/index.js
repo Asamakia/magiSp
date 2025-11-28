@@ -34,15 +34,15 @@ export {
 export { migrate } from './data/migration';
 
 // ========================================
-// システム層（Phase 2で実装予定）
+// システム層
 // ========================================
 
-// export { valueCalculator } from './systems/valueCalculator';
-// export { raritySystem } from './systems/raritySystem';
-// export { collectionManager } from './systems/collectionManager';
-// export { currencyManager } from './systems/currencyManager';
-// export { packSystem } from './systems/packSystem';
-// export { shopSystem } from './systems/shopSystem';
+export { valueCalculator } from './systems/valueCalculator';
+export { raritySystem } from './systems/raritySystem';
+export { collectionManager } from './systems/collectionManager';
+export { currencyManager } from './systems/currencyManager';
+export { packSystem } from './systems/packSystem';
+export { shopSystem } from './systems/shopSystem';
 
 // ========================================
 // コンポーネント層（Phase 3-4で実装予定）
