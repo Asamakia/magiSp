@@ -424,5 +424,234 @@ export const primitiveCardEffects = {
     return true;
   },
 
+  /**
+   * C0000014: 粘液再生
+   * 墓地の《粘液獣》2体を場に戻す（攻撃力半分・HP半分・効果無効になる）。
+   */
+  C0000014: (skillText, context) => {
+    const { addLog } = context;
+    const { myField, myGraveyard, setMyField, setMyGraveyard, currentPlayer } =
+      getPlayerContext(context);
+
+    // 墓地から《粘液獣》と名の付くモンスターを探す
+    const slimesInGraveyard = myGraveyard.filter(
+      (card) => card.type === 'monster' && card.name && card.name.includes('粘液獣')
+    );
+
+    if (slimesInGraveyard.length === 0) {
+      addLog('粘液再生: 墓地に《粘液獣》がいません', 'info');
+      return false;
+    }
+
+    // 空きスロットを探す
+    const emptySlots = myField
+      .map((slot, idx) => (slot === null ? idx : -1))
+      .filter((idx) => idx !== -1);
+
+    if (emptySlots.length === 0) {
+      addLog('粘液再生: 場に空きがありません', 'info');
+      return false;
+    }
+
+    // 最大2体まで蘇生
+    const reviveCount = Math.min(slimesInGraveyard.length, emptySlots.length, 2);
+    const toRevive = slimesInGraveyard.slice(0, reviveCount);
+    const revivedIds = toRevive.map((c) => c.uniqueId || c.id);
+
+    // 墓地から削除
+    setMyGraveyard((prev) =>
+      prev.filter((card) => !revivedIds.includes(card.uniqueId || card.id))
+    );
+
+    // フィールドに配置（攻撃力半分・HP半分・効果無効）
+    setMyField((prev) => {
+      const newField = [...prev];
+      toRevive.forEach((card, i) => {
+        const slotIndex = emptySlots[i];
+        const halfAttack = Math.floor(card.attack / 2);
+        const halfHp = Math.floor(card.hp / 2);
+        newField[slotIndex] = {
+          ...card,
+          uniqueId: `${card.id}_revive_${Date.now()}_${i}`,
+          attack: halfAttack,
+          currentAttack: halfAttack,
+          hp: halfHp,
+          currentHp: halfHp,
+          canAttack: false,
+          charges: [],
+          statusEffects: [],
+          owner: currentPlayer,
+          effectNegated: true, // 効果無効
+        };
+        addLog(
+          `粘液再生: ${card.name}を蘇生（ATK${halfAttack}/HP${halfHp}・効果無効）`,
+          'info'
+        );
+      });
+      return newField;
+    });
+
+    return true;
+  },
+
+  /**
+   * C0000015: 粘液の浸食
+   * 【刹那詠唱】相手の場にいるモンスター1体の攻撃力を毎ターン500ダウン、0になったら破壊する。
+   */
+  C0000015: (skillText, context) => {
+    const { addLog } = context;
+    const { opponentField } = getPlayerContext(context);
+
+    // 相手モンスターがいるかチェック
+    const hasTarget = opponentField.some((m) => m !== null);
+    if (!hasTarget) {
+      addLog('粘液の浸食: 対象となる相手モンスターがいません', 'info');
+      return false;
+    }
+
+    // CORRODE（深蝕）状態異常を付与
+    // 毎エンドフェイズATKダウン、0になったら破壊
+    selectAndApplyStatusToOpponent(
+      context,
+      STATUS_EFFECT_TYPES.CORRODE,
+      {
+        duration: -1, // 永続（ATKが0になるまで）
+        value: 500, // 毎ターン500ダウン
+        source: 'C0000015',
+        sourceName: '粘液の浸食',
+      },
+      '粘液の浸食'
+    );
+
+    return true;
+  },
+
+  /**
+   * C0000016: 粘液爆発
+   * 場にいる《粘液獣》1体を破壊し、相手モンスター全体にその攻撃力分のダメージを与える。
+   */
+  C0000016: (skillText, context) => {
+    const { addLog } = context;
+    const { myField, setMyField, setMyGraveyard, opponentField, setOpponentField } =
+      getPlayerContext(context);
+
+    // 《粘液獣》と名の付くモンスターを探す
+    const slimeIndex = myField.findIndex(
+      (m) => m && m.name && m.name.includes('粘液獣')
+    );
+
+    if (slimeIndex === -1) {
+      addLog('粘液爆発: 場に《粘液獣》がいません', 'info');
+      return false;
+    }
+
+    const targetSlime = myField[slimeIndex];
+    const damage = targetSlime.currentAttack || targetSlime.attack;
+
+    // 粘液獣を破壊して墓地へ
+    setMyField((prev) => {
+      const newField = [...prev];
+      newField[slimeIndex] = null;
+      return newField;
+    });
+    setMyGraveyard((prev) => [...prev, targetSlime]);
+    addLog(`粘液爆発: ${targetSlime.name}を破壊！`, 'damage');
+
+    // 相手モンスター全体にダメージ
+    const destroyedMonsters = [];
+    setOpponentField((prev) => {
+      return prev.map((monster) => {
+        if (monster) {
+          const newHp = (monster.currentHp || monster.hp) - damage;
+          addLog(
+            `粘液爆発: ${monster.name}に${damage}ダメージ！`,
+            'damage'
+          );
+          if (newHp <= 0) {
+            destroyedMonsters.push(monster);
+            return null;
+          }
+          return { ...monster, currentHp: newHp };
+        }
+        return monster;
+      });
+    });
+
+    // 破壊されたモンスターを相手の墓地へ
+    if (destroyedMonsters.length > 0) {
+      const { setOpponentGraveyard } = getPlayerContext(context);
+      setOpponentGraveyard((prev) => [...prev, ...destroyedMonsters]);
+      destroyedMonsters.forEach((m) => {
+        addLog(`${m.name}は破壊された！`, 'damage');
+      });
+    }
+
+    return true;
+  },
+
+  /**
+   * C0000017: 未来の粘液回路
+   * デッキから《粘液獣・キング》または《新・超覚醒粘液獣－ハイパー－》を場に直接召喚。
+   */
+  C0000017: (skillText, context) => {
+    const { addLog } = context;
+    const { myField, myDeck, setMyField, setMyDeck, currentPlayer } =
+      getPlayerContext(context);
+
+    // 空きスロットを探す
+    const emptySlotIndex = myField.findIndex((slot) => slot === null);
+    if (emptySlotIndex === -1) {
+      addLog('未来の粘液回路: 場に空きがありません', 'info');
+      return false;
+    }
+
+    // デッキから対象カードを探す
+    const targetIndex = myDeck.findIndex(
+      (card) =>
+        card.name === '粘液獣・キング' ||
+        card.name === '新・超覚醒粘液獣－ハイパー－'
+    );
+
+    if (targetIndex === -1) {
+      addLog(
+        '未来の粘液回路: デッキに対象カードがありません',
+        'info'
+      );
+      return false;
+    }
+
+    const targetCard = myDeck[targetIndex];
+
+    // デッキから削除
+    setMyDeck((prev) => {
+      const newDeck = [...prev];
+      newDeck.splice(targetIndex, 1);
+      return newDeck;
+    });
+
+    // フィールドに直接召喚
+    setMyField((prev) => {
+      const newField = [...prev];
+      newField[emptySlotIndex] = {
+        ...targetCard,
+        uniqueId: `${targetCard.id}_special_summon_${Date.now()}`,
+        currentAttack: targetCard.attack,
+        currentHp: targetCard.hp,
+        canAttack: false, // 召喚ターンは攻撃不可
+        charges: [],
+        statusEffects: [],
+        owner: currentPlayer,
+      };
+      return newField;
+    });
+
+    addLog(
+      `未来の粘液回路: ${targetCard.name}を直接召喚！`,
+      'info'
+    );
+
+    return true;
+  },
+
   // 他の原始属性カードを追加...
 };
