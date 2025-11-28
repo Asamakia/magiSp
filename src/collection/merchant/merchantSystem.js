@@ -672,7 +672,7 @@ export const sellToMerchant = (merchantData, merchantName, card, rarity, dayId) 
   newData.favorability = { ...newData.favorability, [merchantName]: fav };
 
   // カテゴリ売却カウント更新
-  if (card.category) {
+  if (card.category && typeof card.category === 'string') {
     const categories = card.category.match(/【([^】]+)】/g) || [];
     const newCategorySoldCount = { ...newData.categorySoldCount };
     for (const cat of categories) {
