@@ -78,7 +78,16 @@ export const recordPriceHistory = (priceHistory, marketState, allCards, getBaseV
   // cardsオブジェクトがない場合は初期化
   if (!newHistory.cards) newHistory.cards = {};
 
+  // デバッグ用：最初の数カードの属性を確認
+  if (allCards.length > 0) {
+    console.log('[recordPriceHistory] Sample attributes:', allCards.slice(0, 3).map(c => ({ id: c.id, attr: c.attribute, type: typeof c.attribute })));
+    console.log('[recordPriceHistory] ATTRIBUTES:', ATTRIBUTES);
+  }
+
   // 各カードの価格を記録
+  let unmatchedAttributes = new Set();
+  let unmatchedCategories = new Set();
+
   for (const card of allCards) {
     const baseValue = getBaseValue ? getBaseValue(card) : (card.baseValue || 100);
     const tier = getTier ? getTier(card) : 'B';
@@ -102,12 +111,16 @@ export const recordPriceHistory = (priceHistory, marketState, allCards, getBaseV
     if (attributeTotals[attribute]) {
       attributeTotals[attribute].sum += baseValue;
       attributeTotals[attribute].count++;
+    } else {
+      unmatchedAttributes.add(attribute);
     }
 
     // カテゴリ別集計
     if (category && categoryTotals[category]) {
       categoryTotals[category].sum += baseValue;
       categoryTotals[category].count++;
+    } else if (category) {
+      unmatchedCategories.add(category);
     }
 
     // ティア別集計
@@ -120,6 +133,17 @@ export const recordPriceHistory = (priceHistory, marketState, allCards, getBaseV
     marketTotal += baseValue;
     marketCount++;
   }
+
+  // デバッグ：マッチしなかった属性・カテゴリを出力
+  if (unmatchedAttributes.size > 0) {
+    console.warn('[recordPriceHistory] Unmatched attributes:', [...unmatchedAttributes]);
+  }
+  if (unmatchedCategories.size > 0) {
+    console.warn('[recordPriceHistory] Unmatched categories:', [...unmatchedCategories].slice(0, 10));
+  }
+  console.log('[recordPriceHistory] Attribute counts:', Object.fromEntries(
+    Object.entries(attributeTotals).map(([k, v]) => [k, v.count])
+  ));
 
   // 属性別平均を記録
   if (!newHistory.attributes) newHistory.attributes = {};
