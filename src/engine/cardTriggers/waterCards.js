@@ -163,9 +163,8 @@ export const waterCardTriggers = {
       description: '墓地発動: SP4払い自己蘇生',
       priority: TRIGGER_PRIORITIES.NORMAL,
       costCheck: (context) => {
-        const { currentPlayer, p1ActiveSP, p2ActiveSP } = context;
-        const activeSP = currentPlayer === 1 ? p1ActiveSP : p2ActiveSP;
-        return activeSP >= 4;
+        const { myActiveSP } = getPlayerContext(context);
+        return myActiveSP >= 4;
       },
       effect: (context) => {
         const { card, addLog } = context;
