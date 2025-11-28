@@ -82,8 +82,12 @@ export const STOCK_RARITY = {
   },
   [MERCHANT_TYPES.DARK]: {
     count: 4,
-    rates: { SR: 0.40, UR: 0.35, HR: 0.15, SEC: 0.04, ALT: 0.04, GR: 0.02 },
-    guaranteed: { minRarity: 'SR', count: 4, minUR: 1, forbiddenCount: 1 },
+    // 通常カード用レート（GRなし）
+    rates: { SR: 0.40, UR: 0.35, HR: 0.15, SEC: 0.06, ALT: 0.04 },
+    // 禁忌カード用設定
+    forbiddenChance: 0.20, // 各枠で禁忌カードが出る確率
+    forbiddenRates: { GR: 0.50, SR: 0.20, UR: 0.15, HR: 0.10, SEC: 0.05 }, // 禁忌カードのレアリティ
+    guaranteed: { minRarity: 'SR', count: 4, minUR: 1 },
   },
   [MERCHANT_TYPES.TRAVELER]: {
     count: 5,
