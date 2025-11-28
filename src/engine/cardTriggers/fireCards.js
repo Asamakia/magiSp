@@ -5,15 +5,13 @@
  * 各カードは独自のトリガー定義を持ち、triggerEngineによって管理されます。
  */
 
-import { TRIGGER_TYPES, ACTIVATION_TYPES, TRIGGER_PRIORITIES } from '../triggerTypes';
+import { TRIGGER_TYPES, ACTIVATION_TYPES } from '../triggerTypes';
 import {
   getPlayerContext,
   millDeck,
   conditionalDamage,
   searchCard,
   reviveFromGraveyard,
-  drawCards,
-  healLife,
   destroyMonster,
   modifyAttack,
   applyStatusToOpponentMonster,
@@ -179,12 +177,11 @@ export const fireCardTriggers = {
       activationType: ACTIVATION_TYPES.AUTOMATIC,
       description: '召喚時: 全炎属性に3000ダメージ、破壊数×600を相手に',
       effect: (context) => {
-        const { currentPlayer, p1Field, p2Field, setP1Field, setP2Field, addLog } = context;
+        const { setP1Field, setP2Field, addLog } = context;
         let destroyedCount = 0;
 
         // 両プレイヤーのフィールドをチェック
         [1, 2].forEach((player) => {
-          const field = player === 1 ? p1Field : p2Field;
           const setField = player === 1 ? setP1Field : setP2Field;
 
           setField((prev) => {
@@ -513,12 +510,11 @@ export const fireCardTriggers = {
       activationType: ACTIVATION_TYPES.AUTOMATIC,
       description: '召喚時: 全モンスターに3000、破壊数×400を相手に',
       effect: (context) => {
-        const { p1Field, p2Field, setP1Field, setP2Field, addLog } = context;
+        const { setP1Field, setP2Field, addLog } = context;
         let destroyedCount = 0;
 
         // 両プレイヤーのフィールドをチェック
         [1, 2].forEach((player) => {
-          const field = player === 1 ? p1Field : p2Field;
           const setField = player === 1 ? setP1Field : setP2Field;
 
           setField((prev) => {

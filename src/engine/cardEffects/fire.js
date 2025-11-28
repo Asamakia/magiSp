@@ -8,7 +8,6 @@ import {
   conditionalDamage,
   searchCard,
   reviveFromGraveyard,
-  drawCards,
   modifyAttack,
 } from '../effectHelpers';
 import { hasCategory } from '../../utils/helpers';
@@ -126,7 +125,6 @@ export const fireCardEffects = {
   C0000161: (skillText, context) => {
     const { addLog } = context;
     const {
-      p1Field, p2Field,
       setP1Field, setP2Field,
       setP1Graveyard, setP2Graveyard,
     } = context;
@@ -136,7 +134,6 @@ export const fireCardEffects = {
 
       // 両プレイヤーのフィールドの炎属性モンスターにダメージ
       [1, 2].forEach(player => {
-        const field = player === 1 ? p1Field : p2Field;
         const setField = player === 1 ? setP1Field : setP2Field;
         const setGraveyard = player === 1 ? setP1Graveyard : setP2Graveyard;
 
