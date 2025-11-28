@@ -164,6 +164,11 @@ export {
   cleanupPendingStock,
   purchaseTicket,
   callAttributeMerchant,
+  // コレクション分析
+  countForbiddenCards,
+  // 高レベル取引API
+  executePurchase,
+  executeSale,
   merchantSystem,
 } from './merchant';
 
