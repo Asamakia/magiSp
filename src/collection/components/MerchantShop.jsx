@@ -683,6 +683,24 @@ const MerchantShop = ({
     });
 
     setStock(newStock);
+
+    // 品揃えを永続化（リロードしても保持されるように）
+    if (onPlayerDataUpdate && newStock.length > 0) {
+      const updatedTodayStock = {
+        dayId,
+        stocks: {
+          ...(merchantData.todayStock?.stocks || {}),
+          [merchantName]: newStock,
+        },
+      };
+      onPlayerDataUpdate({
+        ...playerData,
+        merchantData: {
+          ...merchantData,
+          todayStock: updatedTodayStock,
+        },
+      });
+    }
   }, [merchantName, dayId, allCards.length, favLevel]);
 
   // プレイヤーの売却可能カード
