@@ -85,9 +85,13 @@ export const recordPriceHistory = (priceHistory, marketState, allCards, getBaseV
     // 属性が空文字列やundefinedの場合は'なし'を使用
     const rawAttribute = card.attribute?.trim?.() || card.attribute;
     const attribute = (rawAttribute && rawAttribute !== '') ? rawAttribute : 'なし';
-    // カテゴリ抽出: "【ドラゴン】" → "ドラゴン", "【ビースト】【スライム】" → "ビースト"
+    // カテゴリ抽出: card.categoryは配列 ['ドラゴン', 'スライム'] または文字列
     let category = null;
-    if (card.category && typeof card.category === 'string') {
+    if (Array.isArray(card.category) && card.category.length > 0) {
+      // CSVパース済みの配列形式
+      category = card.category[0];
+    } else if (card.category && typeof card.category === 'string') {
+      // 文字列形式（フォールバック）: "【ドラゴン】" → "ドラゴン"
       const match = card.category.match(/【([^】]+)】/);
       category = match ? match[1] : null;
     }
