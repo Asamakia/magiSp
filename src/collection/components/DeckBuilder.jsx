@@ -174,12 +174,126 @@ const styles = {
     opacity: 0.4,
     cursor: 'not-allowed',
   },
-  // 右側: デッキ内容
+  // 中央: デッキ内容
   deckPanel: {
-    width: '320px',
+    width: '280px',
     display: 'flex',
     flexDirection: 'column',
     background: 'rgba(20,20,40,0.5)',
+    borderRight: '1px solid rgba(107,76,230,0.3)',
+  },
+  // 右側: カード詳細パネル
+  detailPanel: {
+    width: '300px',
+    display: 'flex',
+    flexDirection: 'column',
+    background: 'rgba(15,15,35,0.9)',
+    overflow: 'auto',
+  },
+  detailEmpty: {
+    flex: 1,
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    color: '#606080',
+    fontSize: '14px',
+    textAlign: 'center',
+    padding: '24px',
+  },
+  detailContent: {
+    padding: '16px',
+  },
+  detailCardPreview: {
+    width: '100%',
+    aspectRatio: '3/4',
+    maxHeight: '180px',
+    borderRadius: '8px',
+    display: 'flex',
+    flexDirection: 'column',
+    overflow: 'hidden',
+    marginBottom: '16px',
+  },
+  detailCardHeader: {
+    padding: '8px 10px',
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    background: 'rgba(0,0,0,0.3)',
+  },
+  detailCardBody: {
+    flex: 1,
+    display: 'flex',
+    flexDirection: 'column',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: '12px',
+  },
+  detailCardName: {
+    fontSize: '16px',
+    fontWeight: 'bold',
+    color: '#fff',
+    textAlign: 'center',
+    textShadow: '0 2px 4px rgba(0,0,0,0.5)',
+    marginBottom: '4px',
+  },
+  detailCardCategory: {
+    fontSize: '11px',
+    color: 'rgba(255,255,255,0.7)',
+    textAlign: 'center',
+  },
+  detailSection: {
+    marginBottom: '12px',
+  },
+  detailSectionTitle: {
+    fontSize: '12px',
+    color: '#a0a0a0',
+    marginBottom: '6px',
+    borderBottom: '1px solid rgba(107,76,230,0.3)',
+    paddingBottom: '4px',
+  },
+  detailStatsRow: {
+    display: 'flex',
+    gap: '16px',
+    marginBottom: '8px',
+  },
+  detailStatItem: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '6px',
+  },
+  detailStatLabel: {
+    fontSize: '11px',
+    color: '#a0a0a0',
+  },
+  detailStatValue: {
+    fontSize: '14px',
+    fontWeight: 'bold',
+    color: '#fff',
+  },
+  detailEffectText: {
+    fontSize: '12px',
+    color: '#e0e0e0',
+    lineHeight: '1.6',
+    whiteSpace: 'pre-wrap',
+  },
+  detailKeyword: {
+    display: 'inline-block',
+    padding: '2px 8px',
+    borderRadius: '4px',
+    background: 'rgba(157,76,230,0.3)',
+    color: '#c9a0ff',
+    fontSize: '11px',
+    marginRight: '4px',
+    marginBottom: '4px',
+  },
+  detailForbidden: {
+    display: 'inline-block',
+    padding: '2px 8px',
+    borderRadius: '4px',
+    background: 'rgba(255,100,100,0.3)',
+    color: '#ff6b6b',
+    fontSize: '11px',
+    marginRight: '4px',
   },
   deckHeader: {
     padding: '12px',
@@ -324,6 +438,10 @@ const DeckBuilder = ({
   // deckCards: [{ cardId, rarity }, ...]
 
   const [error, setError] = useState(null);
+
+  // ホバー中のカード情報
+  const [hoveredCard, setHoveredCard] = useState(null);
+  // hoveredCard: { card, rarity, source: 'list' | 'deck' }
 
   // 所持カード一覧を生成（カードID + レアリティでグループ化）
   const ownedCards = useMemo(() => {
@@ -584,6 +702,7 @@ const DeckBuilder = ({
                       ...(isDisabled ? styles.cardDisabled : {}),
                     }}
                     onClick={() => !isDisabled && addCardToDeck(cardId, rarity, quantity)}
+                    onMouseEnter={() => setHoveredCard({ card, rarity, source: 'list' })}
                     title={isDisabled ? check.reason : `クリックでデッキに追加`}
                   >
                     <div style={styles.cardCost}>{card.cost}</div>
@@ -645,6 +764,7 @@ const DeckBuilder = ({
                       background: `${colors.bg}80`,
                     }}
                     onClick={() => removeCardFromDeck(indices[indices.length - 1])}
+                    onMouseEnter={() => setHoveredCard({ card, rarity, source: 'deck' })}
                     title="クリックで1枚削除"
                   >
                     <div style={styles.deckCardCost}>{card.cost}</div>
@@ -680,6 +800,138 @@ const DeckBuilder = ({
               保存
             </button>
           </div>
+        </div>
+
+        {/* 右側: カード詳細パネル */}
+        <div style={styles.detailPanel}>
+          {hoveredCard ? (
+            <div style={styles.detailContent}>
+              {/* カードプレビュー */}
+              {(() => {
+                const { card, rarity } = hoveredCard;
+                const colors = ATTRIBUTE_COLORS[card.attribute] || ATTRIBUTE_COLORS['なし'];
+                const rarityColor = RARITY_COLORS[rarity] || '#808080';
+                const isMonster = card.type === 'monster';
+                const isForbidden = card.forbidden || (card.keyword && card.keyword.includes('禁忌'));
+
+                return (
+                  <>
+                    <div style={{
+                      ...styles.detailCardPreview,
+                      background: colors.bg,
+                      border: `3px solid ${rarityColor}`,
+                      boxShadow: `0 0 20px ${colors.glow || rarityColor}40`,
+                    }}>
+                      <div style={styles.detailCardHeader}>
+                        <div style={{
+                          width: '28px',
+                          height: '28px',
+                          borderRadius: '50%',
+                          background: 'linear-gradient(135deg, #6b4ce6 0%, #9d4ce6 100%)',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          fontSize: '14px',
+                          fontWeight: 'bold',
+                          color: '#fff',
+                        }}>
+                          {card.cost}
+                        </div>
+                        <div style={{
+                          padding: '3px 10px',
+                          borderRadius: '4px',
+                          fontSize: '12px',
+                          fontWeight: 'bold',
+                          color: '#fff',
+                          background: rarityColor,
+                        }}>
+                          {RARITY_NAMES[rarity] || rarity}
+                        </div>
+                      </div>
+                      <div style={styles.detailCardBody}>
+                        <div style={styles.detailCardName}>{card.name}</div>
+                        {card.category && (
+                          <div style={styles.detailCardCategory}>{card.category}</div>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* 基本情報 */}
+                    <div style={styles.detailSection}>
+                      <div style={styles.detailSectionTitle}>基本情報</div>
+                      <div style={styles.detailStatsRow}>
+                        <div style={styles.detailStatItem}>
+                          <span style={styles.detailStatLabel}>属性:</span>
+                          <span style={{...styles.detailStatValue, color: colors.glow || '#fff'}}>{card.attribute}</span>
+                        </div>
+                        <div style={styles.detailStatItem}>
+                          <span style={styles.detailStatLabel}>タイプ:</span>
+                          <span style={styles.detailStatValue}>
+                            {card.type === 'monster' ? 'モンスター' :
+                             card.type === 'magic' ? '魔法' :
+                             card.type === 'field' ? 'フィールド' : 'フェイズ'}
+                          </span>
+                        </div>
+                      </div>
+                      {isMonster && (
+                        <div style={styles.detailStatsRow}>
+                          <div style={styles.detailStatItem}>
+                            <span style={styles.detailStatLabel}>ATK:</span>
+                            <span style={{...styles.detailStatValue, color: '#ff6b6b'}}>{card.attack}</span>
+                          </div>
+                          <div style={styles.detailStatItem}>
+                            <span style={styles.detailStatLabel}>HP:</span>
+                            <span style={{...styles.detailStatValue, color: '#4ade80'}}>{card.hp}</span>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* キーワード・禁忌 */}
+                    {(card.keyword || isForbidden) && (
+                      <div style={styles.detailSection}>
+                        {isForbidden && (
+                          <span style={styles.detailForbidden}>禁忌カード</span>
+                        )}
+                        {card.keyword && card.keyword.split('】').filter(k => k).map((keyword, i) => (
+                          <span key={i} style={styles.detailKeyword}>
+                            {keyword.replace('【', '')}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* 効果テキスト */}
+                    {card.effect && (
+                      <div style={styles.detailSection}>
+                        <div style={styles.detailSectionTitle}>効果</div>
+                        <div style={styles.detailEffectText}>{card.effect}</div>
+                      </div>
+                    )}
+
+                    {/* フレーバーテキスト */}
+                    {card.flavor && (
+                      <div style={styles.detailSection}>
+                        <div style={styles.detailSectionTitle}>フレーバー</div>
+                        <div style={{
+                          ...styles.detailEffectText,
+                          fontStyle: 'italic',
+                          color: '#a0a0a0',
+                        }}>
+                          {card.flavor}
+                        </div>
+                      </div>
+                    )}
+                  </>
+                );
+              })()}
+            </div>
+          ) : (
+            <div style={styles.detailEmpty}>
+              カードにマウスを<br />
+              合わせると詳細を表示
+            </div>
+          )}
         </div>
       </div>
     </div>
