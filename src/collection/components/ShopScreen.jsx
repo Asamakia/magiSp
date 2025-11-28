@@ -2,10 +2,11 @@
  * ショップ画面
  *
  * パック購入とカード売却導線を提供
+ * 動的市場システム対応 - ニュース・トレンド表示
  */
 
 import React, { useState } from 'react';
-import { currencyManager, packSystem, ECONOMY } from '../index';
+import { currencyManager, packSystem, ECONOMY, DAYS_PER_WEEK } from '../index';
 
 // ========================================
 // スタイル定義
@@ -204,6 +205,112 @@ const styles = {
     fontWeight: 'bold',
     color: '#e0e0e0',
   },
+  // マーケットニュースパネル
+  marketNewsPanel: {
+    width: '100%',
+    maxWidth: '500px',
+    background: 'linear-gradient(135deg, rgba(20,30,50,0.9) 0%, rgba(30,40,60,0.9) 100%)',
+    borderRadius: '12px',
+    border: '1px solid rgba(107,156,230,0.5)',
+    padding: '16px',
+    boxShadow: '0 4px 20px rgba(107,156,230,0.2)',
+  },
+  marketNewsHeader: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '8px',
+    marginBottom: '12px',
+    paddingBottom: '8px',
+    borderBottom: '1px solid rgba(107,156,230,0.3)',
+  },
+  marketNewsIcon: {
+    fontSize: '20px',
+  },
+  marketNewsTitle: {
+    fontSize: '16px',
+    fontWeight: 'bold',
+    color: '#9dc4ff',
+  },
+  marketDayCounter: {
+    marginLeft: 'auto',
+    fontSize: '12px',
+    color: '#808080',
+  },
+  trendSection: {
+    marginBottom: '12px',
+    padding: '10px',
+    background: 'rgba(107,156,230,0.1)',
+    borderRadius: '8px',
+  },
+  trendLabel: {
+    fontSize: '12px',
+    color: '#6ba0e0',
+    marginBottom: '4px',
+  },
+  trendName: {
+    fontSize: '14px',
+    fontWeight: 'bold',
+    color: '#e0e0e0',
+    marginBottom: '4px',
+  },
+  trendEffects: {
+    fontSize: '12px',
+    color: '#a0a0a0',
+  },
+  trendEffectUp: {
+    color: '#6bff6b',
+  },
+  trendEffectDown: {
+    color: '#ff6b6b',
+  },
+  newsSection: {
+    padding: '10px',
+    background: 'rgba(255,200,100,0.1)',
+    borderRadius: '8px',
+    borderLeft: '3px solid #ffc864',
+  },
+  newsLabel: {
+    fontSize: '12px',
+    color: '#c8a050',
+    marginBottom: '4px',
+  },
+  newsText: {
+    fontSize: '13px',
+    color: '#e0e0e0',
+    lineHeight: '1.5',
+  },
+  newsModifier: {
+    marginTop: '6px',
+    fontSize: '12px',
+    fontWeight: 'bold',
+  },
+  modifierUp: {
+    color: '#6bff6b',
+  },
+  modifierDown: {
+    color: '#ff6b6b',
+  },
+  weekProgress: {
+    marginTop: '12px',
+    display: 'flex',
+    alignItems: 'center',
+    gap: '8px',
+    fontSize: '11px',
+    color: '#808080',
+  },
+  weekProgressBar: {
+    flex: 1,
+    height: '4px',
+    background: 'rgba(107,156,230,0.2)',
+    borderRadius: '2px',
+    overflow: 'hidden',
+  },
+  weekProgressFill: {
+    height: '100%',
+    background: 'linear-gradient(90deg, #6ba0e0, #9dc4ff)',
+    borderRadius: '2px',
+    transition: 'width 0.3s ease',
+  },
 };
 
 // ========================================
@@ -285,6 +392,100 @@ const ShopScreen = ({
         {message && (
           <div style={message.type === 'error' ? styles.errorMessage : styles.successMessage}>
             {message.text}
+          </div>
+        )}
+
+        {/* マーケットニュースパネル */}
+        {playerData.market && (
+          <div style={styles.marketNewsPanel}>
+            <div style={styles.marketNewsHeader}>
+              <span style={styles.marketNewsIcon}>📰</span>
+              <span style={styles.marketNewsTitle}>マーケットニュース</span>
+              <span style={styles.marketDayCounter}>
+                Day {playerData.market.currentDay + 1}
+              </span>
+            </div>
+
+            {/* 週間トレンド */}
+            {playerData.market.weeklyTrend && (
+              <div style={styles.trendSection}>
+                <div style={styles.trendLabel}>📅 週間トレンド</div>
+                <div style={styles.trendName}>
+                  {playerData.market.weeklyTrend.name}
+                </div>
+                <div style={styles.trendEffects}>
+                  {playerData.market.weeklyTrend.effects.map((effect, i) => {
+                    const targetText = effect.target.attribute
+                      ? `${effect.target.attribute}属性`
+                      : effect.target.all
+                        ? '全体'
+                        : effect.target.maxCost !== undefined
+                          ? `コスト${effect.target.maxCost}以下`
+                          : effect.target.minCost !== undefined
+                            ? `コスト${effect.target.minCost}以上`
+                            : effect.target.keyword
+                              ? `${effect.target.keyword}`
+                              : effect.target.tiers
+                                ? `${effect.target.tiers.join('/')}ティア`
+                                : effect.target.minRarity
+                                  ? `${effect.target.minRarity}以上`
+                                  : '対象';
+                    const modifierStyle = effect.modifier > 0
+                      ? styles.trendEffectUp
+                      : effect.modifier < 0
+                        ? styles.trendEffectDown
+                        : {};
+                    return (
+                      <span key={i} style={{ marginRight: '12px', ...modifierStyle }}>
+                        {targetText} {effect.modifier > 0 ? '+' : ''}{effect.modifier}%
+                      </span>
+                    );
+                  })}
+                </div>
+                {/* 週進行バー */}
+                <div style={styles.weekProgress}>
+                  <span>次週まで</span>
+                  <div style={styles.weekProgressBar}>
+                    <div
+                      style={{
+                        ...styles.weekProgressFill,
+                        width: `${((playerData.market.currentDay - playerData.market.weeklyTrend.startDay) / DAYS_PER_WEEK) * 100}%`,
+                      }}
+                    />
+                  </div>
+                  <span>
+                    {DAYS_PER_WEEK - (playerData.market.currentDay - playerData.market.weeklyTrend.startDay)}戦
+                  </span>
+                </div>
+              </div>
+            )}
+
+            {/* デイリーニュース */}
+            {playerData.market.dailyNews && (
+              <div style={styles.newsSection}>
+                <div style={styles.newsLabel}>📰 本日のニュース</div>
+                <div style={styles.newsText}>
+                  「{playerData.market.dailyNews.text}」
+                </div>
+                <div
+                  style={{
+                    ...styles.newsModifier,
+                    ...(playerData.market.dailyNews.modifier > 0
+                      ? styles.modifierUp
+                      : styles.modifierDown),
+                  }}
+                >
+                  → {playerData.market.dailyNews.target.category
+                    ? `[${playerData.market.dailyNews.target.category}]`
+                    : playerData.market.dailyNews.target.attribute
+                      ? `[${playerData.market.dailyNews.target.attribute}属性]`
+                      : '[対象]'}
+                  {' '}
+                  {playerData.market.dailyNews.modifier > 0 ? '+' : ''}
+                  {playerData.market.dailyNews.modifier}%
+                </div>
+              </div>
+            )}
           </div>
         )}
 
