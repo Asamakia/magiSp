@@ -6,7 +6,9 @@
  */
 
 import React, { useState } from 'react';
-import { currencyManager, packSystem, ECONOMY, DAYS_PER_WEEK } from '../index';
+import { currencyManager } from '../systems/currencyManager';
+import { packSystem } from '../systems/packSystem';
+import { ECONOMY, DAYS_PER_WEEK } from '../data/constants';
 import {
   getMarketIndexChartData,
   getTrendIcon,
