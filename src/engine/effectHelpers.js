@@ -372,13 +372,21 @@ export const reviveFromGraveyard = (context, condition, weakened = false) => {
   setCurrentGraveyard(prev => prev.filter(c => c.uniqueId !== reviveCard.uniqueId));
   setCurrentField(prev => {
     const newField = [...prev];
+    // 元の攻撃力を取得（墓地にある時点では元の値を保持）
+    const originalAttack = reviveCard.attack;
+    const originalHp = reviveCard.hp;
+    const baseAttack = weakened ? Math.floor(originalAttack / 2) : originalAttack;
+    const baseHp = weakened ? Math.floor(originalHp / 2) : originalHp;
     const revivedMonster = {
       ...reviveCard,
-      attack: weakened ? Math.floor(reviveCard.attack / 2) : reviveCard.attack,
-      hp: weakened ? Math.floor(reviveCard.hp / 2) : reviveCard.hp,
-      currentHp: weakened ? Math.floor(reviveCard.hp / 2) : reviveCard.hp,
+      attack: baseAttack,
+      currentAttack: baseAttack, // 戦闘計算用の現在攻撃力
+      hp: baseHp,
+      currentHp: baseHp,
       canAttack: false,
       owner: currentPlayer, // 常時効果のターゲット判定用
+      charges: [], // チャージカードをリセット
+      statusEffects: [], // 状態異常をリセット
     };
     newField[emptySlotIndex] = revivedMonster;
     return newField;

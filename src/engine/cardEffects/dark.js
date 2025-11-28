@@ -56,9 +56,13 @@ export const darkCardEffects = {
         newField[emptySlotIndex] = {
           ...darkMonster,
           attack: 300,
+          currentAttack: 300,
           hp: 800,
           currentHp: 800,
           canAttack: false,
+          owner: currentPlayer,
+          charges: [],
+          statusEffects: [],
         };
         return newField;
       });

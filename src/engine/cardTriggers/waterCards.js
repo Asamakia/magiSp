@@ -208,6 +208,9 @@ export const waterCardTriggers = {
           currentHp: card.hp,
           currentAttack: card.attack,
           canAttack: false, // 召喚ターンは攻撃不可
+          owner: currentPlayer,
+          charges: [],
+          statusEffects: [],
         };
 
         setField((prev) => {

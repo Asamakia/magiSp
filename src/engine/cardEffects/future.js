@@ -439,13 +439,17 @@ export const futureCardEffects = {
         return false;
       }
 
-      // モンスターインスタンスを作成（簡易版）
+      // モンスターインスタンスを作成
       const monsterInstance = {
         ...targetCard,
         uniqueId: `${targetCard.id}_${Date.now()}`,
         currentHp: targetCard.hp,
+        currentAttack: targetCard.attack,
         canAttack: false, // 召喚ターンは攻撃不可
         usedSkillThisTurn: false,
+        owner: currentPlayer,
+        charges: [],
+        statusEffects: [],
       };
 
       // フィールドを更新：召喚＆このカードを除去

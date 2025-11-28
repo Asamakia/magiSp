@@ -475,6 +475,7 @@ export const waterCardEffects = {
           currentAttack: target.attack,
           canAttack: false, // 召喚酔い
           charges: [],
+          statusEffects: [],
           owner: currentPlayer,
         };
         return newField;

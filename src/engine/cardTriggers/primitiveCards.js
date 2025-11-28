@@ -120,6 +120,8 @@ export const primitiveCardTriggers = {
           category: '【プラント】【スライム】',
           canAttack: false,
           owner: currentPlayer, // 常時効果のターゲット判定用
+          charges: [],
+          statusEffects: [],
         };
 
         const newField = [...currentField];
