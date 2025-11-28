@@ -368,21 +368,21 @@ export const reviveFromGraveyard = (context, condition, weakened = false) => {
     return false;
   }
 
-  // 蘇生（弱体化オプション付き）
+  // 蘇生（弱体化オプション付き - 攻撃力のみ半減、HPは元のまま）
   setCurrentGraveyard(prev => prev.filter(c => c.uniqueId !== reviveCard.uniqueId));
   setCurrentField(prev => {
     const newField = [...prev];
-    // 元の攻撃力を取得（墓地にある時点では元の値を保持）
+    // 元のステータスを取得（墓地にある時点では元の値を保持）
     const originalAttack = reviveCard.attack;
     const originalHp = reviveCard.hp;
+    // weakened=true の場合、攻撃力のみ半減（HPは元のまま）
     const baseAttack = weakened ? Math.floor(originalAttack / 2) : originalAttack;
-    const baseHp = weakened ? Math.floor(originalHp / 2) : originalHp;
     const revivedMonster = {
       ...reviveCard,
       attack: baseAttack,
       currentAttack: baseAttack, // 戦闘計算用の現在攻撃力
-      hp: baseHp,
-      currentHp: baseHp,
+      hp: originalHp,
+      currentHp: originalHp,
       canAttack: false,
       owner: currentPlayer, // 常時効果のターゲット判定用
       charges: [], // チャージカードをリセット
