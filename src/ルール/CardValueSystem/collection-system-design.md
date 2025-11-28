@@ -63,31 +63,57 @@
 
 ```
 src/
-├── collection/                    # カードコレクションシステム
-│   ├── index.js                   # エクスポート
+├── collection/                    # カードコレクションシステム (~9,600 lines)
+│   ├── index.js                   # エクスポート (138 lines)
 │   │
-│   ├── data/                      # データ管理
-│   │   ├── storage.js             # 永続化（localStorage抽象化）
-│   │   ├── playerData.js          # プレイヤーデータ構造定義
-│   │   ├── constants.js           # 経済定数
-│   │   └── migration.js           # データ移行（バージョンアップ時）
+│   ├── data/                      # データ管理 (~545 lines)
+│   │   ├── storage.js             # 永続化（localStorage抽象化）(139 lines)
+│   │   ├── playerData.js          # プレイヤーデータ構造定義 (223 lines)
+│   │   ├── constants.js           # 経済定数 (133 lines)
+│   │   └── migration.js           # データ移行（バージョンアップ時）(50 lines)
 │   │
-│   ├── systems/                   # 各システム
-│   │   ├── valueCalculator.js     # 基礎価値計算
-│   │   ├── raritySystem.js        # レアリティ定義・排出率
-│   │   ├── collectionManager.js   # 所持カード管理
-│   │   ├── currencyManager.js     # 通貨（G）管理
-│   │   ├── packSystem.js          # パック開封
-│   │   └── shopSystem.js          # 売買
+│   ├── systems/                   # 各システム (~1,509 lines)
+│   │   ├── valueCalculator.js     # 基礎価値計算 (239 lines)
+│   │   ├── raritySystem.js        # レアリティ定義・排出率 (168 lines)
+│   │   ├── collectionManager.js   # 所持カード管理 (273 lines)
+│   │   ├── currencyManager.js     # 通貨（G）管理 (182 lines)
+│   │   ├── packSystem.js          # パック開封 (238 lines)
+│   │   ├── shopSystem.js          # 売買 (164 lines)
+│   │   └── assetCalculator.js     # 資産価値計算 (245 lines) ⭐ NEW
 │   │
-│   └── components/                # コレクションUI
-│       ├── CollectionScreen.jsx   # コレクション画面
-│       ├── ShopScreen.jsx         # ショップ画面
-│       ├── PackOpening.jsx        # パック開封演出
-│       ├── CardGrid.jsx           # カード一覧グリッド
-│       ├── CardDetail.jsx         # カード詳細モーダル
-│       ├── DeckList.jsx           # デッキ一覧・管理
-│       └── DeckBuilder.jsx        # デッキ構築・編集
+│   ├── market/                    # 動的市場システム (~2,078 lines) ⭐ NEW
+│   │   ├── index.js               # エクスポート (40 lines)
+│   │   ├── constants.js           # 市場定数 (125 lines)
+│   │   ├── marketEngine.js        # 価格変動計算エンジン (329 lines)
+│   │   ├── weeklyTrend.js         # 週間トレンド（15種）(190 lines)
+│   │   ├── newsGenerator.js       # デイリーニュース生成 (569 lines)
+│   │   ├── suddenEvents.js        # 突発イベント（25種）(415 lines)
+│   │   ├── priceHistory.js        # 価格履歴管理 (410 lines)
+│   │   └── data/                  # データ定義 (~1,244 lines)
+│   │       ├── categories.js      # カテゴリと所属属性 (102 lines)
+│   │       ├── persons.js         # NPC人物・行動 (137 lines)
+│   │       ├── locations.js       # 場所・出来事 (238 lines)
+│   │       ├── reasons.js         # 理由（30種）(152 lines)
+│   │       ├── rumors.js          # 噂（9種）(120 lines)
+│   │       ├── comparisons.js     # 比較パターン (94 lines)
+│   │       ├── supplyDemand.js    # 需給パターン (43 lines)
+│   │       ├── seasonal.js        # 季節効果 (114 lines)
+│   │       └── characters.js      # ストーリーキャラ (244 lines)
+│   │
+│   ├── hooks/                     # カスタムフック ⭐ NEW
+│   │   ├── index.js               # エクスポート (10 lines)
+│   │   └── useMediaQuery.js       # レスポンシブ対応 (73 lines)
+│   │
+│   └── components/                # コレクションUI (~4,313 lines)
+│       ├── CollectionScreen.jsx   # コレクション画面 (380 lines)
+│       ├── ShopScreen.jsx         # ショップ画面（市場情報付き）(576 lines)
+│       ├── PackOpening.jsx        # パック開封演出 (487 lines)
+│       ├── CardGrid.jsx           # カード一覧グリッド (262 lines)
+│       ├── CardDetail.jsx         # カード詳細モーダル (473 lines)
+│       ├── DeckList.jsx           # デッキ一覧・管理 (446 lines)
+│       ├── DeckBuilder.jsx        # デッキ構築・編集 (689 lines)
+│       ├── PriceChart.jsx         # 価格チャート (320 lines) ⭐ NEW
+│       └── MarketAnalysis.jsx     # 市場分析画面 (680 lines) ⭐ NEW
 │
 ├── magic-spirit.jsx               # メインゲームロジック（対戦+UI統合）
 ├── engine/                        # 対戦エンジン
@@ -632,6 +658,23 @@ function resolvePrebuiltDeckRarities(prebuiltDeck, playerData) {
 - デッキ構築画面（`DeckBuilder.jsx`）
 - プレイヤーデータのlocalStorage永続化
 
+### Phase 6: 価格チャート ✅ 完了
+- `src/collection/components/PriceChart.jsx`
+- スパークライン、市場指数表示
+- イベントマーカー
+
+### Phase 7: 市場分析 ✅ 完了
+- `src/collection/components/MarketAnalysis.jsx`
+- 7タブ構成（総合/属性/カテゴリ/ティア/資産/イベント/検索）
+- 価格履歴チャート
+- 総資産推移表示
+
+### Phase 8: 資産管理 ✅ 完了
+- `src/collection/systems/assetCalculator.js`
+- カード価値計算（基礎/市場価格）
+- 総資産スナップショット記録
+- 資産履歴管理（30戦分）
+
 ---
 
 ## 将来の拡張予定
@@ -644,10 +687,15 @@ function resolvePrebuiltDeckRarities(prebuiltDeck, playerData) {
 - クラウド同期
 - 実績システム
 - src/game/ へのファイル構成移動
+- **商人NPCシステム** → 仕様書: `merchant_system.md`（未実装）
+  - 属性商人（曜日制6人）
+  - 一般・特殊商人（3人）
+  - コレクター（日替わり6人）
+  - 噂話・依頼・トレードシステム
 
 ---
 
-## 動的市場システム（実装予定）⭐
+## 動的市場システム（実装完了）⭐⭐⭐
 
 ### 概要
 
@@ -658,22 +706,27 @@ function resolvePrebuiltDeckRarities(prebuiltDeck, playerData) {
 最終価格 = 基礎価値 × レアリティ倍率 × 市場変動率
 ```
 
-### ディレクトリ構成
+### ディレクトリ構成（実装済み）
 
 ```
-src/collection/market/           # 動的市場システム
-├── index.js                     # エクスポート
-├── constants.js                 # 変動幅、確率等の定数
-├── marketState.js               # 市場状態管理
-├── marketEngine.js              # 価格変動計算エンジン
-├── weeklyTrend.js               # 週間トレンド（15種）
-├── newsGenerator.js             # デイリーニュース生成
-├── suddenEvent.js               # 突発イベント（25種）
-├── priceHistory.js              # 価格履歴管理
-└── data/                        # データ定義
-    ├── categories.js            # カテゴリと所属属性
-    ├── templates.js             # ニューステンプレート
-    └── events.js                # イベント定義
+src/collection/market/           # 動的市場システム (~2,078 lines)
+├── index.js                     # エクスポート (40 lines)
+├── constants.js                 # 変動幅、確率等の定数 (125 lines)
+├── marketEngine.js              # 価格変動計算・状態管理エンジン (329 lines)
+├── weeklyTrend.js               # 週間トレンド（15種）(190 lines)
+├── newsGenerator.js             # デイリーニュース生成（8パターン）(569 lines)
+├── suddenEvents.js              # 突発イベント（25種）(415 lines)
+├── priceHistory.js              # 価格履歴管理 (410 lines)
+└── data/                        # データ定義 (~1,244 lines)
+    ├── categories.js            # カテゴリと所属属性 (102 lines)
+    ├── reasons.js               # 理由（30種）(152 lines)
+    ├── persons.js               # NPC人物・行動 (137 lines)
+    ├── locations.js             # 場所・出来事 (238 lines)
+    ├── rumors.js                # 噂（9種）(120 lines)
+    ├── comparisons.js           # 比較パターン (94 lines)
+    ├── supplyDemand.js          # 需給パターン (43 lines)
+    ├── seasonal.js              # 季節効果 (114 lines)
+    └── characters.js            # ストーリーキャラ (244 lines)
 ```
 
 ### 市場状態（playerDataへの追加）
@@ -775,3 +828,4 @@ src/collection/market/           # 動的市場システム
 | 1.3 | 2025-11-28 | コレクション画面に価格表示・ティアフィルター追加 |
 | 1.4 | 2025-11-28 | 動的市場システム計画を追加 |
 | 1.5 | 2025-11-28 | 動的市場システム全フェーズ完了（M-1〜M-7）、市場分析画面の説明追加 |
+| 1.6 | 2025-11-28 | ディレクトリ構成を実態に合わせて全面更新（行数追加）、Phase 6-8追加、市場ディレクトリ構成更新、hooks/追加、商人システム参照追加 |
