@@ -181,12 +181,12 @@ export default function MagicSpiritGame() {
   // pendingSetsunaAction = { type: 'attack', attackerIndex, targetIndex } | { type: 'battleStart' }
 
   // デッキ選択状態
-  const [p1SelectedDeck, setP1SelectedDeck] = useState('random');
+  const [p1SelectedDeck, setP1SelectedDeck] = useState('starter'); // スターターデッキ「紅蓮の咆哮」をデフォルトに
   const [p2SelectedDeck, setP2SelectedDeck] = useState('random');
 
   // AIプレイヤー設定
   const [p1PlayerType, setP1PlayerType] = useState('human'); // 'human' | 'ai'
-  const [p2PlayerType, setP2PlayerType] = useState('human'); // 'human' | 'ai'
+  const [p2PlayerType, setP2PlayerType] = useState('ai'); // 'human' | 'ai' (デフォルトAI)
   const [p1AIDifficulty, setP1AIDifficulty] = useState('normal'); // 'easy' | 'normal' | 'hard'
   const [p2AIDifficulty, setP2AIDifficulty] = useState('normal'); // 'easy' | 'normal' | 'hard'
   const [aiAttackedMonsters, setAiAttackedMonsters] = useState(new Set()); // AIが攻撃済みのモンスター
