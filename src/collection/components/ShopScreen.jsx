@@ -617,21 +617,22 @@ const ShopScreen = ({
                   {playerData.market.weeklyTrend.name}
                 </div>
                 <div style={styles.trendEffects}>
-                  {playerData.market.weeklyTrend.effects.map((effect, i) => {
-                    const targetText = effect.target.attribute
-                      ? `${effect.target.attribute}属性`
-                      : effect.target.all
+                  {playerData.market.weeklyTrend.effects?.map((effect, i) => {
+                    const target = effect?.target || {};
+                    const targetText = target.attribute
+                      ? `${target.attribute}属性`
+                      : target.all
                         ? '全体'
-                        : effect.target.maxCost !== undefined
-                          ? `コスト${effect.target.maxCost}以下`
-                          : effect.target.minCost !== undefined
-                            ? `コスト${effect.target.minCost}以上`
-                            : effect.target.keyword
-                              ? `${effect.target.keyword}`
-                              : effect.target.tiers
-                                ? `${effect.target.tiers.join('/')}ティア`
-                                : effect.target.minRarity
-                                  ? `${effect.target.minRarity}以上`
+                        : target.maxCost !== undefined
+                          ? `コスト${target.maxCost}以下`
+                          : target.minCost !== undefined
+                            ? `コスト${target.minCost}以上`
+                            : target.keyword
+                              ? `${target.keyword}`
+                              : target.tiers
+                                ? `${target.tiers.join('/')}ティア`
+                                : target.minRarity
+                                  ? `${target.minRarity}以上`
                                   : '対象';
                     const modifierStyle = effect.modifier > 0
                       ? styles.trendEffectUp
@@ -678,11 +679,11 @@ const ShopScreen = ({
                       : styles.modifierDown),
                   }}
                 >
-                  → {playerData.market.dailyNews.target.category
+                  → {playerData.market.dailyNews.target?.category
                     ? `[${playerData.market.dailyNews.target.category}]`
-                    : playerData.market.dailyNews.target.attribute
+                    : playerData.market.dailyNews.target?.attribute
                       ? `[${playerData.market.dailyNews.target.attribute}属性]`
-                      : '[対象]'}
+                      : '[全体]'}
                   {' '}
                   {playerData.market.dailyNews.modifier > 0 ? '+' : ''}
                   {playerData.market.dailyNews.modifier}%
@@ -701,10 +702,10 @@ const ShopScreen = ({
                   {playerData.market.suddenEvent.name}
                 </div>
                 <div style={styles.suddenEventEffects}>
-                  {playerData.market.suddenEvent.effects.map((effect, i) => {
+                  {playerData.market.suddenEvent.effects?.map((effect, i) => {
                     // ターゲットの説明テキストを生成
                     let targetText = '';
-                    const t = effect.target;
+                    const t = effect?.target || {};
                     if (t.all) targetText = '全カード';
                     else if (t.attribute) targetText = `${t.attribute}属性`;
                     else if (t.category) targetText = `[${t.category}]`;
