@@ -1,5 +1,6 @@
 import React from 'react';
 import { ATTRIBUTE_COLORS, TYPE_ICONS } from '../utils/constants';
+import { isSetsunaMagic } from '../engine/keywordAbilities';
 
 // ========================================
 // カードコンポーネント
@@ -105,6 +106,30 @@ const Card = ({ card, onClick, selected, small, faceDown, inHand, disabled, modi
           filter: 'drop-shadow(0 0 2px rgba(0,0,0,0.8))',
         }}>
           ⚠️
+        </div>
+      )}
+
+      {/* 刹那詠唱マーカー */}
+      {isSetsunaMagic(card) && (
+        <div
+          style={{
+            position: 'absolute',
+            top: '4px',
+            left: card.isForbidden ? '44px' : '28px',
+            width: '18px',
+            height: '18px',
+            borderRadius: '3px',
+            background: 'linear-gradient(135deg, #00bcd4 0%, #4dd0e1 100%)',
+            border: '1px solid rgba(255, 255, 255, 0.5)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            fontSize: '11px',
+            boxShadow: '0 0 8px rgba(0, 188, 212, 0.9), 0 0 16px rgba(0, 188, 212, 0.4)',
+          }}
+          title="【刹那詠唱】相手ターンでも発動可能（コスト+1）"
+        >
+          ⚡
         </div>
       )}
 
