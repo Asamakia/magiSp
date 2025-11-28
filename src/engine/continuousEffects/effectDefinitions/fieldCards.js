@@ -25,7 +25,7 @@ export const fieldCardEffects = {
       type: CONTINUOUS_EFFECT_TYPES.ATK_MODIFIER,
       value: 300,
       target: TARGET_TYPES.SELF_MONSTERS,
-      condition: { category: '【粘液獣】' },
+      condition: { nameIncludes: '粘液獣' },
     },
   ],
 
