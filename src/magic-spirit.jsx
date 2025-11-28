@@ -80,10 +80,16 @@ import {
   DeckBuilder,
   DeckList,
   MarketAnalysis,
+  MerchantGuild,
+  MerchantShop,
   advanceDay,
   recordPriceHistory,
   calculateMarketModifier,
   recordAssetSnapshot,
+  purchaseFromMerchant,
+  sellToMerchant,
+  collectionManager,
+  getCardMarketPrice,
 } from './collection';
 
 // ========================================
@@ -107,7 +113,7 @@ export default function MagicSpiritGame() {
   const [isLoadingCards, setIsLoadingCards] = useState(true);
 
   // ゲーム状態
-  const [gameState, setGameState] = useState('title'); // title, playing, gameOver, collection, shop, packOpening, deckList, deckEdit
+  const [gameState, setGameState] = useState('title'); // title, playing, gameOver, collection, shop, packOpening, deckList, deckEdit, merchantGuild, merchantShop
   const [turn, setTurn] = useState(1);
   const [currentPlayer, setCurrentPlayer] = useState(1);
   const [phase, setPhase] = useState(0);
@@ -122,6 +128,7 @@ export default function MagicSpiritGame() {
   const [battleReward, setBattleReward] = useState(null); // 対戦報酬 { goldReward, packReward, isWin }
   const [editingDeck, setEditingDeck] = useState(null); // デッキ編集中のデッキ（nullなら新規）
   const [showMarketAnalysis, setShowMarketAnalysis] = useState(false); // 市場分析画面表示
+  const [currentMerchant, setCurrentMerchant] = useState(null); // 現在訪問中の商人名
 
   // プレイヤー1の状態
   const [p1Life, setP1Life] = useState(INITIAL_LIFE);
@@ -3247,6 +3254,17 @@ export default function MagicSpiritGame() {
                   🛒 ショップ
                 </button>
                 <button
+                  onClick={() => setGameState('merchantGuild')}
+                  style={{
+                    ...styles.actionButton,
+                    background: 'linear-gradient(135deg, #8b4513 0%, #d2691e 100%)',
+                    fontSize: '14px',
+                    padding: '10px 20px',
+                  }}
+                >
+                  🏪 商人ギルド
+                </button>
+                <button
                   onClick={() => setGameState('deckList')}
                   style={{
                     ...styles.actionButton,
@@ -3308,6 +3326,76 @@ export default function MagicSpiritGame() {
           />
         )}
       </>
+    );
+  }
+
+  // 商人ギルド画面
+  if (gameState === 'merchantGuild') {
+    return (
+      <MerchantGuild
+        playerData={playerData}
+        dayId={playerData?.market?.dayId || 0}
+        onBack={() => setGameState('title')}
+        onEnterShop={(merchantName) => {
+          setCurrentMerchant(merchantName);
+          setGameState('merchantShop');
+        }}
+        allCards={allCards}
+      />
+    );
+  }
+
+  // 商人店内画面
+  if (gameState === 'merchantShop' && currentMerchant) {
+    return (
+      <MerchantShop
+        merchantName={currentMerchant}
+        playerData={playerData}
+        allCards={allCards}
+        cardValueMap={cardValueMap}
+        dayId={playerData?.market?.dayId || 0}
+        onBack={() => {
+          setCurrentMerchant(null);
+          setGameState('merchantGuild');
+        }}
+        onPurchase={(cardId, rarity, price) => {
+          const updatedMerchantData = purchaseFromMerchant(
+            playerData.merchantData,
+            currentMerchant,
+            cardId,
+            rarity,
+            price
+          );
+          if (updatedMerchantData) {
+            // ゴールド消費とカード追加
+            const newPlayerData = {
+              ...playerData,
+              gold: playerData.gold - price,
+              collection: collectionManager.addCard(playerData.collection, cardId, rarity),
+              merchantData: updatedMerchantData,
+            };
+            updatePlayerData(newPlayerData);
+          }
+        }}
+        onSell={(card, rarity, sellPrice) => {
+          const updatedMerchantData = sellToMerchant(
+            playerData.merchantData,
+            currentMerchant,
+            card,
+            rarity,
+            playerData?.market?.dayId || 0
+          );
+          // ゴールド獲得とカード削除
+          const newPlayerData = {
+            ...playerData,
+            gold: playerData.gold + sellPrice,
+            collection: collectionManager.removeCard(playerData.collection, card.id, rarity),
+            merchantData: updatedMerchantData,
+          };
+          updatePlayerData(newPlayerData);
+        }}
+        getMarketPrice={(cardId) => getCardMarketPrice(cardId, playerData?.market, cardValueMap)}
+      />
     );
   }
 

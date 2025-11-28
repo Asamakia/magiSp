@@ -125,6 +125,44 @@ export { PriceChart, MiniChart, MarketIndexDisplay, EventMarkers } from './compo
 // Phase 7: 市場分析
 export { default as MarketAnalysis } from './components/MarketAnalysis';
 
+// Phase 8: 商人システム
+export { default as MerchantGuild } from './components/MerchantGuild';
+export { default as MerchantShop } from './components/MerchantShop';
+
+// ========================================
+// 商人システム
+// ========================================
+
+export {
+  // 定数
+  MERCHANT_TYPES,
+  FAVORABILITY_LEVELS,
+  TICKETS,
+  WEEKDAY_MERCHANTS,
+  // 商人データ
+  MERCHANTS,
+  MERCHANT_IDS,
+  getMerchantsByType,
+  ATTRIBUTE_MERCHANTS,
+  COLLECTORS,
+  // システムロジック
+  getFavorabilityLevel,
+  getFavorabilityInfo,
+  getNextLevelProgress,
+  isSpecialty,
+  calculateSellPrice,
+  calculateBuyPrice,
+  getAvailableAttributeMerchants,
+  checkDarkMerchantAppearance,
+  checkTravelerAppearance,
+  getTodayCollectors,
+  generateStock,
+  createInitialMerchantData,
+  purchaseFromMerchant,
+  sellToMerchant,
+  merchantSystem,
+} from './merchant';
+
 // ========================================
 // フック
 // ========================================
