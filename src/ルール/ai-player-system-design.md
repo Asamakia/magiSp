@@ -29,6 +29,8 @@ Magic Spiritにおいて、プレイヤー1およびプレイヤー2それぞれ
 | メインフェイズAI | ✅ 実装済み |
 | バトルフェイズAI | ✅ 実装済み |
 | 特殊ケース処理 | ✅ 実装済み |
+| フィールドカード配置 | ✅ 実装済み |
+| フェイズカード配置 | ✅ 実装済み |
 | デッキ専用AI | ⏳ 将来対応 |
 
 ---
@@ -99,19 +101,25 @@ Magic Spiritにおいて、プレイヤー1およびプレイヤー2それぞれ
 
 ```
 src/
-├── magic-spirit.jsx          # 既存 + AI統合 (~2900行)
+├── magic-spirit.jsx          # 既存 + AI統合 (~2950行)
 │
 └── engine/
-    └── ai/                   # AIシステム
+    └── ai/                   # AIシステム (~1515行)
         ├── index.js          # エクスポート (~50行)
-        ├── aiController.js   # メインAIコントローラー (~430行)
+        ├── aiController.js   # メインAIコントローラー (~530行)
+        │                     # - getSummonableCards, getEmptySlots
+        │                     # - getChargeableMonsters, getChargeableCards
+        │                     # - getPlaceableFieldCards, getPlaceablePhaseCards ← NEW
+        │                     # - getUsableSkills, getAttackableMonsters
+        │                     # - executeAIMainPhaseAction, executeAIBattlePhaseAction
+        │                     # - handleAIHandSelection, handleAIMonsterTarget, etc.
         │
         └── strategies/       # ストラテジー群
             ├── index.js      # ストラテジー取得 (~30行)
-            ├── base.js       # ベースストラテジー（ランダム）(~190行)
-            ├── easy.js       # 簡易AI (~55行)
-            ├── normal.js     # 中級AI (~115行)
-            ├── hard.js       # 上級AI (~145行)
+            ├── base.js       # ベースストラテジー（ランダム）(~230行)
+            ├── easy.js       # 簡易AI (~60行)
+            ├── normal.js     # 中級AI (~230行)
+            ├── hard.js       # 上級AI (~385行)
             │
             └── deckStrategies/  # デッキ専用（将来拡張）
                 └── (未実装)
@@ -339,6 +347,28 @@ export const baseStrategy = {
   },
 
   /**
+   * フィールドカードを配置するか判断
+   * @param {Array} placeableFieldCards - 配置可能なフィールドカード
+   * @param {AIGameState} gameState - ゲーム状態
+   * @returns {Object|null} 配置するカード（nullの場合は配置しない）
+   */
+  chooseFieldCard(placeableFieldCards, gameState) {
+    // デフォルト: 配置しない
+    return null;
+  },
+
+  /**
+   * フェイズカードを配置するか判断
+   * @param {Array} placeablePhaseCards - 配置可能なフェイズカード
+   * @param {AIGameState} gameState - ゲーム状態
+   * @returns {Object|null} 配置するカード（nullの場合は配置しない）
+   */
+  choosePhaseCard(placeablePhaseCards, gameState) {
+    // デフォルト: 配置しない
+    return null;
+  },
+
+  /**
    * メインフェイズを終了するか判断
    * @param {AIGameState} gameState - ゲーム状態
    * @param {Object} actionsRemaining - 残りのアクション情報
@@ -392,10 +422,17 @@ function shuffleArray(array) {
 | トリガー | 使用しない | 50%使用 | 80%使用 |
 | 刹那詠唱 | 使用しない | 使用しない | 状況判断で使用 |
 | 魔法カード | 使用しない | 30%使用 | 50%使用 |
+| **フィールドカード配置** | 配置しない | 条件付き70%（同属性モンスター有無） | スコアリング判断（閾値40点） |
+| **フェイズカード配置** | 配置しない | 条件付き70%（同属性モンスター有無） | スコアリング判断（閾値40点） |
 
 **チャージ条件**:
 - 技を持っていないモンスターにはチャージしない
 - チャージカードはモンスターと同じ属性のものに限定
+
+**フィールドカード/フェイズカード配置条件**:
+- 相手にモンスター2体以上、こちらに0体 → モンスター召喚優先（配置しない）
+- Normal: 同属性モンスターが手札/フィールドにあれば配置
+- Hard: スコアリングで判断（序盤ボーナス、コスト軽減効果、シナジー等を評価）
 
 #### Easy（かんたん）
 
@@ -408,7 +445,7 @@ import { baseStrategy, randomPick } from './base';
  * Easy AI ストラテジー
  * - 30%の確率で召喚スキップ
  * - 攻撃は70%で直接攻撃優先
- * - スキル・トリガー・刹那・魔法は使用しない
+ * - スキル・トリガー・刹那・魔法・フィールドカード・フェイズカードは使用しない
  */
 export const easyStrategy = {
   ...baseStrategy,
@@ -429,6 +466,16 @@ export const easyStrategy = {
   },
 
   // スキル・トリガー・刹那・魔法は使用しない（baseStrategyのデフォルト）
+
+  // フィールドカードは配置しない（戦略的価値を理解していない）
+  chooseFieldCard(placeableFieldCards, gameState) {
+    return null;
+  },
+
+  // フェイズカードは配置しない
+  choosePhaseCard(placeablePhaseCards, gameState) {
+    return null;
+  },
 };
 ```
 
@@ -444,6 +491,7 @@ import { baseStrategy, randomPick, shuffleArray } from './base';
  * - コスト効率の良いカードを優先召喚
  * - HPの低い敵を優先攻撃
  * - 有利な状況でスキル使用
+ * - 同属性モンスターがあればフィールドカード/フェイズカードを配置
  */
 export const normalStrategy = {
   ...baseStrategy,
@@ -464,90 +512,80 @@ export const normalStrategy = {
 
   // HPが低い敵を優先攻撃
   chooseAttackTarget(validTargets, attacker, gameState) {
-    const monsterTargets = validTargets.filter(t => t !== 'direct');
-
-    // 相手フィールドにモンスターがいない場合は直接攻撃
-    if (monsterTargets.length === 0) {
-      return 'direct';
-    }
-
-    // HPが最も低いモンスターを選択
-    const targetHPs = monsterTargets.map(idx => ({
-      idx,
-      hp: gameState.opponentField[idx]?.currentHp || Infinity
-    }));
-    targetHPs.sort((a, b) => a.hp - b.hp);
-
-    // 倒せる相手がいれば優先
-    const killable = targetHPs.find(t => t.hp <= attacker.currentAttack);
-    if (killable) return killable.idx;
-
-    // 相手のライフが少なければ直接攻撃
-    if (gameState.opponentLife <= attacker.currentAttack * 0.5) {
-      return 'direct';
-    }
-
-    return targetHPs[0].idx;
+    // ...（省略：前述の通り）
   },
 
   // 有利な状況でスキル使用
   chooseSkill(usableSkills, gameState) {
-    if (usableSkills.length === 0) return null;
-
-    // 上級技が使えれば優先
-    const advancedSkills = usableSkills.filter(s => s.skillType === 'advanced');
-    if (advancedSkills.length > 0) {
-      return advancedSkills[0];
-    }
-
-    // 基本技は30%の確率で使用
-    if (Math.random() < 0.3) {
-      return usableSkills[0];
-    }
-
-    return null;
+    // ...（省略：前述の通り）
   },
 
   // チャージ判断（攻撃力が高いモンスターを優先）
   chooseCharge(chargeableCards, chargeableMonsters, gameState) {
-    if (chargeableCards.length === 0 || chargeableMonsters.length === 0) return null;
+    // ...（省略：前述の通り）
+  },
 
-    // チャージが0のモンスターを優先（基本技を使えるようにする）
-    const noChargeMonsters = chargeableMonsters.filter(m => m.currentCharges === 0);
-    // チャージが1のモンスターも考慮（上級技を使えるようにする）
-    const oneChargeMonsters = chargeableMonsters.filter(m => m.currentCharges === 1);
+  // フィールドカード配置（基本条件判断）
+  chooseFieldCard(placeableFieldCards, gameState) {
+    if (placeableFieldCards.length === 0) return null;
 
-    let targetMonster = null;
+    // 30%の確率で配置しない（判断ミス）
+    if (Math.random() < 0.3) return null;
 
-    // まずはチャージ0のモンスターから攻撃力が高いものを選択
-    if (noChargeMonsters.length > 0) {
-      noChargeMonsters.sort((a, b) => (b.monster.currentAttack || b.monster.attack || 0) - (a.monster.currentAttack || a.monster.attack || 0));
-      targetMonster = noChargeMonsters[0];
-    } else if (oneChargeMonsters.length > 0) {
-      // チャージ1のモンスターから上級技を持つものを優先
-      const withAdvanced = oneChargeMonsters.filter(m => m.monster.advancedSkill);
-      if (withAdvanced.length > 0) {
-        withAdvanced.sort((a, b) => (b.monster.currentAttack || b.monster.attack || 0) - (a.monster.currentAttack || a.monster.attack || 0));
-        targetMonster = withAdvanced[0];
-      }
-    }
+    const myMonsters = gameState.myField.filter(m => m).length;
+    const opponentMonsters = gameState.opponentField.filter(m => m).length;
 
-    if (!targetMonster) return null;
+    // 相手にモンスターがいて、こちらにいない → モンスター優先（配置しない）
+    if (opponentMonsters > 0 && myMonsters === 0) return null;
 
-    // チャージに使うカードはモンスターと同じ属性のものを選択
-    const targetAttribute = targetMonster.monster.attribute;
-    const sameAttributeCards = chargeableCards.filter(card => card.attribute === targetAttribute);
+    // 同属性モンスターが手札にあるフィールドカードを探す
+    const matchingFieldCard = placeableFieldCards.find(fieldCard => {
+      return gameState.myHand.some(card =>
+        card.type === 'monster' && card.attribute === fieldCard.attribute
+      );
+    });
 
-    if (sameAttributeCards.length === 0) return null; // 同属性カードがなければチャージしない
+    if (matchingFieldCard) return matchingFieldCard;
 
-    // コストが低いものを優先（貴重なカードを温存）
-    const sortedCards = [...sameAttributeCards].sort((a, b) => (a.cost || 0) - (b.cost || 0));
-    const cardToCharge = sortedCards[0];
+    // フィールドに同属性モンスターがいれば配置
+    const fieldMatchingCard = placeableFieldCards.find(fieldCard => {
+      return gameState.myField.some(monster =>
+        monster && monster.attribute === fieldCard.attribute
+      );
+    });
 
-    return {
-      card: cardToCharge,
-      monsterIndex: targetMonster.monsterIndex,
-    };
+    if (fieldMatchingCard) return fieldMatchingCard;
+
+    return null;
+  },
+
+  // フェイズカード配置（基本条件判断）
+  choosePhaseCard(placeablePhaseCards, gameState) {
+    if (placeablePhaseCards.length === 0) return null;
+
+    // 30%の確率で配置しない
+    if (Math.random() < 0.3) return null;
+
+    const myMonsters = gameState.myField.filter(m => m).length;
+    const opponentMonsters = gameState.opponentField.filter(m => m).length;
+
+    // 相手にモンスターがいて、こちらにいない → モンスター優先
+    if (opponentMonsters > 0 && myMonsters === 0) return null;
+
+    // 同属性モンスターが手札またはフィールドにあれば配置
+    const matchingPhaseCard = placeablePhaseCards.find(phaseCard => {
+      const hasInHand = gameState.myHand.some(card =>
+        card.type === 'monster' && card.attribute === phaseCard.attribute
+      );
+      const hasOnField = gameState.myField.some(monster =>
+        monster && monster.attribute === phaseCard.attribute
+      );
+      return hasInHand || hasOnField;
+    });
+
+    if (matchingPhaseCard) return matchingPhaseCard;
+
+    return null;
   },
 };
 ```
@@ -566,158 +604,180 @@ import { normalStrategy } from './normal';
  * - ダメージ期待値を最大化する攻撃
  * - トリガー・刹那詠唱を積極的に使用
  * - 戦略的なチャージ判断
+ * - スコアリングによるフィールドカード/フェイズカード配置判断
  */
 export const hardStrategy = {
   ...normalStrategy, // Normal をベースに拡張
 
   // フィールド状況を考慮した召喚
   chooseSummon(summonableCards, gameState) {
-    if (summonableCards.length === 0) return null;
-
-    const myMonsterCount = gameState.myField.filter(m => m).length;
-    const opponentMonsterCount = gameState.opponentField.filter(m => m).length;
-
-    // 相手より少ない場合は攻撃力が高いカードを優先
-    if (myMonsterCount < opponentMonsterCount) {
-      const sorted = [...summonableCards].sort((a, b) => (b.attack || 0) - (a.attack || 0));
-      return sorted[0];
-    }
-
-    return normalStrategy.chooseSummon(summonableCards, gameState);
+    // ...（省略：前述の通り）
   },
 
   // スキルを積極的に使用
   chooseSkill(usableSkills, gameState) {
-    if (usableSkills.length === 0) return null;
-
-    // 上級技があれば必ず使用
-    const advancedSkills = usableSkills.filter(s => s.skillType === 'advanced');
-    if (advancedSkills.length > 0) {
-      return advancedSkills[0];
-    }
-
-    // 基本技は60%の確率で使用
-    if (Math.random() < 0.6) {
-      return usableSkills[0];
-    }
-
-    return null;
+    // ...（省略：前述の通り）
   },
 
   // 戦略的なチャージ判断
   chooseCharge(chargeableCards, chargeableMonsters, gameState) {
-    if (chargeableCards.length === 0 || chargeableMonsters.length === 0) return null;
-
-    const noChargeMonsters = chargeableMonsters.filter(m => m.currentCharges === 0);
-    const oneChargeMonsters = chargeableMonsters.filter(m => m.currentCharges === 1);
-
-    let targetMonster = null;
-
-    // 上級技を持つモンスターで、チャージが1のものを優先（すぐ上級技が使える）
-    const oneChargeWithAdvanced = oneChargeMonsters.filter(m => m.monster.advancedSkill);
-    if (oneChargeWithAdvanced.length > 0) {
-      oneChargeWithAdvanced.sort((a, b) =>
-        (b.monster.currentAttack || b.monster.attack || 0) - (a.monster.currentAttack || a.monster.attack || 0)
-      );
-      targetMonster = oneChargeWithAdvanced[0];
-    } else if (noChargeMonsters.length > 0) {
-      // 基本技を持つモンスターを優先
-      const withBasic = noChargeMonsters.filter(m => m.monster.basicSkill);
-      if (withBasic.length > 0) {
-        withBasic.sort((a, b) =>
-          (b.monster.currentAttack || b.monster.attack || 0) - (a.monster.currentAttack || a.monster.attack || 0)
-        );
-        targetMonster = withBasic[0];
-      } else {
-        // 上級技のみ持つモンスターにもチャージ
-        noChargeMonsters.sort((a, b) =>
-          (b.monster.currentAttack || b.monster.attack || 0) - (a.monster.currentAttack || a.monster.attack || 0)
-        );
-        targetMonster = noChargeMonsters[0];
-      }
-    } else if (oneChargeMonsters.length > 0) {
-      oneChargeMonsters.sort((a, b) =>
-        (b.monster.currentAttack || b.monster.attack || 0) - (a.monster.currentAttack || a.monster.attack || 0)
-      );
-      targetMonster = oneChargeMonsters[0];
-    }
-
-    if (!targetMonster) return null;
-
-    // チャージに使うカードはモンスターと同じ属性のものを選択
-    const targetAttribute = targetMonster.monster.attribute;
-    const sameAttributeCards = chargeableCards.filter(card => card.attribute === targetAttribute);
-
-    if (sameAttributeCards.length === 0) return null;
-
-    // 魔法カードやフィールドカードを優先（モンスターは温存）
-    const sortedCards = [...sameAttributeCards].sort((a, b) => {
-      if (a.type !== 'monster' && b.type === 'monster') return -1;
-      if (a.type === 'monster' && b.type !== 'monster') return 1;
-      return (a.cost || 0) - (b.cost || 0);
-    });
-    const cardToCharge = sortedCards[0];
-
-    return {
-      card: cardToCharge,
-      monsterIndex: targetMonster.monsterIndex,
-    };
+    // ...（省略：前述の通り）
   },
 
   // 刹那詠唱を積極的に使用
   chooseSetsuna(availableSetsunaCards, chainContext, gameState) {
-    if (availableSetsunaCards.length === 0) return null;
-
-    // 攻撃宣言時、自分のモンスターが倒されそうなら発動
-    if (chainContext.attacker) {
-      const attackDamage = chainContext.attacker.currentAttack || 0;
-      const myMonsters = gameState.myField.filter(m => m);
-      const endangered = myMonsters.some(m => m.currentHp <= attackDamage);
-
-      if (endangered) {
-        const damageSetsuna = availableSetsunaCards.find(c =>
-          c.effect?.includes('ダメージ') || c.effect?.includes('破壊')
-        );
-        if (damageSetsuna) return damageSetsuna;
-      }
-    }
-
-    // バトル開始時は50%で発動
-    if (chainContext.type === 'battleStart') {
-      if (Math.random() < 0.5 && availableSetsunaCards.length > 0) {
-        return availableSetsunaCards[0];
-      }
-    }
-
-    return null;
+    // ...（省略：前述の通り）
   },
 
   // トリガーを積極的に発動（80%）
   chooseTrigger(activatableTriggers, gameState) {
-    if (activatableTriggers.length === 0) return null;
-    if (Math.random() < 0.8) {
-      return activatableTriggers[0];
-    }
-    return null;
+    // ...（省略：前述の通り）
   },
 
   // 魔法カードを状況に応じて使用（50%）
   chooseMagicCard(usableMagicCards, gameState) {
-    if (usableMagicCards.length === 0) return null;
+    // ...（省略：前述の通り）
+  },
 
-    // ダメージ系・回復系を優先
-    const priorityCards = usableMagicCards.filter(c =>
-      c.effect?.includes('ダメージ') ||
-      c.effect?.includes('回復') ||
-      c.effect?.includes('ドロー')
-    );
+  // フィールドカード配置（戦略的判断・スコアリング）
+  chooseFieldCard(placeableFieldCards, gameState) {
+    if (placeableFieldCards.length === 0) return null;
 
-    if (priorityCards.length > 0) {
-      return priorityCards[0];
+    const myMonsters = gameState.myField.filter(m => m).length;
+    const opponentMonsters = gameState.opponentField.filter(m => m).length;
+    const turn = gameState.turn || 1;
+
+    // 相手にモンスターが2体以上いて、こちらにいない → モンスター優先
+    if (opponentMonsters >= 2 && myMonsters === 0) return null;
+
+    // 各フィールドカードをスコアリング
+    const scored = placeableFieldCards.map(fieldCard => {
+      let score = 0;
+      const effect = fieldCard.effect || '';
+
+      // === 序盤ボーナス（累積効果は早期配置が有利）===
+      if (turn <= 2) score += 30;
+      else if (turn <= 4) score += 15;
+
+      // === コスト軽減効果 → 最優先 ===
+      if (effect.includes('コスト') && (effect.includes('軽減') || effect.includes('-'))) {
+        score += 50;
+      }
+
+      // === 手札にシナジーモンスターがいるか ===
+      const synergisticMonstersInHand = gameState.myHand.filter(card => {
+        if (card.type !== 'monster') return false;
+        if (card.attribute === fieldCard.attribute) return true;
+        // カテゴリ一致（《ドラゴン》《ブリザードキャット》等）
+        if (effect.includes('《') && card.category) {
+          const categoryMatch = effect.match(/《([^》]+)》/);
+          if (categoryMatch && card.category.includes(categoryMatch[1])) return true;
+        }
+        return false;
+      });
+      score += synergisticMonstersInHand.length * 20;
+
+      // === フィールドにシナジーモンスターがいるか ===
+      const synergisticMonstersOnField = gameState.myField.filter(monster => {
+        if (!monster) return false;
+        if (monster.attribute === fieldCard.attribute) return true;
+        // カテゴリ一致
+        if (effect.includes('《') && monster.category) {
+          const categoryMatch = effect.match(/《([^》]+)》/);
+          if (categoryMatch && monster.category.includes(categoryMatch[1])) return true;
+        }
+        return false;
+      });
+      score += synergisticMonstersOnField.length * 25;
+
+      // === エンドフェイズダメージ効果 ===
+      if (effect.includes('エンドフェイズ') && effect.includes('ダメージ')) {
+        score += opponentMonsters * 10;
+        score += 10;
+      }
+
+      // === SP回復効果 ===
+      if (effect.includes('SP') && (effect.includes('回復') || effect.includes('アクティブ'))) {
+        score += 20;
+      }
+
+      // === 攻撃力アップ効果 ===
+      if (effect.includes('攻撃力') && effect.includes('アップ')) {
+        score += (synergisticMonstersOnField.length + synergisticMonstersInHand.length) * 10;
+      }
+
+      return { card: fieldCard, score };
+    });
+
+    scored.sort((a, b) => b.score - a.score);
+
+    // スコア40以上なら配置
+    if (scored[0] && scored[0].score >= 40) {
+      return scored[0].card;
     }
 
-    if (Math.random() < 0.5) {
-      return usableMagicCards[0];
+    return null;
+  },
+
+  // フェイズカード配置（戦略的判断・スコアリング）
+  choosePhaseCard(placeablePhaseCards, gameState) {
+    if (placeablePhaseCards.length === 0) return null;
+
+    const myMonsters = gameState.myField.filter(m => m).length;
+    const opponentMonsters = gameState.opponentField.filter(m => m).length;
+    const turn = gameState.turn || 1;
+
+    // 相手にモンスターが2体以上いて、こちらにいない → モンスター優先
+    if (opponentMonsters >= 2 && myMonsters === 0) return null;
+
+    // 各フェイズカードをスコアリング
+    const scored = placeablePhaseCards.map(phaseCard => {
+      let score = 0;
+      const effect = phaseCard.effect || '';
+
+      // === 序盤ボーナス（段階強化のため早期配置が有利）===
+      if (turn <= 2) score += 35;
+      else if (turn <= 4) score += 20;
+
+      // === コスト軽減効果 → 最優先 ===
+      if (effect.includes('コスト') && (effect.includes('軽減') || effect.includes('-'))) {
+        score += 50;
+      }
+
+      // === 手札にシナジーモンスターがいるか ===
+      const synergisticMonstersInHand = gameState.myHand.filter(card => {
+        if (card.type !== 'monster') return false;
+        if (card.attribute === phaseCard.attribute) return true;
+        if (effect.includes('《') && card.category) {
+          const categoryMatch = effect.match(/《([^》]+)》/);
+          if (categoryMatch && card.category.includes(categoryMatch[1])) return true;
+        }
+        return false;
+      });
+      score += synergisticMonstersInHand.length * 20;
+
+      // === フィールドにシナジーモンスターがいるか ===
+      const synergisticMonstersOnField = gameState.myField.filter(monster => {
+        if (!monster) return false;
+        if (monster.attribute === phaseCard.attribute) return true;
+        return false;
+      });
+      score += synergisticMonstersOnField.length * 25;
+
+      // === 手札にチャージ用同属性カードがあるか（段階強化用）===
+      const chargeableCards = gameState.myHand.filter(card =>
+        card.attribute === phaseCard.attribute && card.uniqueId !== phaseCard.uniqueId
+      );
+      score += chargeableCards.length * 10;
+
+      return { card: phaseCard, score };
+    });
+
+    scored.sort((a, b) => b.score - a.score);
+
+    // スコア40以上なら配置
+    if (scored[0] && scored[0].score >= 40) {
+      return scored[0].card;
     }
 
     return null;
@@ -840,6 +900,32 @@ export function getChargeableMonsters(gameState) {
 export function getChargeableCards(gameState) {
   return gameState.myHand.filter(card => {
     return card.type === 'monster' || card.type === 'magic' || card.type === 'field';
+  });
+}
+
+/**
+ * 配置可能なフィールドカードを取得
+ * フィールドカードスロットが空で、コストが払える場合のみ
+ */
+export function getPlaceableFieldCards(gameState) {
+  const { myHand, myActiveSP, myFieldCard } = gameState;
+  if (myFieldCard) return []; // 既にフィールドカードが配置済み
+  return myHand.filter(card => {
+    if (card.type !== 'field') return false;
+    return card.cost <= myActiveSP;
+  });
+}
+
+/**
+ * 配置可能なフェイズカードを取得
+ * フェイズカードスロットが空で、コストが払える場合のみ
+ */
+export function getPlaceablePhaseCards(gameState) {
+  const { myHand, myActiveSP, myPhaseCard } = gameState;
+  if (myPhaseCard) return []; // 既にフェイズカードが配置済み
+  return myHand.filter(card => {
+    if (card.type !== 'phasecard') return false;
+    return card.cost <= myActiveSP;
   });
 }
 
@@ -1081,6 +1167,10 @@ export {
   getUsableSkills,
   getAttackableMonsters,
   getValidAttackTargets,
+  getChargeableCards,
+  getChargeableMonsters,
+  getPlaceableFieldCards,   // NEW: フィールドカード配置
+  getPlaceablePhaseCards,   // NEW: フェイズカード配置
 } from './aiController';
 ```
 
@@ -1475,16 +1565,16 @@ export function getStrategy(difficulty, deckStrategyId = null) {
 ```
 src/engine/ai/
 ├── index.js              (~50行)
-├── aiController.js       (~430行)
+├── aiController.js       (~530行)
 └── strategies/
     ├── index.js          (~30行)
-    ├── base.js           (~190行)
-    ├── easy.js           (~55行)
-    ├── normal.js         (~115行)
-    └── hard.js           (~145行)
+    ├── base.js           (~230行)
+    ├── easy.js           (~60行)
+    ├── normal.js         (~230行)
+    └── hard.js           (~385行)
 ```
 
-**総追加行数**: 約1,015行（新規ファイル）+ 約180行（magic-spirit.jsx追加）
+**総追加行数**: 約1,515行（新規ファイル）+ 約180行（magic-spirit.jsx追加）
 
 ---
 
@@ -1606,10 +1696,11 @@ if (selectMode && onSelect && result.selectedCards) {
 | 1.0 | 2025-11-27 | 初版作成 |
 | 1.1 | 2025-11-27 | 実装完了、バトルフェイズ修正、デッキ確認修正 |
 | 1.2 | 2025-11-27 | チャージ機能追加（Normal/Hard）、属性チェック・技チェック条件追加 |
+| 1.3 | 2025-11-28 | フィールドカード/フェイズカード配置AI追加（Easy/Normal/Hard全難易度） |
 
 ---
 
-**ドキュメントバージョン**: 1.2
+**ドキュメントバージョン**: 1.3
 **作成日**: 2025-11-27
-**最終更新**: 2025-11-27
+**最終更新**: 2025-11-28
 **対象**: Magic Spirit AIプレイヤーシステム
