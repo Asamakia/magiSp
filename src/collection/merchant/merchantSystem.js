@@ -88,6 +88,17 @@ export const isSpecialty = (merchant, card) => {
       if (!card.category) return false;
       return value.some(cat => card.category.includes(cat));
 
+    case 'name':
+      // カード名に含まれるかチェック
+      if (!card.name) return false;
+      return value.some(keyword => card.name.includes(keyword));
+
+    case 'nameOrCategory':
+      // カード名またはカテゴリに含まれるかチェック
+      const nameMatch = card.name && value.some(keyword => card.name.includes(keyword));
+      const categoryMatch = card.category && value.some(cat => card.category.includes(cat));
+      return nameMatch || categoryMatch;
+
     case 'rarity':
       // レアリティは配列でチェック
       return value.includes(card.rarity);

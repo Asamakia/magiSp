@@ -199,7 +199,7 @@ export const MERCHANTS = {
     name: 'ピッポ',
     type: MERCHANT_TYPES.COLLECTOR,
     icon: '🎭',
-    specialty: { type: 'category', value: ['岩狸', '粘液獣'] },
+    specialty: { type: 'name', value: ['岩狸', '粘液獣'] },
     appearance: 'daily',
     profile: {
       appearance: '太った中年。汗っかき、興奮すると顔が赤い',
@@ -219,7 +219,7 @@ export const MERCHANTS = {
     name: 'リリアーヌ',
     type: MERCHANT_TYPES.COLLECTOR,
     icon: '👗',
-    specialty: { type: 'category', value: ['リリカ', '魔女'] },
+    specialty: { type: 'name', value: ['リリカ', '魔女', 'エリザヴェット'] },
     appearance: 'daily',
     profile: {
       appearance: 'フリル服のお嬢様。巻き髪、日傘',
@@ -259,7 +259,7 @@ export const MERCHANTS = {
     name: 'ミスティ',
     type: MERCHANT_TYPES.COLLECTOR,
     icon: '🐱',
-    specialty: { type: 'category', value: ['ブリザードキャット'] },
+    specialty: { type: 'name', value: ['ブリザードキャット', '氷猫'] },
     appearance: 'daily',
     profile: {
       appearance: '猫耳フードの女性。無表情、目だけ動く',
@@ -279,7 +279,7 @@ export const MERCHANTS = {
     name: 'プロフ・ノーム',
     type: MERCHANT_TYPES.COLLECTOR,
     icon: '🔬',
-    specialty: { type: 'category', value: ['ゴーレム', '未来鴉'] },
+    specialty: { type: 'nameOrCategory', value: ['ゴーレム', '鴉'] },
     appearance: 'daily',
     profile: {
       appearance: '曇った眼鏡、よれた白衣。常にメモ帳',
@@ -299,7 +299,7 @@ export const MERCHANTS = {
     name: 'シスター・エマ',
     type: MERCHANT_TYPES.COLLECTOR,
     icon: '🕊️',
-    specialty: { type: 'category', value: ['鳥民', 'フルーツ・マリオネット'] },
+    specialty: { type: 'nameOrCategory', value: ['フルーツ・マリオネット', '鳥'] },
     appearance: 'daily',
     profile: {
       appearance: '修道服。柔らかい笑顔、小鳥が肩に',
