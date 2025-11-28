@@ -8,6 +8,8 @@ import {
   searchCard,
   reviveFromGraveyard,
   modifyAttack,
+  applyStatusToAllOpponentMonsters,
+  selectAndApplyStatusToOpponent,
 } from '../effectHelpers';
 import { hasCategory } from '../../utils/helpers';
 import { statusEffectEngine, STATUS_EFFECT_TYPES } from '../statusEffects';
@@ -42,15 +44,9 @@ export const primitiveCardEffects = {
   /**
    * C0000004: ゴミあさり粘液獣
    * 【召喚時】墓地の《粘液獣》モンスター1体を攻撃力半減して場に戻す
+   * ※召喚時効果はトリガーシステムで処理
    */
-  C0000004: (skillText, context) => {
-    if (skillText.includes('【召喚時】')) {
-      return reviveFromGraveyard(context, (card) => {
-        return card.name && card.name.includes('粘液獣');
-      }, true);
-    }
-    return false;
-  },
+  // C0000004は基本技がないため、cardEffectsでの実装は不要
 
   /**
    * C0000009: 粘液獣・寄生
@@ -136,33 +132,12 @@ export const primitiveCardEffects = {
   /**
    * C0000006: 新・超覚醒粘液獣ハイパー
    * 【召喚時】場にいる粘液獣1体につき、自身の攻撃力を1000アップ
+   * ※召喚時効果はトリガーシステムで処理
    * 基本技：場にいる時一度だけ相手モンスター1体を飲み込んで無効化する
    */
   C0000006: (skillText, context) => {
     const { addLog, monsterIndex, setPendingMonsterTarget } = context;
     const { myField, setMyField, opponentField, setOpponentField } = getPlayerContext(context);
-
-    // 召喚時効果（トリガーで処理されるが、フォールバック用）
-    if (skillText.includes('【召喚時】')) {
-      const slimeCount = myField.filter(m =>
-        m && m.name && m.name.includes('粘液獣')
-      ).length;
-
-      if (slimeCount > 0) {
-        const atkBoost = slimeCount * 1000;
-        setMyField(prev => prev.map((m, idx) => {
-          if (idx === monsterIndex && m) {
-            const newAttack = m.attack + atkBoost;
-            const newCurrentAttack = (m.currentAttack || m.attack) + atkBoost;
-            addLog(`${m.name}の攻撃力が${atkBoost}アップ！`, 'info');
-            return { ...m, attack: newAttack, currentAttack: newCurrentAttack };
-          }
-          return m;
-        }));
-        return true;
-      }
-      return false;
-    }
 
     // 基本技：相手モンスター1体を飲み込む（1回限り、2ターン後に消化）
     if (context.skillType === 'basic') {
@@ -226,55 +201,74 @@ export const primitiveCardEffects = {
   },
 
   /**
+   * C0000007: 粘液獣・キング
+   * 基本技：このターン中、相手モンスターの効果を全て無効化する。
+   */
+  C0000007: (skillText, context) => {
+    if (context.skillType === 'basic') {
+      const { addLog } = context;
+      const { opponentField } = getPlayerContext(context);
+
+      // 相手モンスターがいるかチェック
+      const hasOpponentMonster = opponentField.some(m => m !== null);
+      if (!hasOpponentMonster) {
+        addLog('粘液獣・キング: 無効化する対象がいません', 'info');
+        return true; // 空振りでも発動成功
+      }
+
+      // 相手モンスター全体にSILENCE（効果無効）を付与（ターン終了まで）
+      applyStatusToAllOpponentMonsters(context, STATUS_EFFECT_TYPES.SILENCE, {
+        duration: 0, // ターン終了時まで
+        source: 'C0000007',
+        sourceName: '粘液獣・キング',
+      }, '粘液獣・キング');
+
+      addLog('粘液獣・キング: このターン中、相手モンスターの効果を全て無効化！', 'info');
+      return true;
+    }
+    return false;
+  },
+
+  /**
    * C0000008: 粘液獣・胞子
    * 【召喚時】デッキから《粘液獣》と名の付くカード1枚を手札に加える
+   * ※召喚時効果はトリガーシステムで処理
    */
   C0000008: (skillText, context) => {
-    if (skillText.includes('【召喚時】')) {
-      return searchCard(context, (card) => {
-        return card.name && card.name.includes('粘液獣');
-      }) !== null;
-    }
+    // 召喚時効果はトリガーで処理されるため、cardEffectsでは何もしない
     return false;
   },
 
   /**
    * C0000010: 粘液獣・融合体
    * 【召喚時】このカードと場の他の《粘液獣》1体を融合し、このカードの攻撃力を融合素材の合計に変更する
+   * ※召喚時効果はトリガーシステムで処理
+   * 基本技：ターン終了時まで相手モンスター1体の効果を無効化する。
    */
   C0000010: (skillText, context) => {
-    const { addLog, monsterIndex } = context;
-    const { myField, setMyField, setMyGraveyard } = getPlayerContext(context);
+    // 基本技：ターン終了時まで相手モンスター1体の効果を無効化
+    if (context.skillType === 'basic') {
+      const { addLog } = context;
+      const { opponentField } = getPlayerContext(context);
 
-    if (skillText.includes('【召喚時】')) {
-      const slimes = myField.filter((m, idx) =>
-        m && idx !== monsterIndex && m.name && m.name.includes('粘液獣')
-      );
-
-      if (slimes.length > 0) {
-        const target = slimes[0];
-        const fusionMonster = myField[monsterIndex];
-        const newAtk = fusionMonster.attack + target.attack;
-
-        // 融合素材を墓地に送る
-        setMyField(prev => prev.map((m, idx) => {
-          if (m && m.uniqueId === target.uniqueId) {
-            return null;
-          }
-          if (idx === monsterIndex && m) {
-            return { ...m, attack: newAtk };
-          }
-          return m;
-        }));
-        setMyGraveyard(prev => [...prev, target]);
-
-        addLog(`${target.name}を融合！攻撃力が${newAtk}に変更`, 'info');
-        return true;
-      } else {
-        addLog('融合する粘液獣がいません', 'info');
+      // 相手モンスターがいるかチェック
+      const hasOpponentMonster = opponentField.some(m => m !== null);
+      if (!hasOpponentMonster) {
+        addLog('粘液獣・融合体: 無効化する対象がいません', 'info');
         return false;
       }
+
+      // 相手モンスター1体を選択してSILENCE（効果無効）を付与
+      selectAndApplyStatusToOpponent(context, STATUS_EFFECT_TYPES.SILENCE, {
+        duration: 0, // ターン終了時まで
+        source: 'C0000010',
+        sourceName: '粘液獣・融合体',
+      }, '粘液獣・融合体');
+
+      return true;
     }
+
+    // 召喚時効果はトリガーで処理されるため、cardEffectsでは何もしない
     return false;
   },
 
