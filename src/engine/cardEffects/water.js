@@ -22,6 +22,28 @@ export const waterCardEffects = {
   // cardTriggers/waterCards.js に実装済み（召喚時トリガーとして）
 
   /**
+   * C0000039: アクア・メイデン
+   * 基本技：相手モンスター1体を「眠り」状態にする。
+   * 召喚時効果は waterCards.js のトリガーとして実装済み
+   */
+  C0000039: (skillText, context) => {
+    if (context.skillType === 'basic') {
+      // 眠り: 次のターン終了時まで行動不能＋効果無効、ターン開始時50%解除
+      selectAndApplyStatusToOpponent(
+        context,
+        STATUS_EFFECT_TYPES.SLEEP,
+        {
+          duration: 2, // 次のターン終了時まで
+          removeChance: 0.5, // 50%で解除
+        },
+        'アクア・メイデン'
+      );
+      return true;
+    }
+    return false;
+  },
+
+  /**
    * C0000148: 氷の双尾猫
    * 基本技：1度のみ使用可能、手札を1枚捨て自分の墓地の《ブリザードキャット》1体を場に戻す（HP半分）
    */
