@@ -1109,6 +1109,74 @@ export const yourAttributeCardEffects = {
 
 ---
 
+### 【推奨】cardTriggersによる実装（v2.0形式）
+
+上記のcardEffects形式は古い形式です。現在は`src/engine/cardTriggers/`の配列形式を推奨します。
+
+**ファイル**: `src/engine/cardTriggers/[attribute]Cards.js`
+
+```javascript
+import { TRIGGER_TYPES, ACTIVATION_TYPES, TRIGGER_PRIORITIES } from '../triggerTypes';
+import { conditionalDamage, modifyAttack } from '../effectHelpers';
+
+export const lightCardTriggers = {
+  /**
+   * C0000091: 灯火の精霊
+   * 【常時】自分の光属性モンスターが召喚されるたび、そのモンスターのHPを200アップ。
+   */
+  C0000091: [
+    {
+      type: TRIGGER_TYPES.ON_ATTRIBUTE_SUMMON_SELF,
+      activationType: ACTIVATION_TYPES.AUTOMATIC,
+      displayDescription: '自分光属性モンスター召喚時',  // ⭐ UI表示用
+      description: '光属性召喚時: そのモンスターのHP+200',
+      effect: (context) => {
+        const { card, slotIndex, addLog } = context;
+        if (card && card.attribute === '光') {
+          modifyHP(context, 200, slotIndex, false);
+          addLog(`灯火の精霊の効果: ${card.name}のHP+200`, 'info');
+        }
+      },
+    },
+  ],
+};
+```
+
+#### トリガーオブジェクトのフィールド
+
+| フィールド | 必須 | 説明 |
+|-----------|------|------|
+| `type` | ✅ | `TRIGGER_TYPES`の値。トリガーのタイミング |
+| `activationType` | ✅ | `AUTOMATIC`（自動）または `OPTIONAL`（任意） |
+| `description` | ✅ | 効果説明（情報パネルに表示） |
+| `displayDescription` | ⭐ | タイミング表示文（省略時はtypeのdisplayNameを使用） |
+| `effect` | ✅ | 効果関数 `(context) => { ... }` |
+| `priority` | - | 優先度（デフォルト: NORMAL） |
+| `usesPerTurn` | - | 1ターンの使用回数制限 |
+
+#### displayDescription の使用ケース
+
+汎用トリガータイプに条件が付く場合に使用します：
+
+```javascript
+// ON_ATTRIBUTE_SUMMON_SELF の displayName は「属性召喚時」
+// 実際の効果テキストは「自分光属性モンスター召喚時」なので displayDescription で上書き
+
+C0000091: [{
+  type: TRIGGER_TYPES.ON_ATTRIBUTE_SUMMON_SELF,
+  displayDescription: '自分光属性モンスター召喚時',  // ← 情報パネルに表示される
+  description: 'そのモンスターのHP+200',
+  // ...
+}]
+```
+
+**displayDescription が必要なケース**:
+- `ON_ATTRIBUTE_SUMMON_SELF` + 特定属性/名称
+- `ON_ATTACK` + 特定名称（例: 「自分《ヴォランティス》モンスター攻撃時」）
+- その他、汎用トリガーに追加条件がある場合
+
+---
+
 ## テストとデバッグ
 
 ### デバッグツールの活用

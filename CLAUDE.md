@@ -1007,6 +1007,22 @@ export const fireCardTriggers = {
       },
     },
   ],
+
+  // 条件付きトリガーの例（displayDescriptionを使用）
+  C0000YYY: [
+    {
+      type: TRIGGER_TYPES.ON_ATTRIBUTE_SUMMON_SELF,
+      activationType: ACTIVATION_TYPES.AUTOMATIC,
+      displayDescription: '自分光属性モンスター召喚時',  // UI表示用（省略時はtypeのdisplayNameを使用）
+      description: 'そのモンスターのHP+200',
+      effect: (context) => {
+        // 条件チェックは effect 内で実装
+        if (context.card?.attribute === '光') {
+          // 効果処理
+        }
+      },
+    },
+  ],
 };
 
 // Available attribute files:

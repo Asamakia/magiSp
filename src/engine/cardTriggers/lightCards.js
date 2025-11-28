@@ -241,6 +241,7 @@ export const lightCardTriggers = {
     {
       type: TRIGGER_TYPES.ON_ATTRIBUTE_SUMMON_SELF,
       activationType: ACTIVATION_TYPES.AUTOMATIC,
+      displayDescription: '自分光属性モンスター召喚時',
       description: '光属性召喚時: そのモンスターのHP+200',
       effect: (context) => {
         const { card, slotIndex, addLog } = context;
@@ -722,6 +723,7 @@ export const lightCardTriggers = {
     {
       type: TRIGGER_TYPES.ON_ATTRIBUTE_SUMMON_SELF,
       activationType: ACTIVATION_TYPES.AUTOMATIC,
+      displayDescription: '自分光属性モンスター攻撃時',
       description: '光属性攻撃時: 相手モンスターに300ダメージ',
       effect: (context) => {
         const { card, addLog } = context;
@@ -881,6 +883,7 @@ export const lightCardTriggers = {
     {
       type: TRIGGER_TYPES.ON_ATTACK,
       activationType: ACTIVATION_TYPES.AUTOMATIC,
+      displayDescription: '自分《ヴォランティス》モンスター攻撃時',
       description: '《ヴォランティス》攻撃時: 相手に300ダメージ',
       effect: (context) => {
         const { card, addLog } = context;
@@ -1010,6 +1013,7 @@ export const lightCardTriggers = {
     {
       type: TRIGGER_TYPES.ON_ATTRIBUTE_SUMMON_SELF,
       activationType: ACTIVATION_TYPES.AUTOMATIC,
+      displayDescription: '自分《虹羽密林》モンスター召喚時',
       description: '《虹羽密林》召喚時: 攻撃力+400',
       effect: (context) => {
         const { card, slotIndex, addLog } = context;

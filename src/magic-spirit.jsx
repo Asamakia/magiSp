@@ -3085,7 +3085,7 @@ export default function MagicSpiritGame() {
                         <div key={i}>
                           {i > 0 && <div style={{ borderTop: '1px solid rgba(157,76,230,0.3)', margin: '6px 0' }} />}
                           <div style={{ color: '#c9a0ff', fontWeight: 'bold', fontSize: '10px', marginBottom: '2px' }}>
-                            【{getTriggerDisplayName(trigger.type)}】
+                            【{trigger.displayDescription || getTriggerDisplayName(trigger.type)}】
                             {trigger.activationType === ACTIVATION_TYPES.OPTIONAL && <span style={{ color: '#ff8e53', fontWeight: 'normal', marginLeft: '4px' }}>(任意)</span>}
                           </div>
                           {trigger.description && (
@@ -3184,7 +3184,7 @@ export default function MagicSpiritGame() {
                             <div key={i}>
                               {i > 0 && <div style={{ borderTop: '1px solid rgba(157,76,230,0.3)', margin: '6px 0' }} />}
                               <div style={{ color: '#c9a0ff', fontWeight: 'bold', fontSize: '10px', marginBottom: '2px' }}>
-                                【{getTriggerDisplayName(trigger.type)}】
+                                【{trigger.displayDescription || getTriggerDisplayName(trigger.type)}】
                                 {trigger.activationType === ACTIVATION_TYPES.OPTIONAL && <span style={{ color: '#ff8e53', fontWeight: 'normal', marginLeft: '4px' }}>(任意)</span>}
                               </div>
                               {trigger.description && (
@@ -3350,7 +3350,7 @@ export default function MagicSpiritGame() {
                           <div key={i}>
                             {i > 0 && <div style={{ borderTop: '1px solid rgba(157,76,230,0.3)', margin: '6px 0' }} />}
                             <div style={{ color: '#c9a0ff', fontWeight: 'bold', fontSize: '10px', marginBottom: '2px' }}>
-                              【{getTriggerDisplayName(trigger.type)}】
+                              【{trigger.displayDescription || getTriggerDisplayName(trigger.type)}】
                               {trigger.activationType === ACTIVATION_TYPES.OPTIONAL && <span style={{ color: '#ff8e53', fontWeight: 'normal', marginLeft: '4px' }}>(任意)</span>}
                             </div>
                             {trigger.description && (
@@ -3459,7 +3459,7 @@ export default function MagicSpiritGame() {
                         <div key={i}>
                           {i > 0 && <div style={{ borderTop: '1px solid rgba(157,76,230,0.3)', margin: '6px 0' }} />}
                           <div style={{ color: '#c9a0ff', fontWeight: 'bold', fontSize: '10px', marginBottom: '2px' }}>
-                            【{getTriggerDisplayName(trigger.type)}】
+                            【{trigger.displayDescription || getTriggerDisplayName(trigger.type)}】
                             {trigger.activationType === ACTIVATION_TYPES.OPTIONAL && <span style={{ color: '#ff8e53', fontWeight: 'normal', marginLeft: '4px' }}>(任意)</span>}
                           </div>
                           {trigger.description && (
