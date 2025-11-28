@@ -78,18 +78,22 @@ const FieldMonster = ({ monster, onClick, selected, canAttack, isTarget, isValid
           position: 'absolute',
           top: '-8px',
           left: '-8px',
-          background: '#9d4ce6',
-          borderRadius: '50%',
-          width: '20px',
-          height: '20px',
+          background: 'rgba(0,0,0,0.8)',
+          borderRadius: '10px',
+          padding: '2px 6px',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
           fontSize: '10px',
           fontWeight: 'bold',
           color: '#fff',
+          gap: '2px',
         }}>
-          {monster.charges.length}
+          {monster.charges.map((charge, idx) => (
+            <span key={idx} title={charge.isSPCharge ? 'SPチャージ' : `属性チャージ (${charge.attribute})`}>
+              {charge.isSPCharge ? '💠' : '🃏'}
+            </span>
+          ))}
         </div>
       )}
 

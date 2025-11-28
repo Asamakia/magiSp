@@ -451,6 +451,7 @@ export const reviveFromGraveyard = (context, condition, options = false) => {
       owner: currentPlayer, // 常時効果のターゲット判定用
       charges: [], // チャージカードをリセット
       statusEffects: [], // 状態異常をリセット
+      usedSkillThisTurn: false, // 技発動フラグをリセット
       ...(normalizedOptions.indestructible && { indestructibleUntilEndOfTurn: true }),
     };
     newField[emptySlotIndex] = revivedMonster;
