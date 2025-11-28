@@ -51,7 +51,7 @@ export const fireCardEffects = {
 
       if (validTargets.length === 0) {
         addLog('相手フィールドにモンスターがいません', 'info');
-        return false;
+        return true; // 対象がいなくても技の発動自体は成功として扱う
       }
 
       // 1体のみの場合は自動選択
@@ -525,7 +525,7 @@ export const fireCardEffects = {
 
       if (validTargets.length === 0) {
         addLog('相手フィールドにモンスターがいません', 'info');
-        return false;
+        return true; // 対象がいなくても技の発動自体は成功として扱う
       }
 
       // ダメージを与えてHP0なら破壊する関数

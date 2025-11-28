@@ -192,7 +192,7 @@ export const waterCardEffects = {
 
     if (validTargets.length === 0) {
       addLog('相手フィールドにモンスターがいません', 'info');
-      return false;
+      return true; // 対象がいなくても魔法発動自体は成功として扱う
     }
 
     // 1体のみの場合は自動選択
@@ -529,7 +529,7 @@ export const waterCardEffects = {
 
     if (validTargets.length === 0) {
       addLog('相手フィールドにモンスターがいません', 'info');
-      return false;
+      return true; // 対象がいなくても魔法発動自体は成功として扱う
     }
 
     const applyAcidFog = (targetIndex) => {
@@ -599,7 +599,7 @@ export const waterCardEffects = {
 
     if (validTargets.length === 0) {
       addLog('相手フィールドにモンスターがいません', 'info');
-      return false;
+      return true; // 対象がいなくても魔法発動自体は成功として扱う
     }
 
     if (hasVerzefaal) {
@@ -684,7 +684,7 @@ export const waterCardEffects = {
 
     if (validTargets.length === 0) {
       addLog('相手フィールドにモンスターがいません', 'info');
-      return false;
+      return true; // 対象がいなくても魔法発動自体は成功として扱う
     }
 
     const applySealingChain = (targetIndex) => {
@@ -902,7 +902,7 @@ export const waterCardEffects = {
 
       if (validTargets.length === 0) {
         addLog('相手フィールドにモンスターがいません', 'info');
-        return false;
+        return true; // 対象がいなくても技の発動自体は成功として扱う
       }
 
       // 1体のみの場合は自動選択
