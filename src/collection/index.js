@@ -109,3 +109,17 @@ export { default as DeckList } from './components/DeckList';
 
 // Phase 6: 価格チャート
 export { PriceChart, MiniChart, MarketIndexDisplay, EventMarkers } from './components/PriceChart';
+
+// Phase 7: 市場分析
+export { default as MarketAnalysis } from './components/MarketAnalysis';
+
+// ========================================
+// フック
+// ========================================
+
+export {
+  useMediaQuery,
+  useIsMobile,
+  useIsTablet,
+  useIsDesktop,
+} from './hooks';

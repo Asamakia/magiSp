@@ -63,7 +63,9 @@ export const createInitialPriceHistory = () => {
  * @returns {Object} 更新された価格履歴
  */
 export const recordPriceHistory = (priceHistory, marketState, allCards, getBaseValue, getTier) => {
-  const newHistory = JSON.parse(JSON.stringify(priceHistory));
+  // priceHistoryが未初期化の場合は初期化
+  const initialHistory = priceHistory || createInitialPriceHistory();
+  const newHistory = JSON.parse(JSON.stringify(initialHistory));
   const currentDay = marketState.currentDay;
 
   // 属性別・カテゴリ別・ティア別の集計用
@@ -73,12 +75,17 @@ export const recordPriceHistory = (priceHistory, marketState, allCards, getBaseV
   let marketTotal = 0;
   let marketCount = 0;
 
+  // cardsオブジェクトがない場合は初期化
+  if (!newHistory.cards) newHistory.cards = {};
+
   // 各カードの価格を記録
   for (const card of allCards) {
     const baseValue = getBaseValue ? getBaseValue(card) : (card.baseValue || 100);
     const tier = getTier ? getTier(card) : 'B';
     const attribute = card.attribute || 'なし';
-    const category = card.category ? card.category.replace(/【|】/g, '').split('】')[0] : null;
+    const category = card.category && typeof card.category === 'string'
+      ? card.category.replace(/【|】/g, '').split('】')[0]
+      : null;
 
     // 個別カード履歴
     if (!newHistory.cards[card.id]) {
@@ -113,7 +120,9 @@ export const recordPriceHistory = (priceHistory, marketState, allCards, getBaseV
   }
 
   // 属性別平均を記録
+  if (!newHistory.attributes) newHistory.attributes = {};
   for (const attr of ATTRIBUTES) {
+    if (!newHistory.attributes[attr]) newHistory.attributes[attr] = [];
     const avg = attributeTotals[attr].count > 0
       ? Math.round(attributeTotals[attr].sum / attributeTotals[attr].count)
       : 0;
@@ -124,7 +133,9 @@ export const recordPriceHistory = (priceHistory, marketState, allCards, getBaseV
   }
 
   // カテゴリ別平均を記録
+  if (!newHistory.categories) newHistory.categories = {};
   for (const cat of CATEGORIES) {
+    if (!newHistory.categories[cat]) newHistory.categories[cat] = [];
     const avg = categoryTotals[cat].count > 0
       ? Math.round(categoryTotals[cat].sum / categoryTotals[cat].count)
       : 0;
@@ -135,7 +146,9 @@ export const recordPriceHistory = (priceHistory, marketState, allCards, getBaseV
   }
 
   // ティア別平均を記録
+  if (!newHistory.tiers) newHistory.tiers = {};
   for (const tier of TIERS) {
+    if (!newHistory.tiers[tier]) newHistory.tiers[tier] = [];
     const avg = tierTotals[tier].count > 0
       ? Math.round(tierTotals[tier].sum / tierTotals[tier].count)
       : 0;
@@ -146,6 +159,7 @@ export const recordPriceHistory = (priceHistory, marketState, allCards, getBaseV
   }
 
   // 全体指数（MSI）を記録
+  if (!newHistory.marketIndex) newHistory.marketIndex = [];
   const marketIndex = marketCount > 0 ? Math.round(marketTotal / marketCount * 100) : 10000;
   newHistory.marketIndex.push(marketIndex);
   if (newHistory.marketIndex.length > HISTORY_LENGTH) {
@@ -153,6 +167,7 @@ export const recordPriceHistory = (priceHistory, marketState, allCards, getBaseV
   }
 
   // イベント履歴を記録
+  if (!newHistory.events) newHistory.events = [];
   if (marketState.dailyNews) {
     newHistory.events.push({
       day: currentDay,

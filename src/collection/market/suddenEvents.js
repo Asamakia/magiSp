@@ -6,6 +6,9 @@
  * パターン: 固定25種
  */
 
+import { CATEGORIES } from './data/categories';
+import { ATTRIBUTES } from './constants';
+
 // ========================================
 // 突発イベント定義
 // ========================================
@@ -237,9 +240,6 @@ export const ALL_SUDDEN_EVENTS = [
 // ========================================
 // イベント生成ロジック
 // ========================================
-
-import { CATEGORIES } from './data/categories';
-import { ATTRIBUTES } from './constants';
 
 /**
  * 配列からランダムに1つ選択

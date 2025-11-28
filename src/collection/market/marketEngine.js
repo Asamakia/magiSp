@@ -281,6 +281,11 @@ export const advanceDay = (marketState) => {
   const newDay = marketState.currentDay + 1;
   const newState = { ...marketState, currentDay: newDay };
 
+  // priceHistoryがない場合は初期化
+  if (!newState.priceHistory) {
+    newState.priceHistory = createInitialPriceHistory();
+  }
+
   // 週間トレンドの更新チェック（7戦ごと）
   const daysSinceTrendStart = newDay - marketState.weeklyTrend.startDay;
   if (daysSinceTrendStart >= DAYS_PER_WEEK) {

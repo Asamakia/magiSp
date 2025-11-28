@@ -8,6 +8,12 @@ import React, { useState } from 'react';
 import { ATTRIBUTE_COLORS } from '../../utils/constants';
 import { RARITY_COLORS, RARITY_NAMES, RARITY_MULTIPLIERS } from '../data/constants';
 import { currencyManager } from '../systems/currencyManager';
+import {
+  getCardChartData,
+  getTrendIcon,
+  getTrendColor,
+} from '../market/priceHistory';
+import { PriceChart } from './PriceChart';
 
 // ========================================
 // スタイル定義
@@ -224,6 +230,75 @@ const styles = {
     background: 'rgba(100,100,100,0.5)',
     cursor: 'not-allowed',
   },
+  // 価格チャートセクション
+  chartToggle: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: '12px',
+  },
+  chartToggleButton: {
+    padding: '8px 16px',
+    borderRadius: '8px',
+    border: '1px solid rgba(107,156,230,0.5)',
+    background: 'rgba(107,156,230,0.1)',
+    color: '#9dc4ff',
+    cursor: 'pointer',
+    fontSize: '13px',
+    fontWeight: 'bold',
+    transition: 'all 0.2s ease',
+    display: 'flex',
+    alignItems: 'center',
+    gap: '6px',
+  },
+  chartToggleButtonActive: {
+    background: 'rgba(107,156,230,0.3)',
+    borderColor: 'rgba(107,156,230,0.8)',
+  },
+  chartSection: {
+    background: 'rgba(0,0,0,0.3)',
+    borderRadius: '8px',
+    padding: '16px',
+    marginBottom: '16px',
+    border: '1px solid rgba(107,156,230,0.3)',
+  },
+  chartHeader: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: '12px',
+  },
+  chartTitle: {
+    fontSize: '14px',
+    fontWeight: 'bold',
+    color: '#9dc4ff',
+  },
+  chartStats: {
+    display: 'flex',
+    gap: '16px',
+    marginTop: '12px',
+    flexWrap: 'wrap',
+  },
+  chartStat: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '2px',
+  },
+  chartStatLabel: {
+    fontSize: '11px',
+    color: '#808080',
+  },
+  chartStatValue: {
+    fontSize: '14px',
+    fontWeight: 'bold',
+    color: '#e0e0e0',
+  },
+  noChartData: {
+    textAlign: 'center',
+    padding: '24px',
+    color: '#808080',
+    fontSize: '13px',
+  },
 };
 
 // ========================================
@@ -247,10 +322,12 @@ const CardDetail = ({
   rarity,
   quantity,
   valueInfo,
+  priceHistory,
   onClose,
   onSell,
 }) => {
   const [sellQuantity, setSellQuantity] = useState(1);
+  const [showChart, setShowChart] = useState(false);
 
   const colors = ATTRIBUTE_COLORS[card.attribute] || ATTRIBUTE_COLORS['なし'];
   const rarityColor = RARITY_COLORS[rarity] || '#808080';
@@ -261,6 +338,11 @@ const CardDetail = ({
   const tier = valueInfo?.tier || 'D';
   const sellPrice = valueInfo?.rarityValues?.[rarity] || baseValue;
   const totalSellPrice = sellPrice * sellQuantity;
+
+  // 価格チャートデータ
+  const rarityMultiplier = RARITY_MULTIPLIERS[rarity] || 1;
+  const chartData = priceHistory ? getCardChartData(priceHistory, card.id, rarityMultiplier) : null;
+  const hasChartData = chartData && chartData.prices && chartData.prices.length > 0;
 
   // 売却数量の調整
   const handleQuantityChange = (delta) => {
@@ -408,7 +490,87 @@ const CardDetail = ({
             <span style={styles.valueLabel}>売却価格（1枚）</span>
             <span style={styles.valueAmount}>{sellPrice.toLocaleString()}G</span>
           </div>
+
+          {/* 価格推移トグル */}
+          {priceHistory && (
+            <div style={{ marginTop: '12px', paddingTop: '12px', borderTop: '1px solid rgba(255,255,255,0.1)' }}>
+              <button
+                style={{
+                  ...styles.chartToggleButton,
+                  ...(showChart ? styles.chartToggleButtonActive : {}),
+                  width: '100%',
+                  justifyContent: 'center',
+                }}
+                onClick={() => setShowChart(!showChart)}
+                onMouseEnter={(e) => {
+                  e.target.style.background = 'rgba(107,156,230,0.3)';
+                }}
+                onMouseLeave={(e) => {
+                  e.target.style.background = showChart ? 'rgba(107,156,230,0.3)' : 'rgba(107,156,230,0.1)';
+                }}
+              >
+                📈 価格推移を{showChart ? '閉じる' : '見る'}
+              </button>
+            </div>
+          )}
         </div>
+
+        {/* 価格チャートセクション */}
+        {showChart && priceHistory && (
+          <div style={styles.chartSection}>
+            <div style={styles.chartHeader}>
+              <span style={styles.chartTitle}>📈 価格推移（30戦分）</span>
+              {hasChartData && (
+                <span
+                  style={{
+                    fontSize: '14px',
+                    fontWeight: 'bold',
+                    color: getTrendColor(chartData.changePercent),
+                  }}
+                >
+                  {getTrendIcon(chartData.changePercent)}{' '}
+                  {chartData.changePercent > 0 ? '+' : ''}
+                  {chartData.changePercent}%
+                </span>
+              )}
+            </div>
+
+            {hasChartData ? (
+              <>
+                <PriceChart
+                  data={chartData.prices}
+                  height={120}
+                  color={colors.glow || '#6b9dff'}
+                />
+                <div style={styles.chartStats}>
+                  <div style={styles.chartStat}>
+                    <span style={styles.chartStatLabel}>現在価格</span>
+                    <span style={styles.chartStatValue}>
+                      {chartData.currentPrice.toLocaleString()}G
+                    </span>
+                  </div>
+                  <div style={styles.chartStat}>
+                    <span style={styles.chartStatLabel}>最高値</span>
+                    <span style={{ ...styles.chartStatValue, color: '#4caf50' }}>
+                      {chartData.highPrice.toLocaleString()}G
+                    </span>
+                  </div>
+                  <div style={styles.chartStat}>
+                    <span style={styles.chartStatLabel}>最安値</span>
+                    <span style={{ ...styles.chartStatValue, color: '#f44336' }}>
+                      {chartData.lowPrice.toLocaleString()}G
+                    </span>
+                  </div>
+                </div>
+              </>
+            ) : (
+              <div style={styles.noChartData}>
+                価格履歴がありません<br />
+                <span style={{ fontSize: '11px' }}>対戦を重ねると履歴が蓄積されます</span>
+              </div>
+            )}
+          </div>
+        )}
 
         {/* 売却セクション */}
         {quantity > 0 && onSell && (
