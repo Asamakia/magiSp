@@ -63,7 +63,9 @@ export const createInitialPriceHistory = () => {
  * @returns {Object} 更新された価格履歴
  */
 export const recordPriceHistory = (priceHistory, marketState, allCards, getBaseValue, getTier) => {
-  const newHistory = JSON.parse(JSON.stringify(priceHistory));
+  // priceHistoryが未初期化の場合は初期化
+  const initialHistory = priceHistory || createInitialPriceHistory();
+  const newHistory = JSON.parse(JSON.stringify(initialHistory));
   const currentDay = marketState.currentDay;
 
   // 属性別・カテゴリ別・ティア別の集計用
