@@ -5,8 +5,9 @@
 
 /**
  * 属性リスト（ランダム選択用）
+ * Note: constants.jsのATTRIBUTESと区別するためRUMOR_ATTRIBUTESとしてエクスポート
  */
-export const ATTRIBUTES = ['炎', '水', '光', '闇', '原始', '未来'];
+export const RUMOR_ATTRIBUTES = ['炎', '水', '光', '闇', '原始', '未来'];
 
 /**
  * カテゴリリスト（ランダム選択用）

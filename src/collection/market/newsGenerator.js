@@ -12,12 +12,12 @@
  * 8. ストーリー型: キャラ + 動向 + 対象
  */
 
-import { DIRECTIONS, ALL_DIRECTIONS, UP_DIRECTIONS, DOWN_DIRECTIONS, CONNECTORS } from './constants';
-import { CATEGORIES, getAttributeForCategory, ATTRIBUTES } from './data/categories';
+import { DIRECTIONS, ALL_DIRECTIONS, UP_DIRECTIONS, DOWN_DIRECTIONS, CONNECTORS, ATTRIBUTES } from './constants';
+import { CATEGORIES, getAttributeForCategory } from './data/categories';
 import { REASONS, getRandomReason, getReasonTendency } from './data/reasons';
 import { PERSONS, ACTION_TENDENCY, PERSON_TEMPLATES } from './data/persons';
 import { LOCATIONS, LOCATION_TEMPLATES } from './data/locations';
-import { RUMORS, ATTRIBUTES as RUMOR_ATTRIBUTES, CATEGORIES_LIST, RUMOR_PREFIXES } from './data/rumors';
+import { RUMORS, RUMOR_ATTRIBUTES, CATEGORIES_LIST, RUMOR_PREFIXES } from './data/rumors';
 import { COMPARISONS, COMPARISON_TEMPLATES, COMPARISON_MODIFIERS } from './data/comparisons';
 import { SUPPLY_DEMAND_TARGETS, SUPPLY_DEMAND_TYPES, SUPPLY_DEMAND_TEMPLATES } from './data/supplyDemand';
 import { SEASONS, SEASONAL_MODIFIERS, getCurrentSeason, getCurrentTimeOfDay } from './data/seasonal';
