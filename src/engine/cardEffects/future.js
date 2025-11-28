@@ -698,7 +698,7 @@ export const futureCardEffects = {
 
     if (deck.length === 0) {
       addLog('デッキにカードがありません', 'info');
-      return false;
+      return true; // 効果処理は完了（対象なし）
     }
 
     const cardCount = Math.min(3, deck.length);
@@ -768,7 +768,7 @@ export const futureCardEffects = {
 
     if (deck.length === 0) {
       addLog('デッキにカードがありません', 'info');
-      return false;
+      return true; // 効果処理は完了（対象なし）
     }
 
     const cardCount = Math.min(5, deck.length);
@@ -832,11 +832,10 @@ export const futureCardEffects = {
 
     if (foundCard) {
       addLog(`エクラリアの残影: ${foundCard.name}を手札に加えた`, 'info');
-      return true;
     } else {
       addLog('エクラリアの残影: デッキに《エクラリア》モンスターがありません', 'info');
-      return false;
     }
+    return true; // 効果処理は完了（対象の有無に関わらず）
   },
 
   // 他の未来属性カードを追加...
