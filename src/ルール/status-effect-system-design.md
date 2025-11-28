@@ -638,30 +638,57 @@ class StatusEffectEngine {
   // ========================================
 
   /**
-   * 攻撃可能かチェック
+   * 攻撃可能かチェック（boolean）
    * @param {Object} monster - 対象モンスター
-   * @returns {Object} { canAttack: boolean, reason: string }
+   * @returns {boolean}
    */
   canAttack(monster) {
     // sleep, freeze, stun をチェック
   }
 
   /**
-   * 技使用可能かチェック
+   * 攻撃可能かチェック（理由付き）
    * @param {Object} monster - 対象モンスター
-   * @returns {Object} { canUseSkill: boolean, reason: string }
+   * @returns {Object} { canAttack: boolean, reason?: string }
    */
-  canUseSkill(monster) {
-    // sleep, stun, silence をチェック
+  canAttackWithReason(monster) {
+    // sleep, freeze, stun をチェック、理由を返す
   }
 
   /**
-   * 効果発動可能かチェック
+   * 技使用可能かチェック（boolean）
    * @param {Object} monster - 対象モンスター
-   * @returns {Object} { canUseTrigger: boolean, reason: string }
+   * @returns {boolean}
+   */
+  canUseSkill(monster) {
+    // sleep, stun, silence, thunder, parasite(effectNegated) をチェック
+  }
+
+  /**
+   * 技使用可能かチェック（理由付き）
+   * @param {Object} monster - 対象モンスター
+   * @returns {Object} { canUseSkill: boolean, reason?: string }
+   */
+  canUseSkillWithReason(monster) {
+    // sleep, stun, silence, thunder, parasite をチェック、理由を返す
+  }
+
+  /**
+   * トリガー発動可能かチェック（boolean）
+   * @param {Object} monster - 対象モンスター
+   * @returns {boolean}
    */
   canUseTrigger(monster) {
-    // sleep, silence をチェック
+    // sleep, silence, parasite(effectNegated) をチェック
+  }
+
+  /**
+   * トリガー発動可能かチェック（理由付き）
+   * @param {Object} monster - 対象モンスター
+   * @returns {Object} { canUseTrigger: boolean, reason?: string }
+   */
+  canUseTriggerWithReason(monster) {
+    // sleep, silence, parasite をチェック、理由を返す
   }
 
   /**
@@ -683,16 +710,35 @@ class StatusEffectEngine {
     return monster.statusEffects || [];
   }
 
+  /**
+   * 行動をブロックしている状態異常名を取得
+   * @param {Object} monster - 対象モンスター
+   * @param {string} actionType - 'attack' または 'skill'
+   * @returns {string} 状態異常の表示名
+   */
+  getBlockingStatusName(monster, actionType) {
+    // actionTypeに応じた状態異常の表示名を返す
+  }
+
   // ========================================
   // ステータス修正
   // ========================================
 
   /**
-   * 攻撃力修正を計算
+   * 攻撃力修正を計算（単純値）
+   * @param {Object} monster - 対象モンスター
+   * @returns {number} 攻撃力修正値（加算値）
+   */
+  getAttackModifier(monster) {
+    // 凍結(50%), 雷撃(-500), 覚醒, ATK_UP, ATK_DOWN を考慮
+  }
+
+  /**
+   * 攻撃力修正を計算（詳細オブジェクト）
    * @param {Object} monster - 対象モンスター
    * @returns {Object} { multiplier: number, flatModifier: number }
    */
-  getAttackModifier(monster) {
+  getAttackModifierDetails(monster) {
     let multiplier = 1.0;
     let flatModifier = 0;
 
@@ -737,78 +783,63 @@ class StatusEffectEngine {
     return multiplier;
   }
 
+  /**
+   * ダメージ軽減を計算（無敵・守護対応）
+   * @param {Object} monster - 対象モンスター
+   * @param {number} damage - 元ダメージ
+   * @returns {Object} { reduction: number, usedGuard: boolean, updatedMonster: Object }
+   */
+  calculateDamageReduction(monster, damage) {
+    // 無敵: ダメージ全軽減
+    if (this.hasStatus(monster, STATUS_EFFECT_TYPES.INVINCIBLE)) {
+      return { reduction: damage, usedGuard: false, updatedMonster: monster };
+    }
+
+    // 守護: 50%軽減、使用後消費
+    const guard = monster.statusEffects?.find(s => s.type === STATUS_EFFECT_TYPES.GUARD);
+    if (guard) {
+      const reduction = Math.floor(damage * 0.5);
+      // 使用回数上限に達したら解除（イミュータブルに更新）
+      // ...
+      return { reduction, usedGuard: true, updatedMonster };
+    }
+
+    return { reduction: 0, usedGuard: false, updatedMonster: monster };
+  }
+
   // ========================================
   // プレイヤー状態異常
   // ========================================
 
   /**
    * プレイヤーに状態異常を付与
-   * @param {number} player - プレイヤー番号 (1 or 2)
+   * @param {Array} playerStatusEffects - プレイヤーの状態異常配列
    * @param {string} statusType - 状態異常タイプ
    * @param {Object} options - オプション
-   * @param {Object} context - ゲームコンテキスト
+   * @returns {Object} { success: boolean, statusEffect?: Object }
    */
-  applyPlayerStatus(player, statusType, options, context) {
-    const { setP1StatusEffects, setP2StatusEffects, addLog } = context;
-    const setStatusEffects = player === 1 ? setP1StatusEffects : setP2StatusEffects;
-
-    const statusEffect = {
-      id: `${statusType}_${Date.now()}`,
-      type: statusType,
-      source: options.source,
-      sourceName: options.sourceName,
-      appliedTurn: options.currentTurn,
-      value: options.value || STATUS_EFFECT_METADATA[statusType]?.effects?.endPhaseDamage || 0,
-    };
-
-    setStatusEffects(prev => [...prev, statusEffect]);
-    const meta = STATUS_EFFECT_METADATA[statusType];
-    addLog(`プレイヤー${player}に${meta.displayName}を付与！`, 'info');
+  applyPlayerStatus(playerStatusEffects, statusType, options = {}) {
+    // POISONなどプレイヤー対象の状態異常を付与
   }
 
   /**
-   * プレイヤーの状態異常を処理（エンドフェイズ）
-   * @param {number} player - プレイヤー番号 (1 or 2)
-   * @param {Array} statusEffects - プレイヤーの状態異常配列
-   * @param {Object} context - ゲームコンテキスト
+   * プレイヤーの状態異常を解除
+   * @param {Array} playerStatusEffects - プレイヤーの状態異常配列
+   * @param {string} statusType - 状態異常タイプ（省略で全解除）
+   * @returns {Array} 解除された状態異常
    */
-  processPlayerEndPhase(player, statusEffects, context) {
-    const { setP1Life, setP2Life, p1Life, p2Life, addLog } = context;
-    const setLife = player === 1 ? setP1Life : setP2Life;
-    const currentLife = player === 1 ? p1Life : p2Life;
-
-    statusEffects.forEach(status => {
-      if (status.type === STATUS_EFFECT_TYPES.POISON) {
-        const damage = status.value;
-        setLife(prev => Math.max(0, prev - damage));
-        addLog(`プレイヤー${player}は毒で${damage}ダメージ！`, 'damage');
-      }
-    });
+  removePlayerStatus(playerStatusEffects, statusType = null) {
+    // 指定タイプまたは全状態異常を解除
   }
 
   /**
-   * ダメージ軽減を計算
-   * @param {Object} monster - 対象モンスター
-   * @param {number} damage - 元ダメージ
-   * @returns {Object} { finalDamage: number, consumed: boolean }
+   * プレイヤーが特定の状態異常を持っているか
+   * @param {Array} playerStatusEffects - プレイヤーの状態異常配列
+   * @param {string} statusType - 状態異常タイプ
+   * @returns {boolean}
    */
-  calculateDamageReduction(monster, damage) {
-    const guard = monster.statusEffects?.find(s => s.type === STATUS_EFFECT_TYPES.GUARD);
-
-    if (guard) {
-      const reduced = Math.floor(damage * guard.value);
-      guard.usageCount++;
-
-      // 使用回数上限に達したら解除
-      const consumed = guard.usageCount >= guard.maxUsage;
-      if (consumed) {
-        this.removeStatus(monster, STATUS_EFFECT_TYPES.GUARD);
-      }
-
-      return { finalDamage: reduced, consumed };
-    }
-
-    return { finalDamage: damage, consumed: false };
+  hasPlayerStatus(playerStatusEffects, statusType) {
+    return playerStatusEffects?.some(s => s.type === statusType) || false;
   }
 
   // ========================================
