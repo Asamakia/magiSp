@@ -9,6 +9,7 @@ import {
   searchCard,
   reviveFromGraveyard,
   modifyAttack,
+  healLife,
   applyStatusToOpponentMonster,
   applyStatusToAllOpponentMonsters,
   selectAndApplyStatusToOpponent,
@@ -1231,5 +1232,708 @@ export const waterCardEffects = {
     return true;
   },
 
-  // 他の水属性カードを追加...
+  /**
+   * C0000331: アクアレギナの漂流船乗り
+   * 基本技: このカードをリリースし、デッキから『アクアレギア』モンスター1体を手札に加える。
+   */
+  C0000331: (skillText, context) => {
+    const { addLog, monsterIndex, setPendingDeckReview } = context;
+    const { myField, setMyField, myDeck, setMyDeck, setMyHand, setMyGraveyard } = getPlayerContext(context);
+
+    if (context.skillType === 'basic') {
+      const monster = myField[monsterIndex];
+      if (!monster) {
+        addLog('対象のモンスターが存在しません', 'info');
+        return false;
+      }
+
+      // デッキから『アクアレギア』モンスターを検索
+      const targetFilter = (card) =>
+        card.type === 'monster' && card.name && card.name.includes('アクアレギア');
+      const matchingCards = myDeck.filter(targetFilter);
+
+      if (matchingCards.length === 0) {
+        addLog('アクアレギナの漂流船乗り: デッキに『アクアレギア』モンスターがいません', 'info');
+        return false;
+      }
+
+      // 自身をリリース
+      setMyField(prev => {
+        const newField = [...prev];
+        newField[monsterIndex] = null;
+        return newField;
+      });
+      setMyGraveyard(prev => [...prev, monster]);
+      addLog(`${monster.name}をリリース！`, 'info');
+
+      // サーチ処理
+      const addToHand = (targetCard) => {
+        setMyDeck(prev => prev.filter(c => c.uniqueId !== targetCard.uniqueId));
+        setMyHand(prev => [...prev, targetCard]);
+        addLog(`アクアレギナの漂流船乗り: ${targetCard.name}を手札に加えた！`, 'heal');
+      };
+
+      // 1枚のみの場合は自動選択
+      if (matchingCards.length === 1) {
+        addToHand(matchingCards[0]);
+        return true;
+      }
+
+      // 複数ある場合はデッキ選択UI
+      if (setPendingDeckReview) {
+        setPendingDeckReview({
+          cards: matchingCards,
+          title: 'アクアレギナの漂流船乗り',
+          message: '手札に加える『アクアレギア』モンスターを1体選択',
+          allowReorder: false,
+          selectMode: { enabled: true, count: 1 },
+          onSelect: (selectedCards) => {
+            if (selectedCards.length > 0) addToHand(selectedCards[0]);
+          },
+          onCancel: () => addLog('サーチをキャンセルしました', 'info'),
+        });
+        return true;
+      }
+
+      addToHand(matchingCards[0]);
+      return true;
+    }
+    return false;
+  },
+
+  /**
+   * C0000332: アクアレギナの守護者
+   * 基本技: 自分のライフを300回復。
+   */
+  C0000332: (skillText, context) => {
+    if (context.skillType === 'basic') {
+      healLife(context, 300, true);
+      return true;
+    }
+    return false;
+  },
+
+  /**
+   * C0000333: ヴェルゼファールの信徒・深みの儀式者
+   * 基本技: 自分のライフを1000減らし、デッキから『ヴェルゼファール』モンスター1体を手札に加える。
+   */
+  C0000333: (skillText, context) => {
+    const { addLog, setPendingDeckReview } = context;
+    const { myDeck, setMyDeck, setMyHand, myLife, setMyLife } = getPlayerContext(context);
+
+    if (context.skillType === 'basic') {
+      // ライフコストチェック
+      if (myLife <= 1000) {
+        addLog('ライフが足りません（コスト: 1000）', 'info');
+        return false;
+      }
+
+      // デッキから『ヴェルゼファール』モンスターを検索
+      const targetFilter = (card) =>
+        card.type === 'monster' && card.name && card.name.includes('ヴェルゼファール');
+      const matchingCards = myDeck.filter(targetFilter);
+
+      if (matchingCards.length === 0) {
+        addLog('深みの儀式者: デッキに『ヴェルゼファール』モンスターがいません', 'info');
+        return false;
+      }
+
+      // ライフコストを支払う
+      setMyLife(prev => prev - 1000);
+      addLog('深みの儀式者: ライフを1000消費', 'damage');
+
+      // サーチ処理
+      const addToHand = (targetCard) => {
+        setMyDeck(prev => prev.filter(c => c.uniqueId !== targetCard.uniqueId));
+        setMyHand(prev => [...prev, targetCard]);
+        addLog(`深みの儀式者: ${targetCard.name}を手札に加えた！`, 'heal');
+      };
+
+      if (matchingCards.length === 1) {
+        addToHand(matchingCards[0]);
+        return true;
+      }
+
+      if (setPendingDeckReview) {
+        setPendingDeckReview({
+          cards: matchingCards,
+          title: '深みの儀式者',
+          message: '手札に加える『ヴェルゼファール』モンスターを1体選択',
+          allowReorder: false,
+          selectMode: { enabled: true, count: 1 },
+          onSelect: (selectedCards) => {
+            if (selectedCards.length > 0) addToHand(selectedCards[0]);
+          },
+          onCancel: () => addLog('サーチをキャンセルしました', 'info'),
+        });
+        return true;
+      }
+
+      addToHand(matchingCards[0]);
+      return true;
+    }
+    return false;
+  },
+
+  /**
+   * C0000334: ヴェルゼファールの眷属・クラディオム
+   * 基本技：デッキからコスト4以下の《ヴェルゼファール》モンスターを手札に加える。
+   */
+  C0000334: (skillText, context) => {
+    const { addLog, setPendingDeckReview } = context;
+    const { myDeck, setMyDeck, setMyHand } = getPlayerContext(context);
+
+    if (context.skillType === 'basic') {
+      // デッキからコスト4以下の『ヴェルゼファール』モンスターを検索
+      const targetFilter = (card) =>
+        card.type === 'monster' &&
+        card.name && card.name.includes('ヴェルゼファール') &&
+        card.cost <= 4;
+      const matchingCards = myDeck.filter(targetFilter);
+
+      if (matchingCards.length === 0) {
+        addLog('クラディオム: デッキにコスト4以下の『ヴェルゼファール』モンスターがいません', 'info');
+        return false;
+      }
+
+      const addToHand = (targetCard) => {
+        setMyDeck(prev => prev.filter(c => c.uniqueId !== targetCard.uniqueId));
+        setMyHand(prev => [...prev, targetCard]);
+        addLog(`クラディオム: ${targetCard.name}を手札に加えた！`, 'heal');
+      };
+
+      if (matchingCards.length === 1) {
+        addToHand(matchingCards[0]);
+        return true;
+      }
+
+      if (setPendingDeckReview) {
+        setPendingDeckReview({
+          cards: matchingCards,
+          title: 'クラディオム',
+          message: '手札に加えるコスト4以下の『ヴェルゼファール』モンスターを選択',
+          allowReorder: false,
+          selectMode: { enabled: true, count: 1 },
+          onSelect: (selectedCards) => {
+            if (selectedCards.length > 0) addToHand(selectedCards[0]);
+          },
+          onCancel: () => addLog('サーチをキャンセルしました', 'info'),
+        });
+        return true;
+      }
+
+      addToHand(matchingCards[0]);
+      return true;
+    }
+    return false;
+  },
+
+  /**
+   * C0000335: ヴェルゼファールの眷属・シスラゴン
+   * 基本技：このカードがリンク状態の時、デッキからコスト6以下の《ヴェルゼファール》モンスターを手札に加える。
+   */
+  C0000335: (skillText, context) => {
+    const { addLog, monsterIndex, setPendingDeckReview } = context;
+    const { myField, myDeck, setMyDeck, setMyHand } = getPlayerContext(context);
+
+    if (context.skillType === 'basic') {
+      const monster = myField[monsterIndex];
+      if (!monster) {
+        addLog('対象のモンスターが存在しません', 'info');
+        return false;
+      }
+
+      // リンク状態チェック
+      if (!monster.linkedTo) {
+        addLog('シスラゴン: リンク状態ではないため発動できません', 'info');
+        return false;
+      }
+
+      // デッキからコスト6以下の『ヴェルゼファール』モンスターを検索
+      const targetFilter = (card) =>
+        card.type === 'monster' &&
+        card.name && card.name.includes('ヴェルゼファール') &&
+        card.cost <= 6;
+      const matchingCards = myDeck.filter(targetFilter);
+
+      if (matchingCards.length === 0) {
+        addLog('シスラゴン: デッキにコスト6以下の『ヴェルゼファール』モンスターがいません', 'info');
+        return false;
+      }
+
+      const addToHand = (targetCard) => {
+        setMyDeck(prev => prev.filter(c => c.uniqueId !== targetCard.uniqueId));
+        setMyHand(prev => [...prev, targetCard]);
+        addLog(`シスラゴン: ${targetCard.name}を手札に加えた！`, 'heal');
+      };
+
+      if (matchingCards.length === 1) {
+        addToHand(matchingCards[0]);
+        return true;
+      }
+
+      if (setPendingDeckReview) {
+        setPendingDeckReview({
+          cards: matchingCards,
+          title: 'シスラゴン',
+          message: '手札に加えるコスト6以下の『ヴェルゼファール』モンスターを選択',
+          allowReorder: false,
+          selectMode: { enabled: true, count: 1 },
+          onSelect: (selectedCards) => {
+            if (selectedCards.length > 0) addToHand(selectedCards[0]);
+          },
+          onCancel: () => addLog('サーチをキャンセルしました', 'info'),
+        });
+        return true;
+      }
+
+      addToHand(matchingCards[0]);
+      return true;
+    }
+    return false;
+  },
+
+  /**
+   * C0000336: ヴェルゼファールの眷属・ルミナクール
+   * 基本技: 相手モンスター1体を次のターン終了まで行動不能にする。
+   */
+  C0000336: (skillText, context) => {
+    const { addLog, setPendingTargetSelection } = context;
+    const { opponentField } = getPlayerContext(context);
+
+    if (context.skillType === 'basic') {
+      const validTargets = opponentField
+        .map((m, idx) => ({ monster: m, index: idx }))
+        .filter(({ monster }) => monster !== null);
+
+      if (validTargets.length === 0) {
+        addLog('ルミナクール: 相手フィールドにモンスターがいません', 'info');
+        return false;
+      }
+
+      const applyStun = (targetIndex) => {
+        const targetMonster = opponentField[targetIndex];
+        if (!targetMonster) return;
+
+        // STUN（行動不能）を付与（次のターン終了時まで = duration: 1）
+        applyStatusToOpponentMonster(context, targetIndex, STATUS_EFFECT_TYPES.STUN, {
+          duration: 1, // 次のターン終了時まで
+        }, 'ルミナクール');
+        addLog(`ルミナクール: ${targetMonster.name}を次のターン終了まで行動不能に！`, 'damage');
+      };
+
+      if (validTargets.length === 1) {
+        applyStun(validTargets[0].index);
+        return true;
+      }
+
+      if (setPendingTargetSelection) {
+        setPendingTargetSelection({
+          message: '行動不能にする相手モンスターを選択',
+          targetType: 'opponent_monster',
+          callback: (selectedIndex) => applyStun(selectedIndex),
+        });
+        return true;
+      }
+
+      applyStun(validTargets[0].index);
+      return true;
+    }
+    return false;
+  },
+
+  /**
+   * C0000337: ヴェルゼファールの眷属・タラッサロス
+   * 基本技: このカードがリンク状態の時、相手フィールド全体に1500ダメージ。
+   */
+  C0000337: (skillText, context) => {
+    const { addLog, monsterIndex } = context;
+    const { myField, opponentField, setOpponentField, setOpponentGraveyard } = getPlayerContext(context);
+
+    if (context.skillType === 'basic') {
+      const monster = myField[monsterIndex];
+      if (!monster) {
+        addLog('対象のモンスターが存在しません', 'info');
+        return false;
+      }
+
+      // リンク状態チェック
+      if (!monster.linkedTo) {
+        addLog('タラッサロス: リンク状態ではないため発動できません', 'info');
+        return false;
+      }
+
+      const opponentMonsters = opponentField.filter(m => m !== null);
+      if (opponentMonsters.length === 0) {
+        addLog('タラッサロス: 相手フィールドにモンスターがいません', 'info');
+        return true;
+      }
+
+      // 全体に1500ダメージ
+      const damage = 1500;
+      addLog(`タラッサロス: 相手フィールド全体に${damage}ダメージ！`, 'damage');
+
+      const destroyedMonsters = [];
+      setOpponentField(prev => prev.map(m => {
+        if (m) {
+          const newHp = m.currentHp - damage;
+          addLog(`${m.name}に${damage}ダメージ（残りHP: ${Math.max(0, newHp)}）`, 'damage');
+          if (newHp <= 0) {
+            destroyedMonsters.push(m);
+            return null;
+          }
+          return { ...m, currentHp: newHp };
+        }
+        return m;
+      }));
+
+      if (destroyedMonsters.length > 0) {
+        setOpponentGraveyard(prev => [...prev, ...destroyedMonsters]);
+        destroyedMonsters.forEach(m => addLog(`${m.name}が破壊された！`, 'damage'));
+      }
+
+      return true;
+    }
+    return false;
+  },
+
+  /**
+   * C0000340: 深海の支配者・ヴェルゼファール
+   * 上級技: 自分のライフを2000減らし、相手フィールド全体に3000ダメージ。
+   */
+  C0000340: (skillText, context) => {
+    const { addLog } = context;
+    const { myLife, setMyLife, opponentField, setOpponentField, setOpponentGraveyard } = getPlayerContext(context);
+
+    if (context.skillType === 'advanced') {
+      // ライフコストチェック
+      if (myLife <= 2000) {
+        addLog('ライフが足りません（コスト: 2000）', 'info');
+        return false;
+      }
+
+      // ライフコストを支払う
+      setMyLife(prev => prev - 2000);
+      addLog('ヴェルゼファール: ライフを2000消費', 'damage');
+
+      const opponentMonsters = opponentField.filter(m => m !== null);
+      if (opponentMonsters.length === 0) {
+        addLog('ヴェルゼファール: 相手フィールドにモンスターがいません', 'info');
+        return true;
+      }
+
+      // 全体に3000ダメージ
+      const damage = 3000;
+      addLog(`ヴェルゼファール: 相手フィールド全体に${damage}ダメージ！`, 'damage');
+
+      const destroyedMonsters = [];
+      setOpponentField(prev => prev.map(m => {
+        if (m) {
+          const newHp = m.currentHp - damage;
+          addLog(`${m.name}に${damage}ダメージ（残りHP: ${Math.max(0, newHp)}）`, 'damage');
+          if (newHp <= 0) {
+            destroyedMonsters.push(m);
+            return null;
+          }
+          return { ...m, currentHp: newHp };
+        }
+        return m;
+      }));
+
+      if (destroyedMonsters.length > 0) {
+        setOpponentGraveyard(prev => [...prev, ...destroyedMonsters]);
+        destroyedMonsters.forEach(m => addLog(`${m.name}が破壊された！`, 'damage'));
+      }
+
+      return true;
+    }
+    return false;
+  },
+
+  /**
+   * C0000341: ヴェルゼファール降臨の儀式
+   * 【刹那詠唱】
+   * 自分の場にいる『ヴェルゼファール』モンスター1体をリリースし、
+   * デッキから『ヴェルゼファール』モンスター1体を場に召喚（コスト不要）。
+   * 召喚するモンスターのコストはリリースしたモンスターのコスト＋3以下。
+   * 場に『深みの儀式者』がいる場合、召喚したモンスターの攻撃力をターン終了時まで800アップ。
+   */
+  C0000341: (skillText, context) => {
+    const { addLog, setPendingTargetSelection, setPendingDeckReview } = context;
+    const { myField, setMyField, myDeck, setMyDeck, setMyGraveyard, currentPlayer } = getPlayerContext(context);
+
+    // 場のヴェルゼファールモンスターを取得
+    const verzefaalMonsters = myField
+      .map((m, idx) => ({ monster: m, index: idx }))
+      .filter(({ monster }) => monster && monster.name && monster.name.includes('ヴェルゼファール'));
+
+    if (verzefaalMonsters.length === 0) {
+      addLog('降臨の儀式: 場に『ヴェルゼファール』モンスターがいません', 'info');
+      return false;
+    }
+
+    // リリース後の召喚処理
+    const performRitual = (releaseIndex) => {
+      const releasedMonster = myField[releaseIndex];
+      if (!releasedMonster) return;
+
+      const maxCost = releasedMonster.cost + 3;
+
+      // デッキからコスト条件を満たすヴェルゼファールを検索
+      const eligibleMonsters = myDeck.filter(card =>
+        card.type === 'monster' &&
+        card.name && card.name.includes('ヴェルゼファール') &&
+        card.cost <= maxCost
+      );
+
+      if (eligibleMonsters.length === 0) {
+        addLog(`降臨の儀式: デッキにコスト${maxCost}以下の『ヴェルゼファール』モンスターがいません`, 'info');
+        return;
+      }
+
+      // リリース
+      setMyField(prev => {
+        const newField = [...prev];
+        newField[releaseIndex] = null;
+        return newField;
+      });
+      setMyGraveyard(prev => [...prev, releasedMonster]);
+      addLog(`降臨の儀式: ${releasedMonster.name}をリリース`, 'info');
+
+      // 深みの儀式者がいるかチェック
+      const hasRitualist = myField.some(m =>
+        m && m.name && m.name.includes('深みの儀式者')
+      );
+
+      // 召喚処理
+      const summonMonster = (target) => {
+        setMyDeck(prev => prev.filter(c => c.uniqueId !== target.uniqueId));
+        setMyField(prev => {
+          const newField = [...prev];
+          // リリースしたスロットに召喚
+          const atkBonus = hasRitualist ? 800 : 0;
+          newField[releaseIndex] = {
+            ...target,
+            currentHp: target.hp,
+            currentAttack: target.attack + atkBonus,
+            canAttack: false, // 召喚酔い
+            charges: [],
+            statusEffects: [],
+            owner: currentPlayer,
+            atkBoostUntilEndOfTurn: hasRitualist ? 800 : 0, // ターン終了時リセット用
+          };
+          return newField;
+        });
+        if (hasRitualist) {
+          addLog(`降臨の儀式: ${target.name}を召喚！（儀式者の力でATK+800）`, 'heal');
+        } else {
+          addLog(`降臨の儀式: ${target.name}を召喚！`, 'heal');
+        }
+      };
+
+      if (eligibleMonsters.length === 1) {
+        summonMonster(eligibleMonsters[0]);
+        return;
+      }
+
+      if (setPendingDeckReview) {
+        setPendingDeckReview({
+          cards: eligibleMonsters,
+          title: '降臨の儀式',
+          message: `コスト${maxCost}以下の『ヴェルゼファール』モンスターを1体選択`,
+          allowReorder: false,
+          selectMode: { enabled: true, count: 1 },
+          onSelect: (selectedCards) => {
+            if (selectedCards.length > 0) summonMonster(selectedCards[0]);
+          },
+          onCancel: () => addLog('召喚をキャンセルしました', 'info'),
+        });
+      } else {
+        summonMonster(eligibleMonsters[0]);
+      }
+    };
+
+    // 1体のみの場合は自動選択
+    if (verzefaalMonsters.length === 1) {
+      performRitual(verzefaalMonsters[0].index);
+      return true;
+    }
+
+    // 複数いる場合は選択UI
+    if (setPendingTargetSelection) {
+      setPendingTargetSelection({
+        message: 'リリースする『ヴェルゼファール』モンスターを選択',
+        targetType: 'self_monster',
+        validTargets: verzefaalMonsters.map(v => v.index),
+        isOpponent: false,
+        callback: (selectedIndex) => performRitual(selectedIndex),
+      });
+      return true;
+    }
+
+    performRitual(verzefaalMonsters[0].index);
+    return true;
+  },
+
+  /**
+   * C0000342: 漂流民の抵抗
+   * 自分の『アクアレギナ』モンスター1体のHPを1000アップ。
+   * 場に『ヴェルゼファール』モンスターがいる場合、相手プレイヤーに500ダメージを与え、
+   * ターン終了時までそのモンスターの基本技を封じる。
+   */
+  C0000342: (skillText, context) => {
+    const { addLog, setPendingTargetSelection } = context;
+    const { myField, setMyField, setOpponentLife } = getPlayerContext(context);
+
+    // 場のアクアレギナモンスターを取得
+    const aquaReginaMonsters = myField
+      .map((m, idx) => ({ monster: m, index: idx }))
+      .filter(({ monster }) => monster && monster.name && monster.name.includes('アクアレギナ'));
+
+    if (aquaReginaMonsters.length === 0) {
+      addLog('漂流民の抵抗: 場に『アクアレギナ』モンスターがいません', 'info');
+      return false;
+    }
+
+    // ヴェルゼファールがいるかチェック
+    const hasVerzefaal = myField.some(m =>
+      m && m.name && m.name.includes('ヴェルゼファール')
+    );
+
+    // HP増加処理
+    const applyResistance = (targetIndex) => {
+      setMyField(prev => prev.map((m, idx) => {
+        if (idx === targetIndex && m) {
+          addLog(`${m.name}のHPを1000アップ！`, 'heal');
+          const newMonster = {
+            ...m,
+            hp: m.hp + 1000,
+            currentHp: m.currentHp + 1000,
+          };
+
+          // ヴェルゼファールがいる場合、基本技封印
+          if (hasVerzefaal) {
+            addLog(`${m.name}の基本技をターン終了時まで封印`, 'info');
+            newMonster.basicSkillSealedUntilEndOfTurn = true;
+          }
+
+          return newMonster;
+        }
+        return m;
+      }));
+
+      // ヴェルゼファールがいる場合、相手に500ダメージ
+      if (hasVerzefaal) {
+        setOpponentLife(prev => prev - 500);
+        addLog('漂流民の抵抗: ヴェルゼファールの力で相手に500ダメージ！', 'damage');
+      }
+    };
+
+    // 1体のみの場合は自動選択
+    if (aquaReginaMonsters.length === 1) {
+      applyResistance(aquaReginaMonsters[0].index);
+      return true;
+    }
+
+    // 複数いる場合は選択UI
+    if (setPendingTargetSelection) {
+      setPendingTargetSelection({
+        message: 'HPを1000アップする『アクアレギナ』モンスターを選択',
+        targetType: 'self_monster',
+        validTargets: aquaReginaMonsters.map(a => a.index),
+        isOpponent: false,
+        callback: (selectedIndex) => applyResistance(selectedIndex),
+      });
+      return true;
+    }
+
+    applyResistance(aquaReginaMonsters[0].index);
+    return true;
+  },
+
+  /**
+   * C0000343: アクアレギナの水晶術師の防壁
+   * このターン、自分の『アクアレギナ』モンスターが受ける効果ダメージを0にし、HPを500アップ。
+   * 場に『アクアレギナの動力-エテルノス・コア』がある場合、
+   * 相手モンスター1体の攻撃力をターン終了時まで1000下げる。
+   */
+  C0000343: (skillText, context) => {
+    const { addLog, setPendingTargetSelection } = context;
+    const { myField, setMyField, opponentField, setOpponentField, myFieldCard } = getPlayerContext(context);
+
+    // 場のアクアレギナモンスターを取得
+    const aquaReginaMonsters = myField.filter(m =>
+      m && m.name && m.name.includes('アクアレギナ')
+    );
+
+    if (aquaReginaMonsters.length === 0) {
+      addLog('水晶術師の防壁: 場に『アクアレギナ』モンスターがいません', 'info');
+      return false;
+    }
+
+    // アクアレギナ全員にHP+500と効果ダメージ無効を付与
+    setMyField(prev => prev.map(m => {
+      if (m && m.name && m.name.includes('アクアレギナ')) {
+        addLog(`${m.name}にHP+500と効果ダメージ無効を付与`, 'heal');
+        return {
+          ...m,
+          hp: m.hp + 500,
+          currentHp: m.currentHp + 500,
+          effectDamageImmunityUntilEndOfTurn: true,
+        };
+      }
+      return m;
+    }));
+
+    // エテルノス・コアがあるかチェック（フィールドカード）
+    const hasEternosCore = myFieldCard &&
+      myFieldCard.name && myFieldCard.name.includes('アクアレギナの動力-エテルノス・コア');
+
+    if (hasEternosCore) {
+      // 相手モンスターを取得
+      const validTargets = opponentField
+        .map((m, idx) => ({ monster: m, index: idx }))
+        .filter(({ monster }) => monster !== null);
+
+      if (validTargets.length === 0) {
+        addLog('水晶術師の防壁: 相手フィールドにモンスターがいません（ATK減少スキップ）', 'info');
+        return true;
+      }
+
+      const applyAtkReduction = (targetIndex) => {
+        setOpponentField(prev => prev.map((m, idx) => {
+          if (idx === targetIndex && m) {
+            const newAtk = Math.max(0, m.currentAttack - 1000);
+            addLog(`エテルノス・コアの力: ${m.name}の攻撃力を1000ダウン！`, 'damage');
+            return {
+              ...m,
+              currentAttack: newAtk,
+              atkReducedUntilEndOfTurn: 1000,
+            };
+          }
+          return m;
+        }));
+      };
+
+      // 1体のみの場合は自動選択
+      if (validTargets.length === 1) {
+        applyAtkReduction(validTargets[0].index);
+        return true;
+      }
+
+      // 複数いる場合は選択UI
+      if (setPendingTargetSelection) {
+        setPendingTargetSelection({
+          message: '攻撃力を1000下げる相手モンスターを選択',
+          targetType: 'opponent_monster',
+          callback: (selectedIndex) => applyAtkReduction(selectedIndex),
+        });
+        return true;
+      }
+
+      applyAtkReduction(validTargets[0].index);
+    }
+
+    return true;
+  },
 };

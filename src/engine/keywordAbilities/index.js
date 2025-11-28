@@ -497,3 +497,102 @@ export function processLinkEndPhaseDamage(field, setOpponentLife, addLog) {
   return totalDamage;
 }
 
+// =============================================================================
+// 【深蝕】関連
+// =============================================================================
+
+/**
+ * 【深蝕】を持つカードか判定
+ * @param {Object} card - カードオブジェクト
+ * @returns {boolean}
+ */
+export function hasShinsyoku(card) {
+  return hasKeyword(card, KEYWORD_ABILITIES.SHINSYOKU);
+}
+
+/**
+ * 【深蝕】を持つカードのID一覧
+ */
+export const SHINSYOKU_CARD_IDS = [
+  'C0000334', // クラディオム
+  'C0000335', // シスラゴン
+  'C0000336', // ルミナクール
+  'C0000337', // タラッサロス
+  'C0000340', // ヴェルゼファール
+];
+
+/**
+ * 【深蝕】の効果を実行
+ * 自分のターン終了時、相手モンスター1体の攻撃力を500下げ、0になると破壊
+ * @param {Object} context - 効果コンテキスト
+ * @param {string} sourceName - 効果発動元のカード名
+ * @param {Function} setPendingTargetSelection - ターゲット選択UI設定関数（オプション）
+ * @returns {boolean} 効果を適用したかどうか
+ */
+export function executeShinsyokuEffect(context, sourceName, setPendingTargetSelection = null) {
+  const { addLog, currentPlayer, p1Field, p2Field, setP1Field, setP2Field, setP1Graveyard, setP2Graveyard } = context;
+
+  // 相手のフィールドを取得
+  const opponentField = currentPlayer === 1 ? p2Field : p1Field;
+  const setOpponentField = currentPlayer === 1 ? setP2Field : setP1Field;
+  const setOpponentGraveyard = currentPlayer === 1 ? setP2Graveyard : setP1Graveyard;
+
+  // 相手モンスターを取得
+  const validTargets = opponentField
+    .map((m, idx) => ({ monster: m, index: idx }))
+    .filter(({ monster }) => monster !== null);
+
+  if (validTargets.length === 0) {
+    addLog(`【深蝕】${sourceName}: 相手フィールドにモンスターがいません`, 'info');
+    return false;
+  }
+
+  // ATKを500下げる処理
+  const applyShinsyoku = (targetIndex) => {
+    const target = opponentField[targetIndex];
+    if (!target) return;
+
+    const newAtk = Math.max(0, (target.currentAttack || target.attack) - 500);
+    addLog(`【深蝕】${sourceName}: ${target.name}の攻撃力を500ダウン（${newAtk}）`, 'damage');
+
+    if (newAtk <= 0) {
+      // ATKが0になったら破壊
+      addLog(`${target.name}は攻撃力が0になり破壊された！`, 'damage');
+      setOpponentGraveyard(prev => [...prev, target]);
+      setOpponentField(prev => {
+        const newField = [...prev];
+        newField[targetIndex] = null;
+        return newField;
+      });
+    } else {
+      setOpponentField(prev => {
+        const newField = [...prev];
+        newField[targetIndex] = { ...target, currentAttack: newAtk };
+        return newField;
+      });
+    }
+  };
+
+  // 1体のみの場合は自動選択
+  if (validTargets.length === 1) {
+    applyShinsyoku(validTargets[0].index);
+    return true;
+  }
+
+  // 複数いる場合は選択UI（またはフォールバックで最初のターゲット）
+  if (setPendingTargetSelection) {
+    setPendingTargetSelection({
+      message: `【深蝕】攻撃力を500下げる相手モンスターを選択`,
+      targetType: 'opponent_monster',
+      callback: (selectedIndex) => {
+        applyShinsyoku(selectedIndex);
+      },
+    });
+    return true;
+  }
+
+  // フォールバック: 最初のターゲット
+  applyShinsyoku(validTargets[0].index);
+  return true;
+}
+
