@@ -12,12 +12,12 @@
 - **Styling**: Inline styles with CSS-in-JS approach
 
 ### Project Status
-Currently a **prototype version** with local 2-player gameplay.
+Currently a **prototype version** with local 2-player gameplay and AI opponent support.
 
 **Recent Major Updates**:
 - **2025-11-26 (Phase 1-4)**: Code refactoring completed
   - Modular architecture with separated concerns
-  - Note: magic-spirit.jsx has grown to 2482 lines due to trigger system and deck selection integration
+  - Note: magic-spirit.jsx has grown to ~4300 lines due to trigger system, AI, and deck selection integration
 - **2025-11-26 (Phase 5 - Card Effects)**: Card-specific effects system implemented
   - 108+ individual card effects across all attributes
   - Hybrid approach: generic effects + card-specific implementations
@@ -195,14 +195,14 @@ Currently a **prototype version** with local 2-player gameplay.
 │   │   │   ├── primitive.js    # 原始属性 card effects
 │   │   │   ├── future.js       # 未来属性 card effects
 │   │   │   └── neutral.js      # なし属性 card effects
-│   │   ├── cardTriggers/       # Card-specific trigger implementations (~7950 lines)
-│   │   │   ├── fireCards.js      # 炎属性 trigger implementations (33 cards, 819 lines)
-│   │   │   ├── waterCards.js     # 水属性 trigger implementations (37 cards, 1122 lines)
-│   │   │   ├── lightCards.js     # 光属性 trigger implementations (37 cards, 1069 lines)
-│   │   │   ├── darkCards.js      # 闘属性 trigger implementations (45 cards, 1591 lines)
-│   │   │   ├── futureCards.js    # 未来属性 trigger implementations (12 cards, 504 lines)
-│   │   │   ├── primitiveCards.js # 原始属性 trigger implementations (28 cards, 1306 lines)
-│   │   │   └── neutralCards.js   # なし属性 trigger implementations (18 cards, 758 lines)
+│   │   ├── cardTriggers/       # Card-specific trigger implementations (~7955 lines)
+│   │   │   ├── fireCards.js      # 炎属性 trigger implementations (~883 lines)
+│   │   │   ├── waterCards.js     # 水属性 trigger implementations (~1411 lines)
+│   │   │   ├── lightCards.js     # 光属性 trigger implementations (~1070 lines)
+│   │   │   ├── darkCards.js      # 闇属性 trigger implementations (~1658 lines)
+│   │   │   ├── futureCards.js    # 未来属性 trigger implementations (~868 lines)
+│   │   │   ├── primitiveCards.js # 原始属性 trigger implementations (~1306 lines)
+│   │   │   └── neutralCards.js   # なし属性 trigger implementations (~759 lines)
 │   │   ├── continuousEffects/  # Continuous effect system (~2736 lines) ⭐⭐⭐⭐
 │   │   │   ├── index.js          # Main exports (106 lines)
 │   │   │   ├── effectTypes.js    # Effect type definitions (224 lines)
@@ -221,15 +221,15 @@ Currently a **prototype version** with local 2-player gameplay.
 │   │   │   ├── index.js          # Main exports
 │   │   │   ├── statusTypes.js    # Status type definitions and metadata
 │   │   │   └── statusEngine.js   # Main status effect engine
-│   │   └── ai/                 # AI player system (~1210 lines) ⭐⭐⭐⭐⭐
-│   │       ├── index.js          # Main exports (~50 lines)
-│   │       ├── aiController.js   # AI controller (~530 lines)
+│   │   └── ai/                 # AI player system (~1246 lines) ⭐⭐⭐⭐⭐
+│   │       ├── index.js          # Main exports (~35 lines)
+│   │       ├── aiController.js   # AI controller (~499 lines)
 │   │       └── strategies/       # Strategy implementations
-│   │           ├── index.js      # Strategy selector (~30 lines)
-│   │           ├── base.js       # Base strategy (random) (~190 lines)
-│   │           ├── easy.js       # Easy AI (~55 lines)
-│   │           ├── normal.js     # Normal AI (~115 lines)
-│   │           └── hard.js       # Hard AI (~145 lines)
+│   │           ├── index.js      # Strategy selector (~61 lines)
+│   │           ├── base.js       # Base strategy (random) (~209 lines)
+│   │           ├── easy.js       # Easy AI (~50 lines)
+│   │           ├── normal.js     # Normal AI (~157 lines)
+│   │           └── hard.js       # Hard AI (~235 lines)
 │   │
 │   ├── ルール/                  # Documentation (~11000 lines total)
 │   │   ├── Game Rules (日本語) - 3 files (~260 lines)
@@ -323,7 +323,7 @@ Currently a **prototype version** with local 2-player gameplay.
   - `_SELF` triggers (ON_END_PHASE_SELF, etc.): fire only when `trigger.owner === currentPlayer`
   - `_OPPONENT` triggers (ON_OPPONENT_END_PHASE): fire only when `trigger.owner !== currentPlayer`
 
-**`src/engine/cardTriggers/`** (Card-specific trigger implementations - ~7950 lines, 225+ cards)
+**`src/engine/cardTriggers/`** (Card-specific trigger implementations - ~7955 lines, 220+ cards)
 - **fireCards.js**: 炎属性 triggers (34 cards, ~850 lines) - includes field card ドラゴンの火山
 - **waterCards.js**: 水属性 triggers (37 cards, 1122 lines) - includes 3 graveyard triggers
 - **lightCards.js**: 光属性 triggers (37 cards, 1069 lines)
@@ -406,7 +406,7 @@ Currently a **prototype version** with local 2-player gameplay.
   - Complete development history
   - Phase-by-phase implementation status
   - Current progress: Phase 8 (AI Player System) completed
-  - Total progress: 87%
+  - Total progress: 90%
 - **magic-spirit-roadmap.txt** (249 lines): Legacy roadmap (archived)
 
 *Code Architecture - 1 file, 433 lines:*
@@ -1525,7 +1525,7 @@ console.log('Executing effect:', type, value, target);
    - 3 difficulty levels (Easy, Normal, Hard)
    - Per-player AI/human control
    - Strategy pattern for extensible decision-making
-   - ~1,015 lines of new AI code
+   - ~1,246 lines of AI code
 7. **Remaining card effects**: Implement effects for remaining cards (433 total - 120+ implemented)
 8. **Remaining card triggers**: Implement triggers for remaining cards (433 total - 225+ implemented)
 9. **Card data format**: Convert CSV to JSON for better structure and validation
@@ -1789,6 +1789,6 @@ This is suitable for expansion into a full game or as a learning project for Rea
 
 ---
 
-**Document Version**: 4.6
-**Last Updated**: 2025-11-27 (Bug fixes, new card implementations, AI charge mechanics)
+**Document Version**: 4.7
+**Last Updated**: 2025-11-28 (Document consolidation and roadmap update)
 **For**: Magic Spirit (magiSp) Repository
