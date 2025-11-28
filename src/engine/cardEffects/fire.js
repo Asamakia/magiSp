@@ -575,5 +575,259 @@ export const fireCardEffects = {
     return false;
   },
 
+  // ========================================
+  // 魔法カード
+  // ========================================
+
+  /**
+   * C0000173: 熔岩の呼び声
+   * デッキからコスト3以下の【マグマフォージ】モンスター1体を場に召喚（コスト不要）
+   */
+  C0000173: (skillText, context) => {
+    const { addLog, currentPlayer } = context;
+    const { myDeck, setMyDeck, myField, setMyField } = getPlayerContext(context);
+
+    // デッキからコスト3以下のマグマフォージモンスターを探す
+    const targetIndex = myDeck.findIndex(card =>
+      card.type === 'monster' &&
+      card.cost <= 3 &&
+      hasCategory(card, '【マグマフォージ】')
+    );
+
+    if (targetIndex === -1) {
+      addLog('熔岩の呼び声: デッキにコスト3以下の【マグマフォージ】モンスターがいません', 'info');
+      return false;
+    }
+
+    // 空きスロットを探す
+    const emptySlotIndex = myField.findIndex(slot => slot === null);
+    if (emptySlotIndex === -1) {
+      addLog('熔岩の呼び声: フィールドに空きがありません', 'info');
+      return false;
+    }
+
+    const targetCard = myDeck[targetIndex];
+
+    // モンスターインスタンスを作成
+    const monsterInstance = {
+      ...targetCard,
+      uniqueId: `${targetCard.id}_${Date.now()}_${Math.random()}`,
+      currentHp: targetCard.hp,
+      currentAttack: targetCard.attack,
+      canAttack: false,
+      usedSkillThisTurn: false,
+      owner: currentPlayer,
+      charges: [],
+      statusEffects: [],
+    };
+
+    // デッキから除去
+    const newDeck = [...myDeck];
+    newDeck.splice(targetIndex, 1);
+    setMyDeck(newDeck);
+
+    // フィールドに召喚
+    setMyField(prev => {
+      const newField = [...prev];
+      newField[emptySlotIndex] = monsterInstance;
+      return newField;
+    });
+
+    addLog(`熔岩の呼び声: デッキから「${targetCard.name}」を召喚！`, 'info');
+    return true;
+  },
+
+  /**
+   * C0000174: 岩狸の咆哮
+   * 場にいる【ビースト・狸】モンスター1体の攻撃力をターン終了時まで800アップし、相手モンスター1体の攻撃力を600ダウン
+   */
+  C0000174: (skillText, context) => {
+    const { addLog } = context;
+    const { myField, setMyField, opponentField, setOpponentField } = getPlayerContext(context);
+
+    // 【ビースト・狸】モンスターを探す
+    const tanukiIndex = myField.findIndex(m =>
+      m && hasCategory(m, '【ビースト・狸】')
+    );
+
+    if (tanukiIndex === -1) {
+      addLog('岩狸の咆哮: 【ビースト・狸】モンスターがいません', 'info');
+      return false;
+    }
+
+    // 攻撃力800アップ
+    setMyField(prev => {
+      const newField = [...prev];
+      if (newField[tanukiIndex]) {
+        const newAttack = (newField[tanukiIndex].currentAttack || newField[tanukiIndex].attack) + 800;
+        newField[tanukiIndex] = {
+          ...newField[tanukiIndex],
+          attack: newField[tanukiIndex].attack + 800,
+          currentAttack: newAttack,
+        };
+        addLog(`岩狸の咆哮: ${newField[tanukiIndex].name}の攻撃力+800！`, 'heal');
+      }
+      return newField;
+    });
+
+    // 相手モンスター1体の攻撃力を600ダウン
+    const opponentMonsterIndex = opponentField.findIndex(m => m !== null);
+    if (opponentMonsterIndex !== -1) {
+      setOpponentField(prev => {
+        const newField = [...prev];
+        if (newField[opponentMonsterIndex]) {
+          const newAttack = Math.max(0, (newField[opponentMonsterIndex].currentAttack || newField[opponentMonsterIndex].attack) - 600);
+          newField[opponentMonsterIndex] = {
+            ...newField[opponentMonsterIndex],
+            attack: Math.max(0, newField[opponentMonsterIndex].attack - 600),
+            currentAttack: newAttack,
+          };
+          addLog(`岩狸の咆哮: ${newField[opponentMonsterIndex].name}の攻撃力-600！`, 'damage');
+        }
+        return newField;
+      });
+    }
+
+    return true;
+  },
+
+  /**
+   * C0000179: 熔岩再生
+   * 墓地のコスト4以下の《岩狸》モンスター2体を場に戻す（攻撃力は半分、HPは半分）
+   */
+  C0000179: (skillText, context) => {
+    const { addLog, currentPlayer } = context;
+    const { myGraveyard, setMyGraveyard, myField, setMyField } = getPlayerContext(context);
+
+    // 墓地からコスト4以下の岩狸モンスターを探す
+    const tanukiCards = myGraveyard.filter(card =>
+      card.type === 'monster' &&
+      card.cost <= 4 &&
+      card.name && card.name.includes('岩狸')
+    );
+
+    if (tanukiCards.length === 0) {
+      addLog('熔岩再生: 墓地にコスト4以下の岩狸モンスターがいません', 'info');
+      return false;
+    }
+
+    // 空きスロットを確認
+    const emptySlots = myField.reduce((acc, slot, idx) => {
+      if (slot === null) acc.push(idx);
+      return acc;
+    }, []);
+
+    if (emptySlots.length === 0) {
+      addLog('熔岩再生: フィールドに空きがありません', 'info');
+      return false;
+    }
+
+    // 最大2体まで蘇生
+    const reviveCount = Math.min(tanukiCards.length, emptySlots.length, 2);
+    const toRevive = tanukiCards.slice(0, reviveCount);
+    const revivedIds = toRevive.map(c => c.uniqueId || c.id);
+
+    // 墓地から除去
+    setMyGraveyard(prev => prev.filter(c => !revivedIds.includes(c.uniqueId || c.id)));
+
+    // フィールドに蘇生
+    setMyField(prev => {
+      const newField = [...prev];
+      toRevive.forEach((card, i) => {
+        const slotIndex = emptySlots[i];
+        newField[slotIndex] = {
+          ...card,
+          uniqueId: `${card.id}_revive_${Date.now()}_${Math.random()}_${i}`,
+          attack: Math.floor(card.attack / 2),
+          currentAttack: Math.floor(card.attack / 2),
+          hp: Math.floor(card.hp / 2),
+          currentHp: Math.floor(card.hp / 2),
+          canAttack: false,
+          usedSkillThisTurn: false,
+          owner: currentPlayer,
+          charges: [],
+          statusEffects: [],
+        };
+        addLog(`熔岩再生: 「${card.name}」を蘇生！（攻撃力${Math.floor(card.attack / 2)}、HP${Math.floor(card.hp / 2)}）`, 'info');
+      });
+      return newField;
+    });
+
+    return true;
+  },
+
+  /**
+   * C0000181: 岩狸の覚醒
+   * 場にいる炎属性モンスター1体の攻撃力をターン終了時まで倍にする
+   */
+  C0000181: (skillText, context) => {
+    const { addLog } = context;
+    const { myField, setMyField } = getPlayerContext(context);
+
+    // 炎属性モンスターを探す
+    const fireMonsterIndex = myField.findIndex(m => m && m.attribute === '炎');
+
+    if (fireMonsterIndex === -1) {
+      addLog('岩狸の覚醒: 炎属性モンスターがいません', 'info');
+      return false;
+    }
+
+    // 攻撃力を倍にする
+    setMyField(prev => {
+      const newField = [...prev];
+      if (newField[fireMonsterIndex]) {
+        const currentAtk = newField[fireMonsterIndex].currentAttack || newField[fireMonsterIndex].attack;
+        const doubledAtk = currentAtk * 2;
+        newField[fireMonsterIndex] = {
+          ...newField[fireMonsterIndex],
+          attack: doubledAtk,
+          currentAttack: doubledAtk,
+        };
+        addLog(`岩狸の覚醒: ${newField[fireMonsterIndex].name}の攻撃力が${currentAtk}→${doubledAtk}に倍化！`, 'heal');
+      }
+      return newField;
+    });
+
+    return true;
+  },
+
+  /**
+   * C0000184: 狸の業火
+   * 自分の場にいる《岩狸》モンスター1体を破壊し、その攻撃力分のダメージを相手に与える
+   */
+  C0000184: (skillText, context) => {
+    const { addLog } = context;
+    const { myField, setMyField, setMyGraveyard, setOpponentLife } = getPlayerContext(context);
+
+    // 岩狸モンスターを探す
+    const tanukiIndex = myField.findIndex(m => m && m.name && m.name.includes('岩狸'));
+
+    if (tanukiIndex === -1) {
+      addLog('狸の業火: 岩狸モンスターがいません', 'info');
+      return false;
+    }
+
+    const targetMonster = myField[tanukiIndex];
+    const damage = targetMonster.currentAttack || targetMonster.attack;
+
+    // モンスターを破壊
+    setMyField(prev => {
+      const newField = [...prev];
+      newField[tanukiIndex] = null;
+      return newField;
+    });
+
+    // 墓地に送る
+    setMyGraveyard(prev => [...prev, targetMonster]);
+
+    // 相手にダメージ
+    setOpponentLife(prev => prev - damage);
+
+    addLog(`狸の業火: ${targetMonster.name}を破壊！`, 'damage');
+    addLog(`狸の業火: 相手プレイヤーに${damage}ダメージ！`, 'damage');
+
+    return true;
+  },
+
   // 他の炎属性カードを追加...
 };
