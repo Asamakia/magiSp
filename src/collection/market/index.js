@@ -11,6 +11,12 @@ export * from './weeklyTrend';
 // ニュース生成
 export * from './newsGenerator';
 
+// 突発イベント
+export * from './suddenEvents';
+
+// 価格履歴
+export * from './priceHistory';
+
 // 市場エンジン
 export * from './marketEngine';
 

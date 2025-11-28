@@ -290,6 +290,38 @@ const styles = {
   modifierDown: {
     color: '#ff6b6b',
   },
+  // 突発イベントセクション
+  suddenEventSection: {
+    marginTop: '12px',
+    padding: '12px',
+    background: 'linear-gradient(135deg, rgba(255,50,50,0.15) 0%, rgba(255,100,50,0.1) 100%)',
+    borderRadius: '8px',
+    border: '1px solid rgba(255,100,100,0.4)',
+    borderLeft: '3px solid #ff6b6b',
+  },
+  suddenEventLabel: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '6px',
+    fontSize: '12px',
+    color: '#ff8080',
+    marginBottom: '6px',
+    fontWeight: 'bold',
+  },
+  suddenEventName: {
+    fontSize: '14px',
+    fontWeight: 'bold',
+    color: '#ffa0a0',
+    marginBottom: '4px',
+  },
+  suddenEventEffects: {
+    fontSize: '12px',
+    color: '#e0e0e0',
+    lineHeight: '1.6',
+  },
+  suddenEventEffect: {
+    marginBottom: '2px',
+  },
   weekProgress: {
     marginTop: '12px',
     display: 'flex',
@@ -483,6 +515,47 @@ const ShopScreen = ({
                   {' '}
                   {playerData.market.dailyNews.modifier > 0 ? '+' : ''}
                   {playerData.market.dailyNews.modifier}%
+                </div>
+              </div>
+            )}
+
+            {/* 突発イベント */}
+            {playerData.market.suddenEvent && (
+              <div style={styles.suddenEventSection}>
+                <div style={styles.suddenEventLabel}>
+                  <span>⚡</span>
+                  <span>突発イベント発生中！</span>
+                </div>
+                <div style={styles.suddenEventName}>
+                  {playerData.market.suddenEvent.name}
+                </div>
+                <div style={styles.suddenEventEffects}>
+                  {playerData.market.suddenEvent.effects.map((effect, i) => {
+                    // ターゲットの説明テキストを生成
+                    let targetText = '';
+                    const t = effect.target;
+                    if (t.all) targetText = '全カード';
+                    else if (t.attribute) targetText = `${t.attribute}属性`;
+                    else if (t.category) targetText = `[${t.category}]`;
+                    else if (t.minRarity) targetText = `${t.minRarity}以上`;
+                    else if (t.maxRarity) targetText = `${t.maxRarity}以下`;
+                    else if (t.minCost !== undefined) targetText = `コスト${t.minCost}以上`;
+                    else if (t.maxCost !== undefined) targetText = `コスト${t.maxCost}以下`;
+                    else if (t.tiers) targetText = `${t.tiers.join('/')}ティア`;
+                    else if (t.keyword) targetText = t.keyword;
+                    else if (t.type) targetText = `${t.type}カード`;
+                    else targetText = '対象';
+
+                    const isUp = effect.modifier > 0;
+                    return (
+                      <div key={i} style={styles.suddenEventEffect}>
+                        <span>{targetText}: </span>
+                        <span style={isUp ? styles.modifierUp : styles.modifierDown}>
+                          {isUp ? '+' : ''}{effect.modifier}%
+                        </span>
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
             )}
