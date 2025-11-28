@@ -6,7 +6,7 @@
 
 import React from 'react';
 import { ATTRIBUTE_COLORS } from '../../utils/constants';
-import { RARITY_COLORS, RARITY_NAMES } from '../data/constants';
+import { RARITY_COLORS, RARITY_NAMES, TIERS } from '../data/constants';
 
 // ========================================
 // スタイル定義
@@ -100,6 +100,23 @@ const styles = {
     fontWeight: 'bold',
     color: '#ffd700',
   },
+  priceRow: {
+    padding: '3px 6px',
+    background: 'rgba(0,0,0,0.3)',
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  tierBadge: {
+    fontSize: '10px',
+    fontWeight: 'bold',
+    padding: '1px 4px',
+    borderRadius: '3px',
+  },
+  priceBadge: {
+    fontSize: '10px',
+    color: '#ffd700',
+  },
   emptyMessage: {
     textAlign: 'center',
     padding: '48px',
@@ -119,6 +136,15 @@ const TYPE_ICONS = {
   phasecard: '🔮',
 };
 
+// ティアカラー
+const TIER_COLORS = {
+  S: '#ff4444',
+  A: '#ff9900',
+  B: '#3498db',
+  C: '#2ecc71',
+  D: '#808080',
+};
+
 // ========================================
 // カードアイテムコンポーネント
 // ========================================
@@ -127,6 +153,11 @@ const CardItem = ({ card, onClick }) => {
   const colors = ATTRIBUTE_COLORS[card.attribute] || ATTRIBUTE_COLORS['なし'];
   const rarityColor = RARITY_COLORS[card.rarity] || '#808080';
   const isMonster = card.type === 'monster';
+
+  // 価格とティア情報
+  const tier = card.valueInfo?.tier || 'D';
+  const tierColor = TIER_COLORS[tier] || TIER_COLORS.D;
+  const price = card.valueInfo?.rarityValues?.[card.rarity] || 0;
 
   const cardStyle = {
     ...styles.card,
@@ -181,6 +212,20 @@ const CardItem = ({ card, onClick }) => {
           </span>
           <span style={styles.quantityBadge}>
             ×{card.quantity}
+          </span>
+        </div>
+
+        {/* 価格行: ティア & 価格 */}
+        <div style={styles.priceRow}>
+          <span style={{
+            ...styles.tierBadge,
+            background: tierColor,
+            color: '#fff',
+          }}>
+            {tier}
+          </span>
+          <span style={styles.priceBadge}>
+            {price.toLocaleString()}G
           </span>
         </div>
       </div>

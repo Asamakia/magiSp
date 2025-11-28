@@ -6,7 +6,7 @@
 
 import React, { useState, useMemo } from 'react';
 import { ATTRIBUTE_COLORS } from '../../utils/constants';
-import { collectionManager, currencyManager, RARITIES, RARITY_COLORS } from '../index';
+import { collectionManager, currencyManager, RARITIES, RARITY_COLORS, TIERS } from '../index';
 import CardGrid from './CardGrid';
 import CardDetail from './CardDetail';
 
@@ -147,6 +147,11 @@ const TYPE_OPTIONS = [
   { value: 'phasecard', label: 'フェイズ' },
 ];
 
+const TIER_OPTIONS = [
+  { value: 'all', label: '全ティア' },
+  ...TIERS.map(t => ({ value: t, label: `ティア${t}` })),
+];
+
 // ========================================
 // メインコンポーネント
 // ========================================
@@ -162,6 +167,7 @@ const CollectionScreen = ({
   const [attributeFilter, setAttributeFilter] = useState('all');
   const [rarityFilter, setRarityFilter] = useState('all');
   const [typeFilter, setTypeFilter] = useState('all');
+  const [tierFilter, setTierFilter] = useState('all');
   const [searchText, setSearchText] = useState('');
 
   // 詳細表示
@@ -190,10 +196,15 @@ const CollectionScreen = ({
         const quantity = collectionManager.getQuantity(playerData, card.id, rarity);
         if (quantity <= 0) continue;
 
+        // 価値情報を取得
+        const valueInfo = cardValueMap?.get(card.id);
+        const tier = valueInfo?.tier || 'D';
+
         // フィルタ適用
         if (attributeFilter !== 'all' && card.attribute !== attributeFilter) continue;
         if (rarityFilter !== 'all' && rarity !== rarityFilter) continue;
         if (typeFilter !== 'all' && card.type !== typeFilter) continue;
+        if (tierFilter !== 'all' && tier !== tierFilter) continue;
         if (searchText && !card.name.includes(searchText)) continue;
 
         result.push({
@@ -214,7 +225,7 @@ const CollectionScreen = ({
     });
 
     return result;
-  }, [playerData, allCards, cardValueMap, attributeFilter, rarityFilter, typeFilter, searchText]);
+  }, [playerData, allCards, cardValueMap, attributeFilter, rarityFilter, typeFilter, tierFilter, searchText]);
 
   // 統計計算
   const stats = useMemo(() => {
@@ -301,6 +312,19 @@ const CollectionScreen = ({
             onChange={(e) => setTypeFilter(e.target.value)}
           >
             {TYPE_OPTIONS.map(opt => (
+              <option key={opt.value} value={opt.value}>{opt.label}</option>
+            ))}
+          </select>
+        </div>
+
+        <div style={styles.filterGroup}>
+          <span style={styles.filterLabel}>ティア:</span>
+          <select
+            style={styles.filterSelect}
+            value={tierFilter}
+            onChange={(e) => setTierFilter(e.target.value)}
+          >
+            {TIER_OPTIONS.map(opt => (
               <option key={opt.value} value={opt.value}>{opt.label}</option>
             ))}
           </select>
