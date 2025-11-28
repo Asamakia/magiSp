@@ -251,6 +251,15 @@ Currently a **prototype version** with local 2-player gameplay and AI opponent s
     - 推移チャート（30戦分）
   - **playerData拡張**: assetHistory フィールド追加
   - **統合**: 対戦終了時に資産スナップショットを自動記録
+- **2025-11-28 (AI Skill Effectivity Check)**: AIスキル有効性事前チェックシステム ⭐⭐
+  - **skillEffectivityChecker.js**: スキル有効性チェッカー (~140行)
+    - `isSkillEffective()`: スキルが実際に効果を発揮できるかを事前チェック
+    - `filterEffectiveSkills()`: 有効なスキルのみにフィルタリング
+  - **修正されたバグ**: AIが「輝聖女ルミナス」の上級技を無限ループで発動しようとする問題
+    - 手札に光属性モンスターがない場合、上級技はスキップされる
+    - 他の条件付きスキル（墓地条件、フィールド空き条件）も対応
+  - **対応カード**: C0000056 (輝聖女ルミナス), C0000142 (ブリザードマスター), C0000044 (水晶のマーメイド), C0000028 (炎竜母フレイマ)
+  - **拡張可能**: 新しいカードのチェッカーを追加可能な設計
 
 ---
 
@@ -514,13 +523,19 @@ Currently a **prototype version** with local 2-player gameplay and AI opponent s
 - `createStackItem()`, `resolveStack()`: Stack management for Phase B preparation
 - Hybrid architecture: integrates with trigger/continuous effect systems
 
-**`src/engine/ai/`** (AI player system - ~1210 lines) ⭐⭐⭐⭐⭐
+**`src/engine/ai/`** (AI player system - ~1350 lines) ⭐⭐⭐⭐⭐
 - **aiController.js**: Main AI controller (~530 lines)
   - `createAIGameState()`: Game state snapshot for AI
   - `executeAIMainPhaseAction()`: Main phase AI logic
   - `executeAIBattlePhaseAction()`: Battle phase AI logic
   - `handleAIHandSelection()`, `handleAIMonsterTarget()`, `handleAIGraveyardSelection()`: Special case handlers
   - `handleAIDeckReview()`, `handleAIChainConfirmation()`: Additional handlers
+  - `getUsableSkills()`: Now includes skill effectivity check
+- **skillEffectivityChecker.js**: Skill effectivity pre-check system (~140 lines) ⭐ **NEW**
+  - `isSkillEffective()`: Check if skill can actually be executed
+  - `filterEffectiveSkills()`: Filter usable skills by effectivity
+  - Pre-checks: hand conditions (e.g., 輝聖女ルミナス), field space, graveyard conditions
+  - Prevents AI infinite loop when skill conditions aren't met
 - **strategies/**: Strategy pattern implementations
   - `base.js`: Base strategy (random decisions)
   - `easy.js`: Easy AI (30% skip summon, 70% direct attack)
