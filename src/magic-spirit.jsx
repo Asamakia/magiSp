@@ -7,7 +7,7 @@ import {
   COUNTER_ATTACK_RATE,
   PHASES,
 } from './utils/constants';
-import { createDeck, createMonsterInstance, createDeckFromPrebuilt } from './utils/helpers';
+import { createDeck, createMonsterInstance, createDeckFromPrebuilt, createDeckFromUserDeck } from './utils/helpers';
 import { getDeckOptions } from './decks/prebuiltDecks';
 import { loadCardsFromCSV, SAMPLE_CARDS } from './utils/cardManager';
 import { executeSkillEffects } from './engine/effectEngine';
@@ -378,9 +378,26 @@ export default function MagicSpiritGame() {
   const initGame = useCallback(() => {
     // 報酬状態をクリア
     setBattleReward(null);
+
+    // デッキ生成ヘルパー: ユーザーデッキかプリビルトか判断
+    const createDeckFromSelection = (deckId) => {
+      if (deckId.startsWith('user_')) {
+        // ユーザーデッキの場合
+        const userDeckId = deckId.replace('user_', '');
+        const userDeck = playerData?.userDecks?.find(d => d.id === userDeckId);
+        if (userDeck) {
+          return createDeckFromUserDeck(userDeck, allCards);
+        }
+        console.warn(`ユーザーデッキが見つかりません: ${userDeckId}`);
+        return createDeck(allCards); // フォールバック
+      }
+      // プリビルトデッキの場合
+      return createDeckFromPrebuilt(deckId, allCards);
+    };
+
     // 選択されたデッキからカードを生成
-    const deck1 = createDeckFromPrebuilt(p1SelectedDeck, allCards);
-    const deck2 = createDeckFromPrebuilt(p2SelectedDeck, allCards);
+    const deck1 = createDeckFromSelection(p1SelectedDeck);
+    const deck2 = createDeckFromSelection(p2SelectedDeck);
 
     setP1Deck(deck1.slice(INITIAL_HAND_SIZE));
     setP1Hand(deck1.slice(0, INITIAL_HAND_SIZE));
@@ -448,7 +465,7 @@ export default function MagicSpiritGame() {
 
     setGameState('playing');
     addLog('ゲーム開始！先攻プレイヤー1のターン', 'info');
-  }, [addLog, allCards, p1SelectedDeck, p2SelectedDeck]);
+  }, [addLog, allCards, p1SelectedDeck, p2SelectedDeck, playerData]);
 
   // 現在のプレイヤーのデータを取得
   const getCurrentPlayerData = () => {
@@ -2867,14 +2884,28 @@ export default function MagicSpiritGame() {
                       minWidth: '160px',
                     }}
                   >
-                    {getDeckOptions().map(deck => (
-                      <option key={deck.id} value={deck.id}>
-                        {deck.name}
-                      </option>
-                    ))}
+                    <optgroup label="プリセットデッキ">
+                      {getDeckOptions().map(deck => (
+                        <option key={deck.id} value={deck.id}>
+                          {deck.name}
+                        </option>
+                      ))}
+                    </optgroup>
+                    {playerData?.userDecks?.length > 0 && (
+                      <optgroup label="所持デッキ">
+                        {playerData.userDecks.map(deck => (
+                          <option key={deck.id} value={`user_${deck.id}`}>
+                            📦 {deck.name}
+                          </option>
+                        ))}
+                      </optgroup>
+                    )}
                   </select>
                   <span style={{ color: '#888', fontSize: '11px', maxWidth: '180px', textAlign: 'center' }}>
-                    {getDeckOptions().find(d => d.id === p1SelectedDeck)?.description}
+                    {p1SelectedDeck.startsWith('user_')
+                      ? `所持デッキ (${playerData?.userDecks?.find(d => d.id === p1SelectedDeck.replace('user_', ''))?.cards?.length || 0}枚)`
+                      : getDeckOptions().find(d => d.id === p1SelectedDeck)?.description
+                    }
                   </span>
                 </div>
 
@@ -2902,14 +2933,28 @@ export default function MagicSpiritGame() {
                       minWidth: '160px',
                     }}
                   >
-                    {getDeckOptions().map(deck => (
-                      <option key={deck.id} value={deck.id}>
-                        {deck.name}
-                      </option>
-                    ))}
+                    <optgroup label="プリセットデッキ">
+                      {getDeckOptions().map(deck => (
+                        <option key={deck.id} value={deck.id}>
+                          {deck.name}
+                        </option>
+                      ))}
+                    </optgroup>
+                    {playerData?.userDecks?.length > 0 && (
+                      <optgroup label="所持デッキ">
+                        {playerData.userDecks.map(deck => (
+                          <option key={deck.id} value={`user_${deck.id}`}>
+                            📦 {deck.name}
+                          </option>
+                        ))}
+                      </optgroup>
+                    )}
                   </select>
                   <span style={{ color: '#888', fontSize: '11px', maxWidth: '180px', textAlign: 'center' }}>
-                    {getDeckOptions().find(d => d.id === p2SelectedDeck)?.description}
+                    {p2SelectedDeck.startsWith('user_')
+                      ? `所持デッキ (${playerData?.userDecks?.find(d => d.id === p2SelectedDeck.replace('user_', ''))?.cards?.length || 0}枚)`
+                      : getDeckOptions().find(d => d.id === p2SelectedDeck)?.description
+                    }
                   </span>
                 </div>
               </div>
