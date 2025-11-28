@@ -30,6 +30,7 @@ export const primitiveCardEffects = {
   /**
    * C0000006: 新・超覚醒粘液獣ハイパー
    * 【召喚時】場にいる粘液獣1体につき、自身の攻撃力を1000アップ
+   * 基本技：場にいる時一度だけ相手モンスター1体を飲み込んで無効化する
    */
   C0000006: (skillText, context) => {
     const {
@@ -38,8 +39,10 @@ export const primitiveCardEffects = {
       monsterIndex,
       p1Field, p2Field,
       setP1Field, setP2Field,
+      setPendingMonsterTarget,
     } = context;
 
+    // 召喚時効果（トリガーで処理されるが、フォールバック用）
     if (skillText.includes('【召喚時】')) {
       const currentField = currentPlayer === 1 ? p1Field : p2Field;
       const setField = currentPlayer === 1 ? setP1Field : setP2Field;
@@ -52,8 +55,10 @@ export const primitiveCardEffects = {
         const atkBoost = slimeCount * 1000;
         setField(prev => prev.map((m, idx) => {
           if (idx === monsterIndex && m) {
+            const newAttack = m.attack + atkBoost;
+            const newCurrentAttack = (m.currentAttack || m.attack) + atkBoost;
             addLog(`${m.name}の攻撃力が${atkBoost}アップ！`, 'info');
-            return { ...m, attack: m.attack + atkBoost };
+            return { ...m, attack: newAttack, currentAttack: newCurrentAttack };
           }
           return m;
         }));
@@ -61,6 +66,70 @@ export const primitiveCardEffects = {
       }
       return false;
     }
+
+    // 基本技：相手モンスター1体を飲み込んで無効化（1回限り）
+    if (context.skillType === 'basic') {
+      const currentField = currentPlayer === 1 ? p1Field : p2Field;
+      const setField = currentPlayer === 1 ? setP1Field : setP2Field;
+      const opponentField = currentPlayer === 1 ? p2Field : p1Field;
+      const setOpponentField = currentPlayer === 1 ? setP2Field : setP1Field;
+
+      // このカードの情報を取得
+      const thisMonster = currentField[monsterIndex];
+      if (!thisMonster) {
+        addLog('新・超覚醒粘液獣ハイパー: カードが見つかりません', 'info');
+        return false;
+      }
+
+      // 一度だけ使用可能チェック
+      if (thisMonster.hasUsedSwallow) {
+        addLog('新・超覚醒粘液獣ハイパー: すでに飲み込み効果を使用済み', 'info');
+        return false;
+      }
+
+      // 相手モンスターがいるかチェック
+      const hasOpponentMonster = opponentField.some(m => m !== null);
+      if (!hasOpponentMonster) {
+        addLog('新・超覚醒粘液獣ハイパー: 飲み込む対象がいません', 'info');
+        return false;
+      }
+
+      // モンスター選択UIを表示
+      setPendingMonsterTarget({
+        message: '飲み込んで無効化する相手モンスターを選択してください',
+        targetPlayer: 'opponent',
+        callback: (targetIndex) => {
+          const target = opponentField[targetIndex];
+          if (!target) return;
+
+          // 相手モンスターを無効化（効果無効＋攻撃不可）
+          setOpponentField(prev => prev.map((m, idx) => {
+            if (idx === targetIndex && m) {
+              return {
+                ...m,
+                effectDisabled: true,
+                canAttack: false,
+                swallowedBy: 'C0000006',
+              };
+            }
+            return m;
+          }));
+
+          // 使用済みフラグを立てる
+          setField(prev => prev.map((m, idx) => {
+            if (idx === monsterIndex && m) {
+              return { ...m, hasUsedSwallow: true };
+            }
+            return m;
+          }));
+
+          addLog(`新・超覚醒粘液獣ハイパーが${target.name}を飲み込んで無効化した！`, 'info');
+        },
+      });
+
+      return true;
+    }
+
     return false;
   },
 
