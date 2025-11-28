@@ -384,12 +384,12 @@ export const TRIGGER_TYPE_METADATA = {
     category: 'phase',
   },
   [TRIGGER_TYPES.ON_DRAW_PHASE_SELF]: {
-    displayName: 'ドローフェイズ時',
+    displayName: '自分ドローフェイズ時',
     defaultActivation: ACTIVATION_TYPES.AUTOMATIC,
     category: 'phase',
   },
   [TRIGGER_TYPES.ON_MAIN_PHASE_SELF]: {
-    displayName: 'メインフェイズ時',
+    displayName: '自分メインフェイズ時',
     defaultActivation: ACTIVATION_TYPES.OPTIONAL,
     category: 'phase',
     note: '基本技/上級技と同じUIエリアに表示',
@@ -400,7 +400,7 @@ export const TRIGGER_TYPE_METADATA = {
     category: 'phase',
   },
   [TRIGGER_TYPES.ON_END_PHASE_SELF]: {
-    displayName: 'エンドフェイズ時',
+    displayName: '自分エンドフェイズ時',
     defaultActivation: ACTIVATION_TYPES.AUTOMATIC,
     category: 'phase',
   },
@@ -471,12 +471,12 @@ export const TRIGGER_TYPE_METADATA = {
 
   // ダメージ系
   [TRIGGER_TYPES.ON_DAMAGE_RECEIVED]: {
-    displayName: 'ダメージ受け時',
+    displayName: 'ダメージを受けた時',
     defaultActivation: ACTIVATION_TYPES.AUTOMATIC,
     category: 'damage',
   },
   [TRIGGER_TYPES.ON_DAMAGE_DEALT]: {
-    displayName: 'ダメージ与え時',
+    displayName: 'ダメージを与えた時',
     defaultActivation: ACTIVATION_TYPES.AUTOMATIC,
     category: 'damage',
   },
