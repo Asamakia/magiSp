@@ -452,21 +452,27 @@ export default function MagicSpiritGame() {
         }
 
         // 状態異常のエンドフェイズ処理（深蝕による攻撃力減少、持続時間減少）
-        player.setField(prev => prev.map(m => {
-          if (!m) return null;
-          const result = statusEffectEngine.processEndPhase(m);
-          // 深蝕による攻撃力減少ログ
-          if (result.atkReduction > 0) {
-            addLog(`${m.name}は深蝕により攻撃力が${result.atkReduction}減少！`, 'damage');
-          }
-          // 持続時間終了で解除されたエフェクトのログ
-          if (result.removedEffects.length > 0) {
-            result.removedEffects.forEach(effect => {
-              addLog(`${m.name}の${getStatusDisplayName(effect.type)}が解除された！`, 'info');
-            });
-          }
-          return result.monster;
-        }));
+        // 両プレイヤーのモンスターを処理（expiresAfterEndPhasesのカウントダウンのため）
+        const processFieldEndPhase = (setField, fieldOwner) => {
+          setField(prev => prev.map(m => {
+            if (!m) return null;
+            const result = statusEffectEngine.processEndPhase(m);
+            // 深蝕による攻撃力減少ログ（モンスターオーナーのエンドフェイズでのみ表示）
+            if (result.atkReduction > 0 && fieldOwner === currentPlayer) {
+              addLog(`${m.name}は深蝕により攻撃力が${result.atkReduction}減少！`, 'damage');
+            }
+            // 持続時間終了で解除されたエフェクトのログ
+            if (result.removedEffects.length > 0) {
+              result.removedEffects.forEach(effect => {
+                addLog(`${m.name}の${getStatusDisplayName(effect.type)}が解除された！`, 'info');
+              });
+            }
+            return result.monster;
+          }));
+        };
+        // 両プレイヤーのフィールドを処理
+        processFieldEndPhase(setP1Field, 1);
+        processFieldEndPhase(setP2Field, 2);
 
         // プレイヤー状態異常のエンドフェイズ処理（毒ダメージ等）
         const playerStatusEffects = currentPlayer === 1 ? p1StatusEffects : p2StatusEffects;

@@ -71,6 +71,8 @@ class StatusEffectEngine {
       maxUsage: options.maxUsage || meta.maxUsage || -1, // -1 = 無制限
       value: options.value || 0,
       stackable: options.stackable || false,
+      // エンドフェイズ回数ベースの解除（「次のターン終了時まで」= 2）
+      expiresAfterEndPhases: options.expiresAfterEndPhases !== undefined ? options.expiresAfterEndPhases : null,
     };
 
     monster.statusEffects.push(statusEffect);
@@ -141,6 +143,7 @@ class StatusEffectEngine {
   /**
    * エンドフェイズ時の処理
    * - 持続ターン減少
+   * - エンドフェイズ回数カウントダウン（expiresAfterEndPhases）
    * - 期限切れ解除
    * - 深蝕の攻撃力減少
    * @param {Object} monster - 対象モンスター
@@ -162,6 +165,18 @@ class StatusEffectEngine {
         const atkDown = status.value || 100;
         newAttack = Math.max(0, newAttack - atkDown);
         atkReduction += atkDown;
+      }
+
+      // エンドフェイズ回数ベースの解除判定
+      if (status.expiresAfterEndPhases !== null && status.expiresAfterEndPhases !== undefined) {
+        const newEndPhases = status.expiresAfterEndPhases - 1;
+        if (newEndPhases <= 0) {
+          // 期限切れ
+          removedEffects.push(status);
+        } else {
+          remainingEffects.push({ ...status, expiresAfterEndPhases: newEndPhases });
+        }
+        return; // expiresAfterEndPhasesが設定されている場合はdurationは無視
       }
 
       // 持続ターン減少（duration > 0 の場合のみ）
@@ -352,6 +367,12 @@ class StatusEffectEngine {
       modifier += atkUp.value;
     }
 
+    // ATK_DOWN: デバフ値を減算
+    const atkDown = monster.statusEffects.find(s => s.type === STATUS_EFFECT_TYPES.ATK_DOWN);
+    if (atkDown) {
+      modifier -= atkDown.value;
+    }
+
     return modifier;
   }
 
@@ -388,6 +409,12 @@ class StatusEffectEngine {
     const atkUp = monster.statusEffects.find(s => s.type === STATUS_EFFECT_TYPES.ATK_UP);
     if (atkUp) {
       flatModifier += atkUp.value;
+    }
+
+    // ATK_DOWN: デバフ値を減算
+    const atkDown = monster.statusEffects.find(s => s.type === STATUS_EFFECT_TYPES.ATK_DOWN);
+    if (atkDown) {
+      flatModifier -= atkDown.value;
     }
 
     return { multiplier, flatModifier };

@@ -426,9 +426,11 @@ export const darkCardEffects = {
       setP2Graveyard,
     } = context;
 
+    // ステータス効果エンジンをインポート
+    const { statusEffectEngine, STATUS_EFFECT_TYPES } = require('../statusEffects');
+
     const opponentField = currentPlayer === 1 ? p2Field : p1Field;
     const setOpponentField = currentPlayer === 1 ? setP2Field : setP1Field;
-    const opponentGraveyard = currentPlayer === 1 ? p2Graveyard : p1Graveyard;
     const setOpponentGraveyard = currentPlayer === 1 ? setP2Graveyard : setP1Graveyard;
     const myFieldCard = currentPlayer === 1 ? p1FieldCard : p2FieldCard;
 
@@ -441,10 +443,9 @@ export const darkCardEffects = {
     }
 
     const destroyedMonsters = [];
-    const survivingMonsters = [];
 
-    // 相手フィールド全体にダメージ
-    const newOpponentField = opponentField.map((monster, index) => {
+    // 相手フィールド全体にダメージ + 生き残ったモンスターにATK_DOWNステータスを付与
+    const newOpponentField = opponentField.map((monster) => {
       if (!monster) return null;
 
       const newHp = monster.currentHp - damage;
@@ -455,11 +456,17 @@ export const darkCardEffects = {
         addLog(`${monster.name}は破壊された！`, 'damage');
         return null;
       } else {
-        // 生き残ったモンスターの攻撃力を500下げる
-        const newAttack = Math.max(0, (monster.currentAttack || monster.attack) - 500);
-        addLog(`${monster.name}の攻撃力が500下がった！（${monster.currentAttack || monster.attack}→${newAttack}）`, 'info');
-        survivingMonsters.push({ ...monster, currentHp: newHp, currentAttack: newAttack });
-        return { ...monster, currentHp: newHp, currentAttack: newAttack };
+        // 生き残ったモンスターに攻撃力ダウンのステータス効果を付与
+        // 「次のターン終了時まで」= 2エンドフェイズ後
+        const updatedMonster = { ...monster, currentHp: newHp };
+        statusEffectEngine.applyStatus(updatedMonster, STATUS_EFFECT_TYPES.ATK_DOWN, {
+          value: 500,
+          expiresAfterEndPhases: 2, // 次のターン終了時まで
+          source: 'C0000393',
+          sourceName: '黒呪・カルヴェリオンの灰嵐',
+        });
+        addLog(`${monster.name}の攻撃力が500下がった！（次のターン終了時まで）`, 'info');
+        return updatedMonster;
       }
     });
 
