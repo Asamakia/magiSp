@@ -86,7 +86,8 @@ src/
 │       ├── PackOpening.jsx        # パック開封演出
 │       ├── CardGrid.jsx           # カード一覧グリッド
 │       ├── CardDetail.jsx         # カード詳細モーダル
-│       └── DeckBuilder.jsx        # デッキ構築
+│       ├── DeckList.jsx           # デッキ一覧・管理
+│       └── DeckBuilder.jsx        # デッキ構築・編集
 │
 ├── magic-spirit.jsx               # メインゲームロジック（対戦+UI統合）
 ├── engine/                        # 対戦エンジン
@@ -611,7 +612,8 @@ function resolvePrebuiltDeckRarities(prebuiltDeck, playerData) {
 
 ### Phase 5: ゲーム統合 ✅ 完了
 - 対戦終了時の報酬付与（G + 勝利パック）
-- タイトル画面にコレクション/ショップ/デッキ編集ボタン
+- タイトル画面にコレクション/ショップ/マイデッキボタン
+- デッキ一覧画面（`DeckList.jsx`）- 保存・編集・削除
 - デッキ構築画面（`DeckBuilder.jsx`）
 - プレイヤーデータのlocalStorage永続化
 
@@ -636,3 +638,4 @@ function resolvePrebuiltDeckRarities(prebuiltDeck, playerData) {
 |------------|------|----------|
 | 1.0 | 2025-11-28 | 初版作成 |
 | 1.1 | 2025-11-28 | 全フェーズ実装完了、ディレクトリ構成を実態に合わせて更新 |
+| 1.2 | 2025-11-28 | DeckList.jsx追加（デッキ一覧・編集・削除機能） |
