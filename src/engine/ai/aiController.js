@@ -74,6 +74,15 @@ export function getSpeedMultiplier() {
 }
 
 /**
+ * 速度倍率を適用した遅延時間を取得
+ * @param {number} baseMs - 基本遅延時間
+ * @returns {number} 速度倍率適用後の遅延時間
+ */
+export function getScaledDelay(baseMs) {
+  return Math.round(baseMs * getSpeedMultiplier());
+}
+
+/**
  * 遅延を挿入（人間らしさのため）
  * @param {number} ms - 基本遅延時間
  * @returns {Promise}

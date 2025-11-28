@@ -21,6 +21,7 @@ export {
   getAIThinkingSpeed,
   setAIThinkingSpeed,
   getSpeedMultiplier,
+  getScaledDelay,
   createAIGameState,
   getSummonableCards,
   getUsableMagicCards,

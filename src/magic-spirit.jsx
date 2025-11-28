@@ -57,6 +57,7 @@ import {
   AI_SPEED_SETTINGS,
   getAIThinkingSpeed,
   setAIThinkingSpeed,
+  getScaledDelay,
 } from './engine/ai';
 import styles from './styles/gameStyles';
 import Card from './components/Card';
@@ -2199,7 +2200,7 @@ export default function MagicSpiritGame() {
   useEffect(() => {
     if (gameState !== 'playing') return;
     if (phase === 0 || phase === 1) {
-      const timer = setTimeout(() => processPhase(phase), 500);
+      const timer = setTimeout(() => processPhase(phase), getScaledDelay(500));
       return () => clearTimeout(timer);
     }
   }, [phase, gameState, processPhase]);
@@ -2279,7 +2280,7 @@ export default function MagicSpiritGame() {
             strategy,
             { skipChainConfirmation, activateSetsunaInChain }
           );
-        }, AI_DELAY.LONG);
+        }, getScaledDelay(AI_DELAY.LONG));
         return () => clearTimeout(timeoutId);
       }
       return; // 人間プレイヤーがチェーン確認中
@@ -2311,7 +2312,7 @@ export default function MagicSpiritGame() {
         handleAIHandSelection(pendingHandSelection, aiGameState, strategy);
         setPendingHandSelection(null);
         setPendingSelectedCard(null);
-      }, AI_DELAY.MEDIUM);
+      }, getScaledDelay(AI_DELAY.MEDIUM));
       return () => clearTimeout(timeoutId);
     }
 
@@ -2321,7 +2322,7 @@ export default function MagicSpiritGame() {
         handleAIMonsterTarget(pendingMonsterTarget, aiGameState, strategy);
         setPendingMonsterTarget(null);
         setPendingSelectedMonsterIndex(null);
-      }, AI_DELAY.MEDIUM);
+      }, getScaledDelay(AI_DELAY.MEDIUM));
       return () => clearTimeout(timeoutId);
     }
 
@@ -2331,7 +2332,7 @@ export default function MagicSpiritGame() {
         handleAIGraveyardSelection(pendingGraveyardSelection, aiGameState, strategy);
         setPendingGraveyardSelection(null);
         setPendingGraveyardSelectedCard(null);
-      }, AI_DELAY.MEDIUM);
+      }, getScaledDelay(AI_DELAY.MEDIUM));
       return () => clearTimeout(timeoutId);
     }
 
@@ -2340,7 +2341,7 @@ export default function MagicSpiritGame() {
       const timeoutId = setTimeout(() => {
         handleAIDeckReview(pendingDeckReview, aiGameState, strategy);
         setPendingDeckReview(null);
-      }, AI_DELAY.MEDIUM);
+      }, getScaledDelay(AI_DELAY.MEDIUM));
       return () => clearTimeout(timeoutId);
     }
 
@@ -2381,7 +2382,7 @@ export default function MagicSpiritGame() {
         });
         // アクション実行後にカウンターをインクリメント（空振り時もuseEffect再トリガー用）
         setAiActionCounter(prev => prev + 1);
-      }, AI_DELAY.MEDIUM);
+      }, getScaledDelay(AI_DELAY.MEDIUM));
       return () => clearTimeout(timeoutId);
     }
 
@@ -2397,7 +2398,7 @@ export default function MagicSpiritGame() {
         setAiAttackedMonsters(result.attackedMonsters);
         // アクション実行後にカウンターをインクリメント（空振り時もuseEffect再トリガー用）
         setAiActionCounter(prev => prev + 1);
-      }, AI_DELAY.MEDIUM);
+      }, getScaledDelay(AI_DELAY.MEDIUM));
       return () => clearTimeout(timeoutId);
     }
   }, [
