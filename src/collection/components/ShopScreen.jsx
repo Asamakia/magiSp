@@ -19,6 +19,7 @@ const styles = {
     color: '#e0e0e0',
     display: 'flex',
     flexDirection: 'column',
+    overflowX: 'hidden',
   },
   header: {
     background: 'linear-gradient(90deg, rgba(20,20,50,0.95) 0%, rgba(40,20,60,0.95) 50%, rgba(20,20,50,0.95) 100%)',
@@ -189,9 +190,11 @@ const styles = {
     background: 'rgba(20,20,40,0.8)',
     borderTop: '1px solid rgba(107,76,230,0.3)',
     width: '100%',
+    boxSizing: 'border-box',
     display: 'flex',
     justifyContent: 'center',
-    gap: '32px',
+    flexWrap: 'wrap',
+    gap: '16px 32px',
   },
   statItem: {
     fontSize: '13px',
