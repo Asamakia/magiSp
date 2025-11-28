@@ -21,12 +21,68 @@ export const AI_DELAY = {
 };
 
 /**
+ * AI思考速度の設定
+ * - normal: 普通（1.0倍）
+ * - fast: 早い（0.4倍）
+ * - veryFast: とても速い（0.1倍）
+ */
+export const AI_SPEED_SETTINGS = {
+  normal: { label: '普通', multiplier: 1.0 },
+  fast: { label: '早い', multiplier: 0.4 },
+  veryFast: { label: 'とても速い', multiplier: 0.1 },
+};
+
+const AI_SPEED_STORAGE_KEY = 'magicSpirit_aiThinkingSpeed';
+
+/**
+ * AI思考速度をlocalStorageから取得
+ * @returns {string} 'normal' | 'fast' | 'veryFast'
+ */
+export function getAIThinkingSpeed() {
+  try {
+    const stored = localStorage.getItem(AI_SPEED_STORAGE_KEY);
+    if (stored && AI_SPEED_SETTINGS[stored]) {
+      return stored;
+    }
+  } catch (e) {
+    // localStorageが使えない環境
+  }
+  return 'normal';
+}
+
+/**
+ * AI思考速度をlocalStorageに保存
+ * @param {string} speed - 'normal' | 'fast' | 'veryFast'
+ */
+export function setAIThinkingSpeed(speed) {
+  try {
+    if (AI_SPEED_SETTINGS[speed]) {
+      localStorage.setItem(AI_SPEED_STORAGE_KEY, speed);
+    }
+  } catch (e) {
+    // localStorageが使えない環境
+  }
+}
+
+/**
+ * 現在の速度倍率を取得
+ * @returns {number}
+ */
+export function getSpeedMultiplier() {
+  const speed = getAIThinkingSpeed();
+  return AI_SPEED_SETTINGS[speed]?.multiplier || 1.0;
+}
+
+/**
  * 遅延を挿入（人間らしさのため）
  * @param {number} ms - 基本遅延時間
  * @returns {Promise}
  */
 export function delay(ms) {
-  return new Promise(resolve => setTimeout(resolve, ms + Math.random() * 200));
+  const multiplier = getSpeedMultiplier();
+  const adjustedMs = ms * multiplier;
+  const randomVariance = Math.random() * 200 * multiplier;
+  return new Promise(resolve => setTimeout(resolve, adjustedMs + randomVariance));
 }
 
 // ============================================================

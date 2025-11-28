@@ -16,7 +16,11 @@ export {
 // コントローラー
 export {
   AI_DELAY,
+  AI_SPEED_SETTINGS,
   delay,
+  getAIThinkingSpeed,
+  setAIThinkingSpeed,
+  getSpeedMultiplier,
   createAIGameState,
   getSummonableCards,
   getUsableMagicCards,
