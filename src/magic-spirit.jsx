@@ -3397,7 +3397,7 @@ export default function MagicSpiritGame() {
             const newPlayerData = {
               ...playerData,
               gold: playerData.gold - price,
-              collection: collectionManager.addCard(playerData.collection, cardId, rarity),
+              collection: collectionManager.addCard(playerData, cardId, rarity).collection,
               merchantData: updatedMerchantData,
             };
             updatePlayerData(newPlayerData);
@@ -3415,7 +3415,7 @@ export default function MagicSpiritGame() {
           const newPlayerData = {
             ...playerData,
             gold: playerData.gold + sellPrice,
-            collection: collectionManager.removeCard(playerData.collection, card.id, rarity),
+            collection: collectionManager.removeCard(playerData, card.id, rarity).collection,
             merchantData: updatedMerchantData,
           };
           updatePlayerData(newPlayerData);

@@ -101,7 +101,7 @@ const styles = {
     gap: '16px',
   },
   merchantCardHover: {
-    borderColor: '#6b4ce6',
+    border: '2px solid #6b4ce6',
     boxShadow: '0 0 20px rgba(107,76,230,0.4)',
     transform: 'translateY(-2px)',
   },
