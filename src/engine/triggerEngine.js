@@ -453,6 +453,14 @@ export const fireTrigger = (triggerType, context) => {
     });
   }
 
+  // ON_DESTROY_SELFトリガーは破壊されたカード自身のトリガーのみ発火
+  // （「このカードが破壊された時」という意味のため）
+  if (triggerType === TRIGGER_TYPES.ON_DESTROY_SELF && context.destroyedCard) {
+    automaticTriggers = automaticTriggers.filter((trigger) => {
+      return trigger.cardId === context.destroyedCard.uniqueId;
+    });
+  }
+
   // ON_PHASE_CARD_ACTIVATEトリガーは設置されたカード自身のトリガーのみ発火
   // （「このフェイズカードの発動時」という意味のため）
   if (triggerType === TRIGGER_TYPES.ON_PHASE_CARD_ACTIVATE && context.card) {
