@@ -368,6 +368,10 @@ export default function MagicSpiritGame() {
       setP2Deck,
       setP1Graveyard,
       setP2Graveyard,
+      setP1ActiveSP,
+      setP2ActiveSP,
+      setP1RestedSP,
+      setP2RestedSP,
       p1Field,
       p2Field,
       p1Hand,
@@ -378,6 +382,10 @@ export default function MagicSpiritGame() {
       p2Graveyard,
       p1Life,
       p2Life,
+      p1ActiveSP,
+      p2ActiveSP,
+      p1RestedSP,
+      p2RestedSP,
       addLog,
       setPendingHandSelection,
       setPendingGraveyardSelection,
@@ -528,6 +536,23 @@ export default function MagicSpiritGame() {
         // ターン終了時に使用済みフラグをリセット
         resetTurnFlags();
         continuousEffectEngine.resetTurnFlags();
+
+        // ターン終了時までの攻撃力バフをリセット（虚蝕の魔導兵等）
+        const clearEndOfTurnBuffs = (setField) => {
+          setField(prev => prev.map(m => {
+            if (!m || !m.attackBuffUntilEndOfTurn) return m;
+            const newAttack = Math.max(0, (m.currentAttack || m.attack) - m.attackBuffUntilEndOfTurn);
+            addLog(`${m.name}の攻撃力バフが終了（${newAttack}）`, 'info');
+            const { attackBuffUntilEndOfTurn, ...rest } = m;
+            return { ...rest, currentAttack: newAttack };
+          }));
+        };
+        // 現在のプレイヤーのフィールドのみ処理（自分のターン終了時）
+        if (currentPlayer === 1) {
+          clearEndOfTurnBuffs(setP1Field);
+        } else {
+          clearEndOfTurnBuffs(setP2Field);
+        }
 
         // エンドフェイズまでの一時的コスト軽減をクリア（水晶のマーメイド等）
         const clearTempCostModifier = (hand) => hand.map(c => {
