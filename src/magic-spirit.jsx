@@ -82,6 +82,7 @@ import {
   MarketAnalysis,
   advanceDay,
   recordPriceHistory,
+  calculateMarketModifier,
 } from './collection';
 
 // ========================================
@@ -334,12 +335,18 @@ export default function MagicSpiritGame() {
         return valueCalculator.determineTier(baseValue);
       };
 
+      // 市場変動率を取得するコールバック
+      const getMarketModifier = (card, tier) => {
+        return calculateMarketModifier(card, newMarketState, null, tier);
+      };
+
       const newPriceHistory = recordPriceHistory(
         newMarketState.priceHistory,
         newMarketState,
         allCards || [],
         getBaseValue,
-        getTier
+        getTier,
+        getMarketModifier
       );
 
       updatedPlayerData = {
