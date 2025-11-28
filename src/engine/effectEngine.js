@@ -578,12 +578,9 @@ export const executeSkillEffects = (skillText, context, cardId = null) => {
         const cardEffect = getCardEffect(cardId);
         const result = cardEffect(skillText, context);
 
-        // カード固有処理が成功した場合はそこで終了
-        if (result) {
-          return true;
-        }
-        // falseの場合は汎用パーサーにフォールバック
-        addLog('カード固有処理が失敗、汎用パーサーで処理します', 'info');
+        // カード固有処理が存在する場合は、その結果をそのまま返す
+        // （条件未達でfalseの場合も含む - 汎用パーサーにフォールバックしない）
+        return result;
       }
     } catch (error) {
       // カード固有処理のインポートが失敗した場合は汎用パーサーで処理
