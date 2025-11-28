@@ -704,6 +704,58 @@ export const futureCardTriggers = {
   ],
 
   /**
+   * C0000271: 黄金の時姫エクラリア
+   * 【召喚時】自分のデッキ上5枚を見て、コスト6以下のモンスター1枚を場に召喚、残りを好きな順番で戻す。
+   * 【自分エンドフェイズ時】上級技使用後、このカード以外のモンスターをすべて墓地に送る。
+   */
+  C0000271: [
+    // 召喚時効果はcardEffects/future.jsで実装
+    {
+      type: TRIGGER_TYPES.ON_END_PHASE_SELF,
+      activationType: ACTIVATION_TYPES.AUTOMATIC,
+      description: '上級技発動後：このカード以外のモンスターを墓地に送る',
+      effect: (context) => {
+        const { addLog, monsterIndex, card } = context;
+        const { myField, setMyField, setMyGraveyard } = getPlayerContext(context);
+
+        // このカードがpendingEndTurnSacrificeフラグを持っているか確認
+        const thisCard = myField[monsterIndex] || myField.find(m => m && m.id === 'C0000271' && m.pendingEndTurnSacrifice);
+
+        if (!thisCard || !thisCard.pendingEndTurnSacrifice) {
+          // 上級技が発動されていない場合はスキップ
+          return;
+        }
+
+        addLog('黄金の時姫エクラリアの上級技効果が発動！', 'damage');
+
+        // このカード以外のモンスターを墓地に送る
+        const sacrificedMonsters = [];
+        const eclariaIndex = myField.findIndex(m => m && m.id === 'C0000271' && m.pendingEndTurnSacrifice);
+
+        setMyField(prev => prev.map((monster, idx) => {
+          if (monster && idx !== eclariaIndex) {
+            sacrificedMonsters.push(monster);
+            addLog(`${monster.name}は墓地に送られた`, 'damage');
+            return null;
+          }
+          if (idx === eclariaIndex && monster) {
+            // フラグをリセット
+            return { ...monster, pendingEndTurnSacrifice: false };
+          }
+          return monster;
+        }));
+
+        // 墓地に追加
+        if (sacrificedMonsters.length > 0) {
+          setMyGraveyard(prev => [...prev, ...sacrificedMonsters]);
+        } else {
+          addLog('他にモンスターがいませんでした', 'info');
+        }
+      },
+    },
+  ],
+
+  /**
    * C0000268: 虚蝕の魔導兵
    * 【召喚時】相手のデッキ上2枚を墓地に送り、その中のモンスター1体につき300ダメージ。
    */

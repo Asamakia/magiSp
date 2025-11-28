@@ -696,6 +696,233 @@ export const futureCardEffects = {
   },
 
   /**
+   * C0000271: 黄金の時姫エクラリア
+   * 【召喚時】自分のデッキ上5枚を見て、コスト6以下のモンスター1枚を場に召喚、残りを好きな順番で戻す。
+   * 【常時】自分の「未来属性」モンスターが与えるダメージを500アップ。（continuousEffectsで実装）
+   * 基本技: 自分の墓地の「未来属性」カード1枚をデッキに戻し、レスト状態のSPトークン１つをアクティブにする（ターンに1度）。
+   * 上級技: 勝負中1度のみ、自分のデッキ上3枚を公開し、1枚を場に召喚（コスト無視）。そのターン終了時、このカード以外の自分のモンスターをすべて墓地に送る。
+   */
+  C0000271: (skillText, context) => {
+    const { addLog, monsterIndex, setPendingDeckReview } = context;
+    const {
+      myDeck, setMyDeck, myField, setMyField, myGraveyard, setMyGraveyard,
+      myRestedSP, setMyRestedSP, myActiveSP, setMyActiveSP, currentPlayer,
+    } = getPlayerContext(context);
+
+    // 召喚時効果（デッキ上5枚からコスト6以下のモンスター1体を召喚）
+    if (skillText.includes('【召喚時】')) {
+      if (myDeck.length === 0) {
+        addLog('デッキにカードがありません', 'info');
+        return true;
+      }
+
+      const cardCount = Math.min(5, myDeck.length);
+      const topCards = myDeck.slice(0, cardCount);
+      const eligibleMonsters = topCards.filter(card =>
+        card.type === 'monster' && card.cost <= 6
+      );
+
+      addLog(`黄金の時姫エクラリア: デッキ上${cardCount}枚を確認`, 'info');
+
+      if (eligibleMonsters.length === 0) {
+        addLog('コスト6以下のモンスターがありませんでした', 'info');
+        // 残りを戻す処理（順番選択）
+        if (topCards.length > 1) {
+          setPendingDeckReview({
+            cards: topCards,
+            title: '黄金の時姫エクラリア',
+            message: 'デッキに戻すカードの順番を決めてください（上から順）',
+            allowReorder: true,
+            onConfirm: (reorderedCards) => {
+              setMyDeck((prev) => [...reorderedCards, ...prev.slice(cardCount)]);
+              addLog(`カードをデッキに戻した`, 'info');
+            },
+          });
+        }
+        return true;
+      }
+
+      // 空きスロットを確認
+      const emptySlotIndex = myField.findIndex(slot => slot === null);
+      if (emptySlotIndex === -1) {
+        addLog('フィールドに空きがありません', 'info');
+        return true;
+      }
+
+      // 対象モンスターを選択させる
+      setPendingDeckReview({
+        cards: topCards,
+        title: '黄金の時姫エクラリア',
+        message: '場に召喚するコスト6以下のモンスターを1体選択してください',
+        allowReorder: false,
+        selectMode: {
+          enabled: true,
+          count: 1,
+          filter: (card) => card.type === 'monster' && card.cost <= 6,
+        },
+        onSelect: (selectedCards, remainingCards) => {
+          const cardToSummon = selectedCards[0];
+
+          // モンスターインスタンスを作成
+          const monsterInstance = {
+            ...cardToSummon,
+            uniqueId: `${cardToSummon.id}_${Date.now()}`,
+            currentHp: cardToSummon.hp,
+            currentAttack: cardToSummon.attack,
+            canAttack: false,
+            usedSkillThisTurn: false,
+            owner: currentPlayer,
+            charges: [],
+            statusEffects: [],
+          };
+
+          // フィールドに召喚
+          setMyField(prev => prev.map((slot, idx) =>
+            idx === emptySlotIndex ? monsterInstance : slot
+          ));
+          addLog(`${cardToSummon.name}を場に召喚！`, 'info');
+
+          // 残りカードを戻す
+          if (remainingCards.length > 1) {
+            setPendingDeckReview({
+              cards: remainingCards,
+              title: '黄金の時姫エクラリア',
+              message: 'デッキに戻すカードの順番を決めてください（上から順）',
+              allowReorder: true,
+              onConfirm: (reorderedCards) => {
+                setMyDeck((prev) => [...reorderedCards, ...prev.slice(cardCount)]);
+                addLog(`残りをデッキに戻した`, 'info');
+              },
+            });
+          } else if (remainingCards.length === 1) {
+            setMyDeck((prev) => [remainingCards[0], ...prev.slice(cardCount)]);
+          } else {
+            setMyDeck((prev) => prev.slice(cardCount));
+          }
+        },
+      });
+
+      return true;
+    }
+
+    // 基本技: 墓地の未来属性カードをデッキに戻し、レストSPをアクティブに
+    if (context.skillType === 'basic') {
+      const futureCard = myGraveyard.find(card => checkAttribute(card, '未来'));
+
+      if (!futureCard) {
+        addLog('墓地に未来属性カードがありません', 'info');
+        return false;
+      }
+
+      // 墓地からデッキに戻す
+      setMyGraveyard(prev => prev.filter(c => c.uniqueId !== futureCard.uniqueId));
+      setMyDeck(prev => [...prev, futureCard]);
+      addLog(`墓地から「${futureCard.name}」をデッキに戻した`, 'info');
+
+      // レスト状態のSPをアクティブに
+      if (myRestedSP > 0) {
+        setMyRestedSP(prev => prev - 1);
+        setMyActiveSP(prev => prev + 1);
+        addLog('レスト状態のSPトークン1個をアクティブにした', 'info');
+      } else {
+        addLog('レスト状態のSPトークンがありません', 'info');
+      }
+
+      return true;
+    }
+
+    // 上級技: 勝負中1度のみ、デッキ上3枚から1枚を召喚（コスト無視）
+    if (context.skillType === 'advanced') {
+      const thisCard = myField[monsterIndex];
+      if (!thisCard) {
+        addLog('エラー: カードが見つかりません', 'info');
+        return false;
+      }
+
+      // 勝負中1度のみチェック
+      if (thisCard.usedUltimateSkillC0000271) {
+        addLog('この効果は勝負中に1度しか使用できません', 'info');
+        return false;
+      }
+
+      if (myDeck.length === 0) {
+        addLog('デッキにカードがありません', 'info');
+        return false;
+      }
+
+      const cardCount = Math.min(3, myDeck.length);
+      const topCards = myDeck.slice(0, cardCount);
+
+      addLog(`黄金の時姫エクラリア上級技: デッキ上${cardCount}枚を公開！`, 'info');
+      topCards.forEach(card => addLog(`  - ${card.name}`, 'info'));
+
+      // 空きスロットを確認
+      const emptySlotIndex = myField.findIndex((slot, idx) => slot === null && idx !== monsterIndex);
+      if (emptySlotIndex === -1) {
+        addLog('フィールドに空きがありません', 'info');
+        return false;
+      }
+
+      // 使用済みフラグを設定
+      setMyField(prev => prev.map((m, idx) => {
+        if (idx === monsterIndex && m) {
+          return { ...m, usedUltimateSkillC0000271: true, pendingEndTurnSacrifice: true };
+        }
+        return m;
+      }));
+
+      // プレイヤーにカードを選択させる
+      setPendingDeckReview({
+        cards: topCards,
+        title: '黄金の時姫エクラリア - 上級技',
+        message: '場に召喚するカードを1枚選択してください（コスト無視）',
+        allowReorder: false,
+        selectMode: { enabled: true, count: 1 },
+        onSelect: (selectedCards, remainingCards) => {
+          const cardToSummon = selectedCards[0];
+
+          // 召喚処理
+          if (cardToSummon.type === 'monster') {
+            const monsterInstance = {
+              ...cardToSummon,
+              uniqueId: `${cardToSummon.id}_${Date.now()}`,
+              currentHp: cardToSummon.hp,
+              currentAttack: cardToSummon.attack,
+              canAttack: false,
+              usedSkillThisTurn: false,
+              owner: currentPlayer,
+              charges: [],
+              statusEffects: [],
+              summonedByEclaria: true, // ターン終了時の墓地送り対象マーク
+            };
+
+            setMyField(prev => prev.map((slot, idx) =>
+              idx === emptySlotIndex ? monsterInstance : slot
+            ));
+            addLog(`${cardToSummon.name}を場に召喚！（コスト無視）`, 'info');
+          } else {
+            // モンスター以外の場合は墓地へ
+            setMyGraveyard(prev => [...prev, cardToSummon]);
+            addLog(`${cardToSummon.name}は召喚できないため墓地に送られた`, 'info');
+          }
+
+          // 残りカードをデッキに戻す
+          setMyDeck((prev) => [...remainingCards, ...prev.slice(cardCount)]);
+          if (remainingCards.length > 0) {
+            addLog(`残り${remainingCards.length}枚をデッキに戻した`, 'info');
+          }
+
+          addLog('⚠️ ターン終了時、このカード以外のモンスターは墓地に送られます', 'damage');
+        },
+      });
+
+      return true;
+    }
+
+    return false;
+  },
+
+  /**
    * C0000273: エクラリアの残影
    * 自分のデッキから《エクラリア》と名のついたモンスター1体を手札に加える。
    */
