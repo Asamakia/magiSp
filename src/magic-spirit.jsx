@@ -82,6 +82,7 @@ import {
   MarketAnalysis,
   advanceDay,
   recordPriceHistory,
+  calculateMarketModifier,
 } from './collection';
 
 // ========================================
@@ -316,18 +317,27 @@ export default function MagicSpiritGame() {
 
       // 価格履歴を記録
       const getBaseValue = (card) => {
-        if (cardValueMap && cardValueMap[card.id]) {
-          return cardValueMap[card.id].baseValue;
+        // cardValueMapはMapオブジェクトなので.get()を使用
+        const cardValue = cardValueMap?.get?.(card.id);
+        if (cardValue) {
+          return cardValue.baseValue;
         }
         return valueCalculator.calculateBaseValue(card);
       };
       const getTier = (card) => {
-        if (cardValueMap && cardValueMap[card.id]) {
-          return cardValueMap[card.id].tier;
+        // cardValueMapはMapオブジェクトなので.get()を使用
+        const cardValue = cardValueMap?.get?.(card.id);
+        if (cardValue) {
+          return cardValue.tier;
         }
         // determineTierはbaseValueを受け取る
         const baseValue = valueCalculator.calculateBaseValue(card);
         return valueCalculator.determineTier(baseValue);
+      };
+
+      // 市場変動率を取得するコールバック
+      const getMarketModifier = (card, tier) => {
+        return calculateMarketModifier(card, newMarketState, null, tier);
       };
 
       const newPriceHistory = recordPriceHistory(
@@ -335,7 +345,8 @@ export default function MagicSpiritGame() {
         newMarketState,
         allCards || [],
         getBaseValue,
-        getTier
+        getTier,
+        getMarketModifier
       );
 
       updatedPlayerData = {

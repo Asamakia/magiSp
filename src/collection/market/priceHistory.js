@@ -60,9 +60,10 @@ export const createInitialPriceHistory = () => {
  * @param {Object[]} allCards - 全カードデータ
  * @param {Function} getBaseValue - カードの基礎価値を取得する関数
  * @param {Function} getTier - カードのティアを取得する関数
+ * @param {Function} [getMarketModifier] - 市場変動率を取得する関数 (card, tier) => number
  * @returns {Object} 更新された価格履歴
  */
-export const recordPriceHistory = (priceHistory, marketState, allCards, getBaseValue, getTier) => {
+export const recordPriceHistory = (priceHistory, marketState, allCards, getBaseValue, getTier, getMarketModifier) => {
   // priceHistoryが未初期化の場合は初期化
   const initialHistory = priceHistory || createInitialPriceHistory();
   const newHistory = JSON.parse(JSON.stringify(initialHistory));
@@ -82,40 +83,52 @@ export const recordPriceHistory = (priceHistory, marketState, allCards, getBaseV
   for (const card of allCards) {
     const baseValue = getBaseValue ? getBaseValue(card) : (card.baseValue || 100);
     const tier = getTier ? getTier(card) : 'B';
-    const attribute = card.attribute || 'なし';
-    const category = card.category && typeof card.category === 'string'
-      ? card.category.replace(/【|】/g, '').split('】')[0]
-      : null;
+    // 市場変動を適用した価格を計算
+    const marketModifier = getMarketModifier ? getMarketModifier(card, tier) : 0;
+    const marketPrice = Math.round(baseValue * (1 + marketModifier / 100));
+    // 属性が空文字列やundefinedの場合は'なし'を使用
+    const rawAttribute = card.attribute?.trim?.() || card.attribute;
+    const attribute = (rawAttribute && rawAttribute !== '') ? rawAttribute : 'なし';
+    // カテゴリ抽出: card.categoryは配列 ['ドラゴン', 'スライム'] または文字列
+    let category = null;
+    if (Array.isArray(card.category) && card.category.length > 0) {
+      // CSVパース済みの配列形式
+      category = card.category[0];
+    } else if (card.category && typeof card.category === 'string') {
+      // 文字列形式（フォールバック）: "【ドラゴン】" → "ドラゴン"
+      const match = card.category.match(/【([^】]+)】/);
+      category = match ? match[1] : null;
+    }
 
-    // 個別カード履歴
+    // 個別カード履歴（市場価格を記録）
     if (!newHistory.cards[card.id]) {
       newHistory.cards[card.id] = [];
     }
-    newHistory.cards[card.id].push(baseValue);
+    newHistory.cards[card.id].push(marketPrice);
     if (newHistory.cards[card.id].length > HISTORY_LENGTH) {
       newHistory.cards[card.id].shift();
     }
 
     // 属性別集計
     if (attributeTotals[attribute]) {
-      attributeTotals[attribute].sum += baseValue;
+      attributeTotals[attribute].sum += marketPrice;
       attributeTotals[attribute].count++;
     }
 
     // カテゴリ別集計
     if (category && categoryTotals[category]) {
-      categoryTotals[category].sum += baseValue;
+      categoryTotals[category].sum += marketPrice;
       categoryTotals[category].count++;
     }
 
     // ティア別集計
     if (tierTotals[tier]) {
-      tierTotals[tier].sum += baseValue;
+      tierTotals[tier].sum += marketPrice;
       tierTotals[tier].count++;
     }
 
     // 全体集計
-    marketTotal += baseValue;
+    marketTotal += marketPrice;
     marketCount++;
   }
 

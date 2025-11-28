@@ -425,10 +425,8 @@ const OverviewTab = ({ priceHistory, isMobile }) => {
       {msiData.prices.length > 0 && (
         <div style={styles.chartContainer}>
           <PriceChart
-            data={msiData.prices}
+            chartData={msiData}
             title="MSI推移（30戦）"
-            height={isMobile ? 150 : 200}
-            events={msiData.events}
           />
         </div>
       )}
@@ -533,10 +531,8 @@ const AttributesTab = ({ priceHistory, isMobile }) => {
         {data.prices.length > 0 && (
           <div style={{ marginTop: '16px' }}>
             <PriceChart
-              data={data.prices}
+              chartData={data}
               title={`${selectedAttr}属性 価格推移`}
-              height={isMobile ? 150 : 200}
-              color={ATTRIBUTE_COLORS[selectedAttr]}
             />
           </div>
         )}
@@ -820,10 +816,8 @@ const SearchTab = ({ priceHistory, allCards, isMobile, onCardSelect }) => {
           {cardData.prices.length > 0 && (
             <div style={{ marginTop: '16px' }}>
               <PriceChart
-                data={cardData.prices}
+                chartData={cardData}
                 title="価格推移"
-                height={isMobile ? 150 : 200}
-                color={ATTRIBUTE_COLORS[selectedCard.attribute] || '#4dabf7'}
               />
             </div>
           )}

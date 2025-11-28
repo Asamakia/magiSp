@@ -369,6 +369,8 @@ const CollectionScreen = ({
           rarity={selectedRarity}
           quantity={selectedCard.quantity}
           valueInfo={selectedCard.valueInfo}
+          priceHistory={playerData.market?.priceHistory}
+          marketState={playerData.market}
           onClose={handleCloseDetail}
           onSell={handleSellCard}
         />
