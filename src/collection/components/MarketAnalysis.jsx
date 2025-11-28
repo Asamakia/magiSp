@@ -910,9 +910,14 @@ const SearchTab = ({ priceHistory, allCards, isMobile, onCardSelect }) => {
     const query = searchQuery.toLowerCase();
     return (allCards || [])
       .filter(
-        (card) =>
-          card.name?.toLowerCase().includes(query) ||
-          card.category?.toLowerCase().includes(query)
+        (card) => {
+          // card.categoryは文字列または配列の可能性がある
+          const categoryStr = Array.isArray(card.category)
+            ? card.category.join(' ')
+            : (card.category || '');
+          return card.name?.toLowerCase().includes(query) ||
+            categoryStr.toLowerCase().includes(query);
+        }
       )
       .slice(0, 20);
   }, [searchQuery, allCards]);

@@ -672,14 +672,24 @@ export const sellToMerchant = (merchantData, merchantName, card, rarity, dayId) 
   newData.favorability = { ...newData.favorability, [merchantName]: fav };
 
   // カテゴリ売却カウント更新
-  if (card.category && typeof card.category === 'string') {
-    const categories = card.category.match(/【([^】]+)】/g) || [];
-    const newCategorySoldCount = { ...newData.categorySoldCount };
-    for (const cat of categories) {
-      const catName = cat.replace(/[【】]/g, '');
-      newCategorySoldCount[catName] = (newCategorySoldCount[catName] || 0) + 1;
+  if (card.category) {
+    let categories = [];
+    if (Array.isArray(card.category)) {
+      // 配列の場合: そのまま使用
+      categories = card.category;
+    } else if (typeof card.category === 'string') {
+      // 文字列の場合: 【】で囲まれたカテゴリを抽出
+      const matches = card.category.match(/【([^】]+)】/g) || [];
+      categories = matches.map(cat => cat.replace(/[【】]/g, ''));
     }
-    newData.categorySoldCount = newCategorySoldCount;
+
+    if (categories.length > 0) {
+      const newCategorySoldCount = { ...newData.categorySoldCount };
+      for (const catName of categories) {
+        newCategorySoldCount[catName] = (newCategorySoldCount[catName] || 0) + 1;
+      }
+      newData.categorySoldCount = newCategorySoldCount;
+    }
   }
 
   // 在庫化判定
