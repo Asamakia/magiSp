@@ -54,6 +54,10 @@ import {
   getSummonableCards as aiGetSummonableCards,
   getUsableMagicCards as aiGetUsableMagicCards,
   AI_DELAY,
+  AI_SPEED_SETTINGS,
+  getAIThinkingSpeed,
+  setAIThinkingSpeed,
+  getScaledDelay,
 } from './engine/ai';
 import styles from './styles/gameStyles';
 import Card from './components/Card';
@@ -193,9 +197,16 @@ export default function MagicSpiritGame() {
   const [p2PlayerType, setP2PlayerType] = useState('ai'); // 'human' | 'ai' (デフォルトAI)
   const [p1AIDifficulty, setP1AIDifficulty] = useState('normal'); // 'easy' | 'normal' | 'hard'
   const [p2AIDifficulty, setP2AIDifficulty] = useState('normal'); // 'easy' | 'normal' | 'hard'
+  const [aiThinkingSpeed, setAiThinkingSpeedState] = useState(() => getAIThinkingSpeed()); // 'normal' | 'fast' | 'veryFast'
   const [aiAttackedMonsters, setAiAttackedMonsters] = useState(new Set()); // AIが攻撃済みのモンスター
   const [aiActionCounter, setAiActionCounter] = useState(0); // AIアクション用カウンター（空振り時もuseEffect再トリガー用）
   const prevPhaseRef = useRef(phase); // 前回のフェイズを追跡
+
+  // AI思考速度変更ハンドラー（localStorageに保存）
+  const handleAiThinkingSpeedChange = useCallback((speed) => {
+    setAiThinkingSpeedState(speed);
+    setAIThinkingSpeed(speed);
+  }, []);
 
   // ログ追加関数（最大100件保持）
   const addLog = useCallback((message, type = 'info') => {
@@ -2189,7 +2200,7 @@ export default function MagicSpiritGame() {
   useEffect(() => {
     if (gameState !== 'playing') return;
     if (phase === 0 || phase === 1) {
-      const timer = setTimeout(() => processPhase(phase), 500);
+      const timer = setTimeout(() => processPhase(phase), getScaledDelay(500));
       return () => clearTimeout(timer);
     }
   }, [phase, gameState, processPhase]);
@@ -2269,7 +2280,7 @@ export default function MagicSpiritGame() {
             strategy,
             { skipChainConfirmation, activateSetsunaInChain }
           );
-        }, AI_DELAY.LONG);
+        }, getScaledDelay(AI_DELAY.LONG));
         return () => clearTimeout(timeoutId);
       }
       return; // 人間プレイヤーがチェーン確認中
@@ -2301,7 +2312,7 @@ export default function MagicSpiritGame() {
         handleAIHandSelection(pendingHandSelection, aiGameState, strategy);
         setPendingHandSelection(null);
         setPendingSelectedCard(null);
-      }, AI_DELAY.MEDIUM);
+      }, getScaledDelay(AI_DELAY.MEDIUM));
       return () => clearTimeout(timeoutId);
     }
 
@@ -2311,7 +2322,7 @@ export default function MagicSpiritGame() {
         handleAIMonsterTarget(pendingMonsterTarget, aiGameState, strategy);
         setPendingMonsterTarget(null);
         setPendingSelectedMonsterIndex(null);
-      }, AI_DELAY.MEDIUM);
+      }, getScaledDelay(AI_DELAY.MEDIUM));
       return () => clearTimeout(timeoutId);
     }
 
@@ -2321,7 +2332,7 @@ export default function MagicSpiritGame() {
         handleAIGraveyardSelection(pendingGraveyardSelection, aiGameState, strategy);
         setPendingGraveyardSelection(null);
         setPendingGraveyardSelectedCard(null);
-      }, AI_DELAY.MEDIUM);
+      }, getScaledDelay(AI_DELAY.MEDIUM));
       return () => clearTimeout(timeoutId);
     }
 
@@ -2330,7 +2341,7 @@ export default function MagicSpiritGame() {
       const timeoutId = setTimeout(() => {
         handleAIDeckReview(pendingDeckReview, aiGameState, strategy);
         setPendingDeckReview(null);
-      }, AI_DELAY.MEDIUM);
+      }, getScaledDelay(AI_DELAY.MEDIUM));
       return () => clearTimeout(timeoutId);
     }
 
@@ -2371,7 +2382,7 @@ export default function MagicSpiritGame() {
         });
         // アクション実行後にカウンターをインクリメント（空振り時もuseEffect再トリガー用）
         setAiActionCounter(prev => prev + 1);
-      }, AI_DELAY.MEDIUM);
+      }, getScaledDelay(AI_DELAY.MEDIUM));
       return () => clearTimeout(timeoutId);
     }
 
@@ -2387,7 +2398,7 @@ export default function MagicSpiritGame() {
         setAiAttackedMonsters(result.attackedMonsters);
         // アクション実行後にカウンターをインクリメント（空振り時もuseEffect再トリガー用）
         setAiActionCounter(prev => prev + 1);
-      }, AI_DELAY.MEDIUM);
+      }, getScaledDelay(AI_DELAY.MEDIUM));
       return () => clearTimeout(timeoutId);
     }
   }, [
@@ -3117,6 +3128,42 @@ export default function MagicSpiritGame() {
                   )}
                 </div>
               </div>
+
+              {/* AI思考速度設定（どちらかがAIの場合のみ表示） */}
+              {(p1PlayerType === 'ai' || p2PlayerType === 'ai') && (
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '12px',
+                  marginBottom: '16px',
+                  padding: '12px 20px',
+                  background: 'rgba(255, 215, 0, 0.1)',
+                  borderRadius: '8px',
+                  border: '1px solid rgba(255, 215, 0, 0.3)',
+                }}>
+                  <label style={{ color: '#ffd700', fontSize: '14px', fontWeight: 'bold' }}>
+                    ⚡ AI思考速度
+                  </label>
+                  <select
+                    value={aiThinkingSpeed}
+                    onChange={(e) => handleAiThinkingSpeedChange(e.target.value)}
+                    style={{
+                      padding: '6px 12px',
+                      fontSize: '14px',
+                      borderRadius: '6px',
+                      border: '2px solid #ffd700',
+                      background: '#1a1a2e',
+                      color: '#fff',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    {Object.entries(AI_SPEED_SETTINGS).map(([key, { label }]) => (
+                      <option key={key} value={key}>{label}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
 
               <button
                 onClick={initGame}
