@@ -108,7 +108,7 @@ Currently a **prototype version** with local 2-player gameplay and AI opponent s
   - Fixed: ドラゴンの火山 end phase trigger now fires correctly (only on owner's turn, damages opponent monsters)
 - **2025-11-27 (Status Effect System)**: Comprehensive status effect system implemented ⭐⭐
   - **Status effect engine** (`src/engine/statusEffects/`) with ~580 lines of new code
-  - **14 status effect types**: SLEEP, FREEZE, THUNDER, WET, STUN, SILENCE, GUARD, INVINCIBLE, CORRODE, AWAKENED, ATK_UP, HP_UP, ATK_DOWN, PARASITE, POISON
+  - **15 status effect types**: SLEEP, FREEZE, THUNDER, WET, STUN, SILENCE, GUARD, INVINCIBLE, CORRODE, AWAKENED, ATK_UP, HP_UP, ATK_DOWN, PARASITE, POISON
   - **Game integration**: Turn start/end phase processing, attack/skill restrictions, damage calculation
   - **Status effect helpers** in effectHelpers.js for applying status effects
   - **UI display**: Status icons on field monsters (FieldMonster.jsx)

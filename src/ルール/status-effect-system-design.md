@@ -1,7 +1,8 @@
 # 状態異常システム設計書
 
 作成日: 2025-11-27
-バージョン: 1.2（Phase 1-4 実装完了、Phase 5 進行中）
+最終更新: 2025-11-28
+バージョン: 2.0（PARASITE状態異常追加、ヘルパー関数拡充）
 
 ## 実装状況サマリー ⭐
 
@@ -12,17 +13,22 @@
 | Phase 3 | UI実装（FieldMonster.jsx） | ✅ 完了 |
 | Phase 4 | エフェクト連携（effectHelpers.js） | ✅ 完了 |
 | Phase 5 | カード実装 | 🚧 進行中 |
+| Phase 6 | PARASITE状態異常システム化 | ✅ 完了 |
+
+### 状態異常タイプ数
+
+**15種類**（モンスター14種 + プレイヤー1種）
 
 ### 実装済みファイル
 
 ```
 src/engine/statusEffects/
-├── index.js              # エクスポート集約 (21行)
-├── statusTypes.js        # タイプ定義とメタデータ (~275行)
-└── statusEngine.js       # メインエンジン (~280行)
+├── index.js              # エクスポート集約 (~25行)
+├── statusTypes.js        # タイプ定義とメタデータ (~400行)
+└── statusEngine.js       # メインエンジン (~350行)
 ```
 
-### 実装済みカード（Phase 5）
+### 実装済みカード（Phase 5-6）
 
 | カードID | カード名 | 効果 | 状態異常 |
 |----------|----------|------|----------|
@@ -32,6 +38,7 @@ src/engine/statusEffects/
 | C0000150 | 氷の吐息 | ATK-800 + 凍結（ターン終了まで） | FREEZE |
 | C0000157 | ブリザードキャット・エターナル | 召喚時：全体凍結 | FREEZE |
 | C0000199 | 永遠の氷結宮殿 | 召喚時：全体凍結 | FREEZE |
+| 粘液獣・寄生系 | 粘液獣カード | 寄生効果 | PARASITE |
 
 ## 1. 概要
 
@@ -90,6 +97,11 @@ src/engine/statusEffects/
 | 効果無効 | `silence` | 効果が発動しない | 指定ターン後解除 | 檻の中の歌姫 (C0000130) |
 | 覚醒 | `awakened` | 攻撃力上昇（カード依存） | ターン終了時 | 紅蓮の覚醒 (C0000033) |
 | 深蝕 | `corrode` | エンドフェイズに攻撃力減少 | なし（永続） | 【深蝕】キーワード |
+| 無敵 | `invincible` | ダメージを受けない | 指定ターン後解除 | - |
+| 攻撃力上昇 | `atk_up` | 攻撃力が上昇 | 指定ターン後解除 | - |
+| HP上昇 | `hp_up` | HPが上昇 | 指定ターン後解除 | - |
+| 攻撃力低下 | `atk_down` | 攻撃力が低下 | エンドフェイズ経過で解除 | - |
+| **寄生** | `parasite` | **ATK減少、効果無効化** | **特殊（後述）** | **粘液獣・寄生系カード** |
 
 ### 2.2 プレイヤーに付与される状態異常
 
@@ -98,6 +110,49 @@ src/engine/statusEffects/
 | 毒 | `poison` | 毎ターン終了時100ダメージ | なし（永続） | 毒使いカムラ (C0000281)、酸毒竜 (C0000283)、白蛇の牙 (C0000284) |
 
 ※ 【毒侵】キーワード: 「このカードが相手**プレイヤー**にダメージを与えた時、相手を毒状態にする」
+
+### 2.3 PARASITE（寄生）状態異常の詳細 ⭐ NEW
+
+寄生は粘液獣カードが使用する特殊な状態異常で、複雑なライフサイクルを持つ。
+
+#### 効果
+1. **毎ターン開始時ATK減少**: 500 or 1000（寄生カードにより異なる）
+2. **効果無効化**: 技・トリガーが使用不可
+3. **寄生カード参照保持**: 破壊時に寄生カードを墓地に送るため
+
+#### 解除条件
+- **効果無効の解除**: 相手のエンドフェイズで効果無効のみ解除（`effectNegated: false`）
+- **完全解除**: 寄生対象モンスターが破壊された時（寄生カードも墓地へ）
+
+#### データ構造
+```javascript
+{
+  type: 'parasite',
+  parasiteCard: { /* 寄生カードの参照 */ },
+  parasiteOwner: 1 or 2, // 寄生カードの所有者
+  atkReduction: 500,     // ターン開始時のATK減少量
+  effectNegated: true,   // 効果無効フラグ（相手エンドで解除）
+}
+```
+
+#### 処理フロー
+```
+1. 寄生付与
+   └→ monster.statusEffects に PARASITE 追加
+   └→ effectNegated: true
+
+2. ターン開始時 (processTurnStart)
+   └→ ATK減少処理 (atkReduction分)
+   └→ ログ出力
+
+3. 相手エンドフェイズ (processOpponentEndPhase)
+   └→ effectNegated: false に設定
+   └→ 技・トリガー使用可能に
+
+4. 寄生対象モンスター破壊時
+   └→ getParasiteInfo() で寄生カード取得
+   └→ 寄生カードを墓地に送る
+```
 
 ## 3. データ構造
 
@@ -271,6 +326,22 @@ export const STATUS_EFFECT_TYPES = {
    */
   HP_UP: 'hp_up',
 
+  /**
+   * 攻撃力低下（一時的）
+   * - 攻撃力が低下
+   * - エンドフェイズ回数で解除（expiresAfterEndPhases）
+   */
+  ATK_DOWN: 'atk_down',
+
+  /**
+   * 寄生（粘液獣・寄生）⭐ NEW
+   * - 毎ターン開始時に攻撃力減少（500 or 1000）
+   * - 効果無効化（技・トリガー使用不可）
+   * - 相手のエンドフェイズで効果無効のみ解除
+   * - 寄生カード参照を保持（破壊時墓地送り用）
+   */
+  PARASITE: 'parasite',
+
   // ========================================
   // プレイヤー状態異常
   // ========================================
@@ -432,6 +503,41 @@ export const STATUS_EFFECT_METADATA = {
       attackModifier: 0, // valueで指定
     },
     defaultDuration: 1,
+  },
+  [STATUS_EFFECT_TYPES.HP_UP]: {
+    displayName: 'HP上昇',
+    icon: '💚',
+    color: '#32cd32',
+    category: 'buff',
+    target: 'monster',
+    effects: {
+      hpFlatModifier: 0, // valueで指定
+    },
+    defaultDuration: 1,
+  },
+  [STATUS_EFFECT_TYPES.ATK_DOWN]: {
+    displayName: '攻撃力低下',
+    icon: '⬇️',
+    color: '#ff6666',
+    category: 'debuff',
+    target: 'monster',
+    effects: {
+      attackFlatModifier: 0, // valueで指定（負の値）
+    },
+    defaultDuration: -1, // expiresAfterEndPhasesで管理
+  },
+  [STATUS_EFFECT_TYPES.PARASITE]: {
+    displayName: '寄生',
+    icon: '🦠',
+    color: '#8B4513',
+    category: 'debuff',
+    target: 'monster',
+    effects: {
+      canUseSkill: false,     // 効果無効化
+      canUseTrigger: false,   // トリガー無効化
+      turnStartAtkDown: true, // ターン開始時ATK減少
+    },
+    defaultDuration: -1, // 永続（特殊処理で管理）
   },
 
   // ========================================
@@ -703,6 +809,62 @@ class StatusEffectEngine {
     }
 
     return { finalDamage: damage, consumed: false };
+  }
+
+  // ========================================
+  // PARASITE（寄生）専用メソッド ⭐ NEW
+  // ========================================
+
+  /**
+   * 相手エンドフェイズ時の処理（PARASITE効果無効解除）
+   * @param {Object} monster - 対象モンスター
+   * @param {number} currentPlayer - 現在のプレイヤー
+   * @returns {Object} { monster, effectNegatedRemoved }
+   */
+  processOpponentEndPhase(monster, currentPlayer) {
+    const parasite = monster?.statusEffects?.find(
+      s => s.type === STATUS_EFFECT_TYPES.PARASITE
+    );
+
+    if (parasite && parasite.effectNegated && parasite.parasiteOwner !== currentPlayer) {
+      parasite.effectNegated = false;
+      return { monster, effectNegatedRemoved: true };
+    }
+
+    return { monster, effectNegatedRemoved: false };
+  }
+
+  /**
+   * 寄生カード情報を取得（破壊時墓地送り用）
+   * @param {Object} monster - 対象モンスター
+   * @returns {Object|null} { parasiteCard, parasiteOwner } or null
+   */
+  getParasiteInfo(monster) {
+    const parasite = monster?.statusEffects?.find(
+      s => s.type === STATUS_EFFECT_TYPES.PARASITE
+    );
+
+    if (parasite && parasite.parasiteCard) {
+      return {
+        parasiteCard: parasite.parasiteCard,
+        parasiteOwner: parasite.parasiteOwner,
+      };
+    }
+
+    return null;
+  }
+
+  /**
+   * 寄生による効果無効化が有効かチェック
+   * @param {Object} monster - 対象モンスター
+   * @returns {boolean}
+   */
+  isParasiteEffectNegated(monster) {
+    const parasite = monster?.statusEffects?.find(
+      s => s.type === STATUS_EFFECT_TYPES.PARASITE
+    );
+
+    return parasite?.effectNegated === true;
   }
 }
 
@@ -1042,8 +1204,46 @@ export const applyStatusToAllOpponentMonsters = (context, statusType, options = 
  * 自分のモンスターに状態異常を付与
  */
 export const applyStatusToOwnMonster = (context, targetIndex, statusType, options = {}, sourceName = '')
+
+// ========================================
+// 状態異常処理ヘルパー ⭐ NEW (2025-11-28)
+// ========================================
+
+/**
+ * ターン開始時の状態異常処理（両フィールド）
+ * - 解除判定（確率解除）
+ * - PARASITEのATK減少処理
+ * @param {Object} context - { setP1Field, setP2Field, addLog }
+ */
+export const processStatusEffectsTurnStart = (context)
+
+/**
+ * エンドフェイズの状態異常処理（両フィールド + 相手PARASITE効果無効解除）
+ * - ATK_DOWNの解除判定
+ * - CORRODEの攻撃力減少
+ * - PARASITE効果無効解除（相手側）
+ * @param {Object} context - { setP1Field, setP2Field, addLog }
+ * @param {number} currentPlayer - 現在のプレイヤー
+ */
+export const processStatusEffectsEndPhase = (context, currentPlayer)
+```
+
+### 使用例
+
+```javascript
+// magic-spirit.jsx での使用
+
+// ターン開始フェイズ (phase 0)
+processStatusEffectsTurnStart({ setP1Field, setP2Field, addLog });
+
+// エンドフェイズ (phase 4)
+processStatusEffectsEndPhase({ setP1Field, setP2Field, addLog }, currentPlayer);
 ```
 
 ---
 
-**現在のステップ**: Phase 5（カード実装）進行中 - 凍結/眠り付与カード6枚実装済み
+**現在のステップ**: Phase 6（PARASITEシステム）完了 - 15種類の状態異常タイプ実装済み
+
+**更新履歴**:
+- 2025-11-28: PARASITE状態異常追加、新ヘルパー関数追加（v2.0）
+- 2025-11-27: 基盤実装完了、UI実装完了、エフェクト連携完了（v1.2）
