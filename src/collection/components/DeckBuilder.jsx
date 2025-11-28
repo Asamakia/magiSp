@@ -812,7 +812,7 @@ const DeckBuilder = ({
                 const colors = ATTRIBUTE_COLORS[card.attribute] || ATTRIBUTE_COLORS['なし'];
                 const rarityColor = RARITY_COLORS[rarity] || '#808080';
                 const isMonster = card.type === 'monster';
-                const isForbidden = card.forbidden || (card.keyword && card.keyword.includes('禁忌'));
+                const isForbidden = card.forbidden || (card.keyword && typeof card.keyword === 'string' && card.keyword.includes('禁忌'));
 
                 return (
                   <>
@@ -893,7 +893,7 @@ const DeckBuilder = ({
                         {isForbidden && (
                           <span style={styles.detailForbidden}>禁忌カード</span>
                         )}
-                        {card.keyword && card.keyword.split('】').filter(k => k).map((keyword, i) => (
+                        {card.keyword && typeof card.keyword === 'string' && card.keyword.split('】').filter(k => k).map((keyword, i) => (
                           <span key={i} style={styles.detailKeyword}>
                             {keyword.replace('【', '')}
                           </span>
