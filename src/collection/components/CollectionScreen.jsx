@@ -6,7 +6,9 @@
 
 import React, { useState, useMemo } from 'react';
 import { ATTRIBUTE_COLORS } from '../../utils/constants';
-import { collectionManager, currencyManager, RARITIES, RARITY_COLORS, TIERS } from '../index';
+import { collectionManager } from '../systems/collectionManager';
+import { currencyManager } from '../systems/currencyManager';
+import { RARITIES, RARITY_COLORS, TIERS } from '../data/constants';
 import CardGrid from './CardGrid';
 import CardDetail from './CardDetail';
 import { EFFECT_LEVELS } from '../../styles/rarityEffects';
