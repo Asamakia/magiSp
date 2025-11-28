@@ -44,6 +44,8 @@ import {
   getActivatableSetsunaMagics,
   CHAIN_POINTS,
   CHAIN_POINT_NAMES,
+  processLinkEndPhaseDamage,
+  handleLinkBreak,
 } from './engine/keywordAbilities';
 import {
   getStrategy,
@@ -735,6 +737,13 @@ export default function MagicSpiritGame() {
               }
             });
           });
+        }
+
+        // 【魂結】リンクダメージ処理（自分のターン終了時に相手にダメージ）
+        {
+          const myField = currentPlayer === 1 ? p1Field : p2Field;
+          const setOpponentLife = currentPlayer === 1 ? setP2Life : setP1Life;
+          processLinkEndPhaseDamage(myField, setOpponentLife, addLog);
         }
 
         // 状態異常のエンドフェイズ処理（深蝕による攻撃力減少、持続時間減少）
@@ -1880,6 +1889,9 @@ export default function MagicSpiritGame() {
           // 場を離れる時トリガーを発火
           fireLeaveFieldTrigger(target, destroyContext, 'destroy');
 
+          // 【魂結】リンク解除処理
+          handleLinkBreak(target, setP2Field, addLog);
+
           // トリガー登録を解除
           unregisterCardTriggers(target.uniqueId);
           // 常時効果を解除
@@ -1945,6 +1957,9 @@ export default function MagicSpiritGame() {
           // 場を離れる時トリガーを発火
           fireLeaveFieldTrigger(attacker, destroyContext, 'destroy');
 
+          // 【魂結】リンク解除処理
+          handleLinkBreak(attacker, setP1Field, addLog);
+
           // トリガー登録を解除
           unregisterCardTriggers(attacker.uniqueId);
           // 常時効果を解除
@@ -2003,6 +2018,9 @@ export default function MagicSpiritGame() {
           fireTrigger(TRIGGER_TYPES.ON_DESTROY_SELF, destroyContext);
           // 場を離れる時トリガーを発火
           fireLeaveFieldTrigger(target, destroyContext, 'destroy');
+
+          // 【魂結】リンク解除処理
+          handleLinkBreak(target, setP1Field, addLog);
 
           // トリガー登録を解除
           unregisterCardTriggers(target.uniqueId);
@@ -2068,6 +2086,9 @@ export default function MagicSpiritGame() {
           fireTrigger(TRIGGER_TYPES.ON_DESTROY_SELF, destroyContext);
           // 場を離れる時トリガーを発火
           fireLeaveFieldTrigger(attacker, destroyContext, 'destroy');
+
+          // 【魂結】リンク解除処理
+          handleLinkBreak(attacker, setP2Field, addLog);
 
           // トリガー登録を解除
           unregisterCardTriggers(attacker.uniqueId);

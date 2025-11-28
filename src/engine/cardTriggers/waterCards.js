@@ -21,6 +21,11 @@ import {
   applyStatusToAllOpponentMonsters,
 } from '../effectHelpers';
 import { STATUS_EFFECT_TYPES } from '../statusEffects';
+import {
+  getKonketsuEffect,
+  findLinkableTargets,
+  executeKonketsuLink,
+} from '../keywordAbilities';
 
 /**
  * 水属性カードのトリガー定義
@@ -1016,6 +1021,288 @@ export const waterCardTriggers = {
   ],
 
   /**
+   * C0000333: ヴェルゼファールの信徒・深みの儀式者
+   * 【魂結】: 召喚時、場にいる別の『ヴェルゼファール』モンスター1体とリンクし、双方の攻撃力を100アップ。
+   */
+  C0000333: [
+    {
+      type: TRIGGER_TYPES.ON_SUMMON,
+      activationType: ACTIVATION_TYPES.OPTIONAL,
+      description: '【魂結】: 『ヴェルゼファール』とリンクし双方ATK+100',
+      effect: (context) => {
+        const { monsterIndex, addLog, setPendingTargetSelection } = context;
+        const { myField, setMyField } = getPlayerContext(context);
+
+        const effect = getKonketsuEffect('C0000333');
+        if (!effect) return;
+
+        const sourceMonster = myField[monsterIndex];
+        if (!sourceMonster) return;
+
+        const targets = findLinkableTargets(myField, effect.targetCondition, sourceMonster.uniqueId);
+
+        if (targets.length === 0) {
+          addLog('【魂結】リンク対象の『ヴェルゼファール』モンスターがいません', 'info');
+          return;
+        }
+
+        if (targets.length === 1) {
+          executeKonketsuLink(
+            sourceMonster, monsterIndex,
+            targets[0].monster, targets[0].slotIndex,
+            effect, setMyField, addLog
+          );
+          return;
+        }
+
+        // 複数対象がいる場合は選択UI
+        if (setPendingTargetSelection) {
+          setPendingTargetSelection({
+            message: '【魂結】リンク対象を選択してください',
+            targetType: 'own_monster',
+            validIndices: targets.map(t => t.slotIndex),
+            callback: (selectedIndex) => {
+              const target = targets.find(t => t.slotIndex === selectedIndex);
+              if (target) {
+                executeKonketsuLink(
+                  sourceMonster, monsterIndex,
+                  target.monster, target.slotIndex,
+                  effect, setMyField, addLog
+                );
+              }
+            },
+          });
+        }
+      },
+    },
+  ],
+
+  /**
+   * C0000334: ヴェルゼファールの眷属・クラディオム
+   * 【魂結】: 召喚時、場にいる別の《ヴェルゼファール》モンスター1体とリンクし、双方の攻撃力を300アップ。
+   */
+  C0000334: [
+    {
+      type: TRIGGER_TYPES.ON_SUMMON,
+      activationType: ACTIVATION_TYPES.OPTIONAL,
+      description: '【魂結】: 『ヴェルゼファール』とリンクし双方ATK+300',
+      effect: (context) => {
+        const { monsterIndex, addLog, setPendingTargetSelection } = context;
+        const { myField, setMyField } = getPlayerContext(context);
+
+        const effect = getKonketsuEffect('C0000334');
+        if (!effect) return;
+
+        const sourceMonster = myField[monsterIndex];
+        if (!sourceMonster) return;
+
+        const targets = findLinkableTargets(myField, effect.targetCondition, sourceMonster.uniqueId);
+
+        if (targets.length === 0) {
+          addLog('【魂結】リンク対象の『ヴェルゼファール』モンスターがいません', 'info');
+          return;
+        }
+
+        if (targets.length === 1) {
+          executeKonketsuLink(
+            sourceMonster, monsterIndex,
+            targets[0].monster, targets[0].slotIndex,
+            effect, setMyField, addLog
+          );
+          return;
+        }
+
+        if (setPendingTargetSelection) {
+          setPendingTargetSelection({
+            message: '【魂結】リンク対象を選択してください',
+            targetType: 'own_monster',
+            validIndices: targets.map(t => t.slotIndex),
+            callback: (selectedIndex) => {
+              const target = targets.find(t => t.slotIndex === selectedIndex);
+              if (target) {
+                executeKonketsuLink(
+                  sourceMonster, monsterIndex,
+                  target.monster, target.slotIndex,
+                  effect, setMyField, addLog
+                );
+              }
+            },
+          });
+        }
+      },
+    },
+  ],
+
+  /**
+   * C0000335: ヴェルゼファールの眷属・シスラゴン
+   * 【魂結】: 召喚時、場にいる別の《ヴェルゼファール》モンスター1体とリンクし、双方に『ターン終了時、相手プレイヤーに300ダメージ』を付与。
+   */
+  C0000335: [
+    {
+      type: TRIGGER_TYPES.ON_SUMMON,
+      activationType: ACTIVATION_TYPES.OPTIONAL,
+      description: '【魂結】: 『ヴェルゼファール』とリンクし双方にターン終了時300ダメージ付与',
+      effect: (context) => {
+        const { monsterIndex, addLog, setPendingTargetSelection } = context;
+        const { myField, setMyField } = getPlayerContext(context);
+
+        const effect = getKonketsuEffect('C0000335');
+        if (!effect) return;
+
+        const sourceMonster = myField[monsterIndex];
+        if (!sourceMonster) return;
+
+        const targets = findLinkableTargets(myField, effect.targetCondition, sourceMonster.uniqueId);
+
+        if (targets.length === 0) {
+          addLog('【魂結】リンク対象の『ヴェルゼファール』モンスターがいません', 'info');
+          return;
+        }
+
+        if (targets.length === 1) {
+          executeKonketsuLink(
+            sourceMonster, monsterIndex,
+            targets[0].monster, targets[0].slotIndex,
+            effect, setMyField, addLog
+          );
+          return;
+        }
+
+        if (setPendingTargetSelection) {
+          setPendingTargetSelection({
+            message: '【魂結】リンク対象を選択してください',
+            targetType: 'own_monster',
+            validIndices: targets.map(t => t.slotIndex),
+            callback: (selectedIndex) => {
+              const target = targets.find(t => t.slotIndex === selectedIndex);
+              if (target) {
+                executeKonketsuLink(
+                  sourceMonster, monsterIndex,
+                  target.monster, target.slotIndex,
+                  effect, setMyField, addLog
+                );
+              }
+            },
+          });
+        }
+      },
+    },
+  ],
+
+  /**
+   * C0000336: ヴェルゼファールの眷属・ルミナクール
+   * 【魂結】: 召喚時、場にいる別の『ヴェルゼファール』モンスター1体とリンクし、双方のHPを800アップ。
+   */
+  C0000336: [
+    {
+      type: TRIGGER_TYPES.ON_SUMMON,
+      activationType: ACTIVATION_TYPES.OPTIONAL,
+      description: '【魂結】: 『ヴェルゼファール』とリンクし双方HP+800',
+      effect: (context) => {
+        const { monsterIndex, addLog, setPendingTargetSelection } = context;
+        const { myField, setMyField } = getPlayerContext(context);
+
+        const effect = getKonketsuEffect('C0000336');
+        if (!effect) return;
+
+        const sourceMonster = myField[monsterIndex];
+        if (!sourceMonster) return;
+
+        const targets = findLinkableTargets(myField, effect.targetCondition, sourceMonster.uniqueId);
+
+        if (targets.length === 0) {
+          addLog('【魂結】リンク対象の『ヴェルゼファール』モンスターがいません', 'info');
+          return;
+        }
+
+        if (targets.length === 1) {
+          executeKonketsuLink(
+            sourceMonster, monsterIndex,
+            targets[0].monster, targets[0].slotIndex,
+            effect, setMyField, addLog
+          );
+          return;
+        }
+
+        if (setPendingTargetSelection) {
+          setPendingTargetSelection({
+            message: '【魂結】リンク対象を選択してください',
+            targetType: 'own_monster',
+            validIndices: targets.map(t => t.slotIndex),
+            callback: (selectedIndex) => {
+              const target = targets.find(t => t.slotIndex === selectedIndex);
+              if (target) {
+                executeKonketsuLink(
+                  sourceMonster, monsterIndex,
+                  target.monster, target.slotIndex,
+                  effect, setMyField, addLog
+                );
+              }
+            },
+          });
+        }
+      },
+    },
+  ],
+
+  /**
+   * C0000337: ヴェルゼファールの眷属・タラッサロス
+   * 【魂結】: 召喚時、場にいる別の『ヴェルゼファール』モンスター1体とリンクし、双方の攻撃力を1000アップ。
+   *          さらに双方に『自分ターン終了時、相手プレイヤーに800ダメージ』を付与。
+   */
+  C0000337: [
+    {
+      type: TRIGGER_TYPES.ON_SUMMON,
+      activationType: ACTIVATION_TYPES.OPTIONAL,
+      description: '【魂結】: 『ヴェルゼファール』とリンクし双方ATK+1000、ターン終了時800ダメージ付与',
+      effect: (context) => {
+        const { monsterIndex, addLog, setPendingTargetSelection } = context;
+        const { myField, setMyField } = getPlayerContext(context);
+
+        const effect = getKonketsuEffect('C0000337');
+        if (!effect) return;
+
+        const sourceMonster = myField[monsterIndex];
+        if (!sourceMonster) return;
+
+        const targets = findLinkableTargets(myField, effect.targetCondition, sourceMonster.uniqueId);
+
+        if (targets.length === 0) {
+          addLog('【魂結】リンク対象の『ヴェルゼファール』モンスターがいません', 'info');
+          return;
+        }
+
+        if (targets.length === 1) {
+          executeKonketsuLink(
+            sourceMonster, monsterIndex,
+            targets[0].monster, targets[0].slotIndex,
+            effect, setMyField, addLog
+          );
+          return;
+        }
+
+        if (setPendingTargetSelection) {
+          setPendingTargetSelection({
+            message: '【魂結】リンク対象を選択してください',
+            targetType: 'own_monster',
+            validIndices: targets.map(t => t.slotIndex),
+            callback: (selectedIndex) => {
+              const target = targets.find(t => t.slotIndex === selectedIndex);
+              if (target) {
+                executeKonketsuLink(
+                  sourceMonster, monsterIndex,
+                  target.monster, target.slotIndex,
+                  effect, setMyField, addLog
+                );
+              }
+            },
+          });
+        }
+      },
+    },
+  ],
+
+  /**
    * C0000338: アクアレギアの廃墟
    * 【常時】『アクアレギナ』または『ヴェルゼファール』モンスターのHPを600アップ。
    * 【自分エンドフェイズ時】自分の墓地の『アクアレギナ』モンスター1体を手札に戻すことができる。
@@ -1027,8 +1314,8 @@ export const waterCardTriggers = {
       description: '常時: 『アクアレギナ』/『ヴェルゼファール』のHP+600',
       effect: (context) => {
         const { addLog } = context;
-        addLog('アクアレギアの廃墟の常時効果: HP+600（未実装）', 'info');
-        // TODO: フィールドカードの常時効果システムが必要
+        addLog('アクアレギアの廃墟の常時効果: HP+600（continuousEffectsで処理）', 'info');
+        // continuousEffects/effectDefinitions/fieldCards.jsで実装済み
       },
     },
     {
@@ -1077,6 +1364,7 @@ export const waterCardTriggers = {
   /**
    * C0000340: 深海の支配者・ヴェルゼファール
    * 【召喚時】手札から『ヴェルゼファール』モンスター1体を場に召喚（コスト不要）。このターン、ダイレクトアタック不可。
+   * 【魂結】: 召喚時、場にいる別の『ヴェルゼファール』モンスター1体とリンクし、双方に『自分ターン終了時、相手プレイヤーに800ダメージ』を付与。
    * 【場を離れる時】自分のライフを1000減らす。
    */
   C0000340: [
@@ -1088,6 +1376,56 @@ export const waterCardTriggers = {
         const { addLog } = context;
         addLog('深海の支配者・ヴェルゼファールの効果: 『ヴェルゼファール』を特殊召喚（未実装）', 'info');
         // TODO: 特殊召喚システムの実装が必要
+      },
+    },
+    {
+      type: TRIGGER_TYPES.ON_SUMMON,
+      activationType: ACTIVATION_TYPES.OPTIONAL,
+      priority: TRIGGER_PRIORITIES.LOW, // 特殊召喚の後に発動
+      description: '【魂結】: 『ヴェルゼファール』とリンクし双方にターン終了時800ダメージ付与',
+      effect: (context) => {
+        const { monsterIndex, addLog, setPendingTargetSelection } = context;
+        const { myField, setMyField } = getPlayerContext(context);
+
+        const effect = getKonketsuEffect('C0000340');
+        if (!effect) return;
+
+        const sourceMonster = myField[monsterIndex];
+        if (!sourceMonster) return;
+
+        const targets = findLinkableTargets(myField, effect.targetCondition, sourceMonster.uniqueId);
+
+        if (targets.length === 0) {
+          addLog('【魂結】リンク対象の『ヴェルゼファール』モンスターがいません', 'info');
+          return;
+        }
+
+        if (targets.length === 1) {
+          executeKonketsuLink(
+            sourceMonster, monsterIndex,
+            targets[0].monster, targets[0].slotIndex,
+            effect, setMyField, addLog
+          );
+          return;
+        }
+
+        if (setPendingTargetSelection) {
+          setPendingTargetSelection({
+            message: '【魂結】リンク対象を選択してください',
+            targetType: 'own_monster',
+            validIndices: targets.map(t => t.slotIndex),
+            callback: (selectedIndex) => {
+              const target = targets.find(t => t.slotIndex === selectedIndex);
+              if (target) {
+                executeKonketsuLink(
+                  sourceMonster, monsterIndex,
+                  target.monster, target.slotIndex,
+                  effect, setMyField, addLog
+                );
+              }
+            },
+          });
+        }
       },
     },
     {
