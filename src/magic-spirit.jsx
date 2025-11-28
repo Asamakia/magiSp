@@ -33,6 +33,7 @@ import {
 } from './engine/phaseCardEffects';
 import { continuousEffectEngine } from './engine/continuousEffects';
 import { statusEffectEngine, STATUS_EFFECT_TYPES, getStatusDisplayName } from './engine/statusEffects';
+import { processStatusEffectsTurnStart, processStatusEffectsEndPhase } from './engine/effectHelpers';
 import {
   isSetsunaMagic,
   getSetsunaCost,
@@ -426,25 +427,7 @@ export default function MagicSpiritGame() {
         setChargeUsedThisTurn(false);
 
         // 状態異常のターン開始時処理（眠り・凍結の解除判定、寄生ATK減少）
-        // 両プレイヤーのフィールドを処理（寄生は相手フィールドにも影響）
-        const processTurnStartStatusEffects = (setField) => {
-          setField(prev => prev.map(m => {
-            if (!m) return null;
-            const result = statusEffectEngine.processTurnStart(m);
-            if (result.removedEffects.length > 0) {
-              result.removedEffects.forEach(effect => {
-                addLog(`${m.name}の${getStatusDisplayName(effect.type)}が解除された！`, 'info');
-              });
-            }
-            // 寄生によるATK減少をログ出力
-            if (result.parasiteAtkReduction > 0) {
-              addLog(`${m.name}は寄生により攻撃力-${result.parasiteAtkReduction}！（${result.monster.currentAttack}）`, 'damage');
-            }
-            return result.monster;
-          }));
-        };
-        processTurnStartStatusEffects(setP1Field);
-        processTurnStartStatusEffects(setP2Field);
+        processStatusEffectsTurnStart({ setP1Field, setP2Field, addLog });
 
         // ターン開始時トリガーを発火
         fireTrigger(TRIGGER_TYPES.ON_TURN_START_SELF, triggerContext);
@@ -562,19 +545,7 @@ export default function MagicSpiritGame() {
         }
 
         // 寄生効果の無効化解除（相手エンドフェイズで効果無効化が終了）
-        // 両プレイヤーのフィールドを処理（寄生者と被寄生者が異なるプレイヤーの場合）
-        const processParasiteNegationEnd = (setField) => {
-          setField(prev => prev.map(m => {
-            if (!m) return m;
-            const result = statusEffectEngine.processOpponentEndPhase(m, currentPlayer);
-            if (result.parasiteEffectNegationRemoved) {
-              addLog(`${m.name}の効果無効化が解除された（寄生効果）`, 'info');
-            }
-            return result.monster;
-          }));
-        };
-        processParasiteNegationEnd(setP1Field);
-        processParasiteNegationEnd(setP2Field);
+        processStatusEffectsEndPhase({ setP1Field, setP2Field, addLog }, currentPlayer);
 
         // ターン終了時までの効果をリセット（攻撃力バフ、破壊耐性等）
         const clearEndOfTurnEffects = (setField) => {
