@@ -10,7 +10,9 @@ import {
   healLife,
   modifyAttack,
 } from '../effectHelpers';
-import { hasCategory } from '../../utils/helpers';
+import { hasCategory, createMonsterInstance } from '../../utils/helpers';
+import { registerCardTriggers } from '../triggerEngine';
+import { continuousEffectEngine } from '../continuousEffects';
 
 /**
  * 光属性カードの固有効果
@@ -246,6 +248,121 @@ export const lightCardEffects = {
         return card.name && (card.name.includes('雷') || card.name.includes('嵐'));
       }) !== null;
     }
+    return false;
+  },
+
+  /**
+   * C0000056: 輝聖女ルミナス
+   * 基本技: このカードのHPを300回復。
+   * 上級技: 手札から光属性モンスター1体をコストなしで召喚可能。
+   */
+  C0000056: (skillText, context) => {
+    const {
+      currentPlayer,
+      monsterIndex,
+      p1Field, p2Field,
+      p1Hand, p2Hand,
+      setP1Field, setP2Field,
+      setP1Hand, setP2Hand,
+      addLog,
+      setPendingHandSelection,
+    } = context;
+
+    // 基本技: HPを300回復
+    if (context.skillType === 'basic') {
+      const field = currentPlayer === 1 ? p1Field : p2Field;
+      const setField = currentPlayer === 1 ? setP1Field : setP2Field;
+
+      if (monsterIndex === undefined || !field[monsterIndex]) {
+        addLog('対象のモンスターが見つかりません', 'info');
+        return false;
+      }
+
+      const monster = field[monsterIndex];
+      const healAmount = Math.min(300, monster.maxHp - monster.currentHp);
+
+      if (healAmount <= 0) {
+        addLog(`${monster.name}のHPは既に最大です`, 'info');
+        return false;
+      }
+
+      setField(prev => {
+        const newField = [...prev];
+        newField[monsterIndex] = {
+          ...newField[monsterIndex],
+          currentHp: newField[monsterIndex].currentHp + healAmount,
+        };
+        return newField;
+      });
+
+      addLog(`輝聖女ルミナスの基本技: HPを${healAmount}回復！`, 'heal');
+      return true;
+    }
+
+    // 上級技: 手札から光属性モンスター1体をコストなしで召喚
+    if (context.skillType === 'advanced') {
+      const hand = currentPlayer === 1 ? p1Hand : p2Hand;
+      const field = currentPlayer === 1 ? p1Field : p2Field;
+
+      // 手札に光属性モンスターがあるか確認
+      const lightMonsters = hand.filter(card =>
+        card.type === 'monster' && card.attribute === '光'
+      );
+
+      if (lightMonsters.length === 0) {
+        addLog('手札に光属性モンスターがありません', 'info');
+        return false;
+      }
+
+      // フィールドに空きがあるか確認
+      const emptySlotIndex = field.findIndex(slot => slot === null);
+      if (emptySlotIndex === -1) {
+        addLog('フィールドに空きがありません', 'info');
+        return false;
+      }
+
+      // 手札選択モードに入る
+      setPendingHandSelection({
+        message: '特殊召喚する光属性モンスターを選択',
+        filter: (card) => card.type === 'monster' && card.attribute === '光',
+        callback: (selectedCard) => {
+          const setHand = currentPlayer === 1 ? setP1Hand : setP2Hand;
+          const setField = currentPlayer === 1 ? setP1Field : setP2Field;
+          const currentField = currentPlayer === 1 ? p1Field : p2Field;
+
+          // フィールドの空きスロットを再確認
+          const targetSlot = currentField.findIndex(slot => slot === null);
+          if (targetSlot === -1) {
+            addLog('フィールドに空きがありません', 'info');
+            return;
+          }
+
+          // モンスターインスタンスを作成
+          const monsterInstance = createMonsterInstance(selectedCard, currentPlayer);
+
+          // 手札から削除
+          setHand(prev => prev.filter(c => c.uniqueId !== selectedCard.uniqueId));
+
+          // フィールドに配置
+          setField(prev => {
+            const newField = [...prev];
+            newField[targetSlot] = monsterInstance;
+            return newField;
+          });
+
+          // トリガーを登録
+          registerCardTriggers(monsterInstance, currentPlayer, targetSlot);
+
+          // 常時効果を登録
+          continuousEffectEngine.register(monsterInstance, currentPlayer);
+
+          addLog(`輝聖女ルミナスの上級技: 「${selectedCard.name}」をコストなしで特殊召喚！`, 'heal');
+        },
+      });
+
+      return true;
+    }
+
     return false;
   },
 
