@@ -36,21 +36,11 @@ export const primitiveCardTriggers = {
       activationType: ACTIVATION_TYPES.AUTOMATIC,
       description: 'エンド時: 分裂する（場に3体未満の場合）',
       effect: (context) => {
-        const {
-          currentPlayer,
-          p1Field,
-          p2Field,
-          setP1Field,
-          setP2Field,
-          card,
-          addLog,
-        } = context;
-
-        const currentField = currentPlayer === 1 ? p1Field : p2Field;
-        const setField = currentPlayer === 1 ? setP1Field : setP2Field;
+        const { card, addLog } = context;
+        const { myField, setMyField, currentPlayer } = getPlayerContext(context);
 
         // 場の粘液獣・開花の数をカウント
-        const bloomerCount = currentField.filter(
+        const bloomerCount = myField.filter(
           (m) => m && m.id === 'C0000001'
         ).length;
 
@@ -60,7 +50,7 @@ export const primitiveCardTriggers = {
         }
 
         // 空きスロットを探す
-        const emptySlotIndex = currentField.findIndex((slot) => slot === null);
+        const emptySlotIndex = myField.findIndex((slot) => slot === null);
         if (emptySlotIndex === -1) {
           addLog('粘液獣・開花: 場が満杯のため分裂できない', 'info');
           return;
@@ -80,9 +70,9 @@ export const primitiveCardTriggers = {
           owner: currentPlayer,
         };
 
-        const newField = [...currentField];
+        const newField = [...myField];
         newField[emptySlotIndex] = copy;
-        setField(newField);
+        setMyField(newField);
 
         addLog('粘液獣・開花が分裂した！', 'info');
       },
@@ -92,20 +82,11 @@ export const primitiveCardTriggers = {
       activationType: ACTIVATION_TYPES.AUTOMATIC,
       description: '破壊時: 粘液獣の種子（攻撃力0HP100）を場に生成',
       effect: (context) => {
-        const {
-          currentPlayer,
-          p1Field,
-          p2Field,
-          setP1Field,
-          setP2Field,
-          addLog,
-        } = context;
-
-        const currentField = currentPlayer === 1 ? p1Field : p2Field;
-        const setField = currentPlayer === 1 ? setP1Field : setP2Field;
+        const { addLog } = context;
+        const { myField, setMyField, currentPlayer } = getPlayerContext(context);
 
         // 空きスロットを探す
-        const emptySlotIndex = currentField.findIndex((slot) => slot === null);
+        const emptySlotIndex = myField.findIndex((slot) => slot === null);
         if (emptySlotIndex === -1) {
           addLog('粘液獣・開花: 場が満杯のため種子を生成できない', 'info');
           return;
@@ -130,9 +111,9 @@ export const primitiveCardTriggers = {
           statusEffects: [],
         };
 
-        const newField = [...currentField];
+        const newField = [...myField];
         newField[emptySlotIndex] = seed;
-        setField(newField);
+        setMyField(newField);
 
         addLog('粘液獣・開花が破壊され、粘液獣の種子を生成した！', 'info');
       },
@@ -169,20 +150,11 @@ export const primitiveCardTriggers = {
       priority: TRIGGER_PRIORITIES.NORMAL,
       description: '召喚時: このターンはダイレクトアタック可能',
       effect: (context) => {
-        const {
-          currentPlayer,
-          p1Field,
-          p2Field,
-          setP1Field,
-          setP2Field,
-          slotIndex,
-          addLog,
-        } = context;
-
-        const setField = currentPlayer === 1 ? setP1Field : setP2Field;
+        const { slotIndex, addLog } = context;
+        const { setMyField } = getPlayerContext(context);
 
         // ダイレクトアタック許可フラグを設定
-        setField((prev) =>
+        setMyField((prev) =>
           prev.map((m, idx) => {
             if (idx === slotIndex && m) {
               return { ...m, canDirectAttackThisTurn: true };
@@ -211,21 +183,11 @@ export const primitiveCardTriggers = {
       description:
         'メイン時: 場に粘液獣3体以上で相手モンスター捕食（攻撃力+300）',
       effect: (context) => {
-        const {
-          currentPlayer,
-          p1Field,
-          p2Field,
-          card,
-          slotIndex,
-          addLog,
-          setPendingMonsterTarget,
-        } = context;
-
-        const currentField = currentPlayer === 1 ? p1Field : p2Field;
-        const opponentField = currentPlayer === 1 ? p2Field : p1Field;
+        const { card, slotIndex, addLog, setPendingMonsterTarget } = context;
+        const { myField, setMyField, opponentField } = getPlayerContext(context);
 
         // 場の粘液獣の数をカウント
-        const slimeCount = currentField.filter(
+        const slimeCount = myField.filter(
           (m) => m && hasCategory(m, '【スライム】')
         ).length;
 
@@ -245,7 +207,7 @@ export const primitiveCardTriggers = {
         }
 
         // 攻撃力上限チェック
-        const currentMonster = currentField[slotIndex];
+        const currentMonster = myField[slotIndex];
         if (currentMonster) {
           const baseAttack = currentMonster.attack - (currentMonster.predationBonus || 0);
           const currentBonus = currentMonster.predationBonus || 0;
@@ -267,9 +229,7 @@ export const primitiveCardTriggers = {
             modifyAttack(context, 300, slotIndex, false, true);
 
             // 捕食ボーナスを記録（上限管理用）
-            const field = currentPlayer === 1 ? p1Field : p2Field;
-            const setField = currentPlayer === 1 ? context.setP1Field : context.setP2Field;
-            setField((prev) =>
+            setMyField((prev) =>
               prev.map((m, idx) => {
                 if (idx === slotIndex && m) {
                   return {
@@ -293,7 +253,7 @@ export const primitiveCardTriggers = {
       activationType: ACTIVATION_TYPES.AUTOMATIC,
       description: '破壊時: 1度だけ効果無効で復活',
       effect: (context) => {
-        const { card, addLog } = context;
+        const { card, addLog, slotIndex } = context;
 
         // 復活済みフラグをチェック
         if (card.hasRevived) {
@@ -301,14 +261,7 @@ export const primitiveCardTriggers = {
           return false;
         }
 
-        const {
-          currentPlayer,
-          p1Field,
-          p2Field,
-          setP1Field,
-          setP2Field,
-          slotIndex,
-        } = context;
+        const { myField, setMyField, currentPlayer } = getPlayerContext(context);
 
         // 復活処理
         const revivedCard = {
@@ -319,12 +272,9 @@ export const primitiveCardTriggers = {
           owner: currentPlayer, // 常時効果のターゲット判定用（再設定）
         };
 
-        const currentField = currentPlayer === 1 ? p1Field : p2Field;
-        const setField = currentPlayer === 1 ? setP1Field : setP2Field;
-
-        const newField = [...currentField];
+        const newField = [...myField];
         newField[slotIndex] = revivedCard;
-        setField(newField);
+        setMyField(newField);
 
         addLog('苗床粘液獣が効果無効で復活した！', 'info');
         return true;
@@ -343,18 +293,11 @@ export const primitiveCardTriggers = {
       activationType: ACTIVATION_TYPES.AUTOMATIC,
       description: '召喚時: 場の粘液獣1体につき攻撃力+1000',
       effect: (context) => {
-        const {
-          currentPlayer,
-          p1Field,
-          p2Field,
-          slotIndex,
-          addLog,
-        } = context;
-
-        const currentField = currentPlayer === 1 ? p1Field : p2Field;
+        const { slotIndex, addLog } = context;
+        const { myField } = getPlayerContext(context);
 
         // 場の粘液獣の数をカウント（自身を除く）
-        const slimeCount = currentField.filter(
+        const slimeCount = myField.filter(
           (m, idx) =>
             m &&
             idx !== slotIndex &&
@@ -381,27 +324,13 @@ export const primitiveCardTriggers = {
       activationType: ACTIVATION_TYPES.AUTOMATIC,
       description: 'エンド時: 飲み込んだモンスターを消化中',
       effect: (context) => {
-        const {
-          currentPlayer,
-          p1Field,
-          p2Field,
-          setP1Field,
-          setP2Field,
-          setP1Graveyard,
-          setP2Graveyard,
-          slotIndex,
-          card,
-          addLog,
-        } = context;
+        const { slotIndex, card, addLog } = context;
+        const { setMyField, setOpponentGraveyard } = getPlayerContext(context);
 
         // 飲み込んだモンスターがいない場合はスキップ
         if (!card || !card.swallowedMonster) {
           return;
         }
-
-        const setField = currentPlayer === 1 ? setP1Field : setP2Field;
-        // 相手の墓地に送る
-        const setOpponentGraveyard = currentPlayer === 1 ? setP2Graveyard : setP1Graveyard;
 
         const newDigestCounter = (card.digestCounter || 1) - 1;
 
@@ -413,7 +342,7 @@ export const primitiveCardTriggers = {
           setOpponentGraveyard((prev) => [...prev, digestedMonster]);
 
           // 飲み込み情報をクリア
-          setField((prev) =>
+          setMyField((prev) =>
             prev.map((m, idx) => {
               if (idx === slotIndex && m) {
                 const updated = { ...m };
@@ -431,7 +360,7 @@ export const primitiveCardTriggers = {
           );
         } else {
           // 消化中：カウンターを減らす
-          setField((prev) =>
+          setMyField((prev) =>
             prev.map((m, idx) => {
               if (idx === slotIndex && m) {
                 return { ...m, digestCounter: newDigestCounter };
@@ -452,17 +381,8 @@ export const primitiveCardTriggers = {
       activationType: ACTIVATION_TYPES.AUTOMATIC,
       description: '破壊時: 飲み込んだモンスターを吐き出す',
       effect: (context) => {
-        const {
-          currentPlayer,
-          p1Field,
-          p2Field,
-          setP1Field,
-          setP2Field,
-          setP1Graveyard,
-          setP2Graveyard,
-          card,
-          addLog,
-        } = context;
+        const { card, addLog } = context;
+        const { opponentField, setOpponentField, setOpponentGraveyard } = getPlayerContext(context);
 
         // 飲み込んだモンスターがいない場合はスキップ
         if (!card || !card.swallowedMonster) {
@@ -470,9 +390,6 @@ export const primitiveCardTriggers = {
         }
 
         const swallowed = card.swallowedMonster;
-        const opponentField = currentPlayer === 1 ? p2Field : p1Field;
-        const setOpponentField = currentPlayer === 1 ? setP2Field : setP1Field;
-        const setOpponentGraveyard = currentPlayer === 1 ? setP2Graveyard : setP1Graveyard;
 
         // 相手フィールドの空きスロットを探す
         const emptySlotIndex = opponentField.findIndex((slot) => slot === null);
@@ -550,22 +467,11 @@ export const primitiveCardTriggers = {
       activationType: ACTIVATION_TYPES.OPTIONAL,
       description: '召喚時: 場の粘液獣1体と融合して攻撃力を合計値に',
       effect: (context) => {
-        const {
-          currentPlayer,
-          p1Field,
-          p2Field,
-          setP1Field,
-          setP2Field,
-          slotIndex,
-          card,
-          addLog,
-        } = context;
-
-        const currentField = currentPlayer === 1 ? p1Field : p2Field;
-        const setField = currentPlayer === 1 ? setP1Field : setP2Field;
+        const { slotIndex, card, addLog } = context;
+        const { myField, setMyField } = getPlayerContext(context);
 
         // 他の粘液獣を探す
-        const targetIndex = currentField.findIndex(
+        const targetIndex = myField.findIndex(
           (m, idx) =>
             m &&
             idx !== slotIndex &&
@@ -578,13 +484,13 @@ export const primitiveCardTriggers = {
         }
 
         // TODO: UI実装時に対象選択が必要
-        const target = currentField[targetIndex];
+        const target = myField[targetIndex];
         const totalAttack =
           (card.currentAttack || card.attack) +
           (target.currentAttack || target.attack);
 
         // 対象を破壊
-        const newField = [...currentField];
+        const newField = [...myField];
         newField[targetIndex] = null;
 
         // 融合体の攻撃力を更新
@@ -595,7 +501,7 @@ export const primitiveCardTriggers = {
         };
         newField[slotIndex] = fusedCard;
 
-        setField(newField);
+        setMyField(newField);
         addLog(
           `粘液獣・融合体が${target.name}と融合！攻撃力が${totalAttack}になった！`,
           'info'
@@ -615,17 +521,11 @@ export const primitiveCardTriggers = {
       activationType: ACTIVATION_TYPES.AUTOMATIC,
       description: '召喚時: 場の粘液獣1体を破壊してコスト×300ダメージ',
       effect: (context) => {
-        const {
-          currentPlayer,
-          p1Field,
-          p2Field,
-          addLog,
-        } = context;
-
-        const currentField = currentPlayer === 1 ? p1Field : p2Field;
+        const { addLog } = context;
+        const { myField } = getPlayerContext(context);
 
         // 粘液獣を探す
-        const targetIndex = currentField.findIndex(
+        const targetIndex = myField.findIndex(
           (m) => m && hasCategory(m, '【スライム】')
         );
 
@@ -635,7 +535,7 @@ export const primitiveCardTriggers = {
         }
 
         // TODO: UI実装時に対象選択が必要
-        const target = currentField[targetIndex];
+        const target = myField[targetIndex];
         const damage = (target.cost || 0) * 300;
 
         destroyMonster(context, targetIndex, false);
@@ -698,17 +598,8 @@ export const primitiveCardTriggers = {
       activationType: ACTIVATION_TYPES.AUTOMATIC,
       description: '召喚時: 相手モンスター1体の攻撃力を0に',
       effect: (context) => {
-        const {
-          currentPlayer,
-          p1Field,
-          p2Field,
-          setP1Field,
-          setP2Field,
-          addLog,
-        } = context;
-
-        const opponentField = currentPlayer === 1 ? p2Field : p1Field;
-        const setOpponentField = currentPlayer === 1 ? setP2Field : setP1Field;
+        const { addLog } = context;
+        const { opponentField, setOpponentField } = getPlayerContext(context);
 
         // 対象を探す
         const targetIndex = opponentField.findIndex((m) => m !== null);
@@ -746,17 +637,8 @@ export const primitiveCardTriggers = {
       activationType: ACTIVATION_TYPES.AUTOMATIC,
       description: '召喚時: 相手モンスター1体を1ターン行動不能に',
       effect: (context) => {
-        const {
-          currentPlayer,
-          p1Field,
-          p2Field,
-          setP1Field,
-          setP2Field,
-          addLog,
-        } = context;
-
-        const opponentField = currentPlayer === 1 ? p2Field : p1Field;
-        const setOpponentField = currentPlayer === 1 ? setP2Field : setP1Field;
+        const { addLog } = context;
+        const { opponentField, setOpponentField } = getPlayerContext(context);
 
         // 対象を探す
         const targetIndex = opponentField.findIndex((m) => m !== null);
@@ -796,26 +678,15 @@ export const primitiveCardTriggers = {
       activationType: ACTIVATION_TYPES.AUTOMATIC,
       description: '召喚時: 守護（1度だけダメージ半減）を付与',
       effect: (context) => {
-        const {
-          currentPlayer,
-          p1Field,
-          p2Field,
-          setP1Field,
-          setP2Field,
-          slotIndex,
-          card,
-          addLog,
-        } = context;
+        const { slotIndex, card, addLog } = context;
+        const { myField, setMyField } = getPlayerContext(context);
 
-        const currentField = currentPlayer === 1 ? p1Field : p2Field;
-        const setField = currentPlayer === 1 ? setP1Field : setP2Field;
-
-        const newField = [...currentField];
+        const newField = [...myField];
         newField[slotIndex] = {
           ...card,
           hasGuardian: true, // 守護フラグ
         };
-        setField(newField);
+        setMyField(newField);
 
         addLog('鎖の守護者に守護が付与された！', 'info');
         return true;
@@ -834,16 +705,8 @@ export const primitiveCardTriggers = {
       activationType: ACTIVATION_TYPES.AUTOMATIC,
       description: '召喚時: 場のモンスター1体を破壊',
       effect: (context) => {
-        const {
-          currentPlayer,
-          p1Field,
-          p2Field,
-          addLog,
-        } = context;
-
-        // 自分か相手の場のモンスターを破壊可能
-        const currentField = currentPlayer === 1 ? p1Field : p2Field;
-        const opponentField = currentPlayer === 1 ? p2Field : p1Field;
+        const { addLog } = context;
+        const { myField, opponentField } = getPlayerContext(context);
 
         // まず相手の場を優先
         let targetIndex = opponentField.findIndex((m) => m !== null);
@@ -851,7 +714,7 @@ export const primitiveCardTriggers = {
 
         if (targetIndex === -1) {
           // 相手がいなければ自分の場
-          targetIndex = currentField.findIndex((m) => m !== null);
+          targetIndex = myField.findIndex((m) => m !== null);
           isOpponent = false;
         }
 
@@ -963,26 +826,15 @@ export const primitiveCardTriggers = {
       activationType: ACTIVATION_TYPES.AUTOMATIC,
       description: '攻撃時: 反撃ダメージ無効',
       effect: (context) => {
-        const {
-          currentPlayer,
-          p1Field,
-          p2Field,
-          setP1Field,
-          setP2Field,
-          slotIndex,
-          card,
-          addLog,
-        } = context;
+        const { slotIndex, card, addLog } = context;
+        const { myField, setMyField } = getPlayerContext(context);
 
-        const currentField = currentPlayer === 1 ? p1Field : p2Field;
-        const setField = currentPlayer === 1 ? setP1Field : setP2Field;
-
-        const newField = [...currentField];
+        const newField = [...myField];
         newField[slotIndex] = {
           ...card,
           noCounterDamage: true, // 反撃無効フラグ
         };
-        setField(newField);
+        setMyField(newField);
 
         addLog('呪影の牙狼ウルフェイン: 反撃ダメージを受けない！', 'info');
         return true;
@@ -1016,26 +868,15 @@ export const primitiveCardTriggers = {
       activationType: ACTIVATION_TYPES.AUTOMATIC,
       description: '被攻撃時: 反撃ダメージ50%',
       effect: (context) => {
-        const {
-          currentPlayer,
-          p1Field,
-          p2Field,
-          setP1Field,
-          setP2Field,
-          slotIndex,
-          card,
-          addLog,
-        } = context;
+        const { slotIndex, card, addLog } = context;
+        const { myField, setMyField } = getPlayerContext(context);
 
-        const currentField = currentPlayer === 1 ? p1Field : p2Field;
-        const setField = currentPlayer === 1 ? setP1Field : setP2Field;
-
-        const newField = [...currentField];
+        const newField = [...myField];
         newField[slotIndex] = {
           ...card,
           counterDamageRate: 0.5, // 反撃50%
         };
-        setField(newField);
+        setMyField(newField);
 
         addLog('棘の剛毛猪イノブリスト: 反撃ダメージ50%！', 'info');
         return true;
@@ -1053,17 +894,11 @@ export const primitiveCardTriggers = {
       activationType: ACTIVATION_TYPES.AUTOMATIC,
       description: 'エンド時: 場の粘液獣1体につき相手に300ダメージ',
       effect: (context) => {
-        const {
-          currentPlayer,
-          p1Field,
-          p2Field,
-          addLog,
-        } = context;
-
-        const currentField = currentPlayer === 1 ? p1Field : p2Field;
+        const { addLog } = context;
+        const { myField } = getPlayerContext(context);
 
         // 粘液獣の数をカウント
-        const slimeCount = currentField.filter(
+        const slimeCount = myField.filter(
           (m) => m && hasCategory(m, '【スライム】')
         ).length;
 
@@ -1110,17 +945,11 @@ export const primitiveCardTriggers = {
       priority: TRIGGER_PRIORITIES.NORMAL,
       description: 'エンド時: 粘液獣3体以上でライフ500回復',
       effect: (context) => {
-        const {
-          currentPlayer,
-          p1Field,
-          p2Field,
-          addLog,
-        } = context;
-
-        const currentField = currentPlayer === 1 ? p1Field : p2Field;
+        const { addLog } = context;
+        const { myField } = getPlayerContext(context);
 
         // 粘液獣の数をカウント
-        const slimeCount = currentField.filter(
+        const slimeCount = myField.filter(
           (m) => m && hasCategory(m, '【スライム】')
         ).length;
 
@@ -1146,17 +975,8 @@ export const primitiveCardTriggers = {
       activationType: ACTIVATION_TYPES.AUTOMATIC,
       description: 'エンド時: 相手モンスター全体に300ダメージ',
       effect: (context) => {
-        const {
-          currentPlayer,
-          p1Field,
-          p2Field,
-          setP1Field,
-          setP2Field,
-          addLog,
-        } = context;
-
-        const opponentField = currentPlayer === 1 ? p2Field : p1Field;
-        const setOpponentField = currentPlayer === 1 ? setP2Field : setP1Field;
+        const { addLog } = context;
+        const { opponentField, setOpponentField } = getPlayerContext(context);
 
         let damageDealt = false;
         const newField = opponentField.map((monster) => {
@@ -1194,21 +1014,11 @@ export const primitiveCardTriggers = {
       activationType: ACTIVATION_TYPES.AUTOMATIC,
       description: 'エンド時: ゴシックモンスター1体につき相手に300ダメージ',
       effect: (context) => {
-        const {
-          currentPlayer,
-          p1Field,
-          p2Field,
-          setP1Field,
-          setP2Field,
-          addLog,
-        } = context;
-
-        const currentField = currentPlayer === 1 ? p1Field : p2Field;
-        const opponentField = currentPlayer === 1 ? p2Field : p1Field;
-        const setOpponentField = currentPlayer === 1 ? setP2Field : setP1Field;
+        const { addLog } = context;
+        const { myField, opponentField, setOpponentField } = getPlayerContext(context);
 
         // ゴシックモンスターの数をカウント
-        const gothicCount = currentField.filter(
+        const gothicCount = myField.filter(
           (m) => m && m.name && m.name.includes('ゴシック')
         ).length;
 
@@ -1254,18 +1064,12 @@ export const primitiveCardTriggers = {
       activationType: ACTIVATION_TYPES.AUTOMATIC,
       description: 'エンド時: 属性ごとのヴォランティスで効果発動',
       effect: (context) => {
-        const {
-          currentPlayer,
-          p1Field,
-          p2Field,
-          addLog,
-        } = context;
-
-        const currentField = currentPlayer === 1 ? p1Field : p2Field;
+        const { addLog } = context;
+        const { myField } = getPlayerContext(context);
 
         // 属性別のヴォランティスモンスターをカウント
         const attributeCounts = {};
-        currentField.forEach((monster) => {
+        myField.forEach((monster) => {
           if (monster && monster.name && monster.name.includes('ヴォランティス')) {
             const attr = monster.attribute || 'なし';
             attributeCounts[attr] = (attributeCounts[attr] || 0) + 1;
@@ -1329,13 +1133,8 @@ export const primitiveCardTriggers = {
       activationType: ACTIVATION_TYPES.AUTOMATIC,
       description: '相手攻撃時: リアノンがいれば攻撃無効化＋500ダメージ',
       effect: (context) => {
-        const {
-          currentPlayer,
-          p1Field,
-          p2Field,
-          card,
-          addLog,
-        } = context;
+        const { card, addLog } = context;
+        const { myField } = getPlayerContext(context);
 
         // トリガー使用済みチェック（1ターンに1度）
         if (card.triggerUsedThisTurn) {
@@ -1343,10 +1142,8 @@ export const primitiveCardTriggers = {
           return false;
         }
 
-        const currentField = currentPlayer === 1 ? p1Field : p2Field;
-
         // 場に鎖縛の幻姫リアノン（C0000244）がいるかチェック
-        const hasRiannon = currentField.some(
+        const hasRiannon = myField.some(
           (m) => m && (m.id === 'C0000244' || m.name?.includes('鎖縛の幻姫リアノン'))
         );
 
@@ -1405,17 +1202,8 @@ export const primitiveCardTriggers = {
       priority: TRIGGER_PRIORITIES.HIGH,
       description: '召喚時: 相手モンスター1体を1ターン行動不能に',
       effect: (context) => {
-        const {
-          currentPlayer,
-          p1Field,
-          p2Field,
-          setP1Field,
-          setP2Field,
-          addLog,
-        } = context;
-
-        const opponentField = currentPlayer === 1 ? p2Field : p1Field;
-        const setOpponentField = currentPlayer === 1 ? setP2Field : setP1Field;
+        const { addLog } = context;
+        const { opponentField, setOpponentField } = getPlayerContext(context);
 
         // 対象を探す
         const targetIndex = opponentField.findIndex((m) => m !== null);

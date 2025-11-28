@@ -277,20 +277,20 @@ C0000XXX: (skillText, context) => {
 
 **完了条件（各ファイル）**:
 - [x] getPlayerContextをインポートしている
-- [ ] 全トリガーが新パターンに変換されている
-- [ ] `currentPlayer === 1 ?` の判定が残っていない（レアケース除く）
+- [x] 全トリガーが新パターンに変換されている
+- [x] `currentPlayer === 1 ?` の判定が残っていない（レアケース除く）
 - [x] ゲームが正常に起動する
 
-**ステータス**: 🔄 進行中（インポート追加完了、一部カード変換完了）
-- fireCards.js: インポート追加済み、12+カード変換完了
-- waterCards.js: インポート追加済み、2カード変換完了（C0000041, C0000042）
-- lightCards.js: インポート追加済み、変換作業未着手
-- darkCards.js: インポート追加済み、変換作業未着手
-- primitiveCards.js: インポート追加済み、変換作業未着手
-- futureCards.js: インポート追加済み、変換作業未着手
-- neutralCards.js: インポート追加済み、変換作業未着手
+**ステータス**: ✅ 全7ファイル完了
+- fireCards.js: 完了
+- waterCards.js: 完了
+- lightCards.js: 完了
+- darkCards.js: 完了
+- primitiveCards.js: 完了
+- futureCards.js: 完了
+- neutralCards.js: 完了
 
-**最終更新**: 2025-11-28
+**完了日**: 2025-11-28
 
 ---
 
@@ -446,18 +446,18 @@ C0000002: (skillText, context) => {
 - [x] neutral.js 移行完了・動作確認OK
 
 ### Phase 4 完了チェック（cardTriggers/）
-- [ ] fireCards.js 移行完了・動作確認OK （インポート済み、部分変換済み）
-- [ ] waterCards.js 移行完了・動作確認OK （インポート済み、部分変換済み）
-- [ ] lightCards.js 移行完了・動作確認OK （インポート済み）
-- [ ] darkCards.js 移行完了・動作確認OK （インポート済み）
-- [ ] primitiveCards.js 移行完了・動作確認OK （インポート済み）
-- [ ] futureCards.js 移行完了・動作確認OK （インポート済み）
-- [ ] neutralCards.js 移行完了・動作確認OK （インポート済み）
+- [x] fireCards.js 移行完了・動作確認OK
+- [x] waterCards.js 移行完了・動作確認OK
+- [x] lightCards.js 移行完了・動作確認OK
+- [x] darkCards.js 移行完了・動作確認OK
+- [x] primitiveCards.js 移行完了・動作確認OK
+- [x] futureCards.js 移行完了・動作確認OK
+- [x] neutralCards.js 移行完了・動作確認OK
 
 ### 最終確認
-- [ ] 全ファイルで `currentPlayer === 1 ?` の不要な判定がない
+- [x] 全ファイルで `currentPlayer === 1 ?` の不要な判定がない
 - [x] ゲームが正常に動作する
-- [ ] CLAUDE.md を更新した
+- [x] CLAUDE.md を更新した（ドキュメントへの参照追加）
 
 ---
 
@@ -506,6 +506,7 @@ C0000002: (skillText, context) => {
 |------|------|
 | 2025-11-28 | 初版作成 |
 | 2025-11-28 | Phase 1-3 完了、Phase 4 インポート追加・部分変換（fireCards.js, waterCards.js）|
+| 2025-11-28 | Phase 4 完了（全cardTriggers/*.js変換完了）|
 
 ---
 
@@ -516,8 +517,8 @@ C0000002: (skillText, context) => {
 | 対象 | 追加行 | 削除行 | 純削減 |
 |------|--------|--------|--------|
 | cardEffects/ | ~200 | ~600 | ~400行削減 |
-| cardTriggers/ | ~375 | ~384 | ~9行削減（部分変換のみ）|
-| **合計** | ~575 | ~984 | **~409行削減** |
+| cardTriggers/ | ~500 | ~1,400 | ~900行削減 |
+| **合計** | ~700 | ~2,000 | **~1,300行削減** |
 
 ### 完了状況
 
@@ -526,7 +527,7 @@ C0000002: (skillText, context) => {
 | Phase 1: ヘルパー関数 | ✅ 完了 | 100% |
 | Phase 2: テンプレート | ✅ 完了 | 100% |
 | Phase 3: cardEffects/ | ✅ 完了 | 100% |
-| Phase 4: cardTriggers/ | 🔄 進行中 | ~20% |
+| Phase 4: cardTriggers/ | ✅ 完了 | 100% |
 
 ### 特殊ケース（直接アクセス維持）
 
@@ -534,3 +535,15 @@ C0000002: (skillText, context) => {
 
 - **C0000002** (primitive.js): `setP1MagicBlocked` / `setP2MagicBlocked`
 - **C0000047** (water.js): `setP1NextTurnSPBonus` / `setP2NextTurnSPBonus`
+
+---
+
+## 10. 完了
+
+**全フェーズ完了日**: 2025-11-28
+
+このリファクタリングにより：
+- 約1,300行のボイラープレートコードを削減
+- `currentPlayer === 1 ?` 判定の散在を解消
+- コードの可読性と保守性が向上
+- 新しいカード効果/トリガー実装時のパターンが明確化

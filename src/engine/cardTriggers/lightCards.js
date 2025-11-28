@@ -52,10 +52,8 @@ export const lightCardTriggers = {
       activationType: ACTIVATION_TYPES.AUTOMATIC,
       description: 'エンドフェイズ: 相手モンスター1体の攻撃力-200',
       effect: (context) => {
-        const { currentPlayer, p1Field, p2Field, addLog } = context;
-
-        // currentPlayerに基づいて相手フィールドを取得
-        const opponentField = currentPlayer === 1 ? p2Field : p1Field;
+        const { addLog } = context;
+        const { opponentField } = getPlayerContext(context);
         const opponentMonsters = opponentField.filter((m) => m !== null);
         if (opponentMonsters.length === 0) {
           addLog('輝聖女ルミナスの効果: 相手フィールドにモンスターがいません', 'info');
@@ -217,11 +215,11 @@ export const lightCardTriggers = {
       activationType: ACTIVATION_TYPES.AUTOMATIC,
       description: '常時: 相手全体の攻撃力を光属性×200ダウン',
       effect: (context) => {
-        const { currentPlayer, p1Field, p2Field, addLog } = context;
-        const field = currentPlayer === 1 ? p1Field : p2Field;
+        const { addLog } = context;
+        const { myField } = getPlayerContext(context);
 
         // 場の光属性モンスターをカウント
-        const lightCount = field.filter((monster) =>
+        const lightCount = myField.filter((monster) =>
           monster && monster.attribute === '光'
         ).length;
 
@@ -265,15 +263,11 @@ export const lightCardTriggers = {
       activationType: ACTIVATION_TYPES.OPTIONAL,
       description: '召喚時: 光属性モンスター1枚をデッキに戻しドロー',
       effect: (context) => {
-        const { currentPlayer, p1Hand, p2Hand, setP1Hand, setP2Hand,
-                p1Deck, p2Deck, setP1Deck, setP2Deck, addLog } = context;
-
-        const hand = currentPlayer === 1 ? p1Hand : p2Hand;
-        const setHand = currentPlayer === 1 ? setP1Hand : setP2Hand;
-        const setDeck = currentPlayer === 1 ? setP1Deck : setP2Deck;
+        const { addLog } = context;
+        const { myHand, setMyHand, setMyDeck } = getPlayerContext(context);
 
         // 手札から光属性モンスターを探す
-        const lightMonster = hand.find((card) =>
+        const lightMonster = myHand.find((card) =>
           card.type === 'monster' && card.attribute === '光'
         );
 
@@ -283,8 +277,8 @@ export const lightCardTriggers = {
         }
 
         // 手札からデッキに戻す
-        setHand((prev) => prev.filter((c) => c.uniqueId !== lightMonster.uniqueId));
-        setDeck((prev) => [...prev, lightMonster]);
+        setMyHand((prev) => prev.filter((c) => c.uniqueId !== lightMonster.uniqueId));
+        setMyDeck((prev) => [...prev, lightMonster]);
 
         // 1枚ドロー
         drawCards(context, 1);
@@ -304,15 +298,11 @@ export const lightCardTriggers = {
       activationType: ACTIVATION_TYPES.AUTOMATIC,
       description: '召喚時: 墓地の光属性をデッキに戻し枚数×500回復',
       effect: (context) => {
-        const { currentPlayer, p1Graveyard, p2Graveyard, setP1Graveyard, setP2Graveyard,
-                p1Deck, p2Deck, setP1Deck, setP2Deck, addLog } = context;
-
-        const graveyard = currentPlayer === 1 ? p1Graveyard : p2Graveyard;
-        const setGraveyard = currentPlayer === 1 ? setP1Graveyard : setP2Graveyard;
-        const setDeck = currentPlayer === 1 ? setP1Deck : setP2Deck;
+        const { addLog } = context;
+        const { myGraveyard, setMyGraveyard, setMyDeck } = getPlayerContext(context);
 
         // 墓地から光属性モンスターを全て取得
-        const lightMonsters = graveyard.filter((card) =>
+        const lightMonsters = myGraveyard.filter((card) =>
           card.type === 'monster' && card.attribute === '光'
         );
 
@@ -322,10 +312,10 @@ export const lightCardTriggers = {
         }
 
         // 墓地からデッキに戻す
-        setGraveyard((prev) => prev.filter((c) =>
+        setMyGraveyard((prev) => prev.filter((c) =>
           !(c.type === 'monster' && c.attribute === '光')
         ));
-        setDeck((prev) => [...prev, ...lightMonsters]);
+        setMyDeck((prev) => [...prev, ...lightMonsters]);
 
         // ライフ回復
         const healAmount = lightMonsters.length * 500;
@@ -338,16 +328,15 @@ export const lightCardTriggers = {
       activationType: ACTIVATION_TYPES.AUTOMATIC,
       description: '破壊時: 相手に1500、自分のライフ半分に',
       effect: (context) => {
-        const { currentPlayer, p1Life, p2Life, setP1Life, setP2Life, addLog } = context;
+        const { addLog } = context;
+        const { myLife, setMyLife } = getPlayerContext(context);
 
         // 相手に1500ダメージ
         conditionalDamage(context, 1500, 'opponent');
 
         // 自分のライフを半分に
-        const currentLife = currentPlayer === 1 ? p1Life : p2Life;
-        const setLife = currentPlayer === 1 ? setP1Life : setP2Life;
-        const newLife = Math.floor(currentLife / 2);
-        setLife(newLife);
+        const newLife = Math.floor(myLife / 2);
+        setMyLife(newLife);
         addLog(`死神天使ルシフェリエルの効果: 自分のライフが${newLife}になった`, 'damage');
       },
     },
@@ -364,15 +353,11 @@ export const lightCardTriggers = {
       activationType: ACTIVATION_TYPES.AUTOMATIC,
       description: '召喚時: コスト3以下のプラントを墓地に',
       effect: (context) => {
-        const { currentPlayer, p1Deck, p2Deck, setP1Deck, setP2Deck,
-                setP1Graveyard, setP2Graveyard, addLog } = context;
-
-        const deck = currentPlayer === 1 ? p1Deck : p2Deck;
-        const setDeck = currentPlayer === 1 ? setP1Deck : setP2Deck;
-        const setGraveyard = currentPlayer === 1 ? setP1Graveyard : setP2Graveyard;
+        const { addLog } = context;
+        const { myDeck, setMyDeck, setMyGraveyard } = getPlayerContext(context);
 
         // デッキからコスト3以下のプラントを探す
-        const plantCard = deck.find((card) =>
+        const plantCard = myDeck.find((card) =>
           card.type === 'monster' &&
           hasCategory(card, '【プラント】') &&
           card.cost <= 3
@@ -384,8 +369,8 @@ export const lightCardTriggers = {
         }
 
         // デッキから墓地に送る
-        setDeck((prev) => prev.filter((c) => c.uniqueId !== plantCard.uniqueId));
-        setGraveyard((prev) => [...prev, plantCard]);
+        setMyDeck((prev) => prev.filter((c) => c.uniqueId !== plantCard.uniqueId));
+        setMyGraveyard((prev) => [...prev, plantCard]);
         addLog(`${plantCard.name}を墓地に送った`, 'info');
       },
     },
@@ -394,16 +379,12 @@ export const lightCardTriggers = {
       activationType: ACTIVATION_TYPES.AUTOMATIC,
       description: 'エンドフェイズ: レストSP1個をアクティブに',
       effect: (context) => {
-        const { currentPlayer, p1RestedSP, p2RestedSP, setP1RestedSP, setP2RestedSP,
-                setP1ActiveSP, setP2ActiveSP, addLog } = context;
+        const { addLog } = context;
+        const { myRestedSP, setMyRestedSP, setMyActiveSP } = getPlayerContext(context);
 
-        const restedSP = currentPlayer === 1 ? p1RestedSP : p2RestedSP;
-
-        if (restedSP > 0) {
-          const setRestedSP = currentPlayer === 1 ? setP1RestedSP : setP2RestedSP;
-          const setActiveSP = currentPlayer === 1 ? setP1ActiveSP : setP2ActiveSP;
-          setRestedSP((prev) => prev - 1);
-          setActiveSP((prev) => prev + 1);
+        if (myRestedSP > 0) {
+          setMyRestedSP((prev) => prev - 1);
+          setMyActiveSP((prev) => prev + 1);
           addLog('フルーツ・マリオネット・アップルの効果: レストSP1個をアクティブにした', 'info');
         }
       },
@@ -443,12 +424,11 @@ export const lightCardTriggers = {
       activationType: ACTIVATION_TYPES.AUTOMATIC,
       description: '破壊時: 自分モンスター全てのHP+600',
       effect: (context) => {
-        const { currentPlayer, p1Field, p2Field, setP1Field, setP2Field, addLog } = context;
-        const field = currentPlayer === 1 ? p1Field : p2Field;
-        const setField = currentPlayer === 1 ? setP1Field : setP2Field;
+        const { addLog } = context;
+        const { setMyField } = getPlayerContext(context);
 
         let healed = 0;
-        setField((prev) => {
+        setMyField((prev) => {
           return prev.map((monster) => {
             if (monster) {
               healed++;
@@ -498,11 +478,11 @@ export const lightCardTriggers = {
       activationType: ACTIVATION_TYPES.AUTOMATIC,
       description: '常時: ［プラント］1体につき攻撃力+400',
       effect: (context) => {
-        const { currentPlayer, p1Field, p2Field, monsterIndex } = context;
-        const field = currentPlayer === 1 ? p1Field : p2Field;
+        const { monsterIndex } = context;
+        const { myField } = getPlayerContext(context);
 
         // 場の［プラント］をカウント（自分自身を除く）
-        const plantCount = field.filter((monster, idx) =>
+        const plantCount = myField.filter((monster, idx) =>
           monster &&
           idx !== monsterIndex &&
           hasCategory(monster, '【プラント】')
@@ -537,11 +517,10 @@ export const lightCardTriggers = {
       activationType: ACTIVATION_TYPES.AUTOMATIC,
       description: 'エンドフェイズ: 光属性3体以上で相手攻撃力-500と500回復',
       effect: (context) => {
-        const { currentPlayer, p1Field, p2Field, addLog } = context;
-        const field = currentPlayer === 1 ? p1Field : p2Field;
-        const opponentField = currentPlayer === 1 ? p2Field : p1Field;
+        const { addLog } = context;
+        const { myField, opponentField } = getPlayerContext(context);
 
-        const lightCount = field.filter((monster) =>
+        const lightCount = myField.filter((monster) =>
           monster && monster.attribute === '光'
         ).length;
 
@@ -621,10 +600,10 @@ export const lightCardTriggers = {
       activationType: ACTIVATION_TYPES.OPTIONAL,
       description: '召喚時: SP2消費で《リリカ》を特殊召喚',
       effect: (context) => {
-        const { currentPlayer, p1ActiveSP, p2ActiveSP, addLog } = context;
-        const activeSP = currentPlayer === 1 ? p1ActiveSP : p2ActiveSP;
+        const { addLog } = context;
+        const { myActiveSP } = getPlayerContext(context);
 
-        if (activeSP < 2) {
+        if (myActiveSP < 2) {
           addLog('ご主人様の効果: SPが不足しています', 'info');
           return;
         }
@@ -646,11 +625,11 @@ export const lightCardTriggers = {
       activationType: ACTIVATION_TYPES.AUTOMATIC,
       description: '召喚時: 光属性×500ダメージ、相手全体攻撃力半分',
       effect: (context) => {
-        const { currentPlayer, p1Field, p2Field, setP2Field, addLog } = context;
-        const field = currentPlayer === 1 ? p1Field : p2Field;
+        const { addLog } = context;
+        const { myField, setOpponentField } = getPlayerContext(context);
 
         // 場の光属性モンスターをカウント
-        const lightCount = field.filter((monster) =>
+        const lightCount = myField.filter((monster) =>
           monster && monster.attribute === '光'
         ).length;
 
@@ -660,7 +639,7 @@ export const lightCardTriggers = {
           addLog(`輝鎖の聖姫ルミリアの効果: 相手に${damage}ダメージ`, 'damage');
 
           // 相手モンスター全体の攻撃力を半分に
-          setP2Field((prev) => {
+          setOpponentField((prev) => {
             return prev.map((monster) => {
               if (monster) {
                 return {
@@ -681,10 +660,10 @@ export const lightCardTriggers = {
       activationType: ACTIVATION_TYPES.AUTOMATIC,
       description: '常時: リアノンいれば攻撃力+1000',
       effect: (context) => {
-        const { currentPlayer, p1Field, p2Field, monsterIndex } = context;
-        const field = currentPlayer === 1 ? p1Field : p2Field;
+        const { monsterIndex } = context;
+        const { myField } = getPlayerContext(context);
 
-        const hasRianon = field.some((monster, idx) =>
+        const hasRianon = myField.some((monster, idx) =>
           monster &&
           idx !== monsterIndex &&
           monster.name &&
@@ -758,9 +737,10 @@ export const lightCardTriggers = {
       activationType: ACTIVATION_TYPES.AUTOMATIC,
       description: 'エンドフェイズ: 相手1体を「雷撃」状態に',
       effect: (context) => {
-        const { p2Field, addLog } = context;
+        const { addLog } = context;
+        const { opponentField } = getPlayerContext(context);
 
-        const opponentMonsters = p2Field.filter((m) => m !== null);
+        const opponentMonsters = opponentField.filter((m) => m !== null);
         if (opponentMonsters.length > 0) {
           addLog('雷嵐の聖域の効果: 相手を「雷撃」状態に（未実装）', 'info');
           // TODO: 状態異常システムの実装が必要
@@ -779,9 +759,10 @@ export const lightCardTriggers = {
       activationType: ACTIVATION_TYPES.AUTOMATIC,
       description: '召喚時: 相手モンスター全体の攻撃力-500',
       effect: (context) => {
-        const { p2Field, setP2Field, addLog } = context;
+        const { addLog } = context;
+        const { opponentField, setOpponentField } = getPlayerContext(context);
 
-        const opponentMonsters = p2Field.filter((m) => m !== null);
+        const opponentMonsters = opponentField.filter((m) => m !== null);
         if (opponentMonsters.length === 0) {
           addLog('ヴォランティス・アルディオンの効果: 相手フィールドにモンスターがいません', 'info');
           return;
@@ -789,7 +770,7 @@ export const lightCardTriggers = {
 
         // 相手モンスター全体の攻撃力を500ダウン
         let count = 0;
-        setP2Field((prev) => {
+        setOpponentField((prev) => {
           return prev.map((monster) => {
             if (monster) {
               count++;
@@ -844,22 +825,18 @@ export const lightCardTriggers = {
       activationType: ACTIVATION_TYPES.OPTIONAL,
       description: '召喚時: 手札1枚捨てて《ヴォランティス》サーチ',
       effect: (context) => {
-        const { currentPlayer, p1Hand, p2Hand, setP1Hand, setP2Hand,
-                setP1Graveyard, setP2Graveyard, addLog } = context;
+        const { addLog } = context;
+        const { myHand, setMyHand, setMyGraveyard } = getPlayerContext(context);
 
-        const hand = currentPlayer === 1 ? p1Hand : p2Hand;
-        const setHand = currentPlayer === 1 ? setP1Hand : setP2Hand;
-        const setGraveyard = currentPlayer === 1 ? setP1Graveyard : setP2Graveyard;
-
-        if (hand.length === 0) {
+        if (myHand.length === 0) {
           addLog('鳥民の供物者・カルディスの効果: 手札がありません', 'info');
           return;
         }
 
         // 手札の最初のカードを墓地に送る
-        const discardCard = hand[0];
-        setHand((prev) => prev.filter((c) => c.uniqueId !== discardCard.uniqueId));
-        setGraveyard((prev) => [...prev, discardCard]);
+        const discardCard = myHand[0];
+        setMyHand((prev) => prev.filter((c) => c.uniqueId !== discardCard.uniqueId));
+        setMyGraveyard((prev) => [...prev, discardCard]);
         addLog(`${discardCard.name}を墓地に送った`, 'info');
 
         // 《ヴォランティス》モンスターをサーチ
@@ -959,10 +936,9 @@ export const lightCardTriggers = {
       activationType: ACTIVATION_TYPES.AUTOMATIC,
       description: 'エンドフェイズ: 《ヴォランティス》いれば500回復',
       effect: (context) => {
-        const { currentPlayer, p1Field, p2Field } = context;
-        const field = currentPlayer === 1 ? p1Field : p2Field;
+        const { myField } = getPlayerContext(context);
 
-        const hasVolantis = field.some((monster) =>
+        const hasVolantis = myField.some((monster) =>
           monster && monster.name && monster.name.includes('ヴォランティス')
         );
 

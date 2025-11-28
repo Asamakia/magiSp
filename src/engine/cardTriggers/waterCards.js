@@ -168,38 +168,29 @@ export const waterCardTriggers = {
         return activeSP >= 4;
       },
       effect: (context) => {
-        const { currentPlayer, p1ActiveSP, p2ActiveSP, setP1ActiveSP, setP2ActiveSP,
-                p1RestedSP, p2RestedSP, setP1RestedSP, setP2RestedSP,
-                p1Field, p2Field, setP1Field, setP2Field,
-                p1Graveyard, p2Graveyard, setP1Graveyard, setP2Graveyard,
-                card, addLog } = context;
+        const { card, addLog } = context;
+        const { myField, setMyField, myActiveSP, setMyActiveSP, setMyRestedSP, setMyGraveyard, currentPlayer } = getPlayerContext(context);
 
-        const activeSP = currentPlayer === 1 ? p1ActiveSP : p2ActiveSP;
-        if (activeSP < 4) {
+        if (myActiveSP < 4) {
           addLog('深海のクラーケンの効果: SPが足りません', 'info');
           return false;
         }
 
         // 空きスロットを探す
-        const field = currentPlayer === 1 ? p1Field : p2Field;
-        const emptySlotIndex = field.findIndex((slot) => slot === null);
+        const emptySlotIndex = myField.findIndex((slot) => slot === null);
         if (emptySlotIndex === -1) {
           addLog('深海のクラーケンの効果: フィールドに空きがありません', 'info');
           return false;
         }
 
         // SPコストを支払う
-        const setActiveSP = currentPlayer === 1 ? setP1ActiveSP : setP2ActiveSP;
-        const setRestedSP = currentPlayer === 1 ? setP1RestedSP : setP2RestedSP;
-        setActiveSP((prev) => prev - 4);
-        setRestedSP((prev) => prev + 4);
+        setMyActiveSP((prev) => prev - 4);
+        setMyRestedSP((prev) => prev + 4);
 
         // 墓地から除外
-        const setGraveyard = currentPlayer === 1 ? setP1Graveyard : setP2Graveyard;
-        setGraveyard((prev) => prev.filter((c) => c.uniqueId !== card.uniqueId));
+        setMyGraveyard((prev) => prev.filter((c) => c.uniqueId !== card.uniqueId));
 
         // フィールドに配置
-        const setField = currentPlayer === 1 ? setP1Field : setP2Field;
         const resurrectedMonster = {
           ...card,
           currentHp: card.hp,
@@ -210,7 +201,7 @@ export const waterCardTriggers = {
           statusEffects: [],
         };
 
-        setField((prev) => {
+        setMyField((prev) => {
           const newField = [...prev];
           newField[emptySlotIndex] = resurrectedMonster;
           return newField;
@@ -232,16 +223,11 @@ export const waterCardTriggers = {
       activationType: ACTIVATION_TYPES.AUTOMATIC,
       description: '召喚時: 手札の水属性モンスター1体のコスト-1（エンドフェイズまで）',
       effect: (context) => {
-        const {
-          currentPlayer, p1Hand, p2Hand, setP1Hand, setP2Hand,
-          addLog, setPendingHandSelection,
-        } = context;
-
-        const hand = currentPlayer === 1 ? p1Hand : p2Hand;
-        const setHand = currentPlayer === 1 ? setP1Hand : setP2Hand;
+        const { addLog, setPendingHandSelection } = context;
+        const { myHand, setMyHand } = getPlayerContext(context);
 
         // 水属性モンスターをフィルタ
-        const waterMonsters = hand.filter(c => c.type === 'monster' && c.attribute === '水');
+        const waterMonsters = myHand.filter(c => c.type === 'monster' && c.attribute === '水');
 
         if (waterMonsters.length === 0) {
           addLog('水晶のマーメイドの効果: 手札に水属性モンスターがありません', 'info');
@@ -251,7 +237,7 @@ export const waterCardTriggers = {
         // 1体のみの場合は自動選択
         if (waterMonsters.length === 1) {
           const targetCard = waterMonsters[0];
-          setHand(prev => prev.map(c =>
+          setMyHand(prev => prev.map(c =>
             c.uniqueId === targetCard.uniqueId
               ? {
                   ...c,
@@ -271,7 +257,7 @@ export const waterCardTriggers = {
             message: 'コストを1軽減する水属性モンスターを選択してください',
             filter: (card) => card.type === 'monster' && card.attribute === '水',
             callback: (selectedCard) => {
-              setHand(prev => prev.map(c =>
+              setMyHand(prev => prev.map(c =>
                 c.uniqueId === selectedCard.uniqueId
                   ? {
                       ...c,
@@ -289,7 +275,7 @@ export const waterCardTriggers = {
 
         // フォールバック: 最初の水属性モンスターを選択
         const targetCard = waterMonsters[0];
-        setHand(prev => prev.map(c =>
+        setMyHand(prev => prev.map(c =>
           c.uniqueId === targetCard.uniqueId
             ? {
                 ...c,
@@ -315,16 +301,12 @@ export const waterCardTriggers = {
       description: '墓地・エンドフェイズ: レストSP1個をアクティブに',
       priority: TRIGGER_PRIORITIES.NORMAL,
       effect: (context) => {
-        const { currentPlayer, p1RestedSP, p2RestedSP, setP1RestedSP, setP2RestedSP,
-                setP1ActiveSP, setP2ActiveSP, addLog } = context;
+        const { addLog } = context;
+        const { myRestedSP, setMyRestedSP, setMyActiveSP } = getPlayerContext(context);
 
-        const restedSP = currentPlayer === 1 ? p1RestedSP : p2RestedSP;
-
-        if (restedSP > 0) {
-          const setRestedSP = currentPlayer === 1 ? setP1RestedSP : setP2RestedSP;
-          const setActiveSP = currentPlayer === 1 ? setP1ActiveSP : setP2ActiveSP;
-          setRestedSP((prev) => prev - 1);
-          setActiveSP((prev) => prev + 1);
+        if (myRestedSP > 0) {
+          setMyRestedSP((prev) => prev - 1);
+          setMyActiveSP((prev) => prev + 1);
           addLog('海流の守護者の墓地効果: レストSP1個をアクティブにした', 'info');
         } else {
           addLog('海流の守護者の墓地効果: レスト状態のSPがありません', 'info');
@@ -346,16 +328,12 @@ export const waterCardTriggers = {
       activationType: ACTIVATION_TYPES.AUTOMATIC,
       description: 'エンドフェイズ: レストSP1個をアクティブに',
       effect: (context) => {
-        const { currentPlayer, p1RestedSP, p2RestedSP, setP1RestedSP, setP2RestedSP,
-                p1ActiveSP, p2ActiveSP, setP1ActiveSP, setP2ActiveSP, addLog } = context;
+        const { addLog } = context;
+        const { myRestedSP, setMyRestedSP, setMyActiveSP } = getPlayerContext(context);
 
-        const restedSP = currentPlayer === 1 ? p1RestedSP : p2RestedSP;
-        const setRestedSP = currentPlayer === 1 ? setP1RestedSP : setP2RestedSP;
-        const setActiveSP = currentPlayer === 1 ? setP1ActiveSP : setP2ActiveSP;
-
-        if (restedSP > 0) {
-          setRestedSP((prev) => prev - 1);
-          setActiveSP((prev) => prev + 1);
+        if (myRestedSP > 0) {
+          setMyRestedSP((prev) => prev - 1);
+          setMyActiveSP((prev) => prev + 1);
           addLog('母なる大海の効果: レストSP1個をアクティブにした', 'info');
         }
       },
@@ -365,9 +343,8 @@ export const waterCardTriggers = {
       activationType: ACTIVATION_TYPES.AUTOMATIC,
       description: 'エンドフェイズ: 凍結モンスターいれば相手に300ダメージ',
       effect: (context) => {
-        const { currentPlayer, p1Field, p2Field, addLog } = context;
-        // 相手フィールドをチェック
-        const opponentField = currentPlayer === 1 ? p2Field : p1Field;
+        const { addLog } = context;
+        const { opponentField } = getPlayerContext(context);
 
         // 凍結状態のモンスターがいるかチェック
         const frozenMonsters = opponentField.filter(monster =>
@@ -421,10 +398,10 @@ export const waterCardTriggers = {
       activationType: ACTIVATION_TYPES.AUTOMATIC,
       description: 'エンドフェイズ: 水属性3体以上で相手に500',
       effect: (context) => {
-        const { currentPlayer, p1Field, p2Field, addLog } = context;
-        const field = currentPlayer === 1 ? p1Field : p2Field;
+        const { addLog } = context;
+        const { myField } = getPlayerContext(context);
 
-        const waterCount = field.filter((monster) =>
+        const waterCount = myField.filter((monster) =>
           monster && monster.attribute === '水'
         ).length;
 
@@ -446,21 +423,15 @@ export const waterCardTriggers = {
       activationType: ACTIVATION_TYPES.AUTOMATIC,
       description: '召喚時: 《ブリザード》/《猫》魔法をサーチ',
       effect: (context) => {
-        const {
-          currentPlayer, p1Deck, p2Deck, setP1Deck, setP2Deck,
-          setP1Hand, setP2Hand, addLog, setPendingDeckReview,
-        } = context;
-
-        const deck = currentPlayer === 1 ? p1Deck : p2Deck;
-        const setDeck = currentPlayer === 1 ? setP1Deck : setP2Deck;
-        const setHand = currentPlayer === 1 ? setP1Hand : setP2Hand;
+        const { addLog, setPendingDeckReview } = context;
+        const { myDeck, setMyDeck, setMyHand } = getPlayerContext(context);
 
         // 対象カードをフィルタ
         const targetFilter = (card) =>
           card.type === 'magic' &&
           (card.name.includes('ブリザード') || card.name.includes('猫'));
 
-        const matchingCards = deck.filter(targetFilter);
+        const matchingCards = myDeck.filter(targetFilter);
 
         if (matchingCards.length === 0) {
           addLog('ブリザードマスターの効果: 対象カードが見つかりませんでした', 'info');
@@ -470,8 +441,8 @@ export const waterCardTriggers = {
         // 1枚のみの場合は自動選択
         if (matchingCards.length === 1) {
           const targetCard = matchingCards[0];
-          setDeck(prev => prev.filter(c => c.uniqueId !== targetCard.uniqueId));
-          setHand(prev => [...prev, targetCard]);
+          setMyDeck(prev => prev.filter(c => c.uniqueId !== targetCard.uniqueId));
+          setMyHand(prev => [...prev, targetCard]);
           addLog(`ブリザードマスターの効果: ${targetCard.name}を手札に加えた！`, 'heal');
           return;
         }
@@ -490,8 +461,8 @@ export const waterCardTriggers = {
             onSelect: (selectedCards, remainingCards) => {
               if (selectedCards.length > 0) {
                 const selectedCard = selectedCards[0];
-                setDeck(prev => prev.filter(c => c.uniqueId !== selectedCard.uniqueId));
-                setHand(prev => [...prev, selectedCard]);
+                setMyDeck(prev => prev.filter(c => c.uniqueId !== selectedCard.uniqueId));
+                setMyHand(prev => [...prev, selectedCard]);
                 addLog(`ブリザードマスターの効果: ${selectedCard.name}を手札に加えた！`, 'heal');
               }
             },
@@ -504,8 +475,8 @@ export const waterCardTriggers = {
 
         // フォールバック: 最初のカードを選択
         const targetCard = matchingCards[0];
-        setDeck(prev => prev.filter(c => c.uniqueId !== targetCard.uniqueId));
-        setHand(prev => [...prev, targetCard]);
+        setMyDeck(prev => prev.filter(c => c.uniqueId !== targetCard.uniqueId));
+        setMyHand(prev => [...prev, targetCard]);
         addLog(`ブリザードマスターの効果: ${targetCard.name}を手札に加えた！`, 'heal');
       },
     },
@@ -523,20 +494,16 @@ export const waterCardTriggers = {
       priority: TRIGGER_PRIORITIES.NORMAL,
       usedOnce: false, // 1度だけ発動のフラグ
       effect: (context) => {
-        const { currentPlayer, p1Graveyard, p2Graveyard, setP1Graveyard, setP2Graveyard,
-                setP1Hand, setP2Hand, card, addLog } = context;
+        const { card, addLog } = context;
+        const { myGraveyard, setMyGraveyard, setMyHand } = getPlayerContext(context);
 
         // 1度だけの制限チェック（カードにフラグを設定）
         if (card.graveyardEffectUsed) {
           return false; // 既に使用済み
         }
 
-        const graveyard = currentPlayer === 1 ? p1Graveyard : p2Graveyard;
-        const setGraveyard = currentPlayer === 1 ? setP1Graveyard : setP2Graveyard;
-        const setHand = currentPlayer === 1 ? setP1Hand : setP2Hand;
-
         // 墓地から「ブリザードキャット」を探す（自分自身以外）
-        const targetCard = graveyard.find((c) =>
+        const targetCard = myGraveyard.find((c) =>
           c.uniqueId !== card.uniqueId &&
           c.type === 'monster' &&
           c.name &&
@@ -549,7 +516,7 @@ export const waterCardTriggers = {
         }
 
         // 墓地から手札に戻す
-        setGraveyard((prev) => {
+        setMyGraveyard((prev) => {
           // 自分自身にフラグを設定
           return prev.map((c) => {
             if (c.uniqueId === card.uniqueId) {
@@ -558,7 +525,7 @@ export const waterCardTriggers = {
             return c;
           }).filter((c) => c.uniqueId !== targetCard.uniqueId);
         });
-        setHand((prev) => [...prev, targetCard]);
+        setMyHand((prev) => [...prev, targetCard]);
 
         addLog(`氷猫の使い魔の墓地効果: ${targetCard.name}を手札に戻した`, 'info');
         return true;
@@ -645,18 +612,11 @@ export const waterCardTriggers = {
       activationType: ACTIVATION_TYPES.AUTOMATIC,
       description: '召喚時: 《ブリザードキャット》×500ダメージ',
       effect: (context) => {
-        const {
-          currentPlayer, p1Field, p2Field, addLog,
-          setP1Field, setP2Field, setP1Graveyard, setP2Graveyard,
-          setPendingTargetSelection,
-        } = context;
-        const field = currentPlayer === 1 ? p1Field : p2Field;
-        const opponentField = currentPlayer === 1 ? p2Field : p1Field;
-        const setOpponentField = currentPlayer === 1 ? setP2Field : setP1Field;
-        const setOpponentGraveyard = currentPlayer === 1 ? setP2Graveyard : setP1Graveyard;
+        const { addLog, setPendingTargetSelection } = context;
+        const { myField, opponentField, setOpponentField, setOpponentGraveyard } = getPlayerContext(context);
 
         // 場の《ブリザードキャット》をカウント
-        const blizzardCatCount = field.filter((monster) =>
+        const blizzardCatCount = myField.filter((monster) =>
           monster && monster.name && monster.name.includes('ブリザードキャット')
         ).length;
 
@@ -738,10 +698,10 @@ export const waterCardTriggers = {
       activationType: ACTIVATION_TYPES.AUTOMATIC,
       description: '常時: 《ブリザードマスター》いる時攻撃力+1000',
       effect: (context) => {
-        const { currentPlayer, p1Field, p2Field, monsterIndex } = context;
-        const field = currentPlayer === 1 ? p1Field : p2Field;
+        const { monsterIndex } = context;
+        const { myField } = getPlayerContext(context);
 
-        const hasBlizzardMaster = field.some((monster, idx) =>
+        const hasBlizzardMaster = myField.some((monster, idx) =>
           monster &&
           idx !== monsterIndex &&
           monster.name &&
@@ -776,10 +736,8 @@ export const waterCardTriggers = {
       activationType: ACTIVATION_TYPES.AUTOMATIC,
       description: 'エンドフェイズ: 相手モンスター1体の攻撃力-300',
       effect: (context) => {
-        const { currentPlayer, p1Field, p2Field, addLog } = context;
-
-        // currentPlayerに基づいて相手フィールドを取得
-        const opponentField = currentPlayer === 1 ? p2Field : p1Field;
+        const { addLog } = context;
+        const { opponentField } = getPlayerContext(context);
         const opponentMonsters = opponentField.filter((m) => m !== null);
         if (opponentMonsters.length === 0) {
           addLog('氷猫の聖域の効果: 相手フィールドにモンスターがいません', 'info');
@@ -807,31 +765,26 @@ export const waterCardTriggers = {
       activationType: ACTIVATION_TYPES.AUTOMATIC,
       description: 'エンドフェイズ: 水属性いれば相手に200、《ブリザードキャット》2体以上でSP回復',
       effect: (context) => {
-        const { currentPlayer, p1Field, p2Field, p1RestedSP, p2RestedSP,
-                setP1RestedSP, setP2RestedSP, setP1ActiveSP, setP2ActiveSP, addLog } = context;
-        const field = currentPlayer === 1 ? p1Field : p2Field;
+        const { addLog } = context;
+        const { myField, myRestedSP, setMyRestedSP, setMyActiveSP } = getPlayerContext(context);
 
         // 水属性モンスターチェック
-        const hasWater = field.some((monster) => monster && monster.attribute === '水');
+        const hasWater = myField.some((monster) => monster && monster.attribute === '水');
         if (hasWater) {
           addLog('凍結の猫森の効果: 相手に200ダメージ', 'damage');
           conditionalDamage(context, 200, 'opponent');
         }
 
         // 《ブリザードキャット》2体以上チェック
-        const blizzardCatCount = field.filter((monster) =>
+        const blizzardCatCount = myField.filter((monster) =>
           monster && monster.name && monster.name.includes('ブリザードキャット')
         ).length;
 
         if (blizzardCatCount >= 2) {
-          const restedSP = currentPlayer === 1 ? p1RestedSP : p2RestedSP;
-          const setRestedSP = currentPlayer === 1 ? setP1RestedSP : setP2RestedSP;
-          const setActiveSP = currentPlayer === 1 ? setP1ActiveSP : setP2ActiveSP;
-
-          const toActivate = Math.min(restedSP, 2);
+          const toActivate = Math.min(myRestedSP, 2);
           if (toActivate > 0) {
-            setRestedSP((prev) => prev - toActivate);
-            setActiveSP((prev) => prev + toActivate);
+            setMyRestedSP((prev) => prev - toActivate);
+            setMyActiveSP((prev) => prev + toActivate);
             addLog(`凍結の猫森の効果: レストSP${toActivate}個をアクティブにした`, 'info');
           }
         }
@@ -959,10 +912,11 @@ export const waterCardTriggers = {
       activationType: ACTIVATION_TYPES.AUTOMATIC,
       description: '召喚時: 相手モンスター全ての攻撃力-500',
       effect: (context) => {
-        const { p2Field, setP2Field, addLog } = context;
+        const { addLog } = context;
+        const { setOpponentField } = getPlayerContext(context);
 
         let affected = 0;
-        setP2Field((prev) => {
+        setOpponentField((prev) => {
           return prev.map((monster) => {
             if (monster) {
               affected++;
@@ -993,16 +947,11 @@ export const waterCardTriggers = {
       activationType: ACTIVATION_TYPES.OPTIONAL,
       description: '召喚時: 墓地の『アクアレギア』をデッキに戻しSP回復',
       effect: (context) => {
-        const { currentPlayer, p1Graveyard, p2Graveyard, setP1Graveyard, setP2Graveyard,
-                p1Deck, p2Deck, setP1Deck, setP2Deck, p1RestedSP, p2RestedSP,
-                setP1RestedSP, setP2RestedSP, setP1ActiveSP, setP2ActiveSP, addLog } = context;
-
-        const graveyard = currentPlayer === 1 ? p1Graveyard : p2Graveyard;
-        const setGraveyard = currentPlayer === 1 ? setP1Graveyard : setP2Graveyard;
-        const setDeck = currentPlayer === 1 ? setP1Deck : setP2Deck;
+        const { addLog } = context;
+        const { myGraveyard, setMyGraveyard, setMyDeck, myRestedSP, setMyRestedSP, setMyActiveSP } = getPlayerContext(context);
 
         // 墓地から『アクアレギア』を探す
-        const targetCard = graveyard.find((card) =>
+        const targetCard = myGraveyard.find((card) =>
           card.type === 'monster' && card.name && card.name.includes('アクアレギア')
         );
 
@@ -1012,16 +961,13 @@ export const waterCardTriggers = {
         }
 
         // 墓地からデッキに戻す
-        setGraveyard((prev) => prev.filter((c) => c.uniqueId !== targetCard.uniqueId));
-        setDeck((prev) => [...prev, targetCard]);
+        setMyGraveyard((prev) => prev.filter((c) => c.uniqueId !== targetCard.uniqueId));
+        setMyDeck((prev) => [...prev, targetCard]);
 
         // レストSPをアクティブに
-        const restedSP = currentPlayer === 1 ? p1RestedSP : p2RestedSP;
-        if (restedSP > 0) {
-          const setRestedSP = currentPlayer === 1 ? setP1RestedSP : setP2RestedSP;
-          const setActiveSP = currentPlayer === 1 ? setP1ActiveSP : setP2ActiveSP;
-          setRestedSP((prev) => prev - 1);
-          setActiveSP((prev) => prev + 1);
+        if (myRestedSP > 0) {
+          setMyRestedSP((prev) => prev - 1);
+          setMyActiveSP((prev) => prev + 1);
           addLog(`${targetCard.name}をデッキに戻し、レストSP1個をアクティブにした`, 'info');
         }
       },
@@ -1038,15 +984,11 @@ export const waterCardTriggers = {
       activationType: ACTIVATION_TYPES.AUTOMATIC,
       description: '召喚時: 墓地の『アクアレギア』の攻撃力半分をHPに加算',
       effect: (context) => {
-        const { currentPlayer, p1Graveyard, p2Graveyard, monsterIndex,
-                p1Field, p2Field, setP1Field, setP2Field, addLog } = context;
-
-        const graveyard = currentPlayer === 1 ? p1Graveyard : p2Graveyard;
-        const field = currentPlayer === 1 ? p1Field : p2Field;
-        const setField = currentPlayer === 1 ? setP1Field : setP2Field;
+        const { monsterIndex, addLog } = context;
+        const { myGraveyard, myField, setMyField } = getPlayerContext(context);
 
         // 墓地から『アクアレギア』を探す
-        const targetCard = graveyard.find((card) =>
+        const targetCard = myGraveyard.find((card) =>
           card.type === 'monster' && card.name && card.name.includes('アクアレギア')
         );
 
@@ -1057,7 +999,7 @@ export const waterCardTriggers = {
 
         const hpBonus = Math.min(Math.floor(targetCard.attack / 2), 1000);
 
-        setField((prev) => {
+        setMyField((prev) => {
           return prev.map((monster, idx) => {
             if (idx === monsterIndex && monster) {
               addLog(`アクアレギナの守護者の効果: HPを${hpBonus}増加`, 'info');
@@ -1095,15 +1037,11 @@ export const waterCardTriggers = {
       activationType: ACTIVATION_TYPES.OPTIONAL,
       description: 'エンドフェイズ: 墓地の『アクアレギナ』を手札に',
       effect: (context) => {
-        const { currentPlayer, p1Graveyard, p2Graveyard, setP1Graveyard, setP2Graveyard,
-                setP1Hand, setP2Hand, addLog } = context;
-
-        const graveyard = currentPlayer === 1 ? p1Graveyard : p2Graveyard;
-        const setGraveyard = currentPlayer === 1 ? setP1Graveyard : setP2Graveyard;
-        const setHand = currentPlayer === 1 ? setP1Hand : setP2Hand;
+        const { addLog } = context;
+        const { myGraveyard, setMyGraveyard, setMyHand } = getPlayerContext(context);
 
         // 墓地から『アクアレギナ』を探す
-        const targetCard = graveyard.find((card) =>
+        const targetCard = myGraveyard.find((card) =>
           card.type === 'monster' && card.name && card.name.includes('アクアレギナ')
         );
 
@@ -1113,8 +1051,8 @@ export const waterCardTriggers = {
         }
 
         // 墓地から手札に戻す
-        setGraveyard((prev) => prev.filter((c) => c.uniqueId !== targetCard.uniqueId));
-        setHand((prev) => [...prev, targetCard]);
+        setMyGraveyard((prev) => prev.filter((c) => c.uniqueId !== targetCard.uniqueId));
+        setMyHand((prev) => [...prev, targetCard]);
         addLog(`${targetCard.name}を手札に戻した`, 'info');
       },
     },
@@ -1189,31 +1127,23 @@ export const waterCardTriggers = {
       activationType: ACTIVATION_TYPES.OPTIONAL,
       description: '召喚時: 手札1枚をデッキに戻しSP回復',
       effect: (context) => {
-        const { currentPlayer, p1Hand, p2Hand, setP1Hand, setP2Hand,
-                p1Deck, p2Deck, setP1Deck, setP2Deck, p1RestedSP, p2RestedSP,
-                setP1RestedSP, setP2RestedSP, setP1ActiveSP, setP2ActiveSP, addLog } = context;
+        const { addLog } = context;
+        const { myHand, setMyHand, setMyDeck, myRestedSP, setMyRestedSP, setMyActiveSP } = getPlayerContext(context);
 
-        const hand = currentPlayer === 1 ? p1Hand : p2Hand;
-        const setHand = currentPlayer === 1 ? setP1Hand : setP2Hand;
-        const setDeck = currentPlayer === 1 ? setP1Deck : setP2Deck;
-
-        if (hand.length === 0) {
+        if (myHand.length === 0) {
           addLog('虹羽密林の霧花蛙・ヴェルミナの効果: 手札がありません', 'info');
           return;
         }
 
         // 最初のカードをデッキに戻す（UIで選択させるべきだが、簡略化）
-        const returnedCard = hand[0];
-        setHand((prev) => prev.slice(1));
-        setDeck((prev) => [...prev, returnedCard]);
+        const returnedCard = myHand[0];
+        setMyHand((prev) => prev.slice(1));
+        setMyDeck((prev) => [...prev, returnedCard]);
 
         // レストSPをアクティブに
-        const restedSP = currentPlayer === 1 ? p1RestedSP : p2RestedSP;
-        if (restedSP > 0) {
-          const setRestedSP = currentPlayer === 1 ? setP1RestedSP : setP2RestedSP;
-          const setActiveSP = currentPlayer === 1 ? setP1ActiveSP : setP2ActiveSP;
-          setRestedSP((prev) => prev - 1);
-          setActiveSP((prev) => prev + 1);
+        if (myRestedSP > 0) {
+          setMyRestedSP((prev) => prev - 1);
+          setMyActiveSP((prev) => prev + 1);
           addLog(`${returnedCard.name}をデッキに戻し、レストSP1個をアクティブにした`, 'info');
         }
       },
@@ -1230,20 +1160,17 @@ export const waterCardTriggers = {
       activationType: ACTIVATION_TYPES.AUTOMATIC,
       description: '召喚時: 1枚ミル、《虹羽密林》ならSP回復',
       effect: (context) => {
-        const { currentPlayer, p1RestedSP, p2RestedSP, setP1RestedSP, setP2RestedSP,
-                setP1ActiveSP, setP2ActiveSP, addLog } = context;
+        const { addLog } = context;
+        const { myRestedSP, setMyRestedSP, setMyActiveSP } = getPlayerContext(context);
 
         const milledCards = millDeck(context, 1);
 
         if (milledCards.length > 0) {
           const card = milledCards[0];
           if (card.name && card.name.includes('虹羽密林')) {
-            const restedSP = currentPlayer === 1 ? p1RestedSP : p2RestedSP;
-            if (restedSP > 0) {
-              const setRestedSP = currentPlayer === 1 ? setP1RestedSP : setP2RestedSP;
-              const setActiveSP = currentPlayer === 1 ? setP1ActiveSP : setP2ActiveSP;
-              setRestedSP((prev) => prev - 1);
-              setActiveSP((prev) => prev + 1);
+            if (myRestedSP > 0) {
+              setMyRestedSP((prev) => prev - 1);
+              setMyActiveSP((prev) => prev + 1);
               addLog('虹羽密林の青滴虫・サルフィスの効果: レストSP1個をアクティブにした', 'info');
             }
           }
@@ -1262,11 +1189,11 @@ export const waterCardTriggers = {
       activationType: ACTIVATION_TYPES.AUTOMATIC,
       description: '常時: 《虹羽密林》1体につき攻撃力+500',
       effect: (context) => {
-        const { currentPlayer, p1Field, p2Field, monsterIndex } = context;
-        const field = currentPlayer === 1 ? p1Field : p2Field;
+        const { monsterIndex } = context;
+        const { myField } = getPlayerContext(context);
 
         // 場の《虹羽密林》をカウント（自分自身を除く）
-        const rainbowFeatherCount = field.filter((monster, idx) =>
+        const rainbowFeatherCount = myField.filter((monster, idx) =>
           monster &&
           idx !== monsterIndex &&
           monster.name &&
@@ -1340,15 +1267,11 @@ export const waterCardTriggers = {
       activationType: ACTIVATION_TYPES.AUTOMATIC,
       description: '破壊時: 墓地の水属性カード1枚を手札に',
       effect: (context) => {
-        const { currentPlayer, p1Graveyard, p2Graveyard, setP1Graveyard, setP2Graveyard,
-                setP1Hand, setP2Hand, addLog } = context;
-
-        const graveyard = currentPlayer === 1 ? p1Graveyard : p2Graveyard;
-        const setGraveyard = currentPlayer === 1 ? setP1Graveyard : setP2Graveyard;
-        const setHand = currentPlayer === 1 ? setP1Hand : setP2Hand;
+        const { addLog } = context;
+        const { myGraveyard, setMyGraveyard, setMyHand } = getPlayerContext(context);
 
         // 墓地から水属性カードを探す
-        const targetCard = graveyard.find((card) => card.attribute === '水');
+        const targetCard = myGraveyard.find((card) => card.attribute === '水');
 
         if (!targetCard) {
           addLog('黒涙の山椒魚サラマグナの効果: 墓地に水属性カードがありません', 'info');
@@ -1356,8 +1279,8 @@ export const waterCardTriggers = {
         }
 
         // 墓地から手札に戻す
-        setGraveyard((prev) => prev.filter((c) => c.uniqueId !== targetCard.uniqueId));
-        setHand((prev) => [...prev, targetCard]);
+        setMyGraveyard((prev) => prev.filter((c) => c.uniqueId !== targetCard.uniqueId));
+        setMyHand((prev) => [...prev, targetCard]);
         addLog(`${targetCard.name}を手札に戻した`, 'info');
       },
     },

@@ -54,14 +54,11 @@ export const darkCardTriggers = {
       activationType: ACTIVATION_TYPES.AUTOMATIC,
       description: 'バトルフェイズ開始時: 闇属性がいれば相手全体に500ダメージ',
       effect: (context) => {
-        const { currentPlayer, p1Field, p2Field, setP1Field, setP2Field,
-                p1Graveyard, p2Graveyard, setP1Graveyard, setP2Graveyard,
-                slotIndex, addLog } = context;
-
-        const currentField = currentPlayer === 1 ? p1Field : p2Field;
+        const { slotIndex, addLog } = context;
+        const { myField, opponentField, setOpponentField } = getPlayerContext(context);
 
         // Check if there are other dark attribute monsters on the field
-        const hasDarkMonster = currentField.some((monster, index) =>
+        const hasDarkMonster = myField.some((monster, index) =>
           monster && monster.attribute === '闇' && index !== slotIndex
         );
 
@@ -71,9 +68,6 @@ export const darkCardTriggers = {
         }
 
         // Deal 500 damage to all opponent monsters
-        const opponentField = currentPlayer === 1 ? p2Field : p1Field;
-        const setOpponentField = currentPlayer === 1 ? setP2Field : setP1Field;
-        const setOpponentGraveyard = currentPlayer === 1 ? setP2Graveyard : setP1Graveyard;
 
         let destroyedCount = 0;
 
@@ -132,12 +126,8 @@ export const darkCardTriggers = {
       activationType: ACTIVATION_TYPES.AUTOMATIC,
       description: '自壊時: 相手モンスター1体に1200ダメージ',
       effect: (context) => {
-        const { currentPlayer, p1Field, p2Field, setP1Field, setP2Field,
-                p1Graveyard, p2Graveyard, setP1Graveyard, setP2Graveyard, addLog } = context;
-
-        const opponentField = currentPlayer === 1 ? p2Field : p1Field;
-        const setOpponentField = currentPlayer === 1 ? setP2Field : setP1Field;
-        const setOpponentGraveyard = currentPlayer === 1 ? setP2Graveyard : setP1Graveyard;
+        const { addLog } = context;
+        const { opponentField, setOpponentField, setOpponentGraveyard } = getPlayerContext(context);
 
         const targetIndex = opponentField.findIndex((m) => m !== null);
 
@@ -234,15 +224,8 @@ export const darkCardTriggers = {
       activationType: ACTIVATION_TYPES.OPTIONAL,
       description: 'メインフェイズ: リリースして相手モンスター1体の攻撃力半減',
       effect: (context) => {
-        const { currentPlayer, slotIndex, p1Field, p2Field, setP1Field, setP2Field,
-                p1Graveyard, p2Graveyard, setP1Graveyard, setP2Graveyard, addLog } = context;
-
-        const currentField = currentPlayer === 1 ? p1Field : p2Field;
-        const setCurrentField = currentPlayer === 1 ? setP1Field : setP2Field;
-        const setCurrentGraveyard = currentPlayer === 1 ? setP1Graveyard : setP2Graveyard;
-
-        const opponentField = currentPlayer === 1 ? p2Field : p1Field;
-        const setOpponentField = currentPlayer === 1 ? setP2Field : setP1Field;
+        const { slotIndex, addLog } = context;
+        const { myField, setMyField, setMyGraveyard, opponentField, setOpponentField } = getPlayerContext(context);
 
         // Find first monster on opponent's field to halve attack
         const targetIndex = opponentField.findIndex((m) => m !== null);
@@ -253,18 +236,18 @@ export const darkCardTriggers = {
         }
 
         // Release this card (send to graveyard)
-        const thisCard = currentField[slotIndex];
+        const thisCard = myField[slotIndex];
         if (!thisCard) {
           addLog('カードが見つからない', 'info');
           return;
         }
 
-        setCurrentField((prev) => {
+        setMyField((prev) => {
           const newField = [...prev];
           newField[slotIndex] = null;
           return newField;
         });
-        setCurrentGraveyard((prev) => [...prev, thisCard]);
+        setMyGraveyard((prev) => [...prev, thisCard]);
 
         // Halve opponent monster's attack
         const target = opponentField[targetIndex];
@@ -310,10 +293,8 @@ export const darkCardTriggers = {
       activationType: ACTIVATION_TYPES.AUTOMATIC,
       description: '攻撃時: 相手墓地カード1枚除外、コスト×100ダメージ',
       effect: (context) => {
-        const { currentPlayer, p1Graveyard, p2Graveyard, setP1Graveyard, setP2Graveyard, addLog } = context;
-
-        const opponentGraveyard = currentPlayer === 1 ? p2Graveyard : p1Graveyard;
-        const setOpponentGraveyard = currentPlayer === 1 ? setP2Graveyard : setP1Graveyard;
+        const { addLog } = context;
+        const { opponentGraveyard, setOpponentGraveyard } = getPlayerContext(context);
 
         if (opponentGraveyard.length > 0) {
           // Banish the first card from opponent's graveyard
@@ -343,13 +324,8 @@ export const darkCardTriggers = {
       activationType: ACTIVATION_TYPES.AUTOMATIC,
       description: '召喚時: 相手手札1枚がモンスターなら墓地へ',
       effect: (context) => {
-        const { currentPlayer, p1Hand, p2Hand, setP1Hand, setP2Hand,
-                p1Graveyard, p2Graveyard, setP1Graveyard, setP2Graveyard, addLog } = context;
-
-        const opponentHand = currentPlayer === 1 ? p2Hand : p1Hand;
-        const setOpponentHand = currentPlayer === 1 ? setP2Hand : setP1Hand;
-        const opponentGraveyard = currentPlayer === 1 ? p2Graveyard : p1Graveyard;
-        const setOpponentGraveyard = currentPlayer === 1 ? setP2Graveyard : setP1Graveyard;
+        const { addLog } = context;
+        const { opponentHand, setOpponentHand, setOpponentGraveyard } = getPlayerContext(context);
 
         if (opponentHand.length > 0) {
           // Select a random card from opponent's hand
@@ -400,12 +376,8 @@ export const darkCardTriggers = {
       activationType: ACTIVATION_TYPES.AUTOMATIC,
       description: '召喚時: 相手モンスター1体に800ダメージ',
       effect: (context) => {
-        const { currentPlayer, p1Field, p2Field, setP1Field, setP2Field,
-                p1Graveyard, p2Graveyard, setP1Graveyard, setP2Graveyard, addLog } = context;
-
-        const opponentField = currentPlayer === 1 ? p2Field : p1Field;
-        const setOpponentField = currentPlayer === 1 ? setP2Field : setP1Field;
-        const setOpponentGraveyard = currentPlayer === 1 ? setP2Graveyard : setP1Graveyard;
+        const { addLog } = context;
+        const { opponentField, setOpponentField, setOpponentGraveyard } = getPlayerContext(context);
 
         // Find first monster on opponent's field
         const targetIndex = opponentField.findIndex((m) => m !== null);
@@ -451,15 +423,15 @@ export const darkCardTriggers = {
       activationType: ACTIVATION_TYPES.AUTOMATIC,
       description: '召喚時: 全モンスターに3000、破壊数×300、相手効果無効化',
       effect: (context) => {
-        const { currentPlayer, slotIndex, p1Field, p2Field, setP1Field, setP2Field,
-                p1Graveyard, p2Graveyard, setP1Graveyard, setP2Graveyard, addLog } = context;
+        const { slotIndex, addLog } = context;
+        const { setMyField, setOpponentField } = getPlayerContext(context);
 
         let destroyedCount = 0;
 
         // Damage all own monsters except Black Oracle
-        setP1Field((prev) => {
+        setMyField((prev) => {
           return prev.map((monster, index) => {
-            if (monster && !(currentPlayer === 1 && index === slotIndex)) {
+            if (monster && index !== slotIndex) {
               const newHp = monster.currentHp - 3000;
               if (newHp <= 0) {
                 destroyedCount++;
@@ -472,9 +444,10 @@ export const darkCardTriggers = {
           });
         });
 
-        setP2Field((prev) => {
-          return prev.map((monster, index) => {
-            if (monster && !(currentPlayer === 2 && index === slotIndex)) {
+        // Damage all opponent monsters
+        setOpponentField((prev) => {
+          return prev.map((monster) => {
+            if (monster) {
               const newHp = monster.currentHp - 3000;
               if (newHp <= 0) {
                 destroyedCount++;
@@ -504,33 +477,25 @@ export const darkCardTriggers = {
       activationType: ACTIVATION_TYPES.AUTOMATIC,
       description: '破壊時: 自ライフ3000減、闇属性1体特殊召喚',
       effect: (context) => {
-        const { currentPlayer, p1Life, p2Life, setP1Life, setP2Life,
-                p1Deck, p2Deck, setP1Deck, setP2Deck,
-                p1Field, p2Field, setP1Field, setP2Field, addLog } = context;
+        const { addLog } = context;
+        const { myLife, setMyLife, myDeck, setMyDeck, myField, setMyField, currentPlayer } = getPlayerContext(context);
 
         // Reduce own life by 3000
-        const currentLife = currentPlayer === 1 ? p1Life : p2Life;
-        const setLife = currentPlayer === 1 ? setP1Life : setP2Life;
-        const newLife = Math.max(0, currentLife - 3000);
-        setLife(newLife);
-        addLog(`ライフが3000減少！(${currentLife} → ${newLife})`, 'damage');
+        const newLife = Math.max(0, myLife - 3000);
+        setMyLife(newLife);
+        addLog(`ライフが3000減少！(${myLife} → ${newLife})`, 'damage');
 
         // Special summon a dark attribute monster from deck
-        const currentDeck = currentPlayer === 1 ? p1Deck : p2Deck;
-        const setDeck = currentPlayer === 1 ? setP1Deck : setP2Deck;
-        const currentField = currentPlayer === 1 ? p1Field : p2Field;
-        const setField = currentPlayer === 1 ? setP1Field : setP2Field;
-
-        const darkMonster = currentDeck.find((card) =>
+        const darkMonster = myDeck.find((card) =>
           card.type === 'monster' && card.attribute === '闇'
         );
 
         if (darkMonster) {
-          const emptySlotIndex = currentField.findIndex((slot) => slot === null);
+          const emptySlotIndex = myField.findIndex((slot) => slot === null);
 
           if (emptySlotIndex !== -1) {
-            setDeck((prev) => prev.filter((c) => c.id !== darkMonster.id));
-            setField((prev) => {
+            setMyDeck((prev) => prev.filter((c) => c.id !== darkMonster.id));
+            setMyField((prev) => {
               const newField = [...prev];
               newField[emptySlotIndex] = {
                 ...darkMonster,
@@ -565,12 +530,8 @@ export const darkCardTriggers = {
       activationType: ACTIVATION_TYPES.AUTOMATIC,
       description: '召喚時: 相手のコスト3以下モンスター1体の支配権奪取',
       effect: (context) => {
-        const { currentPlayer, p1Field, p2Field, setP1Field, setP2Field, addLog } = context;
-
-        const opponentField = currentPlayer === 1 ? p2Field : p1Field;
-        const setOpponentField = currentPlayer === 1 ? setP2Field : setP1Field;
-        const currentField = currentPlayer === 1 ? p1Field : p2Field;
-        const setCurrentField = currentPlayer === 1 ? setP1Field : setP2Field;
+        const { addLog } = context;
+        const { myField, setMyField, opponentField, setOpponentField } = getPlayerContext(context);
 
         // Find first eligible monster (cost 3 or less, not forbidden)
         const targetIndex = opponentField.findIndex((monster) =>
@@ -581,7 +542,7 @@ export const darkCardTriggers = {
 
         if (targetIndex !== -1) {
           const stolenMonster = opponentField[targetIndex];
-          const emptySlotIndex = currentField.findIndex((slot) => slot === null);
+          const emptySlotIndex = myField.findIndex((slot) => slot === null);
 
           if (emptySlotIndex !== -1) {
             // Remove from opponent's field
@@ -592,7 +553,7 @@ export const darkCardTriggers = {
             });
 
             // Add to own field
-            setCurrentField((prev) => {
+            setMyField((prev) => {
               const newField = [...prev];
               newField[emptySlotIndex] = stolenMonster;
               return newField;
@@ -667,12 +628,8 @@ export const darkCardTriggers = {
       activationType: ACTIVATION_TYPES.AUTOMATIC,
       description: '自壊時: 相手フィールド全体に1000ダメージ',
       effect: (context) => {
-        const { currentPlayer, p1Field, p2Field, setP1Field, setP2Field,
-                p1Graveyard, p2Graveyard, setP1Graveyard, setP2Graveyard, addLog } = context;
-
-        const opponentField = currentPlayer === 1 ? p2Field : p1Field;
-        const setOpponentField = currentPlayer === 1 ? setP2Field : setP1Field;
-        const setOpponentGraveyard = currentPlayer === 1 ? setP2Graveyard : setP1Graveyard;
+        const { addLog } = context;
+        const { setOpponentField } = getPlayerContext(context);
 
         let destroyedCount = 0;
 
@@ -706,12 +663,8 @@ export const darkCardTriggers = {
       activationType: ACTIVATION_TYPES.AUTOMATIC,
       description: '召喚時: 相手モンスター1体に300ダメージ',
       effect: (context) => {
-        const { currentPlayer, p1Field, p2Field, setP1Field, setP2Field,
-                p1Graveyard, p2Graveyard, setP1Graveyard, setP2Graveyard, addLog } = context;
-
-        const opponentField = currentPlayer === 1 ? p2Field : p1Field;
-        const setOpponentField = currentPlayer === 1 ? setP2Field : setP1Field;
-        const setOpponentGraveyard = currentPlayer === 1 ? setP2Graveyard : setP1Graveyard;
+        const { addLog } = context;
+        const { opponentField, setOpponentField, setOpponentGraveyard } = getPlayerContext(context);
 
         // Find first monster on opponent's field
         const targetIndex = opponentField.findIndex((m) => m !== null);
@@ -753,10 +706,8 @@ export const darkCardTriggers = {
       activationType: ACTIVATION_TYPES.AUTOMATIC,
       description: '召喚時: 相手全モンスターの攻撃力-300',
       effect: (context) => {
-        const { currentPlayer, p1Field, p2Field, setP1Field, setP2Field, addLog } = context;
-
-        const opponentField = currentPlayer === 1 ? p2Field : p1Field;
-        const setOpponentField = currentPlayer === 1 ? setP2Field : setP1Field;
+        const { addLog } = context;
+        const { setOpponentField } = getPlayerContext(context);
 
         let affectedCount = 0;
 
@@ -818,16 +769,12 @@ export const darkCardTriggers = {
       activationType: ACTIVATION_TYPES.AUTOMATIC,
       description: '召喚時: SPトークン1つをアクティブ化',
       effect: (context) => {
-        const { currentPlayer, p1ActiveSP, p2ActiveSP, setP1ActiveSP, setP2ActiveSP,
-                p1RestedSP, p2RestedSP, setP1RestedSP, setP2RestedSP, addLog } = context;
+        const { addLog } = context;
+        const { myRestedSP, setMyActiveSP, setMyRestedSP } = getPlayerContext(context);
 
-        const restedSP = currentPlayer === 1 ? p1RestedSP : p2RestedSP;
-        const setActiveSP = currentPlayer === 1 ? setP1ActiveSP : setP2ActiveSP;
-        const setRestedSP = currentPlayer === 1 ? setP1RestedSP : setP2RestedSP;
-
-        if (restedSP > 0) {
-          setActiveSP((prev) => prev + 1);
-          setRestedSP((prev) => prev - 1);
+        if (myRestedSP > 0) {
+          setMyActiveSP((prev) => prev + 1);
+          setMyRestedSP((prev) => prev - 1);
           addLog('SPトークン1つをアクティブ化！', 'info');
         } else {
           addLog('アクティブ化するSPトークンがない', 'info');
@@ -847,31 +794,23 @@ export const darkCardTriggers = {
       activationType: ACTIVATION_TYPES.AUTOMATIC,
       description: '召喚時: デッキ1枚を墓地へ、未来なら闇+800、違えば自800ダメージ',
       effect: (context) => {
-        const { currentPlayer, p1Deck, p2Deck, setP1Deck, setP2Deck,
-                p1Graveyard, p2Graveyard, setP1Graveyard, setP2Graveyard,
-                p1Field, p2Field, setP1Field, setP2Field, addLog } = context;
+        const { addLog } = context;
+        const { myDeck, setMyDeck, setMyGraveyard, myField, setMyField } = getPlayerContext(context);
 
-        const currentDeck = currentPlayer === 1 ? p1Deck : p2Deck;
-        const setDeck = currentPlayer === 1 ? setP1Deck : setP2Deck;
-        const setGraveyard = currentPlayer === 1 ? setP1Graveyard : setP2Graveyard;
-
-        if (currentDeck.length > 0) {
-          const milledCard = currentDeck[0];
-          setDeck((prev) => prev.slice(1));
-          setGraveyard((prev) => [...prev, milledCard]);
+        if (myDeck.length > 0) {
+          const milledCard = myDeck[0];
+          setMyDeck((prev) => prev.slice(1));
+          setMyGraveyard((prev) => [...prev, milledCard]);
           addLog(`${milledCard.name}を墓地に送った`, 'info');
 
           if (milledCard.attribute === '未来') {
             // Buff dark monster
-            const currentField = currentPlayer === 1 ? p1Field : p2Field;
-            const setField = currentPlayer === 1 ? setP1Field : setP2Field;
-
-            const darkMonsterIndex = currentField.findIndex((monster) =>
+            const darkMonsterIndex = myField.findIndex((monster) =>
               monster && monster.attribute === '闇'
             );
 
             if (darkMonsterIndex !== -1) {
-              setField((prev) => {
+              setMyField((prev) => {
                 const newField = [...prev];
                 const monster = newField[darkMonsterIndex];
                 newField[darkMonsterIndex] = {
@@ -881,7 +820,7 @@ export const darkCardTriggers = {
                 };
                 return newField;
               });
-              addLog(`${currentField[darkMonsterIndex].name}の攻撃力が800上昇！`, 'info');
+              addLog(`${myField[darkMonsterIndex].name}の攻撃力が800上昇！`, 'info');
             } else {
               addLog('場に闇属性モンスターがいない', 'info');
             }
@@ -939,18 +878,13 @@ export const darkCardTriggers = {
       activationType: ACTIVATION_TYPES.OPTIONAL,
       description: 'メインフェイズ: SP2消費で別形態に変化',
       effect: (context) => {
-        const { currentPlayer, p1ActiveSP, p2ActiveSP, setP1ActiveSP, setP2ActiveSP,
-                p1RestedSP, p2RestedSP, setP1RestedSP, setP2RestedSP,
-                slotIndex, p1Field, p2Field, setP1Field, setP2Field, addLog } = context;
+        const { addLog } = context;
+        const { myActiveSP, setMyActiveSP, setMyRestedSP } = getPlayerContext(context);
 
-        const activeSP = currentPlayer === 1 ? p1ActiveSP : p2ActiveSP;
-        const setActiveSP = currentPlayer === 1 ? setP1ActiveSP : setP2ActiveSP;
-        const setRestedSP = currentPlayer === 1 ? setP1RestedSP : setP2RestedSP;
-
-        if (activeSP >= 2) {
+        if (myActiveSP >= 2) {
           // Pay SP cost
-          setActiveSP((prev) => prev - 2);
-          setRestedSP((prev) => prev + 2);
+          setMyActiveSP((prev) => prev - 2);
+          setMyRestedSP((prev) => prev + 2);
 
           // Note: Transformation system not yet implemented
           // This would require searching deck for the transformed form
@@ -973,12 +907,8 @@ export const darkCardTriggers = {
       activationType: ACTIVATION_TYPES.AUTOMATIC,
       description: '攻撃時: 相手モンスター1体に400ダメージ',
       effect: (context) => {
-        const { currentPlayer, p1Field, p2Field, setP1Field, setP2Field,
-                p1Graveyard, p2Graveyard, setP1Graveyard, setP2Graveyard, addLog } = context;
-
-        const opponentField = currentPlayer === 1 ? p2Field : p1Field;
-        const setOpponentField = currentPlayer === 1 ? setP2Field : setP1Field;
-        const setOpponentGraveyard = currentPlayer === 1 ? setP2Graveyard : setP1Graveyard;
+        const { addLog } = context;
+        const { opponentField, setOpponentField, setOpponentGraveyard } = getPlayerContext(context);
 
         // Find first monster on opponent's field
         const targetIndex = opponentField.findIndex((m) => m !== null);
@@ -1020,16 +950,14 @@ export const darkCardTriggers = {
       activationType: ACTIVATION_TYPES.AUTOMATIC,
       description: '召喚時: 墓地3枚まで除外、除外数×400ダメージ',
       effect: (context) => {
-        const { currentPlayer, p1Graveyard, p2Graveyard, setP1Graveyard, setP2Graveyard, addLog } = context;
+        const { addLog } = context;
+        const { myGraveyard, setMyGraveyard } = getPlayerContext(context);
 
-        const currentGraveyard = currentPlayer === 1 ? p1Graveyard : p2Graveyard;
-        const setGraveyard = currentPlayer === 1 ? setP1Graveyard : setP2Graveyard;
-
-        const banishCount = Math.min(3, currentGraveyard.length);
+        const banishCount = Math.min(3, myGraveyard.length);
 
         if (banishCount > 0) {
           // Banish cards from graveyard
-          setGraveyard((prev) => prev.slice(banishCount));
+          setMyGraveyard((prev) => prev.slice(banishCount));
 
           const damage = banishCount * 400;
           addLog(`墓地から${banishCount}枚除外し、${damage}ダメージ！`, 'damage');
@@ -1071,31 +999,11 @@ export const darkCardTriggers = {
       activationType: ACTIVATION_TYPES.AUTOMATIC,
       description: '破壊時: 《呪縛の塔・ヴェルナクール》をデッキから場に出す',
       effect: (context) => {
-        const {
-          currentPlayer,
-          p1Deck,
-          p2Deck,
-          setP1Deck,
-          setP2Deck,
-          setP1FieldCard,
-          setP2FieldCard,
-          setP1Graveyard,
-          setP2Graveyard,
-          p1FieldCard,
-          p2FieldCard,
-          addLog,
-          registerCardTriggers,
-          continuousEffectEngine,
-        } = context;
-
-        const deck = currentPlayer === 1 ? p1Deck : p2Deck;
-        const setDeck = currentPlayer === 1 ? setP1Deck : setP2Deck;
-        const setFieldCard = currentPlayer === 1 ? setP1FieldCard : setP2FieldCard;
-        const setGraveyard = currentPlayer === 1 ? setP1Graveyard : setP2Graveyard;
-        const existingFieldCard = currentPlayer === 1 ? p1FieldCard : p2FieldCard;
+        const { addLog, registerCardTriggers, continuousEffectEngine } = context;
+        const { myDeck, setMyDeck, setMyFieldCard, setMyGraveyard, myFieldCard, currentPlayer } = getPlayerContext(context);
 
         // デッキから《呪縛の塔・ヴェルナクール》(C0000386)を検索
-        const cardIndex = deck.findIndex((card) => card.id === 'C0000386');
+        const cardIndex = myDeck.findIndex((card) => card.id === 'C0000386');
 
         if (cardIndex === -1) {
           addLog('デッキに《呪縛の塔・ヴェルナクール》がない', 'info');
@@ -1103,30 +1011,30 @@ export const darkCardTriggers = {
         }
 
         // 既存のフィールドカードがある場合は墓地に送る
-        if (existingFieldCard) {
+        if (myFieldCard) {
           // 既存カードのトリガーと常時効果を解除
-          if (existingFieldCard.uniqueId) {
-            unregisterCardTriggers(existingFieldCard.uniqueId);
+          if (myFieldCard.uniqueId) {
+            unregisterCardTriggers(myFieldCard.uniqueId);
             if (continuousEffectEngine) {
-              continuousEffectEngine.unregister(existingFieldCard.uniqueId);
+              continuousEffectEngine.unregister(myFieldCard.uniqueId);
             }
           }
           // 墓地に送る
-          setGraveyard((prev) => [...prev, existingFieldCard]);
-          addLog(`${existingFieldCard.name}が墓地に送られた`, 'info');
+          setMyGraveyard((prev) => [...prev, myFieldCard]);
+          addLog(`${myFieldCard.name}が墓地に送られた`, 'info');
         }
 
-        const fieldCard = { ...deck[cardIndex], owner: currentPlayer, uniqueId: `${deck[cardIndex].id}_${Date.now()}_${Math.random()}` };
+        const fieldCard = { ...myDeck[cardIndex], owner: currentPlayer, uniqueId: `${myDeck[cardIndex].id}_${Date.now()}_${Math.random()}` };
 
         // デッキから除去
-        setDeck((prev) => {
+        setMyDeck((prev) => {
           const newDeck = [...prev];
           newDeck.splice(cardIndex, 1);
           return newDeck;
         });
 
         // フィールドカードとして配置
-        setFieldCard(fieldCard);
+        setMyFieldCard(fieldCard);
 
         // トリガーを登録
         if (registerCardTriggers) {
@@ -1175,12 +1083,10 @@ export const darkCardTriggers = {
       activationType: ACTIVATION_TYPES.AUTOMATIC,
       description: 'カード発動時: ヴァルディスの幻影トークン召喚',
       effect: (context) => {
-        const { currentPlayer, p1Field, p2Field, setP1Field, setP2Field, addLog } = context;
+        const { addLog } = context;
+        const { myField, setMyField } = getPlayerContext(context);
 
-        const currentField = currentPlayer === 1 ? p1Field : p2Field;
-        const setField = currentPlayer === 1 ? setP1Field : setP2Field;
-
-        const emptySlotIndex = currentField.findIndex((slot) => slot === null);
+        const emptySlotIndex = myField.findIndex((slot) => slot === null);
 
         if (emptySlotIndex !== -1) {
           // Create token
@@ -1200,7 +1106,7 @@ export const darkCardTriggers = {
             isToken: true,
           };
 
-          setField((prev) => {
+          setMyField((prev) => {
             const newField = [...prev];
             newField[emptySlotIndex] = token;
             return newField;
@@ -1224,13 +1130,8 @@ export const darkCardTriggers = {
       activationType: ACTIVATION_TYPES.AUTOMATIC,
       description: '相手モンスター攻撃時: 攻撃モンスターに200ダメージ',
       effect: (context) => {
-        const { currentPlayer, attackerIndex, p1Field, p2Field, setP1Field, setP2Field,
-                p1Graveyard, p2Graveyard, setP1Graveyard, setP2Graveyard, addLog } = context;
-
-        // Opponent is attacking, so opponent's field has the attacker
-        const opponentField = currentPlayer === 1 ? p2Field : p1Field;
-        const setOpponentField = currentPlayer === 1 ? setP2Field : setP1Field;
-        const setOpponentGraveyard = currentPlayer === 1 ? setP2Graveyard : setP1Graveyard;
+        const { attackerIndex, addLog } = context;
+        const { opponentField, setOpponentField, setOpponentGraveyard } = getPlayerContext(context);
 
         // Get the attacking monster
         const attacker = opponentField[attackerIndex];
@@ -1289,13 +1190,11 @@ export const darkCardTriggers = {
       activationType: ACTIVATION_TYPES.AUTOMATIC,
       description: '被攻撃時: HP+800（ターン終了まで）',
       effect: (context) => {
-        const { currentPlayer, slotIndex, p1Field, p2Field, setP1Field, setP2Field, addLog } = context;
+        const { slotIndex, addLog } = context;
+        const { myField, setMyField } = getPlayerContext(context);
 
-        const currentField = currentPlayer === 1 ? p1Field : p2Field;
-        const setField = currentPlayer === 1 ? setP1Field : setP2Field;
-
-        if (slotIndex !== undefined && currentField[slotIndex]) {
-          setField((prev) => {
+        if (slotIndex !== undefined && myField[slotIndex]) {
+          setMyField((prev) => {
             const newField = [...prev];
             newField[slotIndex] = {
               ...newField[slotIndex],
@@ -1340,12 +1239,8 @@ export const darkCardTriggers = {
       activationType: ACTIVATION_TYPES.AUTOMATIC,
       description: 'エンドフェイズ時: 相手フィールド全体に400ダメージ',
       effect: (context) => {
-        const { currentPlayer, p1Field, p2Field, setP1Field, setP2Field,
-                p1Graveyard, p2Graveyard, setP1Graveyard, setP2Graveyard, addLog } = context;
-
-        const opponentField = currentPlayer === 1 ? p2Field : p1Field;
-        const setOpponentField = currentPlayer === 1 ? setP2Field : setP1Field;
-        const setOpponentGraveyard = currentPlayer === 1 ? setP2Graveyard : setP1Graveyard;
+        const { addLog } = context;
+        const { setOpponentField } = getPlayerContext(context);
 
         let destroyedCount = 0;
 
@@ -1416,18 +1311,14 @@ export const darkCardTriggers = {
       activationType: ACTIVATION_TYPES.AUTOMATIC,
       description: '召喚時: 墓地の闇属性カード1枚をデッキに戻す',
       effect: (context) => {
-        const { currentPlayer, p1Graveyard, p2Graveyard, setP1Graveyard, setP2Graveyard,
-                p1Deck, p2Deck, setP1Deck, setP2Deck, addLog } = context;
+        const { addLog } = context;
+        const { myGraveyard, setMyGraveyard, setMyDeck } = getPlayerContext(context);
 
-        const currentGraveyard = currentPlayer === 1 ? p1Graveyard : p2Graveyard;
-        const setGraveyard = currentPlayer === 1 ? setP1Graveyard : setP2Graveyard;
-        const setDeck = currentPlayer === 1 ? setP1Deck : setP2Deck;
-
-        const darkCard = currentGraveyard.find((card) => card.attribute === '闇');
+        const darkCard = myGraveyard.find((card) => card.attribute === '闇');
 
         if (darkCard) {
-          setGraveyard((prev) => prev.filter((c) => c.id !== darkCard.id));
-          setDeck((prev) => [...prev, darkCard]);
+          setMyGraveyard((prev) => prev.filter((c) => c.id !== darkCard.id));
+          setMyDeck((prev) => [...prev, darkCard]);
           addLog(`${darkCard.name}をデッキに戻した！`, 'info');
         } else {
           addLog('墓地に闇属性カードがない', 'info');
@@ -1461,17 +1352,12 @@ export const darkCardTriggers = {
       activationType: ACTIVATION_TYPES.AUTOMATIC,
       description: '相手エンドフェイズ時: 闇属性いれば相手手札1枚破棄',
       effect: (context) => {
-        const { currentPlayer, p1Field, p2Field, p1Hand, p2Hand, setP1Hand, setP2Hand,
-                p1Graveyard, p2Graveyard, setP1Graveyard, setP2Graveyard, addLog } = context;
+        const { addLog } = context;
+        const { myField, opponentHand, setOpponentHand, setOpponentGraveyard } = getPlayerContext(context);
 
-        const currentField = currentPlayer === 1 ? p1Field : p2Field;
-        const hasDarkMonster = currentField.some((m) => m && m.attribute === '闇');
+        const hasDarkMonster = myField.some((m) => m && m.attribute === '闇');
 
         if (hasDarkMonster) {
-          const opponentHand = currentPlayer === 1 ? p2Hand : p1Hand;
-          const setOpponentHand = currentPlayer === 1 ? setP2Hand : setP1Hand;
-          const setOpponentGraveyard = currentPlayer === 1 ? setP2Graveyard : setP1Graveyard;
-
           if (opponentHand.length > 0) {
             const randomIndex = Math.floor(Math.random() * opponentHand.length);
             const discardedCard = opponentHand[randomIndex];
@@ -1523,10 +1409,10 @@ export const darkCardTriggers = {
       activationType: ACTIVATION_TYPES.AUTOMATIC,
       description: 'エンドフェイズ時: 闇属性数×300ダメージ',
       effect: (context) => {
-        const { currentPlayer, p1Field, p2Field, addLog } = context;
+        const { addLog } = context;
+        const { myField } = getPlayerContext(context);
 
-        const currentField = currentPlayer === 1 ? p1Field : p2Field;
-        const darkCount = currentField.filter((m) => m && m.attribute === '闇').length;
+        const darkCount = myField.filter((m) => m && m.attribute === '闇').length;
 
         if (darkCount > 0) {
           const damage = darkCount * 300;
@@ -1587,20 +1473,16 @@ export const darkCardTriggers = {
       activationType: ACTIVATION_TYPES.OPTIONAL,
       description: 'エンドフェイズ時: 墓地リリカをデッキに戻し300ダメージ',
       effect: (context) => {
-        const { currentPlayer, p1Graveyard, p2Graveyard, setP1Graveyard, setP2Graveyard,
-                p1Deck, p2Deck, setP1Deck, setP2Deck, addLog } = context;
+        const { addLog } = context;
+        const { myGraveyard, setMyGraveyard, setMyDeck } = getPlayerContext(context);
 
-        const currentGraveyard = currentPlayer === 1 ? p1Graveyard : p2Graveyard;
-        const setGraveyard = currentPlayer === 1 ? setP1Graveyard : setP2Graveyard;
-        const setDeck = currentPlayer === 1 ? setP1Deck : setP2Deck;
-
-        const lilikaCard = currentGraveyard.find((card) =>
+        const lilikaCard = myGraveyard.find((card) =>
           card.type === 'monster' && card.name && card.name.includes('リリカ')
         );
 
         if (lilikaCard) {
-          setGraveyard((prev) => prev.filter((c) => c.id !== lilikaCard.id));
-          setDeck((prev) => [...prev, lilikaCard]);
+          setMyGraveyard((prev) => prev.filter((c) => c.id !== lilikaCard.id));
+          setMyDeck((prev) => [...prev, lilikaCard]);
           conditionalDamage(context, 300, 'opponent');
           addLog(`${lilikaCard.name}をデッキに戻し、300ダメージ！`, 'damage');
         } else {

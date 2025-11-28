@@ -36,29 +36,20 @@ export const neutralCardTriggers = {
       description: '墓地発動: 除外してSP1回復',
       priority: TRIGGER_PRIORITIES.NORMAL,
       effect: (context) => {
-        const {
-          currentPlayer,
-          p1ActiveSP, p2ActiveSP, setP1ActiveSP, setP2ActiveSP,
-          p1RestedSP, p2RestedSP, setP1RestedSP, setP2RestedSP,
-          p1Graveyard, p2Graveyard, setP1Graveyard, setP2Graveyard,
-          card, addLog,
-        } = context;
+        const { card, addLog } = context;
+        const { myRestedSP, setMyGraveyard, setMyActiveSP, setMyRestedSP } = getPlayerContext(context);
 
-        const restedSP = currentPlayer === 1 ? p1RestedSP : p2RestedSP;
-        if (restedSP < 1) {
+        if (myRestedSP < 1) {
           addLog('旅の助っ人: レスト状態のSPがありません', 'info');
           return false;
         }
 
         // 墓地から除外
-        const setGraveyard = currentPlayer === 1 ? setP1Graveyard : setP2Graveyard;
-        setGraveyard((prev) => prev.filter((c) => c.uniqueId !== card.uniqueId));
+        setMyGraveyard((prev) => prev.filter((c) => c.uniqueId !== card.uniqueId));
 
         // SPをアクティブに
-        const setActiveSP = currentPlayer === 1 ? setP1ActiveSP : setP2ActiveSP;
-        const setRestedSP = currentPlayer === 1 ? setP1RestedSP : setP2RestedSP;
-        setActiveSP((prev) => prev + 1);
-        setRestedSP((prev) => prev - 1);
+        setMyActiveSP((prev) => prev + 1);
+        setMyRestedSP((prev) => prev - 1);
 
         addLog('旅の助っ人を除外してSPを1回復！', 'heal');
         return true;
@@ -92,12 +83,10 @@ export const neutralCardTriggers = {
       activationType: ACTIVATION_TYPES.AUTOMATIC,
       description: '被攻撃時: 相手モンスターに1200ダメージ',
       effect: (context) => {
-        const { attackerIndex, currentPlayer, p1Field, p2Field, setP1Field, setP2Field, addLog } = context;
+        const { attackerIndex, addLog } = context;
+        const { opponentField, setOpponentField } = getPlayerContext(context);
 
         // 攻撃者は相手側のモンスター
-        const opponentField = currentPlayer === 1 ? p2Field : p1Field;
-        const setOpponentField = currentPlayer === 1 ? setP2Field : setP1Field;
-
         if (attackerIndex !== undefined && opponentField[attackerIndex]) {
           setOpponentField((prev) => {
             const newField = [...prev];
@@ -128,17 +117,10 @@ export const neutralCardTriggers = {
       activationType: ACTIVATION_TYPES.AUTOMATIC,
       description: '召喚時: 墓地モンスター→デッキ、SP1回復',
       effect: (context) => {
-        const {
-          currentPlayer,
-          p1Graveyard, p2Graveyard, setP1Graveyard, setP2Graveyard,
-          p1Deck, p2Deck, setP1Deck, setP2Deck,
-          p1ActiveSP, p2ActiveSP, setP1ActiveSP, setP2ActiveSP,
-          p1RestedSP, p2RestedSP, setP1RestedSP, setP2RestedSP,
-          addLog,
-        } = context;
+        const { addLog } = context;
+        const { myGraveyard, setMyGraveyard, setMyDeck, myRestedSP, setMyActiveSP, setMyRestedSP } = getPlayerContext(context);
 
-        const graveyard = currentPlayer === 1 ? p1Graveyard : p2Graveyard;
-        const monsters = graveyard.filter((c) => c.type === 'monster');
+        const monsters = myGraveyard.filter((c) => c.type === 'monster');
 
         if (monsters.length === 0) {
           addLog('影の運び手: 墓地にモンスターがいません', 'info');
@@ -147,11 +129,9 @@ export const neutralCardTriggers = {
 
         // 最初のモンスターをデッキに戻す
         const targetMonster = monsters[0];
-        const setGraveyard = currentPlayer === 1 ? setP1Graveyard : setP2Graveyard;
-        const setDeck = currentPlayer === 1 ? setP1Deck : setP2Deck;
 
-        setGraveyard((prev) => prev.filter((c) => c.uniqueId !== targetMonster.uniqueId));
-        setDeck((prev) => {
+        setMyGraveyard((prev) => prev.filter((c) => c.uniqueId !== targetMonster.uniqueId));
+        setMyDeck((prev) => {
           const newDeck = [...prev, targetMonster];
           // シャッフル
           for (let i = newDeck.length - 1; i > 0; i--) {
@@ -164,12 +144,9 @@ export const neutralCardTriggers = {
         addLog(`影の運び手の効果: ${targetMonster.name}をデッキに戻した！`, 'info');
 
         // SPをアクティブに
-        const restedSP = currentPlayer === 1 ? p1RestedSP : p2RestedSP;
-        if (restedSP >= 1) {
-          const setActiveSP = currentPlayer === 1 ? setP1ActiveSP : setP2ActiveSP;
-          const setRestedSP = currentPlayer === 1 ? setP1RestedSP : setP2RestedSP;
-          setActiveSP((prev) => prev + 1);
-          setRestedSP((prev) => prev - 1);
+        if (myRestedSP >= 1) {
+          setMyActiveSP((prev) => prev + 1);
+          setMyRestedSP((prev) => prev - 1);
           addLog('影の運び手の効果: SPを1回復！', 'heal');
         }
 
@@ -228,13 +205,11 @@ export const neutralCardTriggers = {
       activationType: ACTIVATION_TYPES.AUTOMATIC,
       description: 'エンドフェイズ時: HP500回復',
       effect: (context) => {
-        const { currentPlayer, slotIndex, p1Field, p2Field, setP1Field, setP2Field, addLog } = context;
-
-        const field = currentPlayer === 1 ? p1Field : p2Field;
-        const setField = currentPlayer === 1 ? setP1Field : setP2Field;
+        const { addLog } = context;
+        const { setMyField } = getPlayerContext(context);
 
         // このカードのHP回復
-        setField((prev) => {
+        setMyField((prev) => {
           return prev.map((monster, idx) => {
             if (monster && monster.name === '団長プニリーヌ・ソフティア') {
               const newHp = Math.min(monster.currentHp + 500, monster.hp);
@@ -258,11 +233,8 @@ export const neutralCardTriggers = {
       activationType: ACTIVATION_TYPES.AUTOMATIC,
       description: 'エンドフェイズ時: プニリーヌがいれば全体500ダメージ',
       effect: (context) => {
-        const { currentPlayer, p1Field, p2Field, setP1Field, setP2Field, addLog } = context;
-
-        const myField = currentPlayer === 1 ? p1Field : p2Field;
-        const opponentField = currentPlayer === 1 ? p2Field : p1Field;
-        const setOpponentField = currentPlayer === 1 ? setP2Field : setP1Field;
+        const { addLog } = context;
+        const { myField, setOpponentField } = getPlayerContext(context);
 
         // プニリーヌがいるかチェック
         const hasPunirine = myField.some((m) => m && m.name && m.name.includes('プニリーヌ'));
@@ -304,11 +276,8 @@ export const neutralCardTriggers = {
       activationType: ACTIVATION_TYPES.AUTOMATIC,
       description: '召喚時: 相手手札1枚を墓地へ',
       effect: (context) => {
-        const { currentPlayer, p1Hand, p2Hand, setP1Hand, setP2Hand, p1Graveyard, p2Graveyard, setP1Graveyard, setP2Graveyard, addLog } = context;
-
-        const opponentHand = currentPlayer === 1 ? p2Hand : p1Hand;
-        const setOpponentHand = currentPlayer === 1 ? setP2Hand : setP1Hand;
-        const setOpponentGraveyard = currentPlayer === 1 ? setP2Graveyard : setP1Graveyard;
+        const { addLog } = context;
+        const { opponentHand, setOpponentHand, setOpponentGraveyard } = getPlayerContext(context);
 
         if (opponentHand.length === 0) {
           addLog('マグラの効果: 相手の手札がありません', 'info');
@@ -352,10 +321,8 @@ export const neutralCardTriggers = {
       activationType: ACTIVATION_TYPES.AUTOMATIC,
       description: '召喚時: 蛮族数×600ダメージ（全体＋プレイヤー）',
       effect: (context) => {
-        const { currentPlayer, p1Field, p2Field, setP2Field, setP1Field, addLog } = context;
-
-        const myField = currentPlayer === 1 ? p1Field : p2Field;
-        const setOpponentField = currentPlayer === 1 ? setP2Field : setP1Field;
+        const { addLog } = context;
+        const { myField, setOpponentField } = getPlayerContext(context);
 
         // 蛮族の数をカウント
         const barbarianCount = myField.filter((m) => m && hasCategory(m, '【蛮族】')).length;
@@ -392,9 +359,9 @@ export const neutralCardTriggers = {
       activationType: ACTIVATION_TYPES.AUTOMATIC,
       description: 'エンドフェイズ時: ライフ-300',
       effect: (context) => {
-        const { currentPlayer, setP1Life, setP2Life, addLog } = context;
-        const setLife = currentPlayer === 1 ? setP1Life : setP2Life;
-        setLife((prev) => prev - 300);
+        const { addLog } = context;
+        const { setMyLife } = getPlayerContext(context);
+        setMyLife((prev) => prev - 300);
         addLog('奴隷プニリーヌの代償: ライフ-300', 'damage');
       },
     },
@@ -410,9 +377,8 @@ export const neutralCardTriggers = {
       activationType: ACTIVATION_TYPES.OPTIONAL,
       description: 'メインフェイズ時: 変幻身（SP2払い形態変化）',
       costCheck: (context) => {
-        const { currentPlayer, p1ActiveSP, p2ActiveSP } = context;
-        const activeSP = currentPlayer === 1 ? p1ActiveSP : p2ActiveSP;
-        return activeSP >= 2;
+        const { myActiveSP } = getPlayerContext(context);
+        return myActiveSP >= 2;
       },
       effect: (context) => {
         const { addLog } = context;
@@ -476,28 +442,15 @@ export const neutralCardTriggers = {
       activationType: ACTIVATION_TYPES.AUTOMATIC,
       description: 'エンドフェイズ時: プニリーヌがいればSP回復＆蛮族3体以上で全体ダメージ',
       effect: (context) => {
-        const {
-          currentPlayer,
-          p1Field, p2Field,
-          setP1Field, setP2Field,
-          p1ActiveSP, p2ActiveSP, setP1ActiveSP, setP2ActiveSP,
-          p1RestedSP, p2RestedSP, setP1RestedSP, setP2RestedSP,
-          addLog,
-        } = context;
-
-        const myField = currentPlayer === 1 ? p1Field : p2Field;
-        const opponentField = currentPlayer === 1 ? p2Field : p1Field;
-        const setOpponentField = currentPlayer === 1 ? setP2Field : setP1Field;
+        const { addLog } = context;
+        const { myField, setOpponentField, myRestedSP, setMyActiveSP, setMyRestedSP } = getPlayerContext(context);
 
         // プニリーヌチェック
         const hasPunirine = myField.some((m) => m && m.name && m.name.includes('プニリーヌ'));
         if (hasPunirine) {
-          const restedSP = currentPlayer === 1 ? p1RestedSP : p2RestedSP;
-          if (restedSP >= 1) {
-            const setActiveSP = currentPlayer === 1 ? setP1ActiveSP : setP2ActiveSP;
-            const setRestedSP = currentPlayer === 1 ? setP1RestedSP : setP2RestedSP;
-            setActiveSP((prev) => prev + 1);
-            setRestedSP((prev) => prev - 1);
+          if (myRestedSP >= 1) {
+            setMyActiveSP((prev) => prev + 1);
+            setMyRestedSP((prev) => prev - 1);
             addLog('鉄槍騎士団の宿舎: SPを1回復！', 'heal');
           }
         }
@@ -544,9 +497,9 @@ export const neutralCardTriggers = {
       activationType: ACTIVATION_TYPES.AUTOMATIC,
       description: 'エンドフェイズ時: ご主人様がいれば1ドロー',
       effect: (context) => {
-        const { currentPlayer, p1Field, p2Field, addLog } = context;
+        const { addLog } = context;
+        const { myField } = getPlayerContext(context);
 
-        const myField = currentPlayer === 1 ? p1Field : p2Field;
         const hasGoshujinsama = myField.some((m) => m && m.name && m.name.includes('ご主人様'));
 
         if (hasGoshujinsama) {
@@ -604,15 +557,9 @@ export const neutralCardTriggers = {
       activationType: ACTIVATION_TYPES.AUTOMATIC,
       description: 'エンドフェイズ時: 虹羽密林の属性に応じた効果',
       effect: (context) => {
-        const {
-          currentPlayer, p1Field, p2Field,
-          setP1ActiveSP, setP2ActiveSP, setP1RestedSP, setP2RestedSP,
-          p1RestedSP, p2RestedSP,
-          setP2Field, setP1Field,
-          addLog,
-        } = context;
+        const { addLog } = context;
+        const { myField, opponentField, setOpponentField, myRestedSP, setMyActiveSP, setMyRestedSP } = getPlayerContext(context);
 
-        const myField = currentPlayer === 1 ? p1Field : p2Field;
         const rainbowMonsters = myField.filter((m) => m && m.name && m.name.includes('虹羽密林'));
 
         if (rainbowMonsters.length === 0) {
@@ -627,17 +574,12 @@ export const neutralCardTriggers = {
           healLife(context, 300, true);
           addLog('虹羽の微脈（水）: ライフ300回復！', 'heal');
         } else if (attribute === '光') {
-          const restedSP = currentPlayer === 1 ? p1RestedSP : p2RestedSP;
-          if (restedSP >= 1) {
-            const setActiveSP = currentPlayer === 1 ? setP1ActiveSP : setP2ActiveSP;
-            const setRestedSP = currentPlayer === 1 ? setP1RestedSP : setP2RestedSP;
-            setActiveSP((prev) => prev + 1);
-            setRestedSP((prev) => prev - 1);
+          if (myRestedSP >= 1) {
+            setMyActiveSP((prev) => prev + 1);
+            setMyRestedSP((prev) => prev - 1);
             addLog('虹羽の微脈（光）: SP1回復！', 'heal');
           }
         } else if (attribute === '炎') {
-          const opponentField = currentPlayer === 1 ? p2Field : p1Field;
-          const setOpponentField = currentPlayer === 1 ? setP2Field : setP1Field;
           const targets = opponentField.filter((m) => m !== null);
           if (targets.length > 0) {
             const randomIndex = opponentField.findIndex((m) => m !== null);
@@ -687,10 +629,10 @@ export const neutralCardTriggers = {
         );
       },
       effect: (context) => {
-        const { card, slotIndex, currentPlayer, setP1Field, setP2Field, addLog } = context;
+        const { card, slotIndex, addLog } = context;
+        const { setMyField } = getPlayerContext(context);
 
-        const setField = currentPlayer === 1 ? setP1Field : setP2Field;
-        setField((prev) => {
+        setMyField((prev) => {
           return prev.map((monster, idx) => {
             if (idx === slotIndex && monster) {
               return { ...monster, currentAttack: monster.currentAttack + 300 };
@@ -712,9 +654,9 @@ export const neutralCardTriggers = {
         return false; // 現在は無効
       },
       effect: (context) => {
-        const { currentPlayer, p1Field, p2Field, addLog } = context;
+        const { addLog } = context;
+        const { myField } = getPlayerContext(context);
 
-        const myField = currentPlayer === 1 ? p1Field : p2Field;
         const hasRainbow = myField.some((m) => m && m.name && m.name.includes('虹羽密林'));
 
         if (hasRainbow) {
