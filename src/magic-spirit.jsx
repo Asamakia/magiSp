@@ -437,6 +437,28 @@ export default function MagicSpiritGame() {
           return result.monster;
         }));
 
+        // 寄生効果のターン開始時処理（両プレイヤーのフィールドを処理）
+        const processParasiteEffect = (setField, fieldOwner) => {
+          setField(prev => prev.map(m => {
+            if (!m || !m.parasiteCard) return m;
+
+            // 攻撃力減少: 基本500、粘液獣3体以上なら1000
+            const atkReduction = (m.parasiteSlimeCount >= 3) ? 1000 : 500;
+            const newAttack = Math.max(0, m.attack - atkReduction);
+            const newCurrentAttack = Math.max(0, (m.currentAttack || m.attack) - atkReduction);
+
+            addLog(`${m.name}は寄生により攻撃力-${atkReduction}！（${newCurrentAttack}）`, 'damage');
+
+            return {
+              ...m,
+              attack: newAttack,
+              currentAttack: newCurrentAttack,
+            };
+          }));
+        };
+        processParasiteEffect(setP1Field, 1);
+        processParasiteEffect(setP2Field, 2);
+
         // ターン開始時トリガーを発火
         fireTrigger(TRIGGER_TYPES.ON_TURN_START_SELF, triggerContext);
 
@@ -550,6 +572,25 @@ export default function MagicSpiritGame() {
         } else if (currentPlayer === 2 && p2MagicBlocked) {
           setP2MagicBlocked(false);
           addLog('プレイヤー2: 魔法カード使用制限が解除された', 'info');
+        }
+
+        // 寄生効果の無効化解除（相手エンドフェイズで効果無効化が終了）
+        // 現在のターンプレイヤーのフィールドにいる寄生されたモンスターの効果無効化を解除
+        const clearParasiteNegation = (setField, fieldOwner) => {
+          setField(prev => prev.map(m => {
+            // 寄生されており、寄生者の相手（=このフィールドの持ち主）のエンドフェイズ
+            if (m && m.parasiteCard && m.effectNegatedByParasite && m.parasiteOwner !== fieldOwner) {
+              addLog(`${m.name}の効果無効化が解除された（寄生効果）`, 'info');
+              return { ...m, effectNegatedByParasite: false };
+            }
+            return m;
+          }));
+        };
+        // 現在のプレイヤー（ターンエンドするプレイヤー）のフィールドを処理
+        if (currentPlayer === 1) {
+          clearParasiteNegation(setP1Field, 1);
+        } else {
+          clearParasiteNegation(setP2Field, 2);
         }
 
         // ターン終了時までの効果をリセット（攻撃力バフ、破壊耐性等）

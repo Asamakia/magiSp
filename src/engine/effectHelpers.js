@@ -161,6 +161,14 @@ const handleMonsterDestruction = (context, monster, slotIndex, ownerPlayer) => {
   });
   setGraveyard(prev => [...prev, monster]);
   addLog(`${monster.name}は破壊された！`, 'damage');
+
+  // 寄生カードがあれば寄生者の墓地に送る
+  if (monster.parasiteCard) {
+    const parasiteOwner = monster.parasiteOwner;
+    const setParasiteGraveyard = parasiteOwner === 1 ? setP1Graveyard : setP2Graveyard;
+    setParasiteGraveyard(prev => [...prev, monster.parasiteCard]);
+    addLog(`${monster.parasiteCard.name}も墓地に送られた`, 'info');
+  }
 };
 
 /**

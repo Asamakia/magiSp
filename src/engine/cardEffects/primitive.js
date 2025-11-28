@@ -55,6 +55,90 @@ export const primitiveCardEffects = {
   },
 
   /**
+   * C0000009: 粘液獣・寄生
+   * 基本技: このカードを相手モンスターに重ねて発動。
+   * 対象の攻撃力を毎ターン開始時に500ダウン、次の相手エンドフェイズまで対象モンスターの効果を無効化する。
+   * 場に粘液獣が3体以上いる場合、さらに攻撃力を500ダウン。
+   */
+  C0000009: (skillText, context) => {
+    if (context.skillType === 'basic') {
+      const {
+        addLog,
+        currentPlayer,
+        monsterIndex,
+        p1Field, p2Field,
+        setP1Field, setP2Field,
+        setP1Graveyard, setP2Graveyard,
+        setPendingMonsterTarget,
+      } = context;
+
+      const currentField = currentPlayer === 1 ? p1Field : p2Field;
+      const setField = currentPlayer === 1 ? setP1Field : setP2Field;
+      const setGraveyard = currentPlayer === 1 ? setP1Graveyard : setP2Graveyard;
+      const opponentField = currentPlayer === 1 ? p2Field : p1Field;
+      const setOpponentField = currentPlayer === 1 ? setP2Field : setP1Field;
+
+      // このカードの情報を取得
+      const thisMonster = currentField[monsterIndex];
+      if (!thisMonster) {
+        addLog('粘液獣・寄生: カードが見つかりません', 'info');
+        return false;
+      }
+
+      // 相手モンスターがいるかチェック
+      const hasOpponentMonster = opponentField.some(m => m !== null);
+      if (!hasOpponentMonster) {
+        addLog('粘液獣・寄生: 寄生する対象がいません', 'info');
+        return false;
+      }
+
+      // 場の粘液獣の数をカウント（自分を除く）
+      const slimeCount = currentField.filter((m, idx) =>
+        m && idx !== monsterIndex && hasCategory(m, '【スライム】')
+      ).length;
+
+      // モンスター選択UIを表示
+      setPendingMonsterTarget({
+        message: '寄生する相手モンスターを選択してください',
+        targetPlayer: 'opponent',
+        callback: (targetIndex) => {
+          const target = opponentField[targetIndex];
+          if (!target) return;
+
+          // このカードを自分フィールドから除去（墓地には送らない、寄生として付与）
+          setField(prev => prev.map((m, idx) => {
+            if (idx === monsterIndex) {
+              return null;
+            }
+            return m;
+          }));
+
+          // 相手モンスターに寄生データを付与
+          setOpponentField(prev => prev.map((m, idx) => {
+            if (idx === targetIndex && m) {
+              return {
+                ...m,
+                parasiteCard: { ...thisMonster },
+                parasiteOwner: currentPlayer,
+                parasiteSlimeCount: slimeCount, // 寄生時の粘液獣数（攻撃力減少量計算用）
+                effectNegatedByParasite: true,
+              };
+            }
+            return m;
+          }));
+
+          const atkReduction = slimeCount >= 3 ? 1000 : 500;
+          addLog(`粘液獣・寄生が${target.name}に寄生した！`, 'info');
+          addLog(`毎ターン開始時に攻撃力-${atkReduction}、効果無効化！`, 'info');
+        },
+      });
+
+      return true;
+    }
+    return false;
+  },
+
+  /**
    * C0000006: 新・超覚醒粘液獣ハイパー
    * 【召喚時】場にいる粘液獣1体につき、自身の攻撃力を1000アップ
    * 基本技：場にいる時一度だけ相手モンスター1体を飲み込んで無効化する
