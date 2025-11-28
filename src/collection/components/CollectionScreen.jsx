@@ -9,6 +9,119 @@ import { ATTRIBUTE_COLORS } from '../../utils/constants';
 import { collectionManager, currencyManager, RARITIES, RARITY_COLORS, TIERS } from '../index';
 import CardGrid from './CardGrid';
 import CardDetail from './CardDetail';
+import { EFFECT_LEVELS } from '../../styles/rarityEffects';
+
+// ========================================
+// 設定パネルコンポーネント
+// ========================================
+
+const SettingsPanel = ({ settings, onSettingsChange, onClose }) => {
+  const effectLevelOptions = [
+    { value: EFFECT_LEVELS.FULL, label: 'フル', desc: 'ホロ、パーティクル、光沢など全て' },
+    { value: EFFECT_LEVELS.MINIMAL, label: '控えめ', desc: '枠色のみ' },
+    { value: EFFECT_LEVELS.OFF, label: 'オフ', desc: 'レアリティ表示なし' },
+  ];
+
+  return (
+    <div style={{
+      position: 'fixed',
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+      background: 'rgba(0,0,0,0.7)',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      zIndex: 2000,
+    }} onClick={onClose}>
+      <div style={{
+        background: 'linear-gradient(135deg, #1a1a3a 0%, #2a2a4a 100%)',
+        borderRadius: '16px',
+        padding: '24px',
+        minWidth: '320px',
+        boxShadow: '0 8px 32px rgba(0,0,0,0.5)',
+        border: '2px solid rgba(107,76,230,0.5)',
+      }} onClick={(e) => e.stopPropagation()}>
+        <h3 style={{
+          margin: '0 0 20px 0',
+          fontSize: '20px',
+          color: '#ffd700',
+          textAlign: 'center',
+        }}>
+          ⚙️ 設定
+        </h3>
+
+        <div style={{ marginBottom: '20px' }}>
+          <div style={{
+            fontSize: '14px',
+            color: '#e0e0e0',
+            marginBottom: '12px',
+            fontWeight: 'bold',
+          }}>
+            レアリティ演出
+          </div>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            {effectLevelOptions.map((opt) => (
+              <label
+                key={opt.value}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '12px',
+                  padding: '10px 12px',
+                  borderRadius: '8px',
+                  background: settings.rarityEffectLevel === opt.value
+                    ? 'rgba(107,76,230,0.4)'
+                    : 'rgba(30,30,50,0.6)',
+                  border: settings.rarityEffectLevel === opt.value
+                    ? '2px solid #6b4ce6'
+                    : '2px solid transparent',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s ease',
+                }}
+              >
+                <input
+                  type="radio"
+                  name="effectLevel"
+                  value={opt.value}
+                  checked={settings.rarityEffectLevel === opt.value}
+                  onChange={() => onSettingsChange({
+                    ...settings,
+                    rarityEffectLevel: opt.value,
+                  })}
+                  style={{ accentColor: '#6b4ce6' }}
+                />
+                <div>
+                  <div style={{ color: '#e0e0e0', fontWeight: 'bold' }}>{opt.label}</div>
+                  <div style={{ color: '#a0a0a0', fontSize: '12px' }}>{opt.desc}</div>
+                </div>
+              </label>
+            ))}
+          </div>
+        </div>
+
+        <button
+          style={{
+            width: '100%',
+            padding: '12px',
+            borderRadius: '8px',
+            border: 'none',
+            background: 'linear-gradient(135deg, #6b4ce6 0%, #9d4ce6 100%)',
+            color: '#fff',
+            fontWeight: 'bold',
+            fontSize: '14px',
+            cursor: 'pointer',
+          }}
+          onClick={onClose}
+        >
+          閉じる
+        </button>
+      </div>
+    </div>
+  );
+};
 
 // ========================================
 // スタイル定義
@@ -162,6 +275,7 @@ const CollectionScreen = ({
   cardValueMap,
   onBack,
   onSellCard,
+  onSettingsChange,
 }) => {
   // フィルタ状態
   const [attributeFilter, setAttributeFilter] = useState('all');
@@ -173,6 +287,15 @@ const CollectionScreen = ({
   // 詳細表示
   const [selectedCard, setSelectedCard] = useState(null);
   const [selectedRarity, setSelectedRarity] = useState(null);
+
+  // 設定パネル
+  const [showSettings, setShowSettings] = useState(false);
+
+  // 現在の設定（デフォルト値とマージ）
+  const settings = {
+    rarityEffectLevel: EFFECT_LEVELS.FULL,
+    ...playerData.settings,
+  };
 
   // コレクションをカードデータと結合してフィルタリング
   const displayCards = useMemo(() => {
@@ -271,8 +394,22 @@ const CollectionScreen = ({
           </button>
           <span style={styles.title}>コレクション</span>
         </div>
-        <div style={styles.goldDisplay}>
-          💰 {currencyManager.formatGold(playerData.gold)}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+          <button
+            style={{
+              ...styles.backButton,
+              padding: '8px 12px',
+            }}
+            onClick={() => setShowSettings(true)}
+            onMouseEnter={(e) => e.target.style.background = 'rgba(107,76,230,0.5)'}
+            onMouseLeave={(e) => e.target.style.background = 'rgba(107,76,230,0.3)'}
+            title="設定"
+          >
+            ⚙️
+          </button>
+          <div style={styles.goldDisplay}>
+            💰 {currencyManager.formatGold(playerData.gold)}
+          </div>
         </div>
       </div>
 
@@ -347,6 +484,7 @@ const CollectionScreen = ({
         <CardGrid
           cards={displayCards}
           onCardClick={handleCardClick}
+          effectLevel={settings.rarityEffectLevel}
         />
       </div>
 
@@ -373,6 +511,15 @@ const CollectionScreen = ({
           marketState={playerData.market}
           onClose={handleCloseDetail}
           onSell={handleSellCard}
+        />
+      )}
+
+      {/* 設定パネル */}
+      {showSettings && (
+        <SettingsPanel
+          settings={settings}
+          onSettingsChange={onSettingsChange}
+          onClose={() => setShowSettings(false)}
         />
       )}
     </div>

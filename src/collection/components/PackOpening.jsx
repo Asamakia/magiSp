@@ -4,11 +4,26 @@
  * 開封されたカードを演出付きで表示
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { ATTRIBUTE_COLORS } from '../../utils/constants';
 import { RARITY_COLORS, RARITY_NAMES } from '../data/constants';
 import { valueCalculator } from '../systems/valueCalculator';
 import CardDetail from './CardDetail';
+import {
+  EFFECT_LEVELS,
+  RARITY_KEYFRAMES,
+  applyRarityStyle,
+  getRarityOverlay,
+  getParticleCount,
+  getParticleStyle,
+  hasDoubleBorder,
+  hasCornerOrnaments,
+  isRareOrAbove,
+  getRevealFlashColor,
+  calculateMouseReflection,
+  getMouseFollowStyle,
+  getMouseGlareStyle,
+} from '../../styles/rarityEffects';
 
 // ========================================
 // スタイル定義
@@ -216,38 +231,130 @@ const keyframeStyles = `
     0%, 100% { box-shadow: 0 0 20px rgba(255,215,0,0.3); }
     50% { box-shadow: 0 0 40px rgba(255,215,0,0.6); }
   }
+
+  @keyframes revealFlash {
+    0% {
+      opacity: 1;
+      transform: scale(1);
+    }
+    50% {
+      opacity: 0.9;
+      transform: scale(1.3);
+    }
+    100% {
+      opacity: 0;
+      transform: scale(2);
+    }
+  }
+
+  @keyframes rareReveal {
+    0% {
+      transform: rotateY(180deg) scale(1);
+      filter: brightness(1);
+    }
+    30% {
+      filter: brightness(2);
+    }
+    100% {
+      transform: rotateY(180deg) scale(1);
+      filter: brightness(1);
+    }
+  }
+
+  @keyframes screenFlash {
+    0% { opacity: 0; }
+    20% { opacity: 0.8; }
+    100% { opacity: 0; }
+  }
 `;
 
 // ========================================
 // カードコンポーネント
 // ========================================
 
-const PackCard = ({ cardData, index, isFlipped, onFlip, onShowDetail, isNew }) => {
+const PackCard = ({ cardData, index, isFlipped, onFlip, onShowDetail, isNew, onRevealFlash, effectLevel = EFFECT_LEVELS.FULL }) => {
   const { card, rarity } = cardData;
   const colors = ATTRIBUTE_COLORS[card.attribute] || ATTRIBUTE_COLORS['なし'];
   const rarityColor = RARITY_COLORS[rarity] || '#808080';
   const isMonster = card.type === 'monster';
-  const isRare = ['SR', 'UR', 'HR', 'SEC', 'ALT', 'SP', 'GR'].includes(rarity);
+  const isRare = isRareOrAbove(rarity);
+  const cardRef = useRef(null);
+  const [mouseReflection, setMouseReflection] = useState(null);
+  const [showLocalFlash, setShowLocalFlash] = useState(false);
+
+  // パーティクル数
+  const particleCount = effectLevel === EFFECT_LEVELS.FULL ? getParticleCount(rarity, effectLevel) : 0;
+
+  // フラッシュ色
+  const flashColor = getRevealFlashColor(rarity);
+
+  // 二重枠/コーナー装飾
+  const showDoubleBorder = hasDoubleBorder(rarity, effectLevel);
+  const showCornerOrnaments = hasCornerOrnaments(rarity, effectLevel);
+
+  // ベースカードスタイル
+  const baseCardFront = {
+    ...styles.cardFront,
+    background: colors.bg,
+  };
+
+  // レアリティエフェクト適用
+  const cardFrontStyle = effectLevel === EFFECT_LEVELS.FULL
+    ? applyRarityStyle(baseCardFront, rarity, effectLevel)
+    : { ...baseCardFront, border: `3px solid ${rarityColor}`, boxShadow: `0 4px 20px ${rarityColor}60` };
+
+  // オーバーレイ
+  const overlayStyle = getRarityOverlay(rarity, effectLevel);
+
+  // マウス追従
+  const mouseFollowStyle = isFlipped ? getMouseFollowStyle(mouseReflection, rarity) : {};
+  const mouseGlareStyle = isFlipped ? getMouseGlareStyle(mouseReflection, rarity) : null;
 
   const handleClick = () => {
     if (!isFlipped) {
+      // めくる時にフラッシュ演出
+      if (isRare && flashColor && effectLevel === EFFECT_LEVELS.FULL) {
+        setShowLocalFlash(true);
+        onRevealFlash?.(flashColor);
+        setTimeout(() => setShowLocalFlash(false), 500);
+      }
       onFlip(index);
     } else {
       onShowDetail(cardData);
     }
   };
 
+  const handleMouseMove = (e) => {
+    if (!isFlipped || effectLevel !== EFFECT_LEVELS.FULL) return;
+    if (!cardRef.current) return;
+
+    const rect = cardRef.current.getBoundingClientRect();
+    const reflection = calculateMouseReflection(rect, e.clientX, e.clientY);
+    setMouseReflection(reflection);
+  };
+
+  const handleMouseLeave = () => {
+    setMouseReflection(null);
+  };
+
   return (
     <div
+      ref={cardRef}
       style={{
         ...styles.cardWrapper,
         animation: `cardAppear 0.5s ease-out ${index * 0.1}s both`,
+        ...mouseFollowStyle,
       }}
       onClick={handleClick}
+      onMouseMove={handleMouseMove}
+      onMouseLeave={handleMouseLeave}
     >
       <div style={{
         ...styles.cardInner,
-        ...(isFlipped ? styles.cardFlipped : {}),
+        ...(isFlipped ? {
+          ...styles.cardFlipped,
+          animation: isRare && effectLevel === EFFECT_LEVELS.FULL ? 'rareReveal 0.6s ease-out' : undefined,
+        } : {}),
       }}>
         {/* カード裏面 */}
         <div style={styles.cardBack}>
@@ -255,27 +362,94 @@ const PackCard = ({ cardData, index, isFlipped, onFlip, onShowDetail, isNew }) =
         </div>
 
         {/* カード表面 */}
-        <div style={{
-          ...styles.cardFront,
-          background: colors.bg,
-          border: `3px solid ${rarityColor}`,
-          boxShadow: `0 4px 20px ${rarityColor}60`,
-        }}>
+        <div style={cardFrontStyle}>
+          {/* ローカルフラッシュ（カード上） */}
+          {showLocalFlash && flashColor && (
+            <div style={{
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              background: flashColor,
+              borderRadius: 'inherit',
+              animation: 'revealFlash 0.5s ease-out forwards',
+              zIndex: 10,
+              pointerEvents: 'none',
+            }} />
+          )}
+
+          {/* 二重枠（UR, GR用） */}
+          {showDoubleBorder && isFlipped && (
+            <div style={{
+              position: 'absolute',
+              top: '4px',
+              left: '4px',
+              right: '4px',
+              bottom: '4px',
+              border: `1px solid ${rarityColor}80`,
+              borderRadius: '8px',
+              pointerEvents: 'none',
+              zIndex: 0,
+            }} />
+          )}
+
+          {/* コーナー装飾（GR用） */}
+          {showCornerOrnaments && isFlipped && (
+            <>
+              <div style={{
+                position: 'absolute', top: '-2px', left: '-2px',
+                width: '20px', height: '20px',
+                borderTop: `4px solid ${rarityColor}`,
+                borderLeft: `4px solid ${rarityColor}`,
+                borderRadius: '6px 0 0 0',
+                zIndex: 5,
+              }} />
+              <div style={{
+                position: 'absolute', top: '-2px', right: '-2px',
+                width: '20px', height: '20px',
+                borderTop: `4px solid ${rarityColor}`,
+                borderRight: `4px solid ${rarityColor}`,
+                borderRadius: '0 6px 0 0',
+                zIndex: 5,
+              }} />
+              <div style={{
+                position: 'absolute', bottom: '-2px', left: '-2px',
+                width: '20px', height: '20px',
+                borderBottom: `4px solid ${rarityColor}`,
+                borderLeft: `4px solid ${rarityColor}`,
+                borderRadius: '0 0 0 6px',
+                zIndex: 5,
+              }} />
+              <div style={{
+                position: 'absolute', bottom: '-2px', right: '-2px',
+                width: '20px', height: '20px',
+                borderBottom: `4px solid ${rarityColor}`,
+                borderRight: `4px solid ${rarityColor}`,
+                borderRadius: '0 0 6px 0',
+                zIndex: 5,
+              }} />
+            </>
+          )}
+
+          {/* レアリティオーバーレイ */}
+          {isFlipped && overlayStyle && <div style={overlayStyle} />}
+
+          {/* マウス追従グレア */}
+          {isFlipped && mouseGlareStyle && <div style={mouseGlareStyle} />}
+
+          {/* パーティクル */}
+          {isFlipped && Array.from({ length: particleCount }).map((_, i) => (
+            <div key={i} style={getParticleStyle(i, rarity)} />
+          ))}
+
           {/* 新規バッジ */}
           {isNew && (
             <div style={styles.newBadge}>NEW</div>
           )}
 
-          {/* レアカード演出 */}
-          {isRare && isFlipped && (
-            <div style={{
-              ...styles.sparkle,
-              animation: 'glowPulse 1.5s ease-in-out infinite',
-            }} />
-          )}
-
           {/* ヘッダー */}
-          <div style={styles.cardHeader}>
+          <div style={{ ...styles.cardHeader, position: 'relative', zIndex: 4 }}>
             <div style={styles.costBadge}>{card.cost}</div>
             <div style={{
               ...styles.rarityBadge,
@@ -286,7 +460,7 @@ const PackCard = ({ cardData, index, isFlipped, onFlip, onShowDetail, isNew }) =
           </div>
 
           {/* ボディ */}
-          <div style={styles.cardBody}>
+          <div style={{ ...styles.cardBody, position: 'relative', zIndex: 4 }}>
             <div style={styles.cardName}>{card.name}</div>
             {isMonster && (
               <div style={styles.cardStats}>
@@ -296,7 +470,7 @@ const PackCard = ({ cardData, index, isFlipped, onFlip, onShowDetail, isNew }) =
           </div>
 
           {/* フッター */}
-          <div style={styles.cardFooter}>
+          <div style={{ ...styles.cardFooter, position: 'relative', zIndex: 4 }}>
             {card.attribute} • {RARITY_NAMES[rarity] || rarity}
           </div>
         </div>
@@ -313,10 +487,12 @@ const PackOpening = ({
   cards,
   onClose,
   existingCollection = [],
+  effectLevel = EFFECT_LEVELS.FULL,
 }) => {
   const [flippedCards, setFlippedCards] = useState(new Set());
   const [allRevealed, setAllRevealed] = useState(false);
   const [selectedCardForDetail, setSelectedCardForDetail] = useState(null);
+  const [screenFlash, setScreenFlash] = useState(null);
 
   // カード詳細を表示
   const handleShowDetail = (cardData) => {
@@ -328,10 +504,17 @@ const PackOpening = ({
     setSelectedCardForDetail(null);
   };
 
+  // スクリーンフラッシュ
+  const handleRevealFlash = (color) => {
+    if (effectLevel !== EFFECT_LEVELS.FULL) return;
+    setScreenFlash(color);
+    setTimeout(() => setScreenFlash(null), 400);
+  };
+
   // スタイルシートを追加
   useEffect(() => {
     const styleSheet = document.createElement('style');
-    styleSheet.textContent = keyframeStyles;
+    styleSheet.textContent = keyframeStyles + RARITY_KEYFRAMES;
     document.head.appendChild(styleSheet);
     return () => styleSheet.remove();
   }, []);
@@ -385,6 +568,21 @@ const PackOpening = ({
 
   return (
     <div style={styles.overlay}>
+      {/* スクリーンフラッシュ（レア出現時） */}
+      {screenFlash && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: screenFlash,
+          animation: 'screenFlash 0.4s ease-out forwards',
+          pointerEvents: 'none',
+          zIndex: 3000,
+        }} />
+      )}
+
       {/* タイトル */}
       <div style={styles.title}>
         パック開封！
@@ -401,6 +599,8 @@ const PackOpening = ({
             onFlip={flipCard}
             onShowDetail={handleShowDetail}
             isNew={isNewCard(cardData.cardId, cardData.rarity)}
+            onRevealFlash={handleRevealFlash}
+            effectLevel={effectLevel}
           />
         ))}
       </div>
