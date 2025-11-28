@@ -61,6 +61,11 @@ export {
   removeFromWishlist,
   isInWishlist,
   getWishlistMatches,
+  // コレクション分析
+  countForbiddenCards,
+  // 高レベル取引API
+  executePurchase,
+  executeSale,
 } from './merchantSystem';
 
 export { default as merchantSystem } from './merchantSystem';

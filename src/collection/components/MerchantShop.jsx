@@ -16,16 +16,17 @@ import {
   getFavorabilityInfo,
   getNextLevelProgress,
   isSpecialty,
-  purchaseFromMerchant,
-  sellToMerchant,
   purchaseTicket,
   addToWishlist,
   removeFromWishlist,
   isInWishlist,
+  executePurchase,
+  executeSale,
 } from '../merchant';
 import { RARITY_COLORS, RARITY_NAMES } from '../data/constants';
 import { ATTRIBUTE_COLORS } from '../../utils/constants';
 import { getCardMarketPrice } from '../market/marketEngine';
+import { collectionManager } from '../systems/collectionManager';
 
 // ========================================
 // スタイル定義
@@ -629,14 +630,12 @@ const RARITY_ORDER = ['C', 'UC', 'R', 'SR', 'UR', 'HR', 'SEC', 'ALT', 'SP', 'GR'
 const MerchantShop = ({
   merchantName,
   playerData,
-  dayId = 0,
   allCards = [],
   cardValueMap = null,
   onBack,
-  onPurchase,
-  onSell,
-  onPlayerDataChange,
+  onPlayerDataUpdate,
 }) => {
+  const dayId = playerData?.market?.currentDay || 0;
   const [mode, setMode] = useState('buy'); // 'buy' or 'sell'
   const [sortKey, setSortKey] = useState('price_asc');
   const [confirmModal, setConfirmModal] = useState(null);
@@ -782,23 +781,46 @@ const MerchantShop = ({
 
   // 確認後の処理
   const confirmTransaction = () => {
-    if (!confirmModal) return;
+    if (!confirmModal || !onPlayerDataUpdate) return;
 
     const { type, item, card } = confirmModal;
 
     if (type === 'buy') {
-      // 購入実行
-      if (onPurchase) {
-        onPurchase(item.cardId, item.rarity, item.price);
+      // 購入実行（executePurchaseを使用）
+      const result = executePurchase(
+        playerData,
+        merchantName,
+        item.cardId,
+        item.rarity,
+        item.price,
+        collectionManager
+      );
+
+      if (result.success) {
+        onPlayerDataUpdate(result.playerData);
+        // 品揃えから削除
+        setStock(prev => prev.filter(
+          s => !(s.cardId === item.cardId && s.rarity === item.rarity)
+        ));
+      } else {
+        alert(result.message);
       }
-      // 品揃えから削除
-      setStock(prev => prev.filter(
-        s => !(s.cardId === item.cardId && s.rarity === item.rarity)
-      ));
     } else {
-      // 売却実行
-      if (onSell) {
-        onSell(card, item.rarity, item.buyPrice);
+      // 売却実行（executeSaleを使用）
+      const result = executeSale(
+        playerData,
+        merchantName,
+        card,
+        item.rarity,
+        item.buyPrice,
+        dayId,
+        collectionManager
+      );
+
+      if (result.success) {
+        onPlayerDataUpdate(result.playerData);
+      } else {
+        alert(result.message);
       }
     }
 
@@ -807,11 +829,11 @@ const MerchantShop = ({
 
   // チケット購入処理（マルクス専用）
   const handlePurchaseTicket = (ticketType) => {
-    if (!playerData || !onPlayerDataChange) return;
+    if (!playerData || !onPlayerDataUpdate) return;
 
     const result = purchaseTicket(merchantData, ticketType, playerData.gold);
     if (result.success) {
-      onPlayerDataChange({
+      onPlayerDataUpdate({
         ...playerData,
         gold: result.newGold,
         merchantData: result.newMerchantData,
@@ -830,7 +852,7 @@ const MerchantShop = ({
   // ウィッシュリストトグル
   const handleToggleWishlist = (cardId, e) => {
     e.stopPropagation();
-    if (!onPlayerDataChange) return;
+    if (!onPlayerDataUpdate) return;
 
     const isInList = isInWishlist(merchantData, cardId);
     const newMerchantData = isInList
@@ -838,7 +860,7 @@ const MerchantShop = ({
       : addToWishlist(merchantData, cardId);
 
     if (newMerchantData !== merchantData) {
-      onPlayerDataChange({
+      onPlayerDataUpdate({
         ...playerData,
         merchantData: newMerchantData,
       });
