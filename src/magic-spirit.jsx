@@ -3372,6 +3372,8 @@ export default function MagicSpiritGame() {
                     const { packSystem } = require('./collection');
                     const result = packSystem.openFreePack(playerData, allCards, cardValueMap);
                     updatePlayerData(result.playerData);
+                    // パック報酬を消費済みにする（何度も開封できないように）
+                    setBattleReward(prev => ({ ...prev, packReward: prev.packReward - 1 }));
                     handleOpenPack(result.cards);
                   }}
                   style={{
