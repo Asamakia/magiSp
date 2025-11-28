@@ -259,3 +259,340 @@ export function resolveStack(stack, resolveEffect) {
   return []; // スタックをクリア
 }
 
+// =============================================================================
+// 【魂結】関連
+// =============================================================================
+
+/**
+ * 【魂結】を持つカードか判定
+ * @param {Object} card - カードオブジェクト
+ * @returns {boolean}
+ */
+export function hasKonketsu(card) {
+  return hasKeyword(card, KEYWORD_ABILITIES.KONKETSU);
+}
+
+/**
+ * 【魂結】の効果定義
+ * カードIDごとのリンク効果を定義
+ */
+export const KONKETSU_EFFECTS = {
+  // C0000333: 深みの儀式者 - 双方攻撃力+100
+  C0000333: {
+    targetCondition: 'ヴェルゼファール',
+    atkBonus: 100,
+    hpBonus: 0,
+    endPhaseDamage: 0,
+  },
+  // C0000334: クラディオム - 双方攻撃力+300
+  C0000334: {
+    targetCondition: 'ヴェルゼファール',
+    atkBonus: 300,
+    hpBonus: 0,
+    endPhaseDamage: 0,
+  },
+  // C0000335: シスラゴン - 双方にターン終了時300ダメージ付与
+  C0000335: {
+    targetCondition: 'ヴェルゼファール',
+    atkBonus: 0,
+    hpBonus: 0,
+    endPhaseDamage: 300,
+  },
+  // C0000336: ルミナクール - 双方HP+800
+  C0000336: {
+    targetCondition: 'ヴェルゼファール',
+    atkBonus: 0,
+    hpBonus: 800,
+    endPhaseDamage: 0,
+  },
+  // C0000337: タラッサロス - 双方攻撃力+1000、ターン終了時800ダメージ付与
+  C0000337: {
+    targetCondition: 'ヴェルゼファール',
+    atkBonus: 1000,
+    hpBonus: 0,
+    endPhaseDamage: 800,
+  },
+  // C0000340: 深海の支配者・ヴェルゼファール - 双方にターン終了時800ダメージ付与
+  C0000340: {
+    targetCondition: 'ヴェルゼファール',
+    atkBonus: 0,
+    hpBonus: 0,
+    endPhaseDamage: 800,
+  },
+};
+
+/**
+ * 【魂結】の効果定義を取得
+ * @param {string} cardId - カードID
+ * @returns {Object|null} 効果定義
+ */
+export function getKonketsuEffect(cardId) {
+  return KONKETSU_EFFECTS[cardId] || null;
+}
+
+/**
+ * フィールド上でリンク可能な対象を検索
+ * @param {Object[]} field - フィールド配列
+ * @param {string} targetCondition - 対象条件（名前に含む文字列）
+ * @param {string} excludeUniqueId - 除外するカードのuniqueId（自分自身）
+ * @returns {Object[]} リンク可能なモンスターの配列 [{monster, slotIndex}]
+ */
+export function findLinkableTargets(field, targetCondition, excludeUniqueId) {
+  const targets = [];
+  field.forEach((monster, idx) => {
+    if (monster &&
+        monster.uniqueId !== excludeUniqueId &&
+        monster.name &&
+        monster.name.includes(targetCondition) &&
+        !monster.linkedTo) { // 既にリンク済みでない
+      targets.push({ monster, slotIndex: idx });
+    }
+  });
+  return targets;
+}
+
+/**
+ * 【魂結】リンクを実行
+ * 双方のモンスターにリンク効果を適用
+ * @param {Object} sourceMonster - リンク元モンスター
+ * @param {number} sourceSlotIndex - リンク元のスロットインデックス
+ * @param {Object} targetMonster - リンク先モンスター
+ * @param {number} targetSlotIndex - リンク先のスロットインデックス
+ * @param {Object} effect - 効果定義（KONKETSU_EFFECTS）
+ * @param {Function} setField - フィールド更新関数
+ * @param {Function} addLog - ログ関数
+ * @returns {boolean} 成功したかどうか
+ */
+export function executeKonketsuLink(
+  sourceMonster,
+  sourceSlotIndex,
+  targetMonster,
+  targetSlotIndex,
+  effect,
+  setField,
+  addLog
+) {
+  const { atkBonus, hpBonus, endPhaseDamage } = effect;
+
+  setField(prev => {
+    const newField = [...prev];
+
+    // リンク元モンスターを更新
+    if (newField[sourceSlotIndex]) {
+      const source = { ...newField[sourceSlotIndex] };
+      source.linkedTo = targetMonster.uniqueId;
+      source.linkedBonus = { atk: atkBonus, hp: hpBonus };
+      source.currentAttack = (source.currentAttack || source.attack) + atkBonus;
+      source.maxHp = (source.maxHp || source.hp) + hpBonus;
+      source.currentHp = (source.currentHp || source.hp) + hpBonus;
+
+      if (endPhaseDamage > 0) {
+        source.linkedEndPhaseDamage = [
+          ...(source.linkedEndPhaseDamage || []),
+          { damage: endPhaseDamage, linkedWith: targetMonster.uniqueId, sourceCardName: sourceMonster.name }
+        ];
+      }
+      newField[sourceSlotIndex] = source;
+    }
+
+    // リンク先モンスターを更新
+    if (newField[targetSlotIndex]) {
+      const target = { ...newField[targetSlotIndex] };
+      target.linkedTo = sourceMonster.uniqueId;
+      target.linkedBonus = { atk: atkBonus, hp: hpBonus };
+      target.currentAttack = (target.currentAttack || target.attack) + atkBonus;
+      target.maxHp = (target.maxHp || target.hp) + hpBonus;
+      target.currentHp = (target.currentHp || target.hp) + hpBonus;
+
+      if (endPhaseDamage > 0) {
+        target.linkedEndPhaseDamage = [
+          ...(target.linkedEndPhaseDamage || []),
+          { damage: endPhaseDamage, linkedWith: sourceMonster.uniqueId, sourceCardName: sourceMonster.name }
+        ];
+      }
+      newField[targetSlotIndex] = target;
+    }
+
+    return newField;
+  });
+
+  // ログ出力
+  const effects = [];
+  if (atkBonus > 0) effects.push(`ATK+${atkBonus}`);
+  if (hpBonus > 0) effects.push(`HP+${hpBonus}`);
+  if (endPhaseDamage > 0) effects.push(`ターン終了時${endPhaseDamage}ダメージ`);
+
+  addLog(`【魂結】${sourceMonster.name}と${targetMonster.name}がリンク！双方に${effects.join('、')}`, 'info');
+
+  return true;
+}
+
+/**
+ * リンク解除処理
+ * モンスターが場を離れる時にリンク相手の効果を解除
+ * @param {Object} leavingMonster - 場を離れるモンスター
+ * @param {Function} setField - フィールド更新関数
+ * @param {Function} addLog - ログ関数
+ */
+export function handleLinkBreak(leavingMonster, setField, addLog) {
+  if (!leavingMonster || !leavingMonster.linkedTo) return;
+
+  const linkedToId = leavingMonster.linkedTo;
+
+  setField(prev => {
+    return prev.map(monster => {
+      if (monster && monster.uniqueId === linkedToId) {
+        const updated = { ...monster };
+
+        // リンクボーナスを解除
+        const bonus = updated.linkedBonus || { atk: 0, hp: 0 };
+        updated.currentAttack = Math.max(0, (updated.currentAttack || 0) - bonus.atk);
+
+        // maxHPを減らす（currentHPはmaxHPを超えない限り維持）
+        updated.maxHp = Math.max(1, (updated.maxHp || updated.hp) - bonus.hp);
+        if (updated.currentHp > updated.maxHp) {
+          updated.currentHp = updated.maxHp;
+        }
+
+        // エンドフェイズダメージからこのリンクによるものを削除
+        updated.linkedEndPhaseDamage = (updated.linkedEndPhaseDamage || [])
+          .filter(d => d.linkedWith !== leavingMonster.uniqueId);
+
+        // リンク状態をクリア
+        updated.linkedTo = null;
+        updated.linkedBonus = { atk: 0, hp: 0 };
+
+        addLog(`${updated.name}のリンクが解除された（ATK-${bonus.atk}、maxHP-${bonus.hp}）`, 'info');
+
+        return updated;
+      }
+      return monster;
+    });
+  });
+}
+
+/**
+ * エンドフェイズのリンクダメージを処理
+ * @param {Object[]} field - フィールド配列
+ * @param {Function} setOpponentLife - 相手ライフ設定関数
+ * @param {Function} addLog - ログ関数
+ * @returns {number} 与えた総ダメージ
+ */
+export function processLinkEndPhaseDamage(field, setOpponentLife, addLog) {
+  let totalDamage = 0;
+
+  field.forEach(monster => {
+    if (monster && monster.linkedEndPhaseDamage && monster.linkedEndPhaseDamage.length > 0) {
+      monster.linkedEndPhaseDamage.forEach(({ damage, sourceCardName }) => {
+        totalDamage += damage;
+        addLog(`${monster.name}の【魂結】効果: 相手に${damage}ダメージ`, 'damage');
+      });
+    }
+  });
+
+  if (totalDamage > 0) {
+    setOpponentLife(prev => Math.max(0, prev - totalDamage));
+  }
+
+  return totalDamage;
+}
+
+// =============================================================================
+// 【深蝕】関連
+// =============================================================================
+
+/**
+ * 【深蝕】を持つカードか判定
+ * @param {Object} card - カードオブジェクト
+ * @returns {boolean}
+ */
+export function hasShinsyoku(card) {
+  return hasKeyword(card, KEYWORD_ABILITIES.SHINSYOKU);
+}
+
+/**
+ * 【深蝕】を持つカードのID一覧
+ */
+export const SHINSYOKU_CARD_IDS = [
+  'C0000334', // クラディオム
+  'C0000335', // シスラゴン
+  'C0000336', // ルミナクール
+  'C0000337', // タラッサロス
+  'C0000340', // ヴェルゼファール
+];
+
+/**
+ * 【深蝕】の効果を実行
+ * 自分のターン終了時、相手モンスター1体の攻撃力を500下げ、0になると破壊
+ * @param {Object} context - 効果コンテキスト
+ * @param {string} sourceName - 効果発動元のカード名
+ * @param {Function} setPendingTargetSelection - ターゲット選択UI設定関数（オプション）
+ * @returns {boolean} 効果を適用したかどうか
+ */
+export function executeShinsyokuEffect(context, sourceName, setPendingTargetSelection = null) {
+  const { addLog, currentPlayer, p1Field, p2Field, setP1Field, setP2Field, setP1Graveyard, setP2Graveyard } = context;
+
+  // 相手のフィールドを取得
+  const opponentField = currentPlayer === 1 ? p2Field : p1Field;
+  const setOpponentField = currentPlayer === 1 ? setP2Field : setP1Field;
+  const setOpponentGraveyard = currentPlayer === 1 ? setP2Graveyard : setP1Graveyard;
+
+  // 相手モンスターを取得
+  const validTargets = opponentField
+    .map((m, idx) => ({ monster: m, index: idx }))
+    .filter(({ monster }) => monster !== null);
+
+  if (validTargets.length === 0) {
+    addLog(`【深蝕】${sourceName}: 相手フィールドにモンスターがいません`, 'info');
+    return false;
+  }
+
+  // ATKを500下げる処理
+  const applyShinsyoku = (targetIndex) => {
+    const target = opponentField[targetIndex];
+    if (!target) return;
+
+    const newAtk = Math.max(0, (target.currentAttack || target.attack) - 500);
+    addLog(`【深蝕】${sourceName}: ${target.name}の攻撃力を500ダウン（${newAtk}）`, 'damage');
+
+    if (newAtk <= 0) {
+      // ATKが0になったら破壊
+      addLog(`${target.name}は攻撃力が0になり破壊された！`, 'damage');
+      setOpponentGraveyard(prev => [...prev, target]);
+      setOpponentField(prev => {
+        const newField = [...prev];
+        newField[targetIndex] = null;
+        return newField;
+      });
+    } else {
+      setOpponentField(prev => {
+        const newField = [...prev];
+        newField[targetIndex] = { ...target, currentAttack: newAtk };
+        return newField;
+      });
+    }
+  };
+
+  // 1体のみの場合は自動選択
+  if (validTargets.length === 1) {
+    applyShinsyoku(validTargets[0].index);
+    return true;
+  }
+
+  // 複数いる場合は選択UI（またはフォールバックで最初のターゲット）
+  if (setPendingTargetSelection) {
+    setPendingTargetSelection({
+      message: `【深蝕】攻撃力を500下げる相手モンスターを選択`,
+      targetType: 'opponent_monster',
+      callback: (selectedIndex) => {
+        applyShinsyoku(selectedIndex);
+      },
+    });
+    return true;
+  }
+
+  // フォールバック: 最初のターゲット
+  applyShinsyoku(validTargets[0].index);
+  return true;
+}
+

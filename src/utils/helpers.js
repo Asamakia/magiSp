@@ -78,6 +78,10 @@ export const createMonsterInstance = (card) => ({
   charges: [],
   statusEffects: [],
   usedSkillThisTurn: false,
+  // 【魂結】リンク関連プロパティ
+  linkedTo: null, // リンク相手のuniqueId
+  linkedBonus: { atk: 0, hp: 0 }, // リンクによる自身へのボーナス
+  linkedEndPhaseDamage: [], // リンクによるエンドフェイズダメージ [{damage, linkedWith, sourceCardName}]
 });
 
 /**

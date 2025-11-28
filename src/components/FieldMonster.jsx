@@ -97,6 +97,29 @@ const FieldMonster = ({ monster, onClick, selected, canAttack, isTarget, isValid
         </div>
       )}
 
+      {/* 【魂結】リンク状態表示 */}
+      {monster.linkedTo && (
+        <div style={{
+          position: 'absolute',
+          top: '-8px',
+          left: monster.charges && monster.charges.length > 0 ? '30px' : '-8px',
+          background: 'linear-gradient(135deg, #9d4ce6 0%, #6b4ce6 100%)',
+          borderRadius: '50%',
+          width: '20px',
+          height: '20px',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          fontSize: '12px',
+          boxShadow: '0 0 10px #9d4ce6',
+          border: '1px solid rgba(255,255,255,0.3)',
+        }}
+        title={`【魂結】リンク中${monster.linkedEndPhaseDamage?.length > 0 ? ` (ターン終了時${monster.linkedEndPhaseDamage.reduce((sum, d) => sum + d.damage, 0)}ダメージ)` : ''}`}
+        >
+          🔗
+        </div>
+      )}
+
       {/* 状態異常アイコン */}
       {monster.statusEffects && monster.statusEffects.length > 0 && (
         <div style={{

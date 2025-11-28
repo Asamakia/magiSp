@@ -11,6 +11,7 @@ import {
   fireLeaveFieldTrigger,
 } from './triggerEngine';
 import { continuousEffectEngine } from './continuousEffects';
+import { handleLinkBreak } from './keywordAbilities';
 
 // ========================================
 // プレイヤーコンテキスト抽象化
@@ -232,6 +233,10 @@ const handleMonsterDestruction = (context, monster, slotIndex, ownerPlayer) => {
 
   fireTrigger(TRIGGER_TYPES.ON_DESTROY_SELF, destroyContext);
   fireLeaveFieldTrigger(monster, destroyContext, 'destroy');
+
+  // 【魂結】リンク解除処理
+  const setFieldForLink = ownerPlayer === 1 ? setP1Field : setP2Field;
+  handleLinkBreak(monster, setFieldForLink, addLog);
 
   // トリガー登録を解除
   unregisterCardTriggers(monster.uniqueId);
