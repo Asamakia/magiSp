@@ -67,7 +67,7 @@ export const primitiveCardEffects = {
       return false;
     }
 
-    // 基本技：相手モンスター1体を飲み込んで無効化（1回限り）
+    // 基本技：相手モンスター1体を飲み込む（1回限り、2ターン後に消化）
     if (context.skillType === 'basic') {
       const currentField = currentPlayer === 1 ? p1Field : p2Field;
       const setField = currentPlayer === 1 ? setP1Field : setP2Field;
@@ -96,34 +96,34 @@ export const primitiveCardEffects = {
 
       // モンスター選択UIを表示
       setPendingMonsterTarget({
-        message: '飲み込んで無効化する相手モンスターを選択してください',
+        message: '飲み込むモンスターを選択してください',
         targetPlayer: 'opponent',
         callback: (targetIndex) => {
           const target = opponentField[targetIndex];
           if (!target) return;
 
-          // 相手モンスターを無効化（効果無効＋攻撃不可）
+          // 相手モンスターをフィールドから除外
           setOpponentField(prev => prev.map((m, idx) => {
-            if (idx === targetIndex && m) {
+            if (idx === targetIndex) {
+              return null;
+            }
+            return m;
+          }));
+
+          // 自身に飲み込んだモンスターを保存（2ターン後に消化）
+          setField(prev => prev.map((m, idx) => {
+            if (idx === monsterIndex && m) {
               return {
                 ...m,
-                effectDisabled: true,
-                canAttack: false,
-                swallowedBy: 'C0000006',
+                hasUsedSwallow: true,
+                swallowedMonster: { ...target, originalSlotIndex: targetIndex },
+                digestCounter: 2,
               };
             }
             return m;
           }));
 
-          // 使用済みフラグを立てる
-          setField(prev => prev.map((m, idx) => {
-            if (idx === monsterIndex && m) {
-              return { ...m, hasUsedSwallow: true };
-            }
-            return m;
-          }));
-
-          addLog(`新・超覚醒粘液獣ハイパーが${target.name}を飲み込んで無効化した！`, 'info');
+          addLog(`新・超覚醒粘液獣ハイパーが${target.name}を飲み込んだ！（消化まで2ターン）`, 'info');
         },
       });
 
