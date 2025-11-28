@@ -53,6 +53,9 @@ export {
   sellToMerchant,
   // 在庫管理
   cleanupPendingStock,
+  // チケット操作
+  purchaseTicket,
+  callAttributeMerchant,
 } from './merchantSystem';
 
 export { default as merchantSystem } from './merchantSystem';

@@ -162,6 +162,8 @@ export {
   purchaseFromMerchant,
   sellToMerchant,
   cleanupPendingStock,
+  purchaseTicket,
+  callAttributeMerchant,
   merchantSystem,
 } from './merchant';
 

@@ -4,12 +4,14 @@
  * 商人一覧を表示し、各商人の店舗へ遷移する
  */
 
-import React, { useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   MERCHANTS,
   MERCHANT_TYPES,
   TICKETS,
   getTodayAppearances,
+  callAttributeMerchant,
+  ATTRIBUTE_MERCHANTS,
 } from '../merchant';
 
 // ========================================
@@ -200,6 +202,77 @@ const styles = {
     fontSize: '14px',
     color: '#ffd700',
   },
+  ticketUseButton: {
+    padding: '4px 12px',
+    borderRadius: '6px',
+    border: 'none',
+    cursor: 'pointer',
+    fontWeight: 'bold',
+    fontSize: '12px',
+    background: 'linear-gradient(90deg, #ff9800, #ffc107)',
+    color: '#1a1a2e',
+    marginLeft: '8px',
+    transition: 'all 0.3s ease',
+  },
+  modal: {
+    position: 'fixed',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    background: 'rgba(0,0,0,0.8)',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 1000,
+  },
+  modalContent: {
+    background: 'linear-gradient(135deg, #2a2a4a 0%, #3a3a5a 100%)',
+    borderRadius: '16px',
+    padding: '24px',
+    border: '2px solid #6b4ce6',
+    maxWidth: '400px',
+    width: '90%',
+  },
+  modalTitle: {
+    fontSize: '18px',
+    fontWeight: 'bold',
+    color: '#fff',
+    marginBottom: '16px',
+    textAlign: 'center',
+  },
+  modalList: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '8px',
+    marginBottom: '16px',
+  },
+  modalItem: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '12px',
+    padding: '12px',
+    borderRadius: '8px',
+    background: 'rgba(107,76,230,0.2)',
+    cursor: 'pointer',
+    transition: 'all 0.2s ease',
+  },
+  modalItemDisabled: {
+    opacity: 0.5,
+    cursor: 'not-allowed',
+  },
+  modalCancelButton: {
+    width: '100%',
+    padding: '12px',
+    borderRadius: '8px',
+    border: 'none',
+    cursor: 'pointer',
+    fontWeight: 'bold',
+    fontSize: '14px',
+    background: 'rgba(100,100,100,0.5)',
+    color: '#fff',
+    transition: 'all 0.3s ease',
+  },
 };
 
 // ========================================
@@ -281,6 +354,8 @@ const MerchantGuild = ({
   forbiddenCount = 0,
   totalAssets = 0,
 }) => {
+  const [showTicketModal, setShowTicketModal] = useState(false);
+
   const merchantData = playerData?.merchantData || {};
   const favorability = merchantData.favorability || {};
   const tickets = merchantData.tickets || { attribute: 0, dark: 0, traveler: 0 };
@@ -321,6 +396,24 @@ const MerchantGuild = ({
       onEnterShop(merchant.name);
     }
   };
+
+  // 属性商人呼び出しチケット使用
+  const handleCallAttributeMerchant = (merchantName) => {
+    const result = callAttributeMerchant(merchantData, merchantName, dayId);
+    if (result.success && onMerchantDataUpdate) {
+      onMerchantDataUpdate(result.newMerchantData);
+    }
+    setShowTicketModal(false);
+    if (!result.success) {
+      alert(result.message);
+    }
+  };
+
+  // チケットで呼び出し可能な属性商人（今日出現していない商人）
+  const callableMerchants = useMemo(() => {
+    const currentAppearances = appearances.attribute || [];
+    return ATTRIBUTE_MERCHANTS.filter(m => !currentAppearances.includes(m.name));
+  }, [appearances.attribute]);
 
   // 曜日名
   const weekdays = ['日', '月', '火', '水', '木', '金', '土'];
@@ -435,6 +528,14 @@ const MerchantGuild = ({
             <div style={styles.ticketItem}>
               📜 {TICKETS.attribute.name}
               <span style={styles.ticketCount}>×{tickets.attribute}</span>
+              {tickets.attribute > 0 && callableMerchants.length > 0 && (
+                <button
+                  style={styles.ticketUseButton}
+                  onClick={() => setShowTicketModal(true)}
+                >
+                  使用
+                </button>
+              )}
             </div>
             <div style={styles.ticketItem}>
               📜 {TICKETS.dark.name}
@@ -447,6 +548,40 @@ const MerchantGuild = ({
           </div>
         </div>
       </div>
+
+      {/* 属性商人呼び出しモーダル */}
+      {showTicketModal && (
+        <div style={styles.modal} onClick={() => setShowTicketModal(false)}>
+          <div style={styles.modalContent} onClick={e => e.stopPropagation()}>
+            <div style={styles.modalTitle}>呼び出す商人を選択</div>
+            <div style={styles.modalList}>
+              {callableMerchants.map(merchant => (
+                <div
+                  key={merchant.name}
+                  style={styles.modalItem}
+                  onClick={() => handleCallAttributeMerchant(merchant.name)}
+                  onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(107,76,230,0.4)'}
+                  onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(107,76,230,0.2)'}
+                >
+                  <span style={{ fontSize: '24px' }}>{merchant.icon}</span>
+                  <div>
+                    <div style={{ fontWeight: 'bold', color: '#fff' }}>{merchant.name}</div>
+                    <div style={{ fontSize: '12px', color: '#a0a0a0' }}>
+                      {merchant.specialty?.value}属性
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+            <button
+              style={styles.modalCancelButton}
+              onClick={() => setShowTicketModal(false)}
+            >
+              キャンセル
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

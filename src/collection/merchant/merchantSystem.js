@@ -15,6 +15,7 @@ import {
   WEEKDAY_MERCHANTS,
   COLLECTOR_APPEARANCE_THRESHOLD,
   INVENTORY,
+  TICKETS,
 } from './constants';
 import { MERCHANTS, COLLECTORS } from './merchantData';
 
@@ -742,6 +743,85 @@ export const sellToMerchant = (merchantData, merchantName, card, rarity, dayId) 
   return newData;
 };
 
+// ========================================
+// チケット操作
+// ========================================
+
+/**
+ * チケットを購入
+ * @param {Object} merchantData - 商人データ状態
+ * @param {string} ticketType - チケットタイプ ('attribute', 'dark', 'traveler')
+ * @param {number} currentGold - 現在の所持金
+ * @returns {{ success: boolean, newMerchantData: Object, newGold: number, message: string }}
+ */
+export const purchaseTicket = (merchantData, ticketType, currentGold) => {
+  const ticketInfo = TICKETS[ticketType];
+  if (!ticketInfo) {
+    return { success: false, newMerchantData: merchantData, newGold: currentGold, message: '無効なチケットタイプです' };
+  }
+
+  if (currentGold < ticketInfo.price) {
+    return { success: false, newMerchantData: merchantData, newGold: currentGold, message: '所持金が足りません' };
+  }
+
+  const newTickets = { ...merchantData.tickets };
+  newTickets[ticketType] = (newTickets[ticketType] || 0) + 1;
+
+  return {
+    success: true,
+    newMerchantData: {
+      ...merchantData,
+      tickets: newTickets,
+    },
+    newGold: currentGold - ticketInfo.price,
+    message: `${ticketInfo.name}を購入しました`,
+  };
+};
+
+/**
+ * 属性商人呼び出しチケットを使用
+ * @param {Object} merchantData - 商人データ状態
+ * @param {string} merchantName - 呼び出す商人名
+ * @param {number} dayId - 現在の日
+ * @returns {{ success: boolean, newMerchantData: Object, message: string }}
+ */
+export const callAttributeMerchant = (merchantData, merchantName, dayId) => {
+  const tickets = merchantData.tickets || {};
+  if (!tickets.attribute || tickets.attribute <= 0) {
+    return { success: false, newMerchantData: merchantData, message: '属性商人呼び出し券を所持していません' };
+  }
+
+  const merchant = MERCHANTS[merchantName];
+  if (!merchant || merchant.type !== MERCHANT_TYPES.ATTRIBUTE) {
+    return { success: false, newMerchantData: merchantData, message: '無効な属性商人です' };
+  }
+
+  // 既に今日出現している場合は不要
+  const currentAppearances = merchantData.todayAppearances?.attribute || [];
+  if (currentAppearances.includes(merchantName)) {
+    return { success: false, newMerchantData: merchantData, message: `${merchantName}は既に出現しています` };
+  }
+
+  // チケット消費 & 出現リストに追加
+  const newTickets = { ...tickets };
+  newTickets.attribute -= 1;
+
+  const newAppearances = {
+    ...merchantData.todayAppearances,
+    attribute: [...currentAppearances, merchantName],
+  };
+
+  return {
+    success: true,
+    newMerchantData: {
+      ...merchantData,
+      tickets: newTickets,
+      todayAppearances: newAppearances,
+    },
+    message: `${merchantName}を呼び出しました`,
+  };
+};
+
 /**
  * pendingStockの古いアイテムをクリーンアップ
  * @param {Object} merchantData - 商人データ状態
@@ -789,4 +869,6 @@ export default {
   purchaseFromMerchant,
   sellToMerchant,
   cleanupPendingStock,
+  purchaseTicket,
+  callAttributeMerchant,
 };
