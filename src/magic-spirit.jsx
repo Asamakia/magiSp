@@ -3348,6 +3348,12 @@ export default function MagicSpiritGame() {
         cardValueMap={cardValueMap}
         onBack={() => setGameState('title')}
         onSellCard={handleSellCard}
+        onSettingsChange={(newSettings) => {
+          updatePlayerData({
+            ...playerData,
+            settings: newSettings,
+          });
+        }}
       />
     );
   }
@@ -3418,6 +3424,7 @@ export default function MagicSpiritGame() {
         cards={pendingPackCards}
         onClose={handlePackOpeningClose}
         existingCollection={playerData?.collection || []}
+        effectLevel={playerData?.settings?.rarityEffectLevel}
       />
     );
   }

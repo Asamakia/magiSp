@@ -8,6 +8,16 @@ import { ECONOMY } from './constants';
 import { createInitialMarketState } from '../market/marketEngine';
 import { createInitialAssetHistory } from '../systems/assetCalculator';
 import { createInitialMerchantData } from '../merchant/merchantSystem';
+import { EFFECT_LEVELS } from '../../styles/rarityEffects';
+
+// ========================================
+// 設定のデフォルト値
+// ========================================
+
+export const DEFAULT_SETTINGS = {
+  // レアリティエフェクト: 'full' | 'minimal' | 'off'
+  rarityEffectLevel: EFFECT_LEVELS.FULL,
+};
 
 // ========================================
 // スターターデッキ定義
@@ -109,6 +119,9 @@ export const createInitialPlayerData = (starterCards = STARTER_DECK_CARDS) => {
     // 商人システム
     merchantData: createInitialMerchantData(),
 
+    // ユーザー設定
+    settings: { ...DEFAULT_SETTINGS },
+
     // 統計
     stats: {
       totalBattles: 0,
@@ -149,6 +162,8 @@ export const validatePlayerData = (data) => {
   if (!data.assetHistory || typeof data.assetHistory !== 'object') return { valid: false, needsRepair: true };
   // merchantDataが存在しない場合は修復が必要
   if (!data.merchantData || typeof data.merchantData !== 'object') return { valid: false, needsRepair: true };
+  // settingsが存在しない場合は修復が必要
+  if (!data.settings || typeof data.settings !== 'object') return { valid: false, needsRepair: true };
   return { valid: true };
 };
 
@@ -198,6 +213,12 @@ export const repairPlayerData = (data) => {
     };
   }
 
+  // settingsの修復
+  const repairedSettings = {
+    ...DEFAULT_SETTINGS,
+    ...(data.settings || {}),
+  };
+
   return {
     gold: typeof data.gold === 'number' ? data.gold : defaults.gold,
     unopenedPacks: typeof data.unopenedPacks === 'number' ? data.unopenedPacks : 0,
@@ -206,6 +227,7 @@ export const repairPlayerData = (data) => {
     market: repairedMarket,
     assetHistory: repairedAssetHistory,
     merchantData: repairedMerchantData,
+    settings: repairedSettings,
     stats: {
       ...defaults.stats,
       ...(data.stats || {}),
@@ -236,6 +258,7 @@ export const createUserDeck = (name, cards = []) => {
 };
 
 export default {
+  DEFAULT_SETTINGS,
   STARTER_DECK_CARDS,
   createInitialPlayerData,
   validatePlayerData,
