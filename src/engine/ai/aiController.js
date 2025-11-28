@@ -10,6 +10,7 @@
 
 import { getStrategy } from './strategies';
 import { statusEffectEngine } from '../statusEffects';
+import { isSkillEffective } from './skillEffectivityChecker';
 
 /**
  * AI思考の遅延時間（ミリ秒）
@@ -251,6 +252,7 @@ export function getChargeableCards(gameState) {
 /**
  * 使用可能なスキルを取得
  * 1ターン1回制限（usedSkillThisTurn）もチェック
+ * スキル有効性チェック（手札条件など）も行う
  */
 export function getUsableSkills(gameState) {
   const skills = [];
@@ -261,10 +263,16 @@ export function getUsableSkills(gameState) {
     const charges = monster.charges?.length || 0;
 
     if (charges >= 1 && monster.basicSkill) {
-      skills.push({ monsterIndex: index, skillType: 'basic', monster });
+      // スキル有効性チェック（手札条件、フィールド空き条件など）
+      if (isSkillEffective(monster, 'basic', gameState)) {
+        skills.push({ monsterIndex: index, skillType: 'basic', monster });
+      }
     }
     if (charges >= 2 && monster.advancedSkill) {
-      skills.push({ monsterIndex: index, skillType: 'advanced', monster });
+      // スキル有効性チェック（手札条件、フィールド空き条件など）
+      if (isSkillEffective(monster, 'advanced', gameState)) {
+        skills.push({ monsterIndex: index, skillType: 'advanced', monster });
+      }
     }
   });
   return skills;
