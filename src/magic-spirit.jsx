@@ -120,6 +120,10 @@ export default function MagicSpiritGame() {
   const [p1NextTurnSPBonus, setP1NextTurnSPBonus] = useState(0);
   const [p2NextTurnSPBonus, setP2NextTurnSPBonus] = useState(0);
 
+  // 魔法カード使用制限（触覚持ち粘液獣等）
+  const [p1MagicBlocked, setP1MagicBlocked] = useState(false);
+  const [p2MagicBlocked, setP2MagicBlocked] = useState(false);
+
   // UI状態
   const [selectedHandCard, setSelectedHandCard] = useState(null);
   const [selectedFieldMonster, setSelectedFieldMonster] = useState(null);
@@ -248,6 +252,8 @@ export default function MagicSpiritGame() {
     setP2RestedSP(0);
     setP1NextTurnSPBonus(0);
     setP2NextTurnSPBonus(0);
+    setP1MagicBlocked(false);
+    setP2MagicBlocked(false);
     setP1Field([null, null, null, null, null]);
     setP2Field([null, null, null, null, null]);
     setP1FieldCard(null);
@@ -536,6 +542,15 @@ export default function MagicSpiritGame() {
         // ターン終了時に使用済みフラグをリセット
         resetTurnFlags();
         continuousEffectEngine.resetTurnFlags();
+
+        // 魔法カード使用制限の解除（触覚持ち粘液獣の効果は相手エンドフェイズで終了）
+        if (currentPlayer === 1 && p1MagicBlocked) {
+          setP1MagicBlocked(false);
+          addLog('プレイヤー1: 魔法カード使用制限が解除された', 'info');
+        } else if (currentPlayer === 2 && p2MagicBlocked) {
+          setP2MagicBlocked(false);
+          addLog('プレイヤー2: 魔法カード使用制限が解除された', 'info');
+        }
 
         // ターン終了時までの効果をリセット（攻撃力バフ、破壊耐性等）
         const clearEndOfTurnEffects = (setField) => {
@@ -869,6 +884,9 @@ export default function MagicSpiritGame() {
       addLog,
       setPendingMonsterTarget,
       setPendingHandSelection,
+      // 魔法ブロック設定（触覚持ち粘液獣等）
+      setP1MagicBlocked,
+      setP2MagicBlocked,
     };
 
     // カードIDを渡して効果を実行（カード固有処理がある場合は優先）
@@ -879,7 +897,7 @@ export default function MagicSpiritGame() {
       addLog, setP1Life, setP2Life, setP1Field, setP2Field, setP1Hand, setP2Hand,
       setP1Deck, setP2Deck, setP1Graveyard, setP2Graveyard,
       setP1ActiveSP, setP2ActiveSP, setP1RestedSP, setP2RestedSP, setPendingMonsterTarget,
-      setPendingHandSelection]);
+      setPendingHandSelection, setP1MagicBlocked, setP2MagicBlocked]);
 
   // カード召喚
   const summonCard = useCallback((card, slotIndex) => {
@@ -1095,6 +1113,13 @@ export default function MagicSpiritGame() {
     }
 
     if (card.type === 'magic') {
+      // 魔法カード使用制限チェック（触覚持ち粘液獣等）
+      const isMagicBlocked = currentPlayer === 1 ? p1MagicBlocked : p2MagicBlocked;
+      if (isMagicBlocked) {
+        addLog('魔法カードを使用できません！（触覚持ち粘液獣の効果）', 'damage');
+        return false;
+      }
+
       // 魔法カードのコスト軽減を計算
       const magicCostContext = {
         currentPlayer,

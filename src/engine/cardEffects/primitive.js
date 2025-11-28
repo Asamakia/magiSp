@@ -15,6 +15,33 @@ import { hasCategory } from '../../utils/helpers';
  */
 export const primitiveCardEffects = {
   /**
+   * C0000002: 触覚持ち粘液獣
+   * 基本技：次の相手エンドフェイズ時まで相手は魔法カードを使えない
+   */
+  C0000002: (skillText, context) => {
+    if (context.skillType === 'basic') {
+      const {
+        addLog,
+        currentPlayer,
+        setP1MagicBlocked,
+        setP2MagicBlocked,
+      } = context;
+
+      // 相手の魔法カード使用をブロック
+      if (currentPlayer === 1) {
+        setP2MagicBlocked(true);
+        addLog('触覚持ち粘液獣の効果: プレイヤー2は次のエンドフェイズまで魔法カードを使用できない！', 'info');
+      } else {
+        setP1MagicBlocked(true);
+        addLog('触覚持ち粘液獣の効果: プレイヤー1は次のエンドフェイズまで魔法カードを使用できない！', 'info');
+      }
+
+      return true;
+    }
+    return false;
+  },
+
+  /**
    * C0000004: ゴミあさり粘液獣
    * 【召喚時】墓地の《粘液獣》モンスター1体を攻撃力半減して場に戻す
    */
