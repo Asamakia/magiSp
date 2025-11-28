@@ -498,14 +498,29 @@ export const fireTrigger = (triggerType, context) => {
   // 各トリガーを実行
   sortedTriggers.forEach((trigger) => {
     try {
+      // トリガーを所有するカードをフィールドから検索してコンテキストに追加
+      const ownerField = trigger.owner === 1 ? context.p1Field : context.p2Field;
+      const triggerCard = ownerField
+        ? ownerField.find((m) => m && m.uniqueId === trigger.cardId)
+        : null;
+
+      // トリガー実行用のコンテキストを作成（カード情報を追加）
+      // フィールドにカードが見つかった場合のみ上書き、見つからない場合は元のcontext.cardを維持
+      // （ON_DESTROY_SELFなど、カードがすでにフィールドにない場合に対応）
+      const triggerContext = {
+        ...context,
+        card: triggerCard || context.card || context.destroyedCard,
+        slotIndex: trigger.slotIndex ?? context.slotIndex,
+      };
+
       // 条件チェック
-      if (trigger.condition && !trigger.condition(context)) {
+      if (trigger.condition && !trigger.condition(triggerContext)) {
         return; // 条件を満たさない
       }
 
       // 効果実行
       if (typeof trigger.effect === 'function') {
-        trigger.effect(context);
+        trigger.effect(triggerContext);
       }
 
       // ログ出力（effectから出力されていない場合）
@@ -640,6 +655,20 @@ const checkGraveyardTriggerActivatable = (card, trigger, context) => {
  */
 export const activateTrigger = (trigger, context) => {
   try {
+    // トリガーを所有するカードをフィールドから検索してコンテキストに追加
+    const ownerField = trigger.owner === 1 ? context.p1Field : context.p2Field;
+    const triggerCard = ownerField
+      ? ownerField.find((m) => m && m.uniqueId === trigger.cardId)
+      : null;
+
+    // トリガー実行用のコンテキストを作成（カード情報を追加）
+    // フィールドにカードが見つかった場合のみ上書き、見つからない場合は元のcontext.cardを維持
+    const triggerContext = {
+      ...context,
+      card: triggerCard || context.card || context.destroyedCard,
+      slotIndex: trigger.slotIndex ?? context.slotIndex,
+    };
+
     // 発動可能かチェック
     if (trigger.usedThisTurn) {
       context.addLog(`${trigger.cardName}は既に使用済みです`, 'info');
@@ -647,13 +676,13 @@ export const activateTrigger = (trigger, context) => {
     }
 
     // コストチェック
-    if (trigger.costCheck && !trigger.costCheck(context)) {
+    if (trigger.costCheck && !trigger.costCheck(triggerContext)) {
       context.addLog(`${trigger.cardName}を発動できません（コスト不足）`, 'info');
       return false;
     }
 
     // 条件チェック
-    if (trigger.condition && !trigger.condition(context)) {
+    if (trigger.condition && !trigger.condition(triggerContext)) {
       context.addLog(`${trigger.cardName}を発動できません（条件不足）`, 'info');
       return false;
     }
@@ -663,7 +692,7 @@ export const activateTrigger = (trigger, context) => {
 
     // 効果実行
     if (typeof trigger.effect === 'function') {
-      trigger.effect(context);
+      trigger.effect(triggerContext);
     }
 
     // ログ出力
