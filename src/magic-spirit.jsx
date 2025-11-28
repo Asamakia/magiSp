@@ -342,16 +342,6 @@ export default function MagicSpiritGame() {
         getTier
       );
 
-      // デバッグ: 保存前のpriceHistoryを確認
-      console.log('[awardBattleRewards] newPriceHistory to save:', {
-        hasAttributes: !!newPriceHistory.attributes,
-        attributeKeys: Object.keys(newPriceHistory.attributes || {}),
-        attributeSample: newPriceHistory.attributes ? Object.fromEntries(
-          Object.entries(newPriceHistory.attributes).map(([k, v]) => [k, Array.isArray(v) ? `len=${v.length}, last=${v[v.length-1]}` : 'not array'])
-        ) : 'no attributes',
-        marketIndexLen: newPriceHistory.marketIndex?.length || 0,
-      });
-
       updatedPlayerData = {
         ...updatedPlayerData,
         market: {
