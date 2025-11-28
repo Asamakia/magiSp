@@ -145,6 +145,10 @@ export default function MagicSpiritGame() {
   //   context: {},  // 追加コンテキスト（攻撃者情報など）
   // }
 
+  // 刹那詠唱効果完了後に実行するアクション（効果の選択UIが完了するまで待機）
+  const [pendingSetsunaAction, setPendingSetsunaAction] = useState(null);
+  // pendingSetsunaAction = { type: 'attack', attackerIndex, targetIndex } | { type: 'battleStart' }
+
   // デッキ選択状態
   const [p1SelectedDeck, setP1SelectedDeck] = useState('random');
   const [p2SelectedDeck, setP2SelectedDeck] = useState('random');
@@ -260,6 +264,16 @@ export default function MagicSpiritGame() {
     setPendingHandSelection(null);
     setPendingSelectedCard(null);
     setPendingDeckReview(null);
+    setPendingMonsterTarget(null);
+    setPendingSelectedMonsterIndex(null);
+    setPendingGraveyardSelection(null);
+    setPendingGraveyardSelectedCard(null);
+
+    // 刹那詠唱状態をリセット
+    setSetsunaPendingActivation(false);
+    setSetsunaPendingCard(null);
+    setChainConfirmation(null);
+    setPendingSetsunaAction(null);
 
     // トリガーシステムをクリア
     clearAllTriggers();
@@ -1658,6 +1672,7 @@ export default function MagicSpiritGame() {
         addLog,
         setPendingDeckReview,
         setPendingMonsterTarget,
+        setPendingHandSelection,
       };
       executeSkillEffects(card.effect, context, card.id);
     }
@@ -1666,21 +1681,11 @@ export default function MagicSpiritGame() {
     setChainConfirmation(null);
     setSetsunaPendingCard(null);
 
-    // 保留中のアクションを実行
-    if (pendingAction.type === 'attack') {
-      // 少し遅延して攻撃を実行（効果の反映を待つ）
-      setTimeout(() => {
-        executeAttack(pendingAction.attackerIndex, pendingAction.targetIndex);
-      }, 100);
-    } else if (pendingAction.type === 'battleStart') {
-      // 少し遅延してバトルフェイズへ進行（効果の反映を待つ）
-      setTimeout(() => {
-        setPhase(3);
-        setSelectedHandCard(null);
-      }, 100);
-    }
+    // 保留中のアクションを設定（pending系の処理が完了するまで待機）
+    // useEffectでpendingMonsterTarget/pendingHandSelectionがクリアされたら実行
+    setPendingSetsunaAction(pendingAction);
   }, [chainConfirmation, p1ActiveSP, p2ActiveSP, p1Field, p2Field, p1Hand, p2Hand,
-      p1Deck, p2Deck, p1Graveyard, p2Graveyard, addLog, executeAttack]);
+      p1Deck, p2Deck, p1Graveyard, p2Graveyard, addLog]);
 
   // チェーン確認をキャンセル（攻撃自体をキャンセル）
   const cancelChainAndAction = useCallback(() => {
@@ -1762,6 +1767,29 @@ export default function MagicSpiritGame() {
     }
     prevPhaseRef.current = phase;
   }, [phase]);
+
+  // 刹那詠唱効果完了後のアクション実行
+  // pendingMonsterTarget/pendingHandSelectionがクリアされたらpendingSetsunaActionを実行
+  useEffect(() => {
+    if (!pendingSetsunaAction) return;
+    // pending系の処理がまだある場合は待機
+    if (pendingMonsterTarget || pendingHandSelection || pendingGraveyardSelection || pendingDeckReview) {
+      return;
+    }
+
+    // 少し遅延してアクションを実行（状態更新の反映を待つ）
+    const timeoutId = setTimeout(() => {
+      if (pendingSetsunaAction.type === 'attack') {
+        executeAttack(pendingSetsunaAction.attackerIndex, pendingSetsunaAction.targetIndex);
+      } else if (pendingSetsunaAction.type === 'battleStart') {
+        setPhase(3);
+        setSelectedHandCard(null);
+      }
+      setPendingSetsunaAction(null);
+    }, 100);
+
+    return () => clearTimeout(timeoutId);
+  }, [pendingSetsunaAction, pendingMonsterTarget, pendingHandSelection, pendingGraveyardSelection, pendingDeckReview, executeAttack]);
 
   // AIターン実行
   useEffect(() => {
