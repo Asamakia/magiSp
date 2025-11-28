@@ -159,6 +159,7 @@ export default function MagicSpiritGame() {
   const [p1AIDifficulty, setP1AIDifficulty] = useState('normal'); // 'easy' | 'normal' | 'hard'
   const [p2AIDifficulty, setP2AIDifficulty] = useState('normal'); // 'easy' | 'normal' | 'hard'
   const [aiAttackedMonsters, setAiAttackedMonsters] = useState(new Set()); // AIが攻撃済みのモンスター
+  const [aiActionCounter, setAiActionCounter] = useState(0); // AIアクション用カウンター（空振り時もuseEffect再トリガー用）
   const prevPhaseRef = useRef(phase); // 前回のフェイズを追跡
 
   // ログ追加関数（最大100件保持）
@@ -274,6 +275,10 @@ export default function MagicSpiritGame() {
     setSetsunaPendingCard(null);
     setChainConfirmation(null);
     setPendingSetsunaAction(null);
+
+    // AIシステムをリセット
+    setAiAttackedMonsters(new Set());
+    setAiActionCounter(0);
 
     // トリガーシステムをクリア
     clearAllTriggers();
@@ -1934,6 +1939,8 @@ export default function MagicSpiritGame() {
         executeAIMainPhaseAction(aiGameState, actions, strategy, {
           chargeUsedThisTurn,
         });
+        // アクション実行後にカウンターをインクリメント（空振り時もuseEffect再トリガー用）
+        setAiActionCounter(prev => prev + 1);
       }, AI_DELAY.MEDIUM);
       return () => clearTimeout(timeoutId);
     }
@@ -1948,6 +1955,8 @@ export default function MagicSpiritGame() {
 
         const result = executeAIBattlePhaseAction(aiGameState, actions, strategy, aiAttackedMonsters);
         setAiAttackedMonsters(result.attackedMonsters);
+        // アクション実行後にカウンターをインクリメント（空振り時もuseEffect再トリガー用）
+        setAiActionCounter(prev => prev + 1);
       }, AI_DELAY.MEDIUM);
       return () => clearTimeout(timeoutId);
     }
@@ -1960,6 +1969,7 @@ export default function MagicSpiritGame() {
     p1FieldCard, p2FieldCard, p1PhaseCard, p2PhaseCard,
     pendingHandSelection, pendingMonsterTarget, pendingGraveyardSelection, pendingDeckReview,
     chainConfirmation, aiAttackedMonsters, chargeUsedThisTurn,
+    aiActionCounter, // AIアクション空振り時も再トリガーするため
   ]);
 
   // ハンドカードクリック
