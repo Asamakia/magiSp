@@ -125,3 +125,47 @@ export const createDeckFromPrebuilt = (deckId, cardPool = []) => {
 
   return shuffle(deck);
 };
+
+/**
+ * ユーザー作成デッキからカードインスタンスを生成
+ * @param {Object} userDeck - ユーザーデッキ（playerData.userDecksの要素）
+ * @param {Array} cardPool - カードプール（CSVから読み込んだ全カードデータ）
+ * @returns {Array} シャッフルされたデッキ
+ */
+export const createDeckFromUserDeck = (userDeck, cardPool = []) => {
+  if (!userDeck || !userDeck.cards || !Array.isArray(userDeck.cards)) {
+    console.error('無効なユーザーデッキ:', userDeck);
+    return createDeck(cardPool);
+  }
+
+  const deck = [];
+  for (const deckCard of userDeck.cards) {
+    const cardData = cardPool.find(c => c.id === deckCard.cardId);
+    if (cardData) {
+      deck.push({
+        ...cardData,
+        rarity: deckCard.rarity, // レアリティを保持
+        uniqueId: `${deckCard.cardId}-${Date.now()}-${Math.random()}`,
+      });
+    } else {
+      console.warn(`カードが見つかりません: ${deckCard.cardId}`);
+    }
+  }
+
+  // デッキが40枚に満たない場合、ランダムで補充
+  if (deck.length < DECK_SIZE) {
+    console.warn(`ユーザーデッキが${deck.length}枚しかありません。ランダムで補充します。`);
+    const availableCards = cardPool.filter(c =>
+      c.type === 'monster' || c.type === 'magic' || c.type === 'field' || c.type === 'phasecard'
+    );
+    while (deck.length < DECK_SIZE && availableCards.length > 0) {
+      const randomCard = availableCards[Math.floor(Math.random() * availableCards.length)];
+      deck.push({
+        ...randomCard,
+        uniqueId: `${randomCard.id}-${Date.now()}-${Math.random()}`,
+      });
+    }
+  }
+
+  return shuffle(deck);
+};
