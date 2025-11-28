@@ -2,6 +2,9 @@
  * 動的市場システム - メインエクスポート
  */
 
+// デフォルトエクスポート用のインポート
+import marketEngine from './marketEngine';
+
 // 定数
 export * from './constants';
 
@@ -34,5 +37,4 @@ export * from './data/seasonal';
 export * from './data/characters';
 
 // デフォルトエクスポート
-import marketEngine from './marketEngine';
 export default marketEngine;

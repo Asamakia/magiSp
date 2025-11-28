@@ -7,6 +7,12 @@
 
 import React, { useState } from 'react';
 import { currencyManager, packSystem, ECONOMY, DAYS_PER_WEEK } from '../index';
+import {
+  getMarketIndexChartData,
+  getTrendIcon,
+  getTrendColor,
+  generateSparklineData,
+} from '../market/priceHistory';
 
 // ========================================
 // スタイル定義
@@ -343,6 +349,86 @@ const styles = {
     borderRadius: '2px',
     transition: 'width 0.3s ease',
   },
+  // MSI（市場指数）セクション
+  msiSection: {
+    width: '100%',
+    maxWidth: '500px',
+    background: 'linear-gradient(135deg, rgba(255,215,0,0.1) 0%, rgba(255,165,0,0.08) 100%)',
+    borderRadius: '12px',
+    border: '2px solid rgba(255,215,0,0.4)',
+    padding: '16px',
+    boxShadow: '0 4px 20px rgba(255,215,0,0.15)',
+  },
+  msiHeader: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: '12px',
+  },
+  msiTitle: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '8px',
+  },
+  msiIcon: {
+    fontSize: '24px',
+  },
+  msiLabel: {
+    fontSize: '14px',
+    fontWeight: 'bold',
+    color: '#ffd700',
+  },
+  msiDetailButton: {
+    padding: '6px 12px',
+    borderRadius: '6px',
+    border: '1px solid rgba(255,215,0,0.5)',
+    background: 'rgba(255,215,0,0.1)',
+    color: '#ffd700',
+    cursor: 'pointer',
+    fontSize: '12px',
+    fontWeight: 'bold',
+    transition: 'all 0.2s ease',
+  },
+  msiBody: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '16px',
+  },
+  msiValue: {
+    fontSize: '32px',
+    fontWeight: 'bold',
+    color: '#ffd700',
+  },
+  msiChange: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '4px',
+  },
+  msiChangeValue: {
+    fontSize: '16px',
+    fontWeight: 'bold',
+  },
+  msiCondition: {
+    fontSize: '12px',
+    padding: '4px 8px',
+    borderRadius: '4px',
+    fontWeight: 'bold',
+  },
+  msiSparkline: {
+    flex: 1,
+    display: 'flex',
+    alignItems: 'flex-end',
+    height: '40px',
+    gap: '2px',
+    marginLeft: 'auto',
+  },
+  msiSparklineBar: {
+    width: '6px',
+    backgroundColor: '#ffd700',
+    borderRadius: '2px 2px 0 0',
+    transition: 'height 0.3s',
+    opacity: 0.7,
+  },
 };
 
 // ========================================
@@ -357,6 +443,7 @@ const ShopScreen = ({
   onOpenPack,
   onGoToCollection,
   onPlayerDataUpdate,
+  onOpenMarketAnalysis,
 }) => {
   const [isHovered, setIsHovered] = useState(false);
   const [message, setMessage] = useState(null);
@@ -364,6 +451,23 @@ const ShopScreen = ({
 
   const packInfo = packSystem.getPackInfo();
   const canBuy = currencyManager.canBuyPack(playerData);
+
+  // MSIデータ取得
+  const priceHistory = playerData.market?.priceHistory;
+  const msiData = priceHistory ? getMarketIndexChartData(priceHistory) : null;
+  const sparklineData = msiData ? generateSparklineData(msiData.prices) : [];
+
+  // 市場状態の色取得
+  const getConditionStyle = (condition) => {
+    const colorMap = {
+      '好況': { bg: 'rgba(76, 175, 80, 0.3)', color: '#4caf50' },
+      'やや好況': { bg: 'rgba(139, 195, 74, 0.3)', color: '#8bc34a' },
+      '安定': { bg: 'rgba(158, 158, 158, 0.3)', color: '#9e9e9e' },
+      'やや不況': { bg: 'rgba(255, 152, 0, 0.3)', color: '#ff9800' },
+      '不況': { bg: 'rgba(244, 67, 54, 0.3)', color: '#f44336' },
+    };
+    return colorMap[condition] || colorMap['安定'];
+  };
 
   // パック購入処理
   const handleBuyPack = async () => {
@@ -424,6 +528,73 @@ const ShopScreen = ({
         {message && (
           <div style={message.type === 'error' ? styles.errorMessage : styles.successMessage}>
             {message.text}
+          </div>
+        )}
+
+        {/* MSI（市場指数）セクション */}
+        {msiData && msiData.currentPrice > 0 && (
+          <div style={styles.msiSection}>
+            <div style={styles.msiHeader}>
+              <div style={styles.msiTitle}>
+                <span style={styles.msiIcon}>📊</span>
+                <span style={styles.msiLabel}>Magic Spirit Index (MSI)</span>
+              </div>
+              {onOpenMarketAnalysis && (
+                <button
+                  style={styles.msiDetailButton}
+                  onClick={onOpenMarketAnalysis}
+                  onMouseEnter={(e) => {
+                    e.target.style.background = 'rgba(255,215,0,0.3)';
+                    e.target.style.borderColor = 'rgba(255,215,0,0.8)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.target.style.background = 'rgba(255,215,0,0.1)';
+                    e.target.style.borderColor = 'rgba(255,215,0,0.5)';
+                  }}
+                >
+                  詳細分析 →
+                </button>
+              )}
+            </div>
+            <div style={styles.msiBody}>
+              <div style={styles.msiValue}>
+                {msiData.currentPrice.toLocaleString()}
+              </div>
+              <div style={styles.msiChange}>
+                <span
+                  style={{
+                    ...styles.msiChangeValue,
+                    color: getTrendColor(msiData.changePercent),
+                  }}
+                >
+                  {getTrendIcon(msiData.changePercent)}{' '}
+                  {msiData.changePercent > 0 ? '+' : ''}
+                  {msiData.changePercent}%
+                </span>
+                <span
+                  style={{
+                    ...styles.msiCondition,
+                    backgroundColor: getConditionStyle(msiData.marketCondition).bg,
+                    color: getConditionStyle(msiData.marketCondition).color,
+                  }}
+                >
+                  {msiData.marketCondition}
+                </span>
+              </div>
+              {sparklineData.length > 0 && (
+                <div style={styles.msiSparkline}>
+                  {sparklineData.map((value, index) => (
+                    <div
+                      key={index}
+                      style={{
+                        ...styles.msiSparklineBar,
+                        height: `${Math.max(value, 5)}%`,
+                      }}
+                    />
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
         )}
 
