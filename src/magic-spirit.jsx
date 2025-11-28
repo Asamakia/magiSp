@@ -1916,6 +1916,18 @@ export default function MagicSpiritGame() {
             addLog(`AI: トリガー発動`, 'info');
           },
           chargeCard: (card, monsterIndex) => chargeCard(card, monsterIndex),
+          placeFieldCard: (card) => {
+            // フィールドカードの配置（summonCardがfieldタイプを処理）
+            if (card && card.type === 'field') {
+              summonCard(card, 0);
+            }
+          },
+          placePhaseCard: (card) => {
+            // フェイズカードの配置（summonCardがphasecardタイプを処理）
+            if (card && card.type === 'phasecard') {
+              summonCard(card, 0);
+            }
+          },
           nextPhase: () => nextPhase(),
         };
 

@@ -47,4 +47,14 @@ export const easyStrategy = {
   chooseMagicCard(usableMagicCards, gameState) {
     return null;
   },
+
+  // フィールドカードは配置しない（戦略的価値を理解していない）
+  chooseFieldCard(placeableFieldCards, gameState) {
+    return null;
+  },
+
+  // フェイズカードは配置しない
+  choosePhaseCard(placeablePhaseCards, gameState) {
+    return null;
+  },
 };
