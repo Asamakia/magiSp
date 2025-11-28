@@ -67,7 +67,7 @@ export const waterCardEffects = {
 
       if (waterMonsters.length === 0) {
         addLog('自分のフィールドに水属性モンスターがいません', 'info');
-        return false;
+        return true; // 技は発動したが効果なし（汎用パーサーへのフォールバック防止）
       }
 
       // 状態異常を持つ水属性モンスターをフィルタ
@@ -77,7 +77,7 @@ export const waterCardEffects = {
 
       if (afflictedMonsters.length === 0) {
         addLog('状態異常を持つ水属性モンスターがいません', 'info');
-        return false;
+        return true; // 技は発動したが効果なし（汎用パーサーへのフォールバック防止）
       }
 
       const clearStatusEffects = (targetIndex) => {
