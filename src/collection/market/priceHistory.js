@@ -85,9 +85,12 @@ export const recordPriceHistory = (priceHistory, marketState, allCards, getBaseV
     // 属性が空文字列やundefinedの場合は'なし'を使用
     const rawAttribute = card.attribute?.trim?.() || card.attribute;
     const attribute = (rawAttribute && rawAttribute !== '') ? rawAttribute : 'なし';
-    const category = card.category && typeof card.category === 'string'
-      ? card.category.replace(/【|】/g, '').split('】')[0]
-      : null;
+    // カテゴリ抽出: "【ドラゴン】" → "ドラゴン", "【ビースト】【スライム】" → "ビースト"
+    let category = null;
+    if (card.category && typeof card.category === 'string') {
+      const match = card.category.match(/【([^】]+)】/);
+      category = match ? match[1] : null;
+    }
 
     // 個別カード履歴
     if (!newHistory.cards[card.id]) {
