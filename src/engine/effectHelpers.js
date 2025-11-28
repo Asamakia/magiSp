@@ -216,7 +216,21 @@ export const conditionalDamage = (context, damage, target, targetIndex = null) =
         return false;
       }
 
-      const newHp = Math.max(0, targetMonster.currentHp - damage);
+      let newHp = Math.max(0, targetMonster.currentHp - damage);
+
+      // 破壊耐性チェック: HP0になる場合はHP1で止まる
+      if (targetMonster.indestructibleUntilEndOfTurn && newHp <= 0) {
+        newHp = 1;
+        addLog(`${targetMonster.name}に${damage}ダメージ！しかし破壊されない！（HP: ${newHp}）`, 'damage');
+        setSelfField(prev => prev.map((m, idx) => {
+          if (idx === selfIndex && m) {
+            return { ...m, currentHp: newHp };
+          }
+          return m;
+        }));
+        return true;
+      }
+
       addLog(`${targetMonster.name}に${damage}ダメージ（残りHP: ${newHp}）`, 'damage');
 
       if (newHp <= 0) {
@@ -273,7 +287,21 @@ export const conditionalDamage = (context, damage, target, targetIndex = null) =
         return false;
       }
 
-      const newHp = Math.max(0, targetMonster.currentHp - damage);
+      let newHp = Math.max(0, targetMonster.currentHp - damage);
+
+      // 破壊耐性チェック: HP0になる場合はHP1で止まる
+      if (targetMonster.indestructibleUntilEndOfTurn && newHp <= 0) {
+        newHp = 1;
+        addLog(`${targetMonster.name}に${damage}ダメージ！しかし破壊されない！（HP: ${newHp}）`, 'damage');
+        setOpponentField(prev => prev.map((m, idx) => {
+          if (idx === slotIndex && m) {
+            return { ...m, currentHp: newHp };
+          }
+          return m;
+        }));
+        return true;
+      }
+
       addLog(`${targetMonster.name}に${damage}ダメージ（残りHP: ${newHp}）`, 'damage');
 
       if (newHp <= 0) {
@@ -340,6 +368,7 @@ export const searchCard = (context, condition) => {
  *       hpHalf: boolean,       // HPを半減するか
  *       fixedAttack: number,   // 固定攻撃力（指定時は半減より優先）
  *       fixedHp: number,       // 固定HP（指定時は半減より優先）
+ *       indestructible: boolean, // ターン終了時まで破壊されない
  *     }
  * @returns {boolean} 成功したかどうか
  */
@@ -355,8 +384,8 @@ export const reviveFromGraveyard = (context, condition, options = false) => {
 
   // オプションを正規化（後方互換性: booleanの場合は攻撃力半減として扱う）
   const normalizedOptions = typeof options === 'boolean'
-    ? { attackHalf: options, hpHalf: false }
-    : { attackHalf: false, hpHalf: false, ...options };
+    ? { attackHalf: options, hpHalf: false, indestructible: false }
+    : { attackHalf: false, hpHalf: false, indestructible: false, ...options };
 
   const currentGraveyard = currentPlayer === 1 ? p1Graveyard : p2Graveyard;
   const setCurrentGraveyard = currentPlayer === 1 ? setP1Graveyard : setP2Graveyard;
@@ -414,6 +443,7 @@ export const reviveFromGraveyard = (context, condition, options = false) => {
       owner: currentPlayer, // 常時効果のターゲット判定用
       charges: [], // チャージカードをリセット
       statusEffects: [], // 状態異常をリセット
+      ...(normalizedOptions.indestructible && { indestructibleUntilEndOfTurn: true }),
     };
     newField[emptySlotIndex] = revivedMonster;
     return newField;
@@ -430,6 +460,9 @@ export const reviveFromGraveyard = (context, condition, options = false) => {
     modifiers.push(`HP${normalizedOptions.fixedHp}`);
   } else if (normalizedOptions.hpHalf) {
     modifiers.push('HP半減');
+  }
+  if (normalizedOptions.indestructible) {
+    modifiers.push('ターン終了時まで破壊されない');
   }
   const modifierText = modifiers.length > 0 ? `（${modifiers.join('、')}）` : '';
   addLog(`${reviveCard.name}を墓地から蘇生！${modifierText}`, 'heal');
@@ -464,6 +497,12 @@ export const destroyMonster = (context, targetIndex, isOpponent = true) => {
   }
 
   const targetMonster = targetIndex !== null && targetIndex < monsters.length ? monsters[targetIndex] : monsters[0];
+
+  // 破壊耐性チェック
+  if (targetMonster.indestructibleUntilEndOfTurn) {
+    addLog(`${targetMonster.name}は破壊されない！`, 'info');
+    return false;
+  }
 
   setTargetField(prev => prev.map(m => {
     if (m && m.uniqueId === targetMonster.uniqueId) {

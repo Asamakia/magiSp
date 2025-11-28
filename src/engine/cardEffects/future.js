@@ -658,5 +658,25 @@ export const futureCardEffects = {
     return false;
   },
 
+  /**
+   * C0000269: 永遠の灯の残響
+   * 自分の墓地のコスト4以下「未来属性」モンスター1体を場に召喚。そのモンスターはターン終了時まで破壊されない。
+   */
+  C0000269: (skillText, context) => {
+    const { addLog } = context;
+
+    // 魔法カード効果
+    const result = reviveFromGraveyard(
+      context,
+      (card) => checkAttribute(card, '未来') && card.cost <= 4,
+      { indestructible: true }
+    );
+
+    if (result) {
+      addLog('永遠の灯の残響の効果発動！', 'info');
+    }
+    return result;
+  },
+
   // 他の未来属性カードを追加...
 };

@@ -537,21 +537,35 @@ export default function MagicSpiritGame() {
         resetTurnFlags();
         continuousEffectEngine.resetTurnFlags();
 
-        // ターン終了時までの攻撃力バフをリセット（虚蝕の魔導兵等）
-        const clearEndOfTurnBuffs = (setField) => {
+        // ターン終了時までの効果をリセット（攻撃力バフ、破壊耐性等）
+        const clearEndOfTurnEffects = (setField) => {
           setField(prev => prev.map(m => {
-            if (!m || !m.attackBuffUntilEndOfTurn) return m;
-            const newAttack = Math.max(0, (m.currentAttack || m.attack) - m.attackBuffUntilEndOfTurn);
-            addLog(`${m.name}の攻撃力バフが終了（${newAttack}）`, 'info');
-            const { attackBuffUntilEndOfTurn, ...rest } = m;
-            return { ...rest, currentAttack: newAttack };
+            if (!m) return m;
+            let updated = m;
+
+            // 攻撃力バフをリセット
+            if (m.attackBuffUntilEndOfTurn) {
+              const newAttack = Math.max(0, (m.currentAttack || m.attack) - m.attackBuffUntilEndOfTurn);
+              addLog(`${m.name}の攻撃力バフが終了（${newAttack}）`, 'info');
+              const { attackBuffUntilEndOfTurn, ...rest } = updated;
+              updated = { ...rest, currentAttack: newAttack };
+            }
+
+            // 破壊耐性をリセット
+            if (m.indestructibleUntilEndOfTurn) {
+              addLog(`${m.name}の破壊耐性が終了`, 'info');
+              const { indestructibleUntilEndOfTurn, ...rest } = updated;
+              updated = rest;
+            }
+
+            return updated;
           }));
         };
         // 現在のプレイヤーのフィールドのみ処理（自分のターン終了時）
         if (currentPlayer === 1) {
-          clearEndOfTurnBuffs(setP1Field);
+          clearEndOfTurnEffects(setP1Field);
         } else {
-          clearEndOfTurnBuffs(setP2Field);
+          clearEndOfTurnEffects(setP2Field);
         }
 
         // エンドフェイズまでの一時的コスト軽減をクリア（水晶のマーメイド等）
@@ -1362,8 +1376,19 @@ export default function MagicSpiritGame() {
       // ダメージ処理（新しいオブジェクトを作成）
       // 守護を使用した場合、更新されたモンスターを使用
       const targetForDamage = usedGuard ? targetAfterGuard : target;
-      const newTargetHp = targetForDamage.currentHp - damage;
-      const newAttackerHp = attacker.currentHp - counterDamage;
+      let newTargetHp = targetForDamage.currentHp - damage;
+      let newAttackerHp = attacker.currentHp - counterDamage;
+
+      // 破壊耐性チェック: HP0以下になる場合はHP1で止まる
+      const targetHasIndestructible = targetForDamage.indestructibleUntilEndOfTurn;
+      const attackerHasIndestructible = attacker.indestructibleUntilEndOfTurn;
+
+      if (targetHasIndestructible && newTargetHp <= 0) {
+        newTargetHp = 1;
+      }
+      if (attackerHasIndestructible && newAttackerHp <= 0) {
+        newAttackerHp = 1;
+      }
 
       if (damageMultiplier > 1) {
         addLog(`${target.name}は濡れ状態でダメージ増加！`, 'info');
@@ -1372,7 +1397,13 @@ export default function MagicSpiritGame() {
         addLog(`${target.name}の守護でダメージ軽減！`, 'info');
       }
       addLog(`${target.name}に${damage}ダメージ！`, 'damage');
+      if (targetHasIndestructible && targetForDamage.currentHp - damage <= 0) {
+        addLog(`${target.name}は破壊されない！（HP: 1）`, 'info');
+      }
       addLog(`反撃で${attacker.name}に${counterDamage}ダメージ！`, 'damage');
+      if (attackerHasIndestructible && attacker.currentHp - counterDamage <= 0) {
+        addLog(`${attacker.name}は破壊されない！（HP: 1）`, 'info');
+      }
 
       // 相手フィールドの更新
       if (currentPlayer === 1) {
