@@ -76,7 +76,7 @@ const styles = {
     cursor: 'pointer',
   },
   deckCardHover: {
-    borderColor: '#6b4ce6',
+    border: '2px solid #6b4ce6',
     transform: 'translateY(-2px)',
     boxShadow: '0 4px 20px rgba(107,76,230,0.3)',
   },
@@ -313,7 +313,7 @@ const DeckList = ({
               ...styles.deckCard,
               ...styles.newDeckCard,
               ...(hoveredDeck === 'new' ? {
-                borderColor: '#6bffb8',
+                border: '2px dashed #6bffb8',
                 transform: 'translateY(-2px)',
                 boxShadow: '0 4px 20px rgba(78,205,196,0.3)',
               } : {}),
