@@ -868,6 +868,7 @@ export default function MagicSpiritGame() {
       p2RestedSP,
       addLog,
       setPendingMonsterTarget,
+      setPendingHandSelection,
     };
 
     // カードIDを渡して効果を実行（カード固有処理がある場合は優先）
@@ -877,7 +878,8 @@ export default function MagicSpiritGame() {
       p1ActiveSP, p2ActiveSP, p1RestedSP, p2RestedSP,
       addLog, setP1Life, setP2Life, setP1Field, setP2Field, setP1Hand, setP2Hand,
       setP1Deck, setP2Deck, setP1Graveyard, setP2Graveyard,
-      setP1ActiveSP, setP2ActiveSP, setP1RestedSP, setP2RestedSP, setPendingMonsterTarget]);
+      setP1ActiveSP, setP2ActiveSP, setP1RestedSP, setP2RestedSP, setPendingMonsterTarget,
+      setPendingHandSelection]);
 
   // カード召喚
   const summonCard = useCallback((card, slotIndex) => {
