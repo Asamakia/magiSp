@@ -230,6 +230,12 @@ Currently a **prototype version** with local 2-player gameplay and AI opponent s
   - **DeckList.jsx**: デッキ一覧表示・作成・編集・削除
   - **デッキ統計**: カード分布、コストカーブ表示
   - **プリセット連携**: プリセットデッキをレアリティ適用してインポート
+- **2025-11-28 (Market Analysis Screen)**: 市場分析画面実装 ⭐⭐
+  - **MarketAnalysis.jsx**: 詳細な市場データの分析・可視化画面
+  - **6タブ構成**: 総合(MSI)・属性・カテゴリ・ティア・イベント・検索
+  - **価格履歴チャート**: スパークライン、属性別推移、個別カード検索
+  - **注意**: 価格履歴は対戦ごと（1戦=1日）に蓄積。30戦程度で意味のあるデータに
+  - **Documentation**: `src/ルール/CardValueSystem/market_system.md` に使い方追記
 
 ---
 
@@ -284,8 +290,9 @@ Currently a **prototype version** with local 2-player gameplay and AI opponent s
 │   │       ├── PackOpening.jsx       # Pack opening animation (487 lines)
 │   │       ├── CardGrid.jsx          # Card grid display (262 lines)
 │   │       ├── CardDetail.jsx        # Card detail modal (473 lines)
-│   │       ├── DeckList.jsx          # Deck management (446 lines) ⭐ NEW
-│   │       └── DeckBuilder.jsx       # Deck building from collection (689 lines)
+│   │       ├── DeckList.jsx          # Deck management (446 lines)
+│   │       ├── DeckBuilder.jsx       # Deck building from collection (689 lines)
+│   │       └── MarketAnalysis.jsx    # Market analysis screen (952 lines) ⭐ NEW
 │   │
 │   ├── utils/                  # Utility functions
 │   │   ├── constants.js        # Game constants (30 lines)
@@ -381,8 +388,8 @@ Currently a **prototype version** with local 2-player gameplay and AI opponent s
 │   │   └── Card Value System Documentation - 4 files (~3,000 lines) ⭐⭐⭐⭐⭐
 │   │       ├── card_value_system_v2.1.md (~593 lines) - Value calculation spec
 │   │       ├── collection-system-design.md (~748 lines) - Collection system design
-│   │       ├── market_system.md (~698 lines) - Market mechanics spec ⭐ NEW
-│   │       └── news-binding-tables-design.md (~975 lines) - News pattern definitions ⭐ NEW
+│   │       ├── market_system.md (~740 lines) - Market mechanics spec + 市場分析画面使い方
+│   │       └── news-binding-tables-design.md (~975 lines) - News pattern definitions
 │   │
 │   ├── index.js                # React entry point
 │   ├── App.css                 # App styling
@@ -1979,6 +1986,6 @@ This is suitable for expansion into a full game or as a learning project for Rea
 
 ---
 
-**Document Version**: 5.3
-**Last Updated**: 2025-11-28 (Dynamic Market System - 動的市場システム, Deck List UI - デッキ管理画面)
+**Document Version**: 5.4
+**Last Updated**: 2025-11-28 (Market Analysis Screen - 市場分析画面, ドキュメント更新)
 **For**: Magic Spirit (magiSp) Repository
