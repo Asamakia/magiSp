@@ -106,15 +106,142 @@ export const fireCardEffects = {
   },
 
   /**
+   * C0000022: 火竜の吐息
+   * 【刹那詠唱】相手のモンスター1体に1000ダメージを与える。相手プレイヤーに500ダメージを与える。
+   */
+  C0000022: (skillText, context) => {
+    const { addLog, setPendingMonsterTarget } = context;
+    const { opponentField, setOpponentField, setOpponentGraveyard } = getPlayerContext(context);
+
+    // 相手フィールドのモンスターをチェック
+    const validTargets = opponentField
+      .map((m, idx) => ({ monster: m, index: idx }))
+      .filter(t => t.monster !== null);
+
+    // 相手プレイヤーに500ダメージは必ず与える
+    conditionalDamage(context, 500, 'opponent');
+
+    if (validTargets.length === 0) {
+      addLog('相手フィールドにモンスターがいないため、モンスターへのダメージはなし', 'info');
+      return true;
+    }
+
+    // 1体のみの場合は自動選択
+    if (validTargets.length === 1) {
+      const target = validTargets[0];
+      setOpponentField(prev => {
+        const newField = [...prev];
+        const m = newField[target.index];
+        if (m) {
+          const newHp = m.currentHp - 1000;
+          addLog(`火竜の吐息: ${m.name}に1000ダメージ！`, 'damage');
+          if (newHp <= 0) {
+            addLog(`${m.name}は破壊された！`, 'damage');
+            setOpponentGraveyard(prev => [...prev, m]);
+            newField[target.index] = null;
+          } else {
+            newField[target.index] = { ...m, currentHp: newHp };
+          }
+        }
+        return newField;
+      });
+      return true;
+    }
+
+    // 複数の場合はターゲット選択UI
+    if (setPendingMonsterTarget) {
+      setPendingMonsterTarget({
+        message: '1000ダメージを与える相手モンスターを選択',
+        validTargets: validTargets.map(t => t.index),
+        isOpponent: true,
+        callback: (targetIndex) => {
+          setOpponentField(prev => {
+            const newField = [...prev];
+            const m = newField[targetIndex];
+            if (m) {
+              const newHp = m.currentHp - 1000;
+              addLog(`火竜の吐息: ${m.name}に1000ダメージ！`, 'damage');
+              if (newHp <= 0) {
+                addLog(`${m.name}は破壊された！`, 'damage');
+                setOpponentGraveyard(prev => [...prev, m]);
+                newField[targetIndex] = null;
+              } else {
+                newField[targetIndex] = { ...m, currentHp: newHp };
+              }
+            }
+            return newField;
+          });
+        },
+      });
+      return true;
+    }
+
+    // フォールバック: 最初のターゲットを選択
+    const target = validTargets[0];
+    setOpponentField(prev => {
+      const newField = [...prev];
+      const m = newField[target.index];
+      if (m) {
+        const newHp = m.currentHp - 1000;
+        addLog(`火竜の吐息: ${m.name}に1000ダメージ！`, 'damage');
+        if (newHp <= 0) {
+          addLog(`${m.name}は破壊された！`, 'damage');
+          setOpponentGraveyard(prev => [...prev, m]);
+          newField[target.index] = null;
+        } else {
+          newField[target.index] = { ...m, currentHp: newHp };
+        }
+      }
+      return newField;
+    });
+    return true;
+  },
+
+  /**
+   * C0000024: 紅蓮爆発
+   * 手札を全て捨てる。自分の場にいるモンスターの攻撃力を倍にする。
+   */
+  C0000024: (skillText, context) => {
+    const { addLog } = context;
+    const { myHand, setMyHand, setMyGraveyard, myField, setMyField } = getPlayerContext(context);
+
+    // 手札を全て墓地に送る
+    if (myHand.length > 0) {
+      const discardedCards = [...myHand];
+      setMyGraveyard(prev => [...prev, ...discardedCards]);
+      setMyHand([]);
+      addLog(`紅蓮爆発: 手札${discardedCards.length}枚を全て捨てた！`, 'info');
+    } else {
+      addLog('紅蓮爆発: 手札がない状態で発動', 'info');
+    }
+
+    // 自分の場の全モンスターの攻撃力を倍にする
+    let buffedCount = 0;
+    setMyField(prev => prev.map(m => {
+      if (m) {
+        const newAttack = m.attack * 2;
+        const newCurrentAttack = (m.currentAttack || m.attack) * 2;
+        buffedCount++;
+        return { ...m, attack: newAttack, currentAttack: newCurrentAttack };
+      }
+      return m;
+    }));
+
+    if (buffedCount > 0) {
+      addLog(`紅蓮爆発: 自分のモンスター${buffedCount}体の攻撃力が倍になった！`, 'damage');
+    }
+
+    return true;
+  },
+
+  /**
    * C0000028: 炎竜母フレイマ
    * 【召喚時】墓地の［ドラゴン］モンスター1体を攻撃力半減で場に戻す
+   * ※召喚時効果はtriggerで処理、常時効果はcontinuousEffectsで処理
    */
   C0000028: (skillText, context) => {
-    if (skillText.includes('【召喚時】')) {
-      return reviveFromGraveyard(context, (card) => {
-        return hasCategory(card, '【ドラゴン】');
-      }, true); // 攻撃力半減
-    }
+    // 召喚時効果はfireCards.jsのtriggerで処理されるため、ここでは何もしない
+    // 常時効果はcontinuousEffects/monsterCards.jsで処理
     return false;
   },
 
