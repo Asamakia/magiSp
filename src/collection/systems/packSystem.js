@@ -164,6 +164,49 @@ export const openFreePack = (playerData, allCards, cardValueMap = null) => {
   };
 };
 
+/**
+ * 未開封パックを1つ開封
+ * @param {Object} playerData - プレイヤーデータ
+ * @param {Object[]} allCards - 全カードデータ
+ * @param {Map} [cardValueMap] - カードID -> 価値情報のマップ
+ * @returns {Object} { success, error?, cards?, playerData? }
+ */
+export const openUnopenedPack = (playerData, allCards, cardValueMap = null) => {
+  // 未開封パックの確認
+  if (!playerData.unopenedPacks || playerData.unopenedPacks <= 0) {
+    return {
+      success: false,
+      error: '未開封パックがありません',
+    };
+  }
+
+  // 価値マップがない場合は計算
+  const valueMap = cardValueMap || valueCalculator.calculateAllCardValues(allCards);
+
+  // パック開封
+  const cards = openPack(allCards, valueMap);
+
+  // 各カードをコレクションに追加 & 未開封パック数を減らす
+  let newData = {
+    ...playerData,
+    unopenedPacks: playerData.unopenedPacks - 1,
+    stats: {
+      ...playerData.stats,
+      packsOpened: (playerData.stats.packsOpened || 0) + 1,
+    },
+  };
+
+  for (const { cardId, rarity } of cards) {
+    newData = collectionManager.addCard(newData, cardId, rarity);
+  }
+
+  return {
+    success: true,
+    cards,
+    playerData: newData,
+  };
+};
+
 // ========================================
 // パック情報
 // ========================================
@@ -188,6 +231,7 @@ export const packSystem = {
   openPack,
   buyAndOpenPack,
   openFreePack,
+  openUnopenedPack,
   getPackInfo,
 };
 

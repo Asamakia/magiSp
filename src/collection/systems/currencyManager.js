@@ -80,8 +80,14 @@ export const awardBattleReward = (playerData, isWin) => {
   const goldReward = ECONOMY.BATTLE_REWARD_GOLD;
   data = addGold(data, goldReward, 'battle');
 
-  // 勝利ボーナス
+  // 勝利ボーナス（未開封パックとして付与）
   const packReward = isWin ? ECONOMY.BATTLE_WIN_BONUS_PACKS : 0;
+  if (packReward > 0) {
+    data = {
+      ...data,
+      unopenedPacks: (data.unopenedPacks || 0) + packReward,
+    };
+  }
 
   // 統計更新
   data = {
