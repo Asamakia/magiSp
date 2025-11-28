@@ -3352,7 +3352,7 @@ export default function MagicSpiritGame() {
     return (
       <MerchantGuild
         playerData={playerData}
-        dayId={playerData?.market?.dayId || 0}
+        dayId={playerData?.market?.currentDay || 0}
         onBack={() => setGameState('title')}
         onEnterShop={(merchantName) => {
           setCurrentMerchant(merchantName);
@@ -3379,7 +3379,7 @@ export default function MagicSpiritGame() {
         playerData={playerData}
         allCards={allCards}
         cardValueMap={cardValueMap}
-        dayId={playerData?.market?.dayId || 0}
+        dayId={playerData?.market?.currentDay || 0}
         onBack={() => {
           setCurrentMerchant(null);
           setGameState('merchantGuild');
@@ -3409,7 +3409,7 @@ export default function MagicSpiritGame() {
             currentMerchant,
             card,
             rarity,
-            playerData?.market?.dayId || 0
+            playerData?.market?.currentDay || 0
           );
           // ゴールド獲得とカード削除
           const newPlayerData = {
