@@ -516,5 +516,64 @@ export const fireCardEffects = {
     return false;
   },
 
+  /**
+   * C0000170: 岩狸・大岩王
+   * 上級技：チャージを2消費して、デッキから「岩狸」モンスター1体を場に召喚する。
+   */
+  C0000170: (skillText, context) => {
+    const { addLog, currentPlayer } = context;
+    const { myDeck, setMyDeck, myField, setMyField } = getPlayerContext(context);
+
+    if (context.skillType === 'advanced') {
+      // デッキから岩狸モンスターを探す
+      const tanukiIndex = myDeck.findIndex(card =>
+        card.type === 'monster' && card.name && card.name.includes('岩狸')
+      );
+
+      if (tanukiIndex === -1) {
+        addLog('岩狸・大岩王の上級技: デッキに岩狸モンスターがいません', 'info');
+        return false;
+      }
+
+      // 空きスロットを探す
+      const emptySlotIndex = myField.findIndex(slot => slot === null);
+      if (emptySlotIndex === -1) {
+        addLog('岩狸・大岩王の上級技: フィールドに空きがありません', 'info');
+        return false;
+      }
+
+      const targetCard = myDeck[tanukiIndex];
+
+      // モンスターインスタンスを作成
+      const monsterInstance = {
+        ...targetCard,
+        uniqueId: `${targetCard.id}_${Date.now()}_${Math.random()}`,
+        currentHp: targetCard.hp,
+        currentAttack: targetCard.attack,
+        canAttack: false,
+        usedSkillThisTurn: false,
+        owner: currentPlayer,
+        charges: [],
+        statusEffects: [],
+      };
+
+      // デッキから除去
+      const newDeck = [...myDeck];
+      newDeck.splice(tanukiIndex, 1);
+      setMyDeck(newDeck);
+
+      // フィールドに召喚
+      setMyField(prev => {
+        const newField = [...prev];
+        newField[emptySlotIndex] = monsterInstance;
+        return newField;
+      });
+
+      addLog(`岩狸・大岩王の上級技: デッキから「${targetCard.name}」を召喚！`, 'info');
+      return true;
+    }
+    return false;
+  },
+
   // 他の炎属性カードを追加...
 };

@@ -782,6 +782,91 @@ export const fireCardTriggers = {
    * 【常時】《ドラゴン》と名のついたモンスターの攻撃力を400アップ。→ continuousEffectsで実装
    * 【自分エンドフェイズ時】相手モンスターに300ダメージを与え、場に炎属性モンスターがいる場合、さらに相手プレイヤーに400ダメージを与える。
    */
+  // ========================================
+  // フェイズカード
+  // ========================================
+
+  /**
+   * C0000185: 岩狸の山里
+   * 1枚重ね: 【エンドフェイズ時】自分の《岩狸》モンスター1体のHPを400下げ、相手プレイヤーに400ダメージ。
+   * 3枚重ね: 【自分エンドフェイズ時】場にいる《岩狸》モンスター1体につき相手プレイヤーに600ダメージを与え、その後このカードを墓地に送る。
+   * ※常時効果（初期効果、2枚重ね）はcontinuousEffects/effectDefinitions/phaseCards.jsで実装済み
+   */
+  C0000185: [
+    {
+      type: TRIGGER_TYPES.ON_END_PHASE_SELF,
+      activationType: ACTIVATION_TYPES.AUTOMATIC,
+      description: '1枚重ね時: 岩狸1体HP-400、相手に400ダメージ / 3枚重ね時: 岩狸1体につき600ダメージ',
+      effect: (context) => {
+        const { addLog, phaseCard } = context;
+        const { myField, setMyField, setOpponentLife, myPhaseCard, setMyPhaseCard, setMyGraveyard } = getPlayerContext(context);
+
+        // フェイズカードのチャージ数を確認
+        const card = phaseCard || myPhaseCard;
+        if (!card || card.id !== 'C0000185') return;
+
+        const chargeCount = card.charges ? card.charges.length : 0;
+
+        // 1枚重ね効果（chargeCount === 1）
+        if (chargeCount === 1) {
+          const tanukiMonsters = myField.filter(m => m && m.name && m.name.includes('岩狸'));
+          if (tanukiMonsters.length === 0) {
+            addLog('岩狸の山里: 岩狸モンスターがいないため効果発動なし', 'info');
+            return;
+          }
+
+          // 最初の岩狸のHPを400下げる
+          const targetIndex = myField.findIndex(m => m && m.name && m.name.includes('岩狸'));
+          let destroyedMonster = null;
+
+          setMyField(prev => {
+            const newField = [...prev];
+            if (newField[targetIndex]) {
+              const newHp = newField[targetIndex].currentHp - 400;
+              if (newHp <= 0) {
+                addLog(`${newField[targetIndex].name}がHP減少で倒れた！`, 'damage');
+                destroyedMonster = newField[targetIndex];
+                newField[targetIndex] = null;
+              } else {
+                newField[targetIndex] = { ...newField[targetIndex], currentHp: newHp };
+                addLog(`岩狸の山里: ${newField[targetIndex].name}のHP-400`, 'damage');
+              }
+            }
+            return newField;
+          });
+
+          // 破壊されたモンスターを墓地へ
+          if (destroyedMonster) {
+            setMyGraveyard(prev => [...prev, destroyedMonster]);
+          }
+
+          // 相手に400ダメージ
+          setOpponentLife(prev => prev - 400);
+          addLog('岩狸の山里: 相手プレイヤーに400ダメージ！', 'damage');
+        }
+
+        // 3枚重ね効果（chargeCount === 3）
+        if (chargeCount === 3) {
+          const tanukiCount = myField.filter(m => m && m.name && m.name.includes('岩狸')).length;
+          if (tanukiCount === 0) {
+            addLog('岩狸の山里: 岩狸モンスターがいないため効果発動なし', 'info');
+          } else {
+            const totalDamage = tanukiCount * 600;
+            setOpponentLife(prev => prev - totalDamage);
+            addLog(`岩狸の山里: 岩狸${tanukiCount}体で相手に${totalDamage}ダメージ！`, 'damage');
+          }
+
+          // このカードを墓地に送る
+          if (setMyPhaseCard) {
+            setMyPhaseCard(null);
+            setMyGraveyard(prev => [...prev, card]);
+            addLog('岩狸の山里: 最終効果発動後、墓地へ送られた', 'info');
+          }
+        }
+      },
+    },
+  ],
+
   C0000037: [
     {
       type: TRIGGER_TYPES.ON_END_PHASE_SELF,
@@ -824,6 +909,77 @@ export const fireCardTriggers = {
           setOpponentLife((prev) => prev - 400);
           addLog('ドラゴンの火山: 炎モンスターの力で相手に400ダメージ！', 'damage');
         }
+      },
+    },
+  ],
+
+  /**
+   * C0000187: 狸の熔岩郷
+   * 【自分エンドフェイズ時】墓地の《岩狸》モンスター1体を場に戻す（攻撃力半分、HP半分、効果無効）。
+   * 【エンドフェイズ時】自分のライフを300回復。
+   */
+  C0000187: [
+    {
+      type: TRIGGER_TYPES.ON_END_PHASE_SELF,
+      activationType: ACTIVATION_TYPES.AUTOMATIC,
+      description: 'エンドフェイズ時: 墓地から岩狸を蘇生（攻撃力・HP半分、効果無効）& ライフ300回復',
+      effect: (context) => {
+        const { addLog, currentPlayer } = context;
+        const { myField, setMyField, myGraveyard, setMyGraveyard, setMyLife } = getPlayerContext(context);
+
+        // 墓地から岩狸モンスターを探す
+        const tanukiIndex = myGraveyard.findIndex(card =>
+          card.type === 'monster' && card.name && card.name.includes('岩狸')
+        );
+
+        if (tanukiIndex !== -1) {
+          // 空きスロットを探す
+          const emptySlotIndex = myField.findIndex(slot => slot === null);
+
+          if (emptySlotIndex !== -1) {
+            const targetCard = myGraveyard[tanukiIndex];
+
+            // 蘇生モンスターを作成（攻撃力・HP半分、効果無効）
+            const revivedMonster = {
+              ...targetCard,
+              uniqueId: `${targetCard.id}_revive_${Date.now()}_${Math.random()}`,
+              attack: Math.floor(targetCard.attack / 2),
+              currentAttack: Math.floor(targetCard.attack / 2),
+              hp: Math.floor(targetCard.hp / 2),
+              currentHp: Math.floor(targetCard.hp / 2),
+              canAttack: false,
+              usedSkillThisTurn: false,
+              owner: currentPlayer,
+              charges: [],
+              statusEffects: [],
+              effectNegated: true, // 効果無効フラグ
+            };
+
+            // 墓地から除去
+            setMyGraveyard(prev => {
+              const newGraveyard = [...prev];
+              newGraveyard.splice(tanukiIndex, 1);
+              return newGraveyard;
+            });
+
+            // フィールドに蘇生
+            setMyField(prev => {
+              const newField = [...prev];
+              newField[emptySlotIndex] = revivedMonster;
+              return newField;
+            });
+
+            addLog(`狸の熔岩郷: 墓地から「${targetCard.name}」を蘇生！（攻撃力${revivedMonster.attack}、HP${revivedMonster.hp}、効果無効）`, 'info');
+          } else {
+            addLog('狸の熔岩郷: フィールドに空きがないため蘇生できません', 'info');
+          }
+        } else {
+          addLog('狸の熔岩郷: 墓地に岩狸モンスターがいません', 'info');
+        }
+
+        // ライフ300回復
+        setMyLife(prev => prev + 300);
+        addLog('狸の熔岩郷: ライフ300回復！', 'heal');
       },
     },
   ],
