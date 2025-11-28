@@ -44,6 +44,84 @@ export const waterCardEffects = {
   },
 
   /**
+   * C0000045: 海流の守護者
+   * 基本技：自分の水属性モンスター1体の状態異常を回復する。
+   */
+  C0000045: (skillText, context) => {
+    const {
+      addLog,
+      currentPlayer,
+      p1Field, p2Field,
+      setP1Field, setP2Field,
+      setPendingTargetSelection,
+    } = context;
+
+    if (context.skillType === 'basic') {
+      const currentField = currentPlayer === 1 ? p1Field : p2Field;
+      const setField = currentPlayer === 1 ? setP1Field : setP2Field;
+
+      // 自分の水属性モンスターを取得
+      const waterMonsters = currentField
+        .map((m, idx) => ({ monster: m, index: idx }))
+        .filter(({ monster }) => monster !== null && monster.attribute === '水');
+
+      if (waterMonsters.length === 0) {
+        addLog('自分のフィールドに水属性モンスターがいません', 'info');
+        return true; // 技は発動したが効果なし（汎用パーサーへのフォールバック防止）
+      }
+
+      // 状態異常を持つ水属性モンスターをフィルタ
+      const afflictedMonsters = waterMonsters.filter(
+        ({ monster }) => monster.statusEffects && monster.statusEffects.length > 0
+      );
+
+      if (afflictedMonsters.length === 0) {
+        addLog('状態異常を持つ水属性モンスターがいません', 'info');
+        return true; // 技は発動したが効果なし（汎用パーサーへのフォールバック防止）
+      }
+
+      const clearStatusEffects = (targetIndex) => {
+        setField(prev => {
+          const newField = [...prev];
+          const target = newField[targetIndex];
+          if (target && target.statusEffects && target.statusEffects.length > 0) {
+            addLog(`${target.name}の状態異常を全て回復！`, 'heal');
+            newField[targetIndex] = {
+              ...target,
+              statusEffects: [],
+            };
+          }
+          return newField;
+        });
+      };
+
+      // 1体のみの場合は自動選択
+      if (afflictedMonsters.length === 1) {
+        clearStatusEffects(afflictedMonsters[0].index);
+        return true;
+      }
+
+      // 複数いる場合は選択UI
+      if (setPendingTargetSelection) {
+        setPendingTargetSelection({
+          message: '状態異常を回復する水属性モンスターを選択',
+          validTargets: afflictedMonsters.map(t => t.index),
+          isOpponent: false,
+          callback: (selectedIndex) => {
+            clearStatusEffects(selectedIndex);
+          },
+        });
+        return true;
+      }
+
+      // フォールバック: 最初のターゲット
+      clearStatusEffects(afflictedMonsters[0].index);
+      return true;
+    }
+    return false;
+  },
+
+  /**
    * C0000148: 氷の双尾猫
    * 基本技：1度のみ使用可能、手札を1枚捨て自分の墓地の《ブリザードキャット》1体を場に戻す（HP半分）
    */
