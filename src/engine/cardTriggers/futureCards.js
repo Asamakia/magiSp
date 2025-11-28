@@ -756,6 +756,105 @@ export const futureCardTriggers = {
   ],
 
   /**
+   * C0000258: 禁忌の鴉王ミラン
+   * 【召喚時】このカード以外の場にいる全てのモンスターの効果をターン終了時まで無効化し、相手モンスター全体に1000ダメージを与える。
+   * 【自分の「未来」モンスターが破壊された時】相手プレイヤーに800ダメージ。
+   * 【自壊時】自分のライフを2000減らす。
+   */
+  C0000258: [
+    // 召喚時トリガー
+    {
+      type: TRIGGER_TYPES.ON_SUMMON,
+      activationType: ACTIVATION_TYPES.AUTOMATIC,
+      description: '全モンスターの効果を無効化し、相手モンスター全体に1000ダメージ',
+      effect: (context) => {
+        const { addLog, monsterIndex } = context;
+        const { myField, setMyField, opponentField, setOpponentField, setOpponentGraveyard } = getPlayerContext(context);
+
+        addLog('禁忌の鴉王ミランが召喚された！', 'info');
+
+        // このカード以外の全モンスターの効果を無効化（ターン終了時まで）
+        // 自分のフィールド
+        setMyField((prev) => {
+          return prev.map((monster, idx) => {
+            if (monster && idx !== monsterIndex) {
+              addLog(`${monster.name}の効果がターン終了時まで無効化された`, 'info');
+              return { ...monster, effectNegatedUntilEndOfTurn: true };
+            }
+            return monster;
+          });
+        });
+
+        // 相手のフィールド
+        setOpponentField((prev) => {
+          return prev.map((monster) => {
+            if (monster) {
+              addLog(`${monster.name}の効果がターン終了時まで無効化された`, 'info');
+              return { ...monster, effectNegatedUntilEndOfTurn: true };
+            }
+            return monster;
+          });
+        });
+
+        // 相手モンスター全体に1000ダメージ
+        const destroyedMonsters = [];
+        setOpponentField((prev) => {
+          return prev.map((monster) => {
+            if (monster) {
+              const newHp = monster.currentHp - 1000;
+              addLog(`${monster.name}に1000ダメージ！（残りHP: ${Math.max(0, newHp)}）`, 'damage');
+              if (newHp <= 0) {
+                destroyedMonsters.push(monster);
+                addLog(`${monster.name}は破壊された！`, 'damage');
+                return null;
+              }
+              return { ...monster, currentHp: newHp };
+            }
+            return monster;
+          });
+        });
+
+        // 破壊されたモンスターを墓地に送る
+        if (destroyedMonsters.length > 0) {
+          setOpponentGraveyard((prev) => [...prev, ...destroyedMonsters]);
+        }
+      },
+    },
+    // 自分の「未来」モンスターが破壊された時トリガー
+    {
+      type: TRIGGER_TYPES.ON_SELF_MONSTER_DESTROYED,
+      activationType: ACTIVATION_TYPES.AUTOMATIC,
+      displayDescription: '自分の「未来」モンスターが破壊された時',
+      description: '相手プレイヤーに800ダメージ',
+      condition: (context) => {
+        // 破壊されたカードが未来属性かどうかをチェック
+        const destroyedCard = context.destroyedCard;
+        return destroyedCard && destroyedCard.attribute === '未来';
+      },
+      effect: (context) => {
+        const { addLog } = context;
+        const destroyedCard = context.destroyedCard;
+
+        addLog(`禁忌の鴉王ミランの効果発動！（${destroyedCard?.name || '未来モンスター'}が破壊されたため）`, 'info');
+        conditionalDamage(context, 800, 'opponent');
+      },
+    },
+    // 自壊時トリガー
+    {
+      type: TRIGGER_TYPES.ON_DESTROY_SELF,
+      activationType: ACTIVATION_TYPES.AUTOMATIC,
+      description: '自分のライフを2000減らす',
+      effect: (context) => {
+        const { addLog } = context;
+        const { setMyLife } = getPlayerContext(context);
+
+        addLog('禁忌の鴉王ミランが破壊された！自分のライフに2000ダメージ！', 'damage');
+        setMyLife((prev) => Math.max(0, prev - 2000));
+      },
+    },
+  ],
+
+  /**
    * C0000268: 虚蝕の魔導兵
    * 【召喚時】相手のデッキ上2枚を墓地に送り、その中のモンスター1体につき300ダメージ。
    */
