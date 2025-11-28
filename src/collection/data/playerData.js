@@ -134,6 +134,9 @@ export const validatePlayerData = (data) => {
   if (!data.stats || typeof data.stats !== 'object') return { valid: false };
   // unopenedPacksが存在しない場合は修復が必要
   if (typeof data.unopenedPacks !== 'number') return { valid: false, needsRepair: true };
+  // marketが存在しない、または不完全な場合は修復が必要
+  if (!data.market || typeof data.market !== 'object') return { valid: false, needsRepair: true };
+  if (!data.market.priceHistory || typeof data.market.priceHistory !== 'object') return { valid: false, needsRepair: true };
   return { valid: true };
 };
 
@@ -144,12 +147,27 @@ export const validatePlayerData = (data) => {
  */
 export const repairPlayerData = (data) => {
   const defaults = createInitialPlayerData([]);
+
+  // marketの修復（priceHistoryが欠けている場合も対応）
+  let repairedMarket;
+  if (!data.market || typeof data.market !== 'object') {
+    repairedMarket = createInitialMarketState();
+  } else {
+    // 既存のmarketがあるが、priceHistoryが欠けている場合
+    const defaultMarket = createInitialMarketState();
+    repairedMarket = {
+      ...defaultMarket,
+      ...data.market,
+      priceHistory: data.market.priceHistory || defaultMarket.priceHistory,
+    };
+  }
+
   return {
     gold: typeof data.gold === 'number' ? data.gold : defaults.gold,
     unopenedPacks: typeof data.unopenedPacks === 'number' ? data.unopenedPacks : 0,
     collection: Array.isArray(data.collection) ? data.collection : [],
     userDecks: Array.isArray(data.userDecks) ? data.userDecks : [],
-    market: data.market || createInitialMarketState(),
+    market: repairedMarket,
     stats: {
       ...defaults.stats,
       ...(data.stats || {}),
