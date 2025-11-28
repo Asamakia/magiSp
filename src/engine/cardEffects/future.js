@@ -678,5 +678,166 @@ export const futureCardEffects = {
     return result;
   },
 
+  /**
+   * C0000277: 星屑の時導術
+   * 【刹那詠唱】自分のデッキ上3枚を見て、1枚を手札に加え、残りを好きな順番で戻す。
+   */
+  C0000277: (skillText, context) => {
+    const {
+      addLog,
+      currentPlayer,
+      p1Deck, p2Deck,
+      setP1Deck, setP2Deck,
+      setP1Hand, setP2Hand,
+      setPendingDeckReview,
+    } = context;
+
+    const deck = currentPlayer === 1 ? p1Deck : p2Deck;
+    const setDeck = currentPlayer === 1 ? setP1Deck : setP2Deck;
+    const setHand = currentPlayer === 1 ? setP1Hand : setP2Hand;
+
+    if (deck.length === 0) {
+      addLog('デッキにカードがありません', 'info');
+      return false;
+    }
+
+    const cardCount = Math.min(3, deck.length);
+    const topCards = deck.slice(0, cardCount);
+    addLog(`星屑の時導術: デッキ上${cardCount}枚を確認`, 'info');
+
+    if (cardCount === 1) {
+      // 1枚しかない場合、その1枚を手札に加える
+      setHand((prev) => [...prev, topCards[0]]);
+      setDeck((prev) => prev.slice(1));
+      addLog(`${topCards[0].name}を手札に加えた`, 'info');
+      return true;
+    }
+
+    // 2枚以上ある場合、プレイヤーに選択させる
+    setPendingDeckReview({
+      cards: topCards,
+      title: '星屑の時導術',
+      message: '手札に加えるカードを1枚選択してください（残りは順番を変更してデッキに戻します）',
+      allowReorder: false,
+      selectMode: { enabled: true, count: 1 },
+      onSelect: (selectedCards, remainingCards) => {
+        const cardToHand = selectedCards[0];
+        setHand((prev) => [...prev, cardToHand]);
+        addLog(`${cardToHand.name}を手札に加えた`, 'info');
+
+        if (remainingCards.length > 1) {
+          // 残りカードの順番を選択させる
+          setPendingDeckReview({
+            cards: remainingCards,
+            title: '星屑の時導術',
+            message: 'デッキに戻すカードの順番を決めてください（上から順）',
+            allowReorder: true,
+            onConfirm: (reorderedCards) => {
+              setDeck((prev) => [...reorderedCards, ...prev.slice(cardCount)]);
+              addLog(`残りをデッキに戻した: ${reorderedCards.map((c) => c.name).join(' → ')}`, 'info');
+            },
+          });
+        } else if (remainingCards.length === 1) {
+          // 残りが1枚なら自動で戻す
+          setDeck((prev) => [remainingCards[0], ...prev.slice(cardCount)]);
+          addLog(`${remainingCards[0].name}をデッキに戻した`, 'info');
+        }
+      },
+    });
+
+    return true;
+  },
+
+  /**
+   * C0000255: 未来の鴉予言
+   * 自分のデッキの上から5枚を見て、1枚を手札に加え、残りを好きな順番で戻す。
+   */
+  C0000255: (skillText, context) => {
+    const {
+      addLog,
+      currentPlayer,
+      p1Deck, p2Deck,
+      setP1Deck, setP2Deck,
+      setP1Hand, setP2Hand,
+      setPendingDeckReview,
+    } = context;
+
+    const deck = currentPlayer === 1 ? p1Deck : p2Deck;
+    const setDeck = currentPlayer === 1 ? setP1Deck : setP2Deck;
+    const setHand = currentPlayer === 1 ? setP1Hand : setP2Hand;
+
+    if (deck.length === 0) {
+      addLog('デッキにカードがありません', 'info');
+      return false;
+    }
+
+    const cardCount = Math.min(5, deck.length);
+    const topCards = deck.slice(0, cardCount);
+    addLog(`未来の鴉予言: デッキ上${cardCount}枚を確認`, 'info');
+
+    if (cardCount === 1) {
+      // 1枚しかない場合、その1枚を手札に加える
+      setHand((prev) => [...prev, topCards[0]]);
+      setDeck((prev) => prev.slice(1));
+      addLog(`${topCards[0].name}を手札に加えた`, 'info');
+      return true;
+    }
+
+    // 2枚以上ある場合、プレイヤーに選択させる
+    setPendingDeckReview({
+      cards: topCards,
+      title: '未来の鴉予言',
+      message: '手札に加えるカードを1枚選択してください（残りは順番を変更してデッキに戻します）',
+      allowReorder: false,
+      selectMode: { enabled: true, count: 1 },
+      onSelect: (selectedCards, remainingCards) => {
+        const cardToHand = selectedCards[0];
+        setHand((prev) => [...prev, cardToHand]);
+        addLog(`${cardToHand.name}を手札に加えた`, 'info');
+
+        if (remainingCards.length > 1) {
+          // 残りカードの順番を選択させる
+          setPendingDeckReview({
+            cards: remainingCards,
+            title: '未来の鴉予言',
+            message: 'デッキに戻すカードの順番を決めてください（上から順）',
+            allowReorder: true,
+            onConfirm: (reorderedCards) => {
+              setDeck((prev) => [...reorderedCards, ...prev.slice(cardCount)]);
+              addLog(`残りをデッキに戻した`, 'info');
+            },
+          });
+        } else if (remainingCards.length === 1) {
+          // 残りが1枚なら自動で戻す
+          setDeck((prev) => [remainingCards[0], ...prev.slice(cardCount)]);
+          addLog(`${remainingCards[0].name}をデッキに戻した`, 'info');
+        }
+      },
+    });
+
+    return true;
+  },
+
+  /**
+   * C0000273: エクラリアの残影
+   * 自分のデッキから《エクラリア》と名のついたモンスター1体を手札に加える。
+   */
+  C0000273: (skillText, context) => {
+    const { addLog } = context;
+
+    // デッキから「エクラリア」の名前を持つモンスターを検索
+    const foundCard = searchCard(context, (card) => {
+      return card.type === 'monster' && card.name.includes('エクラリア');
+    });
+
+    if (foundCard) {
+      addLog(`エクラリアの残影: ${foundCard.name}を手札に加えた`, 'info');
+      return true;
+    } else {
+      addLog('エクラリアの残影: デッキに《エクラリア》モンスターがありません', 'info');
+      return false;
+    }
+  },
+
   // 他の未来属性カードを追加...
 };
