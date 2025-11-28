@@ -78,7 +78,9 @@ export const recordPriceHistory = (priceHistory, marketState, allCards, getBaseV
     const baseValue = getBaseValue ? getBaseValue(card) : (card.baseValue || 100);
     const tier = getTier ? getTier(card) : 'B';
     const attribute = card.attribute || 'なし';
-    const category = card.category ? card.category.replace(/【|】/g, '').split('】')[0] : null;
+    const category = card.category && typeof card.category === 'string'
+      ? card.category.replace(/【|】/g, '').split('】')[0]
+      : null;
 
     // 個別カード履歴
     if (!newHistory.cards[card.id]) {
