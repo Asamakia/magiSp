@@ -3891,6 +3891,8 @@ export default function MagicSpiritGame() {
               (() => {
                 const monster = p1Field[selectedFieldMonster];
                 if (!monster) return null;
+                // 技を持たないモンスターは技発動セクションを表示しない
+                if (!monster.basicSkill && !monster.advancedSkill) return null;
                 return (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                     <div style={{ fontSize: '12px', color: '#ffd700', textAlign: 'center' }}>
@@ -4007,6 +4009,8 @@ export default function MagicSpiritGame() {
               (() => {
                 const monster = p2Field[selectedFieldMonster];
                 if (!monster) return null;
+                // 技を持たないモンスターは技発動セクションを表示しない
+                if (!monster.basicSkill && !monster.advancedSkill) return null;
                 return (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                     <div style={{ fontSize: '12px', color: '#ffd700', textAlign: 'center' }}>
