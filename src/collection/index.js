@@ -156,6 +156,7 @@ export {
   checkDarkMerchantAppearance,
   checkTravelerAppearance,
   getTodayCollectors,
+  getTodayAppearances,
   generateStock,
   createInitialMerchantData,
   purchaseFromMerchant,

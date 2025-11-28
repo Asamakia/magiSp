@@ -3330,6 +3330,25 @@ export default function MagicSpiritGame() {
 
   // 商人ギルド画面
   if (gameState === 'merchantGuild') {
+    // 禁忌カード所持数を計算
+    const forbiddenCount = (playerData?.collection || []).reduce((count, item) => {
+      const card = allCards.find(c => c.id === item.cardId);
+      if (card && (card.forbidden === true || card.forbidden === 'true')) {
+        return count + item.quantity;
+      }
+      return count;
+    }, 0);
+
+    // 総資産を計算（所持金 + コレクション価値の概算）
+    const totalAssets = (playerData?.gold || 0) +
+      (playerData?.collection || []).reduce((total, item) => {
+        const valueInfo = cardValueMap?.get?.(item.cardId);
+        if (valueInfo) {
+          return total + (valueInfo.rarityValues?.[item.rarity] || valueInfo.baseValue || 0) * item.quantity;
+        }
+        return total;
+      }, 0);
+
     return (
       <MerchantGuild
         playerData={playerData}
@@ -3339,7 +3358,15 @@ export default function MagicSpiritGame() {
           setCurrentMerchant(merchantName);
           setGameState('merchantShop');
         }}
+        onMerchantDataUpdate={(newMerchantData) => {
+          updatePlayerData({
+            ...playerData,
+            merchantData: newMerchantData,
+          });
+        }}
         allCards={allCards}
+        forbiddenCount={forbiddenCount}
+        totalAssets={totalAssets}
       />
     );
   }

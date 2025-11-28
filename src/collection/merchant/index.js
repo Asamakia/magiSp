@@ -43,6 +43,7 @@ export {
   checkDarkMerchantAppearance,
   checkTravelerAppearance,
   getTodayCollectors,
+  getTodayAppearances,
   // 品揃え生成
   generateStock,
   // データ初期化

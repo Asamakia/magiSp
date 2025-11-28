@@ -4,16 +4,12 @@
  * 商人一覧を表示し、各商人の店舗へ遷移する
  */
 
-import React, { useMemo } from 'react';
+import React, { useMemo, useEffect } from 'react';
 import {
   MERCHANTS,
   MERCHANT_TYPES,
   TICKETS,
-  getAvailableAttributeMerchants,
-  checkDarkMerchantAppearance,
-  checkTravelerAppearance,
-  getTodayCollectors,
-  getFavorabilityLevel,
+  getTodayAppearances,
 } from '../merchant';
 
 // ========================================
@@ -280,24 +276,39 @@ const MerchantGuild = ({
   dayId = 0,
   onBack,
   onEnterShop,
+  onMerchantDataUpdate,
   allCards = [],
+  forbiddenCount = 0,
+  totalAssets = 0,
 }) => {
   const merchantData = playerData?.merchantData || {};
   const favorability = merchantData.favorability || {};
   const tickets = merchantData.tickets || { attribute: 0, dark: 0, traveler: 0 };
   const wishlist = merchantData.wishlist || [];
 
-  // 今日出現する商人を計算
-  const availableMerchants = useMemo(() => {
-    const result = {
-      general: ['マルクス'],
-      attribute: getAvailableAttributeMerchants(dayId),
-      collector: getTodayCollectors(merchantData.categorySoldCount || {}, dayId),
-      dark: checkDarkMerchantAppearance(0, tickets.dark > 0) ? ['名無し'] : [],
-      traveler: checkTravelerAppearance(playerData?.gold || 0, tickets.traveler > 0) ? ['ゼルヴァン'] : [],
-    };
-    return result;
-  }, [dayId, merchantData.categorySoldCount, tickets, playerData?.gold]);
+  // 今日出現する商人を計算（キャッシュ付き）
+  const { appearances, updated, newMerchantData } = useMemo(() => {
+    return getTodayAppearances(merchantData, dayId, {
+      forbiddenCount,
+      totalAssets,
+    });
+  }, [merchantData, dayId, forbiddenCount, totalAssets]);
+
+  // merchantDataが更新された場合、親に通知
+  useEffect(() => {
+    if (updated && newMerchantData && onMerchantDataUpdate) {
+      onMerchantDataUpdate(newMerchantData);
+    }
+  }, [updated, newMerchantData, onMerchantDataUpdate]);
+
+  // 出現商人を使いやすい形式に変換
+  const availableMerchants = useMemo(() => ({
+    general: ['マルクス'],
+    attribute: appearances.attribute || [],
+    collector: appearances.collector || [],
+    dark: appearances.dark ? ['名無し'] : [],
+    traveler: appearances.traveler ? ['ゼルヴァン'] : [],
+  }), [appearances]);
 
   // ウィッシュリストに含まれるカードを持つ商人をチェック
   // TODO: 品揃え生成後に実装

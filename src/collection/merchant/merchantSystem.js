@@ -504,6 +504,14 @@ export const createInitialMerchantData = () => {
       dayId: -1,
       stocks: {},
     },
+    todayAppearances: {
+      dayId: -1,
+      attribute: [],
+      collector: [],
+      dark: false,
+      traveler: false,
+      usedTickets: { dark: false, traveler: false },
+    },
     tickets: {
       attribute: 0,
       dark: 0,
@@ -515,6 +523,79 @@ export const createInitialMerchantData = () => {
       list: [],
     },
     categorySoldCount: {},
+  };
+};
+
+// ========================================
+// 日次出現判定（キャッシュ付き）
+// ========================================
+
+/**
+ * 今日の商人出現を取得（キャッシュがあれば使用）
+ * @param {Object} merchantData - 商人データ
+ * @param {number} dayId - 現在の日
+ * @param {Object} options - オプション
+ * @returns {{ appearances: Object, updated: boolean, newMerchantData: Object | null }}
+ */
+export const getTodayAppearances = (merchantData, dayId, options = {}) => {
+  const {
+    forbiddenCount = 0,  // 禁忌カード所持数
+    totalAssets = 0,     // 総資産
+  } = options;
+
+  // キャッシュが有効ならそのまま返す
+  if (merchantData.todayAppearances?.dayId === dayId) {
+    return {
+      appearances: merchantData.todayAppearances,
+      updated: false,
+      newMerchantData: null,
+    };
+  }
+
+  // 新規計算
+  const tickets = merchantData.tickets || { attribute: 0, dark: 0, traveler: 0 };
+
+  // 属性商人（曜日判定）
+  const attribute = getAvailableAttributeMerchants(dayId);
+
+  // コレクター（日替わり）
+  const collector = getTodayCollectors(merchantData.categorySoldCount || {}, dayId);
+
+  // 闇商人（確率判定）
+  const darkTicketUsed = tickets.dark > 0;
+  const dark = checkDarkMerchantAppearance(forbiddenCount, darkTicketUsed);
+
+  // 旅商人（確率判定）
+  const travelerTicketUsed = tickets.traveler > 0;
+  const traveler = checkTravelerAppearance(totalAssets, travelerTicketUsed);
+
+  const newAppearances = {
+    dayId,
+    attribute,
+    collector,
+    dark,
+    traveler,
+    usedTickets: {
+      dark: dark && darkTicketUsed,
+      traveler: traveler && travelerTicketUsed,
+    },
+  };
+
+  // チケット消費を反映した新しいmerchantDataを作成
+  const newMerchantData = {
+    ...merchantData,
+    todayAppearances: newAppearances,
+    tickets: {
+      ...tickets,
+      dark: newAppearances.usedTickets.dark ? tickets.dark - 1 : tickets.dark,
+      traveler: newAppearances.usedTickets.traveler ? tickets.traveler - 1 : tickets.traveler,
+    },
+  };
+
+  return {
+    appearances: newAppearances,
+    updated: true,
+    newMerchantData,
   };
 };
 
@@ -613,6 +694,7 @@ export default {
   checkDarkMerchantAppearance,
   checkTravelerAppearance,
   getTodayCollectors,
+  getTodayAppearances,
   generateStock,
   createInitialMerchantData,
   purchaseFromMerchant,
