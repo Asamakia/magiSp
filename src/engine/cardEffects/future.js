@@ -942,5 +942,143 @@ export const futureCardEffects = {
     return true; // 効果処理は完了（対象の有無に関わらず）
   },
 
+  /**
+   * C0000258: 禁忌の鴉王ミラン
+   * 基本技: 相手モンスター全体に500ダメージ。
+   * 上級技：勝負中1度のみ使用可能、相手のデッキの上から2枚を「カラス人形（攻撃0、HP200、コスト2、未来属性）」に変換する。
+   */
+  C0000258: (skillText, context) => {
+    const { addLog, monsterIndex } = context;
+    const { myField, setMyField, opponentField, setOpponentField, setOpponentGraveyard, opponentDeck, setOpponentDeck, currentPlayer } = getPlayerContext(context);
+
+    // 基本技: 相手モンスター全体に500ダメージ
+    if (context.skillType === 'basic') {
+      const monsters = opponentField.filter(m => m !== null);
+      if (monsters.length === 0) {
+        addLog('相手フィールドにモンスターがいません', 'info');
+        return true;
+      }
+
+      addLog('禁忌の鴉王ミランの基本技発動！', 'info');
+
+      // 全モンスターに500ダメージ
+      const destroyedMonsters = [];
+      setOpponentField((prev) => {
+        return prev.map((monster) => {
+          if (monster) {
+            const newHp = monster.currentHp - 500;
+            addLog(`${monster.name}に500ダメージ（残りHP: ${Math.max(0, newHp)}）`, 'damage');
+            if (newHp <= 0) {
+              destroyedMonsters.push(monster);
+              addLog(`${monster.name}は破壊された！`, 'damage');
+              return null;
+            }
+            return { ...monster, currentHp: newHp };
+          }
+          return monster;
+        });
+      });
+
+      // 破壊されたモンスターを墓地に送る
+      if (destroyedMonsters.length > 0) {
+        setOpponentGraveyard((prev) => [...prev, ...destroyedMonsters]);
+      }
+
+      return true;
+    }
+
+    // 上級技：勝負中1度のみ使用可能、相手のデッキの上から2枚を「カラス人形」に変換
+    if (context.skillType === 'advanced') {
+      const thisCard = myField[monsterIndex];
+      if (!thisCard) {
+        addLog('エラー: カードが見つかりません', 'info');
+        return false;
+      }
+
+      // 勝負中1度のみチェック
+      if (thisCard.usedUltimateSkillC0000258) {
+        addLog('この効果は勝負中に1度しか使用できません', 'info');
+        return false;
+      }
+
+      if (opponentDeck.length === 0) {
+        addLog('相手のデッキにカードがありません', 'info');
+        return false;
+      }
+
+      // 相手の空きスロットを確認
+      const emptySlots = opponentField.reduce((acc, slot, idx) => {
+        if (slot === null) acc.push(idx);
+        return acc;
+      }, []);
+
+      if (emptySlots.length === 0) {
+        addLog('相手のフィールドに空きがありません', 'info');
+        return false;
+      }
+
+      // 使用済みフラグを設定
+      setMyField((prev) => prev.map((m, idx) => {
+        if (idx === monsterIndex && m) {
+          return { ...m, usedUltimateSkillC0000258: true };
+        }
+        return m;
+      }));
+
+      addLog('禁忌の鴉王ミランの上級技発動！', 'info');
+
+      // デッキの上から最大2枚を取得
+      const cardCount = Math.min(2, opponentDeck.length, emptySlots.length);
+      const takenCards = opponentDeck.slice(0, cardCount);
+
+      // デッキから削除
+      setOpponentDeck((prev) => prev.slice(cardCount));
+
+      // カラス人形を作成して相手の場に召喚
+      const crowDolls = takenCards.map((originalCard, i) => {
+        addLog(`${originalCard.name}がカラス人形に変換された！`, 'info');
+        return {
+          id: `CROW_DOLL_${Date.now()}_${i}`,
+          uniqueId: `CROW_DOLL_${Date.now()}_${i}`,
+          name: 'カラス人形',
+          attribute: '未来',
+          cost: 2,
+          type: 'monster',
+          attack: 0,
+          hp: 200,
+          currentAttack: 0,
+          currentHp: 200,
+          maxHp: 200,
+          category: '【人形】',
+          effect: 'このカードは禁忌の鴉王ミランの効果で生成された。',
+          flavor: '',
+          keyword: '',
+          canAttack: false,
+          usedSkillThisTurn: false,
+          owner: currentPlayer === 1 ? 2 : 1, // 相手の場に召喚するので相手が所有者
+          charges: [],
+          statusEffects: [],
+          originalCard: originalCard, // 元のカード情報を保持
+        };
+      });
+
+      // 相手の場に召喚
+      setOpponentField((prev) => {
+        const newField = [...prev];
+        crowDolls.forEach((doll, i) => {
+          if (emptySlots[i] !== undefined) {
+            newField[emptySlots[i]] = doll;
+            addLog(`カラス人形が相手の場に召喚された！`, 'info');
+          }
+        });
+        return newField;
+      });
+
+      return true;
+    }
+
+    return false;
+  },
+
   // 他の未来属性カードを追加...
 };
