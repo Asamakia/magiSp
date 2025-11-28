@@ -605,5 +605,58 @@ export const futureCardEffects = {
     return false;
   },
 
+  /**
+   * C0000106: 次元渡り・ヴォイドウォーカー
+   * エンドフェイズトリガーはfutureCards.jsで実装
+   * 基本技: このカードの攻撃力をターン終了時まで1800に変更。
+   */
+  C0000106: (skillText, context) => {
+    const {
+      addLog,
+      currentPlayer,
+      monsterIndex,
+      p1Field, p2Field,
+      setP1Field, setP2Field,
+    } = context;
+
+    // 基本技
+    if (context.skillType === 'basic') {
+      const currentField = currentPlayer === 1 ? p1Field : p2Field;
+      const setField = currentPlayer === 1 ? setP1Field : setP2Field;
+
+      const thisCard = currentField[monsterIndex];
+      if (!thisCard) {
+        return false;
+      }
+
+      const currentAttack = thisCard.currentAttack || thisCard.attack;
+      const targetAttack = 1800;
+
+      // 既に1800以上なら効果なし
+      if (currentAttack >= targetAttack) {
+        addLog(`${thisCard.name}の攻撃力は既に${currentAttack}です`, 'info');
+        return true;
+      }
+
+      // 攻撃力を1800に変更（ターン終了時まで）
+      const buffAmount = targetAttack - currentAttack;
+      setField(prev => prev.map((m, idx) => {
+        if (idx === monsterIndex && m) {
+          addLog(`${m.name}の攻撃力が${targetAttack}に変更！`, 'info');
+          return {
+            ...m,
+            currentAttack: targetAttack,
+            attackBuffUntilEndOfTurn: (m.attackBuffUntilEndOfTurn || 0) + buffAmount,
+          };
+        }
+        return m;
+      }));
+
+      return true;
+    }
+
+    return false;
+  },
+
   // 他の未来属性カードを追加...
 };
