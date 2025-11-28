@@ -14,7 +14,7 @@ import { collectionManager } from '../systems/collectionManager';
 // ========================================
 
 const DECK_SIZE = 40;
-const MAX_COPIES = 4; // 同名カード最大枚数
+const MAX_COPIES = 3; // 同名カード最大枚数（公式ルール準拠）
 const MAX_FORBIDDEN = 1; // 禁忌カード最大枚数
 
 // ========================================
