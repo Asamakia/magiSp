@@ -17,6 +17,67 @@ import { hasCategory } from '../../utils/helpers';
  */
 export const lightCardEffects = {
   /**
+   * C0000062: 光の使徒
+   * 基本技：手札から光属性カード1枚を捨てるとレスト状態のSPトークン1つをアクティブにする
+   */
+  C0000062: (skillText, context) => {
+    const {
+      addLog,
+      currentPlayer,
+      p1Hand, p2Hand,
+      setP1Hand, setP2Hand,
+      setP1Graveyard, setP2Graveyard,
+      p1RestedSP, p2RestedSP,
+      setP1RestedSP, setP2RestedSP,
+      setP1ActiveSP, setP2ActiveSP,
+      setPendingHandSelection,
+    } = context;
+
+    if (context.skillType === 'basic') {
+      const hand = currentPlayer === 1 ? p1Hand : p2Hand;
+      const restedSP = currentPlayer === 1 ? p1RestedSP : p2RestedSP;
+
+      // 手札に光属性カードがあるか確認
+      const lightCards = hand.filter(c => c.attribute === '光');
+      if (lightCards.length === 0) {
+        addLog('手札に光属性カードがありません', 'info');
+        return false;
+      }
+
+      // レストSPがあるか確認
+      if (restedSP <= 0) {
+        addLog('レスト状態のSPトークンがありません', 'info');
+        return false;
+      }
+
+      // 手札選択モードに入る
+      setPendingHandSelection({
+        message: '捨てる光属性カードを選択',
+        filter: (card) => card.attribute === '光',
+        callback: (selectedCard) => {
+          const setHand = currentPlayer === 1 ? setP1Hand : setP2Hand;
+          const setGraveyard = currentPlayer === 1 ? setP1Graveyard : setP2Graveyard;
+          const setRestedSP = currentPlayer === 1 ? setP1RestedSP : setP2RestedSP;
+          const setActiveSP = currentPlayer === 1 ? setP1ActiveSP : setP2ActiveSP;
+
+          // 手札から削除して墓地に送る
+          setHand(prev => prev.filter(c => c.uniqueId !== selectedCard.uniqueId));
+          setGraveyard(prev => [...prev, selectedCard]);
+
+          // レストSPを1つアクティブにする
+          setRestedSP(prev => prev - 1);
+          setActiveSP(prev => prev + 1);
+
+          addLog(`「${selectedCard.name}」を捨ててSPを1つアクティブにした`, 'info');
+        },
+      });
+
+      return true;
+    }
+    return false;
+  },
+
+  /**
    * C0000059: 光の騎士
    * 【召喚時】デッキから《光の》魔法カード1枚を手札に加える
    */
