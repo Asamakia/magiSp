@@ -1104,6 +1104,8 @@ const MerchantShop = ({
         const price = detailMode === 'buy' ? item.price : item.buyPrice;
         const canAfford = detailMode === 'buy' ? playerData.gold >= price : true;
         const isMonster = card.type === 'monster';
+        // 市場価格を計算（item.marketPrice が undefined の場合に対応）
+        const marketPrice = item.marketPrice || getMarketPrice(card, item.rarity);
 
         return (
           <div style={styles.detailModal} onClick={() => setSelectedCardDetail(null)}>
@@ -1229,7 +1231,7 @@ const MerchantShop = ({
                 <div style={styles.detailPriceRow}>
                   <span style={styles.detailPriceLabel}>市場価格</span>
                   <span style={{ ...styles.detailPriceValue, color: '#a0a0a0' }}>
-                    {(detailMode === 'buy' ? item.marketPrice : item.marketPrice).toLocaleString()}G
+                    {marketPrice.toLocaleString()}G
                   </span>
                 </div>
                 <div style={styles.detailPriceRow}>
