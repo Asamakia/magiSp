@@ -20,13 +20,18 @@ Magic Spirit is a 2-player turn-based strategy card game featuring monsters, mag
 
 ### ✨ Features
 
-- **433+ Cards**: Diverse collection of monsters, magic, and field cards
+- **433+ Cards**: Diverse collection of monsters, magic, field, and phase cards
 - **6 Attributes**: Fire (炎), Water (水), Light (光), Dark (闇), Primitive (原始), and None (なし)
 - **SP Resource System**: Strategic resource management similar to mana systems
 - **5 Game Phases**: Turn Start, Draw, Main, Battle, and End phases
 - **Combat System**: Featuring counter attacks and direct damage mechanics
 - **Skill System**: Basic and advanced skills with extensible effect engine
-- **Local Multiplayer**: 2-player hot-seat gameplay
+- **AI Opponent**: 3 difficulty levels (Easy, Normal, Hard) with strategic decision-making
+- **Trigger System**: 220+ cards with event-based trigger effects
+- **Continuous Effects**: State-based persistent effects from field/monster cards
+- **Status Effects**: 15 status types (freeze, sleep, poison, etc.)
+- **Deck Selection**: Choose from predefined decks before battle
+- **Local & AI Play**: 2-player hot-seat or vs AI gameplay
 
 ### 🛠️ Technology Stack
 
@@ -89,11 +94,22 @@ magiSp/
 │   │   └── cardlist.csv        # 433 card definitions
 │   └── index.html
 ├── src/
-│   ├── components/             # UI components
-│   ├── engine/                 # Game logic engines
+│   ├── components/             # UI components (Card, FieldMonster, etc.)
+│   ├── engine/                 # Game logic engines (~21,000 lines)
+│   │   ├── ai/                 # AI player system (3 difficulty levels)
+│   │   ├── cardEffects/        # Card-specific effect implementations
+│   │   ├── cardTriggers/       # Card trigger implementations (220+ cards)
+│   │   ├── continuousEffects/  # Persistent effect system
+│   │   ├── keywordAbilities/   # Keyword ability system
+│   │   ├── statusEffects/      # Status effect system (15 types)
+│   │   ├── effectEngine.js     # Generic effect engine
+│   │   ├── effectHelpers.js    # Reusable effect helpers
+│   │   ├── triggerEngine.js    # Trigger lifecycle management
+│   │   └── triggerTypes.js     # Trigger type definitions
 │   ├── utils/                  # Helper functions
 │   ├── styles/                 # Style definitions
-│   ├── magic-spirit.jsx        # Main game component
+│   ├── ルール/                  # Documentation (Japanese)
+│   ├── magic-spirit.jsx        # Main game component (~4,700 lines)
 │   └── App.js
 └── package.json
 ```
@@ -103,31 +119,41 @@ magiSp/
 This project uses a modular architecture with separated concerns:
 
 - **Effect Engine** (`src/engine/effectEngine.js`): Extensible card effect system
+- **Effect Helpers** (`src/engine/effectHelpers.js`): Reusable effect patterns
+- **Trigger System** (`src/engine/triggerEngine.js`): Event-based card triggers
+- **AI System** (`src/engine/ai/`): Strategic AI with 3 difficulty levels
+- **Status Effects** (`src/engine/statusEffects/`): Monster status conditions
+- **Continuous Effects** (`src/engine/continuousEffects/`): Persistent field effects
 - **Card Manager** (`src/utils/cardManager.js`): Card data loading and management
 - **Components** (`src/components/`): Reusable UI components
-- **Constants** (`src/utils/constants.js`): Centralized game constants
 
 For detailed development information, see [CLAUDE.md](./CLAUDE.md).
 
 ### 🎯 Current Status
 
-**Prototype Version** - Local multiplayer gameplay implemented
+**Advanced Prototype** - AI opponent and comprehensive card systems implemented
 
-**Recent Updates (2025-11-26)**:
-- ✅ Code refactoring completed (Phase 1-4)
-- ✅ 39% code reduction (2237 → 1366 lines)
-- ✅ Modular architecture implementation
-- ✅ Effect engine foundation created
+**Recent Updates (2025-11-28)**:
+- ✅ AI player system with 3 difficulty levels (Easy/Normal/Hard)
+- ✅ Trigger system (220+ cards with event-based effects)
+- ✅ Continuous effect system (45 cards with persistent effects)
+- ✅ Status effect system (15 status types)
+- ✅ Keyword abilities (【刹那詠唱】chain system)
+- ✅ Deck selection UI
+- ✅ Phase card stage progression
+
+**Previous Updates (2025-11-26)**:
+- ✅ Code refactoring (modular architecture)
+- ✅ Effect engine with card-specific implementations
 
 ### 🗺️ Roadmap
 
-- [ ] Expand effect system (buff/debuff, search, revive)
-- [ ] AI opponent implementation
-- [ ] Deck builder UI
+- [ ] Full deck builder UI (currently predefined decks only)
 - [ ] Online multiplayer support
 - [ ] Mobile responsive design
 - [ ] Card artwork integration
 - [ ] Animation system
+- [ ] Remaining card effects implementation
 
 ### 📝 License
 
@@ -147,13 +173,18 @@ This is currently a personal project. For AI assistants working on this codebase
 
 ### ✨ 特徴
 
-- **433枚以上のカード**: モンスター、魔法、フィールドカードの豊富なコレクション
+- **433枚以上のカード**: モンスター、魔法、フィールド、フェイズカードの豊富なコレクション
 - **6つの属性**: 炎、水、光、闇、原始、なし
 - **SPリソースシステム**: 戦略的なリソース管理
 - **5つのゲームフェーズ**: ターン開始、ドロー、メイン、バトル、エンド
 - **戦闘システム**: カウンターアタックと直接ダメージ
 - **スキルシステム**: 基本技と上級技、拡張可能な効果エンジン
-- **ローカルマルチプレイ**: 2人対戦プレイ対応
+- **AIプレイヤー**: 3段階の難易度（かんたん、ふつう、むずかしい）
+- **トリガーシステム**: 220枚以上のカードにイベントベースのトリガー効果
+- **常時効果**: フィールド/モンスターカードの永続効果
+- **状態異常**: 15種類の状態異常（凍結、眠り、毒など）
+- **デッキ選択**: 対戦前にデッキを選択可能
+- **対戦モード**: 2人対戦またはAI対戦
 
 ### 🚀 はじめ方
 
@@ -187,13 +218,20 @@ npm start
 
 ### 🔧 開発状況
 
-**プロトタイプ版** - ローカル対戦機能実装済み
+**高度プロトタイプ版** - AI対戦と包括的なカードシステム実装済み
 
-**最新アップデート (2025-11-26)**:
-- ✅ コードリファクタリング完了（フェーズ1-4）
-- ✅ コード量39%削減（2237行 → 1366行）
-- ✅ モジュラーアーキテクチャ実装
-- ✅ 効果エンジンの基礎構築
+**最新アップデート (2025-11-28)**:
+- ✅ AIプレイヤーシステム（かんたん/ふつう/むずかしい）
+- ✅ トリガーシステム（220枚以上のカードに効果実装）
+- ✅ 常時効果システム（45枚のカードに永続効果）
+- ✅ 状態異常システム（15種類の状態異常）
+- ✅ キーワード能力（【刹那詠唱】チェーンシステム）
+- ✅ デッキ選択UI
+- ✅ フェイズカード段階進行
+
+**過去のアップデート (2025-11-26)**:
+- ✅ コードリファクタリング（モジュラーアーキテクチャ）
+- ✅ カード固有効果エンジン
 
 ### 📝 ライセンス
 

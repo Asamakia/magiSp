@@ -1,7 +1,7 @@
 # マジックスピリット コード構成ドキュメント
 
-最終更新日: 2025-11-26
-リファクタリング実施: Phase 1-4完了
+最終更新日: 2025-11-28
+バージョン: 2.0
 
 ---
 
@@ -17,7 +17,7 @@
 │
 ├── src/
 │   ├── App.js                  # Reactアプリエントリーポイント
-│   ├── magic-spirit.jsx        # メインゲームコンポーネント（1366行）
+│   ├── magic-spirit.jsx        # メインゲームコンポーネント（約4,700行）
 │   │
 │   ├── utils/                  # ユーティリティ関数群
 │   │   ├── constants.js        # ゲーム定数定義
@@ -26,19 +26,80 @@
 │   │
 │   ├── components/             # UIコンポーネント
 │   │   ├── Card.jsx            # カード表示
-│   │   ├── FieldMonster.jsx   # フィールドモンスター表示
+│   │   ├── FieldMonster.jsx    # フィールドモンスター表示
 │   │   ├── SPTokens.jsx        # SPトークン表示
 │   │   └── GameLog.jsx         # ゲームログ表示
 │   │
 │   ├── styles/                 # スタイル定義
 │   │   └── gameStyles.js       # ゲーム全体のスタイル
 │   │
-│   ├── engine/                 # ゲームロジックエンジン
-│   │   └── effectEngine.js     # 効果実行エンジン
+│   ├── engine/                 # ゲームロジックエンジン（約21,600行）⭐
+│   │   ├── effectEngine.js     # 汎用効果実行エンジン（609行）
+│   │   ├── effectHelpers.js    # 効果ヘルパー関数（1,138行）
+│   │   ├── triggerTypes.js     # トリガータイプ定義（520行）
+│   │   ├── triggerEngine.js    # トリガーライフサイクル管理（861行）
+│   │   ├── phaseCardEffects.js # フェイズカード段階効果（199行）
+│   │   │
+│   │   ├── cardEffects/        # カード固有効果実装（約2,900行）
+│   │   │   ├── index.js        # 効果レジストリ
+│   │   │   ├── _template.js    # テンプレート
+│   │   │   ├── fire.js         # 炎属性効果
+│   │   │   ├── water.js        # 水属性効果
+│   │   │   ├── light.js        # 光属性効果
+│   │   │   ├── dark.js         # 闇属性効果
+│   │   │   ├── primitive.js    # 原始属性効果
+│   │   │   ├── future.js       # 未来属性効果
+│   │   │   └── neutral.js      # なし属性効果
+│   │   │
+│   │   ├── cardTriggers/       # カードトリガー実装（約9,700行、220+カード）
+│   │   │   ├── fireCards.js      # 炎属性トリガー
+│   │   │   ├── waterCards.js     # 水属性トリガー（1,414行）
+│   │   │   ├── lightCards.js     # 光属性トリガー（1,070行）
+│   │   │   ├── darkCards.js      # 闇属性トリガー
+│   │   │   ├── futureCards.js    # 未来属性トリガー
+│   │   │   ├── primitiveCards.js # 原始属性トリガー（1,489行）
+│   │   │   └── neutralCards.js   # なし属性トリガー
+│   │   │
+│   │   ├── continuousEffects/  # 常時効果システム（約1,850行、45カード）
+│   │   │   ├── index.js          # メインエクスポート
+│   │   │   ├── effectTypes.js    # 効果タイプ定義
+│   │   │   ├── targetTypes.js    # ターゲットタイプ定義
+│   │   │   ├── conditionChecker.js # 条件チェック（329行）
+│   │   │   ├── valueCalculator.js  # 値計算（217行）
+│   │   │   ├── effectEngine.js   # 常時効果エンジン（786行）
+│   │   │   └── effectDefinitions/ # カード効果定義
+│   │   │       ├── index.js
+│   │   │       ├── fieldCards.js   # フィールドカード効果
+│   │   │       ├── monsterCards.js # モンスターカード効果
+│   │   │       └── phaseCards.js   # フェイズカード効果
+│   │   │
+│   │   ├── statusEffects/      # 状態異常システム（約1,090行、15種類）
+│   │   │   ├── index.js          # メインエクスポート
+│   │   │   ├── statusTypes.js    # 状態タイプ定義（400行）
+│   │   │   └── statusEngine.js   # 状態異常エンジン（671行）
+│   │   │
+│   │   ├── keywordAbilities/   # キーワード能力システム（261行）
+│   │   │   └── index.js          # 【刹那詠唱】等のキーワード処理
+│   │   │
+│   │   └── ai/                 # AIプレイヤーシステム（約1,550行）
+│   │       ├── index.js          # メインエクスポート
+│   │       ├── aiController.js   # AIコントローラー（554行）
+│   │       └── strategies/       # 戦略実装
+│   │           ├── index.js      # 戦略セレクター
+│   │           ├── base.js       # 基本戦略（ランダム）（231行）
+│   │           ├── easy.js       # かんたんAI
+│   │           ├── normal.js     # ふつうAI（227行）
+│   │           └── hard.js       # むずかしいAI（383行）
 │   │
 │   └── ルール/                  # ドキュメント類
+│       ├── code-structure.md   # このファイル
+│       ├── CHANGELOG.md
 │       ├── magic-spirit-roadmap-updated.txt
-│       └── code-structure.md   # このファイル
+│       ├── ai-player-system-design.md
+│       ├── status-effect-system-design.md
+│       ├── continuous-effect-system-design.md
+│       ├── trigger-*.md        # トリガー関連ドキュメント
+│       └── *.txt               # ゲームルール文書
 │
 ├── package.json
 ├── CLAUDE.md                   # AI開発者向けガイド
@@ -58,8 +119,9 @@
 - **行数**: 約10行
 - **依存**: magic-spirit.jsx
 
-#### `src/magic-spirit.jsx` (Main Game Component)
+#### `src/magic-spirit.jsx` (Main Game Component) ⭐最重要
 - **役割**: ゲームのメインロジックと状態管理
+- **行数**: 約4,700行
 - **内容**:
   - ゲーム状態管理（React hooks）
   - プレイヤー状態（ライフ、デッキ、手札、フィールド、墓地）
@@ -67,13 +129,12 @@
   - カード召喚処理
   - 戦闘処理
   - 技発動処理
+  - AIプレイヤー統合
+  - トリガーシステム統合
   - UI レンダリング
-- **行数**: 1366行（リファクタリング前: 2237行）
 - **依存**:
-  - utils/constants.js
-  - utils/helpers.js
-  - utils/cardManager.js
-  - engine/effectEngine.js
+  - utils/constants.js, helpers.js, cardManager.js
+  - engine/* (全エンジンモジュール)
   - components/Card.jsx, FieldMonster.jsx, SPTokens.jsx, GameLog.jsx
   - styles/gameStyles.js
 
@@ -88,47 +149,24 @@
   - フェーズ定義（PHASES配列）
   - 属性カラー定義（ATTRIBUTE_COLORS）
   - カードタイプアイコン（TYPE_ICONS）
-- **行数**: 32行
-- **エクスポート**:
-  ```javascript
-  export const INITIAL_LIFE = 6000;
-  export const INITIAL_SP = 1;
-  export const MAX_SP = 10;
-  export const PHASES = ['ターン開始', 'ドロー', 'メイン', 'バトル', 'エンド'];
-  export const ATTRIBUTE_COLORS = { ... };
-  export const TYPE_ICONS = { ... };
-  ```
 
 #### `helpers.js` (Helper Functions)
 - **役割**: 汎用的なユーティリティ関数
 - **内容**:
   - `shuffle(array)`: 配列をシャッフル
-  - `createDeck(cardPool)`: デッキを生成（40枚、ランダム、禁忌カード制限）
+  - `createDeck(cardPool)`: デッキを生成（40枚）
   - `createMonsterInstance(card)`: モンスターインスタンスを生成
-- **行数**: 64行
-- **エクスポート**:
-  ```javascript
-  export const shuffle = (array) => { ... };
-  export const createDeck = (cardPool) => { ... };
-  export const createMonsterInstance = (card) => { ... };
-  ```
+  - `hasCategory(card, category)`: カテゴリ判定（【】正規化対応）
+  - `createDeckFromPrebuilt(deckDef)`: 構築済みデッキ生成
 
 #### `cardManager.js` (Card Data Management)
 - **役割**: カードデータの読み込みと管理
 - **内容**:
   - `parseCSV(csvText)`: CSV→カードオブジェクト変換
   - `parseSkills(effectText)`: 技情報を抽出（基本技・上級技）
-  - `SAMPLE_CARDS`: フォールバック用サンプルカード（30枚）
+  - `SAMPLE_CARDS`: フォールバック用サンプルカード
   - `loadCardsFromCSV()`: CSVファイルからカードを非同期読み込み
-- **行数**: 240行
-- **エクスポート**:
-  ```javascript
-  export const parseCSV = (csvText) => { ... };
-  export const SAMPLE_CARDS = [ ... ];
-  export const loadCardsFromCSV = async () => { ... };
-  ```
-- **CSV形式**:
-  - id, name, attribute, cost, type, keyword, attack, hp, category, effect, flavor
+  - `PREBUILT_DECKS`: 構築済みデッキ定義
 
 ---
 
@@ -136,149 +174,206 @@
 
 #### `Card.jsx` (Card Display Component)
 - **役割**: カード（手札・デッキ）の表示
-- **Props**:
-  - `card`: カードデータ
-  - `onClick`: クリックハンドラ
-  - `selected`: 選択状態
-  - `small`: 小さいサイズ表示
-  - `faceDown`: 裏向き表示
-  - `inHand`: 手札表示
-  - `disabled`: 無効状態
+- **Props**: card, onClick, selected, small, faceDown, inHand, disabled, modifiedCost, costModifierSource
 - **内容**:
   - 属性グラデーション表示
-  - コスト、タイプアイコン表示
+  - コスト表示（修正値あり：緑/赤で色分け）
   - モンスターの攻撃力/HP表示
-  - 技アイコン表示（基本技・上級技）
-  - 禁忌カードマーク表示
-- **行数**: 195行
+  - 技アイコン・刹那詠唱マーカー表示
 
 #### `FieldMonster.jsx` (Field Monster Component)
 - **役割**: フィールド上のモンスターの表示
-- **Props**:
-  - `monster`: モンスターデータ
-  - `onClick`: クリックハンドラ
-  - `selected`: 選択状態
-  - `canAttack`: 攻撃可能状態
-  - `isTarget`: 攻撃対象
-  - `isValidTarget`: 召喚可能スロット
+- **Props**: monster, onClick, selected, canAttack, isTarget, isValidTarget
 - **内容**:
   - HPバー表示
-  - 現在の攻撃力/HP表示
+  - 攻撃力/HP表示（バフ/デバフで色分け）
   - チャージ数表示
-  - 攻撃可能インジケーター
+  - 状態異常アイコン表示
   - 技アイコン表示
-- **行数**: 166行
 
 #### `SPTokens.jsx` (SP Token Display)
 - **役割**: SPトークンの表示
-- **Props**:
-  - `active`: アクティブなSP数
-  - `rested`: レストSP数
-  - `max`: 最大SP数
-- **内容**:
-  - トークンの視覚的表示（◆ = アクティブ、◇ = レスト、○ = 空）
-  - 色分け表示
-- **行数**: 38行
+- **Props**: active, rested, max
+- **内容**: ◆（アクティブ）、◇（レスト）、○（空）
 
 #### `GameLog.jsx` (Game Log Component)
 - **役割**: ゲームログの表示
-- **Props**:
-  - `logs`: ログ配列
-- **内容**:
-  - 最新10件のログを表示
-  - タイプ別色分け（damage: 赤、heal: 緑、info: グレー）
-- **行数**: 20行
+- **Props**: logs
+- **内容**: タイプ別色分け（damage: 赤、heal: 緑、info: グレー）
 
 ---
 
-### **スタイル（src/styles/）**
+### **ゲームエンジン（src/engine/）** ⭐⭐
 
-#### `gameStyles.js` (Game Styles)
-- **役割**: ゲーム全体のスタイル定義
+#### `effectEngine.js` (Generic Effect Engine)
+- **役割**: 汎用的なカード効果の解析と実行
+- **行数**: 609行
 - **内容**:
-  - container, header, title
-  - gameBoard, playerArea, fieldArea
-  - monsterZone, cardSlot, handArea
-  - centerZone, phaseIndicator
-  - actionButton, phaseButton
-  - lifeBar, spToken
-  - modal, log
-- **行数**: 165行
-- **エクスポート**:
-  ```javascript
-  export default styles;
-  ```
-- **使用方法**:
-  ```javascript
-  import styles from './styles/gameStyles';
-  <div style={styles.container}>...</div>
-  ```
+  - `EFFECT_TYPES`: 13種類の効果タイプ定義
+  - `parseEffect(effectText)`: 効果テキスト解析
+  - `executeEffect(effect, context)`: 効果実行
+  - `executeSkillEffects(skillText, context, cardId)`: カード固有効果優先で実行
+
+#### `effectHelpers.js` (Effect Helper Library) ⭐最重要
+- **役割**: 再利用可能な効果パターン関数
+- **行数**: 1,138行
+- **主要関数**:
+  - `millDeck()`, `millOpponentDeck()`: デッキ破壊
+  - `conditionalDamage()`: 条件付きダメージ
+  - `searchCard()`: デッキサーチ
+  - `reviveFromGraveyard()`: 墓地蘇生（オプション対応）
+  - `destroyMonster()`: モンスター破壊
+  - `drawCards()`: ドロー
+  - `healLife()`: 回復
+  - `modifyAttack()`, `modifyHP()`: ステータス変更
+  - `selectAndApplyStatusToOpponent()`: 状態異常付与
+  - `processStatusEffectsTurnStart()`: ターン開始時状態処理
+  - `processStatusEffectsEndPhase()`: エンドフェイズ状態処理
+
+#### `triggerTypes.js` (Trigger Type Definitions)
+- **役割**: 27種類のトリガータイプ定義
+- **行数**: 520行
+- **内容**:
+  - `TRIGGER_TYPES`: ON_SUMMON, ON_DESTROY_SELF, ON_END_PHASE_SELF等
+  - `ACTIVATION_TYPES`: AUTOMATIC, OPTIONAL
+  - `TRIGGER_PRIORITIES`: HIGHEST〜LOWEST
+
+#### `triggerEngine.js` (Trigger Lifecycle Engine)
+- **役割**: トリガーのライフサイクル管理
+- **行数**: 861行
+- **主要関数**:
+  - `registerCardTriggers()`: カード召喚時にトリガー登録
+  - `unregisterCardTriggers()`: カード破壊時にトリガー削除
+  - `fireTrigger()`: 自動トリガー発火
+  - `activateTrigger()`: 任意トリガー発動
+  - `getCardMainPhaseTriggers()`: UI表示用トリガー取得
+  - `resetTurnFlags()`: ターン終了時フラグリセット
+
+#### `phaseCardEffects.js` (Phase Card Stage Parser)
+- **役割**: フェイズカードの段階効果パース
+- **行数**: 199行
+- **内容**:
+  - CSVのeffectフィールドから段階効果を抽出
+  - 「初期効果:」「1枚重ね:」「2枚重ね:」「3枚重ね:」形式対応
 
 ---
 
-### **ゲームエンジン（src/engine/）**
+### **カード固有実装（src/engine/cardEffects/）**
 
-#### `effectEngine.js` (Effect Execution Engine) ⭐最重要
-- **役割**: カード効果・技効果の解析と実行
-- **内容**:
+各属性ファイルにカード固有の効果実装を格納:
+- `fire.js`: 炎属性カード効果
+- `water.js`: 水属性カード効果
+- `light.js`: 光属性カード効果
+- `dark.js`: 闇属性カード効果
+- `primitive.js`: 原始属性カード効果
+- `future.js`: 未来属性カード効果
+- `neutral.js`: なし属性カード効果
 
-  **1. EFFECT_TYPES（効果タイプ定義）**
-  ```javascript
-  export const EFFECT_TYPES = {
-    DAMAGE: 'damage',           // ダメージ
-    HEAL: 'heal',               // 回復
-    BUFF_ATK: 'buff_atk',       // 攻撃力バフ
-    BUFF_HP: 'buff_hp',         // HPバフ
-    DEBUFF_ATK: 'debuff_atk',   // 攻撃力デバフ
-    DEBUFF_HP: 'debuff_hp',     // HPデバフ
-    SEARCH: 'search',           // サーチ
-    REVIVE: 'revive',           // 蘇生
-    DESTROY: 'destroy',         // 破壊
-    DRAW: 'draw',               // ドロー
-    SP_GAIN: 'sp_gain',         // SP獲得
-    CONTROL: 'control',         // コントロール奪取
-    DOUBLE_ATTACK: 'double_attack', // 2回攻撃
-  };
-  ```
+**実装パターン**:
+```javascript
+export const fireCardEffects = {
+  C0000XXX: (skillText, context) => {
+    if (context.skillType === 'basic') {
+      // 基本技の実装
+      return true;
+    }
+    if (context.skillType === 'advanced') {
+      // 上級技の実装
+      return true;
+    }
+    return false;
+  },
+};
+```
 
-  **2. parseEffect(effectText)**
-  - 効果テキストから効果オブジェクトの配列を抽出
-  - 正規表現でパターンマッチング
-  - 現在対応: ダメージ、回復、バフ、デバフ、ドロー、2回攻撃
-  - 戻り値: `[{ type, value, target }, ...]`
+---
 
-  **3. executeEffect(effect, context)**
-  - 個別の効果を実行
-  - context: { currentPlayer, setP1Life, setP2Life, setP1Field, setP2Field, addLog }
-  - 実装済み: ダメージ、回復
-  - 未実装（TODO）: バフ、デバフ、サーチ、蘇生、破壊、ドロー等
+### **トリガー実装（src/engine/cardTriggers/）**
 
-  **4. executeSkillEffects(skillText, context)**
-  - 技全体の効果を実行
-  - parseEffect → executeEffect の流れで処理
+220枚以上のカードにトリガー効果を実装:
+- `fireCards.js`: 炎属性トリガー
+- `waterCards.js`: 水属性トリガー（墓地トリガー含む）
+- `lightCards.js`: 光属性トリガー
+- `darkCards.js`: 闇属性トリガー
+- `futureCards.js`: 未来属性トリガー
+- `primitiveCards.js`: 原始属性トリガー
+- `neutralCards.js`: なし属性トリガー（フィールド/フェイズカード含む）
 
-- **行数**: 220行
-- **拡張方法**:
-  ```javascript
-  // 新しい効果を追加する場合:
-  // 1. parseEffect関数に新しいパターンマッチを追加
-  // 2. executeEffect関数に新しいcase文を追加
-  ```
-- **使用例**:
-  ```javascript
-  import { executeSkillEffects } from './engine/effectEngine';
+**実装パターン**:
+```javascript
+export const fireCardTriggers = {
+  C0000XXX: [
+    {
+      type: TRIGGER_TYPES.ON_SUMMON,
+      activationType: ACTIVATION_TYPES.AUTOMATIC,
+      description: '召喚時に1枚ドロー',
+      effect: (context) => {
+        drawCards(context, 1);
+      },
+    },
+  ],
+};
+```
 
-  const context = {
-    currentPlayer,
-    setP1Life,
-    setP2Life,
-    setP1Field,
-    setP2Field,
-    addLog,
-  };
+---
 
-  executeSkillEffects('相手に1000ダメージ', context);
-  ```
+### **常時効果システム（src/engine/continuousEffects/）**
+
+45枚のカードに永続効果を実装:
+
+- **effectTypes.js**: 12種類の常時効果タイプ
+  - ATK_MODIFIER, HP_MODIFIER, DAMAGE_REDUCTION等
+- **targetTypes.js**: ターゲットタイプ定義
+- **conditionChecker.js**: 条件判定システム
+- **valueCalculator.js**: 値計算（固定値/カウント乗算/条件付き）
+- **effectEngine.js**: メインエンジン
+- **effectDefinitions/**: カード別効果定義
+
+---
+
+### **状態異常システム（src/engine/statusEffects/）**
+
+15種類の状態異常を管理:
+
+- **statusTypes.js**: 状態タイプ定義
+  - SLEEP, FREEZE, THUNDER, WET, STUN, SILENCE
+  - GUARD, INVINCIBLE, AWAKENED, ATK_UP, HP_UP, ATK_DOWN
+  - PARASITE, POISON, CORRODE
+- **statusEngine.js**: メインエンジン
+  - `applyStatus()`: 状態付与
+  - `removeStatus()`: 状態解除
+  - `canAttack()`, `canUseSkill()`: 行動判定
+  - `processTurnStart()`, `processEndPhase()`: フェイズ処理
+  - `processOpponentEndPhase()`: 相手エンドフェイズ処理（寄生用）
+
+---
+
+### **AIシステム（src/engine/ai/）**
+
+3段階の難易度でAI対戦をサポート:
+
+- **aiController.js**: メインコントローラー
+  - `createAIGameState()`: ゲーム状態スナップショット
+  - `executeAIMainPhaseAction()`: メインフェイズAI
+  - `executeAIBattlePhaseAction()`: バトルフェイズAI
+  - 特殊ケース処理: 手札選択、モンスターターゲット、墓地選択等
+
+- **strategies/**: 戦略パターン
+  - `base.js`: 基本戦略（ランダム）
+  - `easy.js`: かんたんAI（30%召喚スキップ、70%ダイレクトアタック）
+  - `normal.js`: ふつうAI（コスト効率、HP優先攻撃）
+  - `hard.js`: むずかしいAI（盤面認識、ダメージ効率）
+
+---
+
+### **キーワード能力（src/engine/keywordAbilities/）**
+
+14種類のキーワード能力を処理:
+
+- **index.js**: キーワード定義と判定関数
+  - `hasKeyword()`, `getCardKeywords()`: キーワード判定
+  - `isSetsunaMagic()`, `getSetsunaCost()`: 【刹那詠唱】用
+  - `CHAIN_POINTS`: チェーンポイント定義
 
 ---
 
@@ -290,144 +385,72 @@
    ↓
 2. MagicSpiritGame（magic-spirit.jsx）
    ↓
-3. useEffect: loadCardsFromCSV()（cardManager.js）
-   ↓ fetch('/cardlist/cardlist.csv')
+3. useEffect: loadCardsFromCSV()
+   ↓
 4. parseCSV() → setAllCards()
    ↓
-5. ゲーム画面表示
+5. タイトル画面表示（デッキ選択・AI設定）
 ```
 
 ### カード召喚時
 ```
-1. ユーザーがカードをクリック
+1. summonCard(card, slotIndex)
    ↓
-2. summonCard(card, slotIndex)
+2. createMonsterInstance(card)
    ↓
-3. createMonsterInstance(card)（helpers.js）
+3. continuousEffectEngine.register()  // 常時効果登録
    ↓
-4. setP1Field / setP2Field
+4. registerCardTriggers()  // トリガー登録
    ↓
-5. FieldMonster.jsx で表示更新
+5. fireTrigger(ON_SUMMON)  // 召喚時トリガー発火
+   ↓
+6. UI更新
 ```
 
 ### 技発動時
 ```
-1. ユーザーが技ボタンをクリック
+1. executeSkill(monsterIndex, skillType)
    ↓
-2. executeSkill(monsterIndex, skillType)
+2. statusEffectEngine.canUseSkill()  // 状態異常チェック
    ↓
-3. executeSkillEffects(skill.text, context)（effectEngine.js）
+3. executeSkillEffects(skillText, context, cardId)
    ↓
-4. parseEffect(skill.text) → 効果解析
+4. getCardEffect(cardId) → カード固有効果実行
+   ↓ または
+5. parseEffect() → executeEffect()  // 汎用効果
    ↓
-5. executeEffect(effect, context) → 効果実行
-   ↓
-6. 状態更新（setP1Life, setP2Field等）
-   ↓
-7. UI更新
+6. 状態更新 → UI更新
 ```
 
----
-
-## 🎯 リファクタリングの成果
-
-### Before（リファクタリング前）
-- **magic-spirit.jsx**: 2237行
-- **ファイル数**: 1個（すべてが1ファイルに集約）
-- **問題点**:
-  - 責務が不明確
-  - テストが困難
-  - 新機能追加が難しい
-  - コードの見通しが悪い
-
-### After（リファクタリング後）
-- **magic-spirit.jsx**: 1366行（**-871行、-39%**）
-- **ファイル数**: 10個（機能別に分離）
-- **成果**:
-  - ✅ 関心の分離（UI / ロジック / データ）
-  - ✅ 保守性向上（各ファイルの責務が明確）
-  - ✅ 拡張性向上（新機能の追加が容易）
-  - ✅ テスト容易性（各モジュールを個別にテスト可能）
-
----
-
-## 📝 開発ガイドライン
-
-### 新しいカード効果を追加する場合
-
-**Step 1: effectEngine.jsを更新**
-```javascript
-// parseEffect関数に新しいパターンを追加
-const newEffectMatch = effectText.match(/新効果のパターン/);
-if (newEffectMatch) {
-  effects.push({
-    type: EFFECT_TYPES.NEW_EFFECT,
-    value: parseInt(newEffectMatch[1]),
-  });
-}
+### AIターン
 ```
-
-**Step 2: executeEffect関数に処理を追加**
-```javascript
-case EFFECT_TYPES.NEW_EFFECT:
-  // 効果の実装
-  addLog(`新効果を発動！`, 'info');
-  return true;
+1. AIターン開始検出
+   ↓
+2. executeAIMainPhaseAction()
+   ↓
+3. 戦略に基づいて行動決定
+   ↓
+4. summonCard() / executeSkill() / nextPhase()
+   ↓
+5. executeAIBattlePhaseAction()
+   ↓
+6. 攻撃対象決定 → attack()
 ```
-
-### 新しいUIコンポーネントを追加する場合
-
-**Step 1: src/components/ に新規ファイル作成**
-```javascript
-// src/components/NewComponent.jsx
-import React from 'react';
-
-const NewComponent = ({ prop1, prop2 }) => {
-  return <div>...</div>;
-};
-
-export default NewComponent;
-```
-
-**Step 2: magic-spirit.jsx でimportして使用**
-```javascript
-import NewComponent from './components/NewComponent';
-
-// JSX内で使用
-<NewComponent prop1={value1} prop2={value2} />
-```
-
----
-
-## 🔧 今後の推奨改善
-
-### 優先度: 高
-- [ ] effectEngine.jsの効果実装を拡張
-  - [ ] バフ/デバフ（攻撃力/HP）
-  - [ ] サーチ（デッキから手札へ）
-  - [ ] 蘇生（墓地から場へ）
-  - [ ] 破壊（モンスター指定破壊）
-
-### 優先度: 中
-- [ ] battleSystem.jsの分離
-- [ ] skillSystem.jsの分離
-- [ ] テストコードの追加
-
-### 優先度: 低
-- [ ] phaseSystem.jsの分離
-- [ ] TypeScriptへの移行
-- [ ] Redux等の状態管理ライブラリ導入
 
 ---
 
 ## 📚 関連ドキュメント
 
 - **開発ガイド**: `/home/user/magiSp/CLAUDE.md`
-- **ロードマップ**: `/home/user/magiSp/src/ルール/magic-spirit-roadmap-updated.txt`
-- **ルール仕様**: `/mnt/project/マジックスピリット_公式ルール仕様書_ver2_11.txt`
+- **ロードマップ**: `magic-spirit-roadmap-updated.txt`
+- **AIシステム設計**: `ai-player-system-design.md`
+- **状態異常設計**: `status-effect-system-design.md`
+- **常時効果設計**: `continuous-effect-system-design.md`
+- **トリガー設計**: `trigger-system-design.md`, `trigger-implementation-guide.md`
+- **ルール仕様**: `マジックスピリット 公式ルール仕様書 ver2.3.txt`
 
 ---
 
 **作成日**: 2025-11-26
-**バージョン**: 1.0
-**リファクタリング**: Phase 1-4完了
+**更新日**: 2025-11-28
+**バージョン**: 2.0
