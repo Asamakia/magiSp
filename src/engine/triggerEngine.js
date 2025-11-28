@@ -508,16 +508,62 @@ export const fireTrigger = (triggerType, context) => {
     try {
       // トリガーを所有するカードをフィールドから検索してコンテキストに追加
       const ownerField = trigger.owner === 1 ? context.p1Field : context.p2Field;
-      const triggerCard = ownerField
+
+      // 1. uniqueIdで検索（主要な方法）
+      let triggerCard = ownerField
         ? ownerField.find((m) => m && m.uniqueId === trigger.cardId)
         : null;
+
+      // デバッグ: uniqueIdで見つからない場合の詳細ログ
+      if (!triggerCard && ownerField) {
+        console.log(`[Debug] Card lookup failed for ${trigger.cardName}:`, {
+          searchId: trigger.cardId,
+          owner: trigger.owner,
+          slotIndex: trigger.slotIndex,
+          fieldCards: ownerField.map((m, i) => m ? { index: i, id: m.id, uniqueId: m.uniqueId, name: m.name } : null),
+        });
+      }
+
+      // 2. slotIndexでのフォールバック（フィールドの状態変更による一致失敗対策）
+      if (!triggerCard && trigger.slotIndex !== undefined && trigger.slotIndex !== null) {
+        const slotCard = ownerField ? ownerField[trigger.slotIndex] : null;
+        // slotIndexにカードがあり、同じカードIDなら使用
+        if (slotCard && slotCard.id === trigger.cardId?.split('_')[0]) {
+          triggerCard = slotCard;
+        }
+      }
+
+      // 3. カード名で検索（最終フォールバック - 同名カードが複数いる場合の対策）
+      if (!triggerCard && trigger.cardName) {
+        triggerCard = ownerField
+          ? ownerField.find((m) => m && m.name === trigger.cardName)
+          : null;
+      }
 
       // トリガー実行用のコンテキストを作成（カード情報を追加）
       // フィールドにカードが見つかった場合のみ上書き、見つからない場合は元のcontext.cardを維持
       // （ON_DESTROY_SELFなど、カードがすでにフィールドにない場合に対応）
+      const resolvedCard = triggerCard || context.card || context.destroyedCard;
+
+      // フェイズトリガーでカードが見つからない場合はスキップ
+      // （ON_DESTROY_SELFは destroyedCard で渡されるため別途処理）
+      const phaseTriggers = [
+        TRIGGER_TYPES.ON_END_PHASE_SELF,
+        TRIGGER_TYPES.ON_END_PHASE,
+        TRIGGER_TYPES.ON_TURN_START_SELF,
+        TRIGGER_TYPES.ON_MAIN_PHASE_SELF,
+        TRIGGER_TYPES.ON_BATTLE_PHASE_START,
+      ];
+      if (phaseTriggers.includes(trigger.triggerType) && !resolvedCard) {
+        console.warn(
+          `トリガースキップ: ${trigger.cardName} (cardId=${trigger.cardId}) - カードが見つかりません`
+        );
+        return;
+      }
+
       const triggerContext = {
         ...context,
-        card: triggerCard || context.card || context.destroyedCard,
+        card: resolvedCard,
         slotIndex: trigger.slotIndex ?? context.slotIndex,
       };
 

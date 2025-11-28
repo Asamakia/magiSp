@@ -48,6 +48,17 @@ export const primitiveCardTriggers = {
         const currentField = currentPlayer === 1 ? p1Field : p2Field;
         const setField = currentPlayer === 1 ? setP1Field : setP2Field;
 
+        // カードが見つからない場合（フィールドから除去された可能性）
+        // フィールドから自身を探す（複数体いる場合は最初の1体）
+        let effectCard = card;
+        if (!effectCard) {
+          effectCard = currentField.find((m) => m && m.id === 'C0000001');
+          if (!effectCard) {
+            // カードがフィールドにない場合は効果を発動しない
+            return;
+          }
+        }
+
         // 場の粘液獣・開花の数をカウント
         const bloomerCount = currentField.filter(
           (m) => m && m.id === 'C0000001'
@@ -67,13 +78,13 @@ export const primitiveCardTriggers = {
 
         // 分裂: 同じステータスのコピーを生成
         const copy = {
-          ...card,
-          uniqueId: `${card.id}_split_${Date.now()}`,
-          attack: card.attack,
-          currentAttack: card.currentAttack || card.attack,
-          hp: card.hp,
-          currentHp: card.currentHp || card.hp,
-          canAttack: card.canAttack, // 分裂前と同じ状態を引き継ぐ
+          ...effectCard,
+          uniqueId: `${effectCard.id}_split_${Date.now()}`,
+          attack: effectCard.attack,
+          currentAttack: effectCard.currentAttack || effectCard.attack,
+          hp: effectCard.hp,
+          currentHp: effectCard.currentHp || effectCard.hp,
+          canAttack: effectCard.canAttack, // 分裂前と同じ状態を引き継ぐ
           charges: [],
           statusEffects: [],
           owner: currentPlayer,
