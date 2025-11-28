@@ -6,6 +6,10 @@ import {
   INITIAL_HAND_SIZE,
   COUNTER_ATTACK_RATE,
   PHASES,
+  RULE_LONE_WARRIOR,
+  RULE_PIERCING_DAMAGE,
+  PIERCING_DAMAGE_RATE,
+  LONE_WARRIOR_BONUS,
 } from './utils/constants';
 import { createDeck, createMonsterInstance, createDeckFromPrebuilt, createDeckFromUserDeck } from './utils/helpers';
 import { getDeckOptions } from './decks/prebuiltDecks';
@@ -1749,7 +1753,27 @@ export default function MagicSpiritGame() {
     const attackerAtkMod = continuousEffectEngine.calculateAttackModifier(attacker, effectContext);
     // 状態異常による攻撃力修正を計算（凍結-50%、雷撃-500）
     const attackerStatusMod = statusEffectEngine.getAttackModifier(attacker);
-    const effectiveAttackerAtk = Math.max(0, attacker.currentAttack + attackerAtkMod + attackerStatusMod);
+    let effectiveAttackerAtk = Math.max(0, attacker.currentAttack + attackerAtkMod + attackerStatusMod);
+
+    // 【孤軍奮闘】自分のモンスターが相手より少ない場合の補正
+    let loneWarriorAtkBonus = 0;
+    let loneWarriorDamageReduction = 0;
+    if (RULE_LONE_WARRIOR) {
+      const myMonsterCount = playerField.filter(m => m !== null).length;
+      const opponentMonsterCount = opponentField.filter(m => m !== null).length;
+      const countDiff = opponentMonsterCount - myMonsterCount;
+
+      if (countDiff > 0) {
+        const bonusLevel = Math.min(countDiff, 3); // 最大3体差
+        const bonus = LONE_WARRIOR_BONUS[bonusLevel];
+        loneWarriorAtkBonus = bonus.atkBonus;
+        loneWarriorDamageReduction = bonus.damageReduction;
+
+        const atkIncrease = Math.floor(effectiveAttackerAtk * loneWarriorAtkBonus);
+        effectiveAttackerAtk += atkIncrease;
+        addLog(`【孤軍奮闘】${countDiff}体差！ATK+${Math.floor(loneWarriorAtkBonus * 100)}%（+${atkIncrease}）`, 'info');
+      }
+    }
 
     if (target) {
       // モンスター攻撃
@@ -1765,7 +1789,14 @@ export default function MagicSpiritGame() {
       const { reduction, usedGuard, updatedMonster: targetAfterGuard } = statusEffectEngine.calculateDamageReduction(target, damage);
       damage = Math.max(0, damage - reduction);
 
-      const counterDamage = Math.floor(effectiveTargetAtk * COUNTER_ATTACK_RATE);
+      let counterDamage = Math.floor(effectiveTargetAtk * COUNTER_ATTACK_RATE);
+
+      // 【孤軍奮闘】被ダメージ軽減を反撃に適用
+      if (RULE_LONE_WARRIOR && loneWarriorDamageReduction > 0) {
+        const reduction = Math.floor(counterDamage * loneWarriorDamageReduction);
+        counterDamage -= reduction;
+        addLog(`【孤軍奮闘】被ダメ-${Math.floor(loneWarriorDamageReduction * 100)}%（-${reduction}）`, 'info');
+      }
 
       addLog(`${attacker.name}が${target.name}を攻撃！`, 'info');
 
@@ -1799,6 +1830,16 @@ export default function MagicSpiritGame() {
       addLog(`反撃で${attacker.name}に${counterDamage}ダメージ！`, 'damage');
       if (attackerHasIndestructible && attacker.currentHp - counterDamage <= 0) {
         addLog(`${attacker.name}は破壊されない！（HP: 1）`, 'info');
+      }
+
+      // 【貫通ダメージ】モンスター破壊時に余剰ダメージの50%を相手ライフに与える
+      let piercingDamage = 0;
+      if (RULE_PIERCING_DAMAGE && newTargetHp <= 0 && !targetHasIndestructible) {
+        const excessDamage = damage - targetForDamage.currentHp;
+        piercingDamage = Math.floor(excessDamage * PIERCING_DAMAGE_RATE);
+        if (piercingDamage > 0) {
+          addLog(`【貫通ダメージ】余剰${excessDamage}の${Math.floor(PIERCING_DAMAGE_RATE * 100)}%→${piercingDamage}ダメージ！`, 'damage');
+        }
       }
 
       // 相手フィールドの更新
@@ -1854,6 +1895,11 @@ export default function MagicSpiritGame() {
           });
           setP2Graveyard(prev => [...prev, target]);
           addLog(`${target.name}は破壊された！`, 'damage');
+
+          // 【貫通ダメージ】相手ライフに適用
+          if (piercingDamage > 0) {
+            setP2Life(prev => Math.max(0, prev - piercingDamage));
+          }
         } else {
           setP2Field(prev => {
             const newField = [...prev];
@@ -1973,6 +2019,11 @@ export default function MagicSpiritGame() {
           });
           setP1Graveyard(prev => [...prev, target]);
           addLog(`${target.name}は破壊された！`, 'damage');
+
+          // 【貫通ダメージ】相手ライフに適用
+          if (piercingDamage > 0) {
+            setP1Life(prev => Math.max(0, prev - piercingDamage));
+          }
         } else {
           setP1Field(prev => {
             const newField = [...prev];

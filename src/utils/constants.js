@@ -9,6 +9,27 @@ export const INITIAL_HAND_SIZE = 5;
 export const DECK_SIZE = 40;
 export const COUNTER_ATTACK_RATE = 0.3;
 
+// ========================================
+// バランス調整ルール（false で無効化可能）
+// ========================================
+
+// 【孤軍奮闘】自分のモンスターが相手より少ない場合、差に応じて補正
+// 1体差: ATK+10%、被ダメ-10%
+// 2体差: ATK+25%、被ダメ-20%
+// 3体以上: ATK+40%、被ダメ-30%
+export const RULE_LONE_WARRIOR = true;
+
+// 【貫通ダメージ】モンスターを破壊した時、余剰ダメージの50%を相手ライフに与える
+export const RULE_PIERCING_DAMAGE = true;
+export const PIERCING_DAMAGE_RATE = 0.5; // 貫通ダメージ率
+
+// 孤軍奮闘の補正値テーブル
+export const LONE_WARRIOR_BONUS = {
+  1: { atkBonus: 0.10, damageReduction: 0.10 }, // 1体差
+  2: { atkBonus: 0.25, damageReduction: 0.20 }, // 2体差
+  3: { atkBonus: 0.40, damageReduction: 0.30 }, // 3体以上差
+};
+
 export const PHASES = ['ターン開始', 'ドロー', 'メイン', 'バトル', 'エンド'];
 
 export const ATTRIBUTE_COLORS = {
