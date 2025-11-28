@@ -651,7 +651,7 @@ export const waterCardTriggers = {
         const {
           currentPlayer, p1Field, p2Field, addLog,
           setP1Field, setP2Field, setP1Graveyard, setP2Graveyard,
-          setPendingMonsterTarget,
+          setPendingTargetSelection,
         } = context;
         const field = currentPlayer === 1 ? p1Field : p2Field;
         const opponentField = currentPlayer === 1 ? p2Field : p1Field;
@@ -712,13 +712,12 @@ export const waterCardTriggers = {
         }
 
         // 複数いる場合は選択UI
-        if (setPendingMonsterTarget) {
+        if (setPendingTargetSelection) {
           addLog(`ブリザードキャット×${blizzardCatCount}で${damage}ダメージ！対象を選択...`, 'info');
-          setPendingMonsterTarget({
+          setPendingTargetSelection({
             message: `${damage}ダメージを与える相手モンスターを選択してください`,
-            targetPlayer: 'opponent',
+            targetType: 'opponent_monster',
             callback: (selectedIndex) => {
-              if (selectedIndex === null || selectedIndex === undefined) return;
               applyDamage(selectedIndex);
             },
           });
