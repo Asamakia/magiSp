@@ -18,6 +18,7 @@ import {
 } from '../effectHelpers';
 import { hasCategory } from '../../utils/helpers';
 import { STATUS_EFFECT_TYPES } from '../statusEffects/statusTypes';
+import { statusEffectEngine } from '../statusEffects';
 
 /**
  * 炎属性カードのトリガー定義
@@ -45,23 +46,30 @@ export const fireCardTriggers = {
   /**
    * C0000023: レッドバーストドラゴン
    * 【バトルフェイズ開始時】相手プレイヤーに300ダメージ（覚醒後500ダメージ）を与える。
-   * 【覚醒時】攻撃力が1000アップ。
+   * 【覚醒時】攻撃力が1000アップ。（基本技発動で覚醒状態になる）
    */
   C0000023: [
     {
       type: TRIGGER_TYPES.ON_BATTLE_PHASE_START,
       activationType: ACTIVATION_TYPES.AUTOMATIC,
-      description: 'バトルフェイズ開始時: 相手に300ダメージ',
+      description: 'バトルフェイズ開始時: 相手に300ダメージ（覚醒時500）',
       effect: (context) => {
-        const { monsterIndex, addLog } = context;
+        const { addLog } = context;
         const { myField } = getPlayerContext(context);
-        const monster = myField[monsterIndex];
 
-        // 覚醒状態チェック（攻撃力が初期値より高い場合など）
-        const isAwakened = monster && monster.awakened;
+        // トリガーを持つモンスターを探す（context.cardまたはslotIndexから）
+        const monster = context.card || (context.slotIndex !== undefined ? myField[context.slotIndex] : null);
+
+        if (!monster) {
+          addLog('レッドバーストドラゴンの効果: モンスターが見つかりません', 'info');
+          return;
+        }
+
+        // 覚醒状態チェック（状態異常システムを使用）
+        const isAwakened = statusEffectEngine.hasStatus(monster, STATUS_EFFECT_TYPES.AWAKENED);
         const damage = isAwakened ? 500 : 300;
 
-        addLog(`レッドバーストドラゴンの効果: 相手に${damage}ダメージ`, 'info');
+        addLog(`レッドバーストドラゴンの効果: 相手プレイヤーに${damage}ダメージ${isAwakened ? '（覚醒）' : ''}`, 'damage');
         conditionalDamage(context, damage, 'opponent');
       },
     },
