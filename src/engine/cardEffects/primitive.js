@@ -275,37 +275,10 @@ export const primitiveCardEffects = {
   /**
    * C0000011: 粘液獣・暴走体
    * 【召喚時】場にいる《粘液獣》1体を破壊し、そのコスト×300ダメージを相手プレイヤーに与える
+   * ※召喚時効果はトリガーシステムで処理
    */
   C0000011: (skillText, context) => {
-    const { addLog } = context;
-    const { myField, setMyField, setMyGraveyard } = getPlayerContext(context);
-
-    if (skillText.includes('【召喚時】')) {
-      const slimes = myField.filter(m =>
-        m && m.name && m.name.includes('粘液獣')
-      );
-
-      if (slimes.length > 0) {
-        const target = slimes[0];
-        const damage = target.cost * 300;
-
-        // モンスターを破壊
-        setMyField(prev => prev.map(m => {
-          if (m && m.uniqueId === target.uniqueId) {
-            return null;
-          }
-          return m;
-        }));
-        setMyGraveyard(prev => [...prev, target]);
-
-        addLog(`${target.name}を破壊`, 'damage');
-        conditionalDamage(context, damage, 'opponent');
-        return true;
-      } else {
-        addLog('粘液獣がいません', 'info');
-        return false;
-      }
-    }
+    // 召喚時効果はトリガーで処理されるため、cardEffectsでは何もしない
     return false;
   },
 
@@ -360,13 +333,13 @@ export const primitiveCardEffects = {
     const { addLog } = context;
     const { myField, setMyField, currentPlayer } = getPlayerContext(context);
 
-    // 場の粘液獣を探す
+    // 《粘液獣》と名の付くモンスターを探す（名前判定）
     const slimeIndex = myField.findIndex(
-      (m) => m && hasCategory(m, '【スライム】')
+      (m) => m && m.name && m.name.includes('粘液獣')
     );
 
     if (slimeIndex === -1) {
-      addLog('粘液の増殖: 場に粘液獣がいません', 'info');
+      addLog('粘液の増殖: 場に《粘液獣》がいません', 'info');
       return false;
     }
 

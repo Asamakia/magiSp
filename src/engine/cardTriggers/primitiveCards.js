@@ -519,18 +519,18 @@ export const primitiveCardTriggers = {
     {
       type: TRIGGER_TYPES.ON_SUMMON,
       activationType: ACTIVATION_TYPES.AUTOMATIC,
-      description: '召喚時: 場の粘液獣1体を破壊してコスト×300ダメージ',
+      description: '召喚時: 場の《粘液獣》1体を破壊してコスト×300ダメージ',
       effect: (context) => {
         const { addLog } = context;
         const { myField } = getPlayerContext(context);
 
-        // 粘液獣を探す
+        // 《粘液獣》と名の付くモンスターを探す（名前判定）
         const targetIndex = myField.findIndex(
-          (m) => m && hasCategory(m, '【スライム】')
+          (m) => m && m.name && m.name.includes('粘液獣')
         );
 
         if (targetIndex === -1) {
-          addLog('粘液獣・暴走体: 破壊する対象がいない', 'info');
+          addLog('粘液獣・暴走体: 破壊する《粘液獣》がいない', 'info');
           return false;
         }
 
@@ -925,14 +925,16 @@ export const primitiveCardTriggers = {
       type: TRIGGER_TYPES.ON_END_PHASE_SELF,
       activationType: ACTIVATION_TYPES.AUTOMATIC,
       priority: TRIGGER_PRIORITIES.HIGH,
-      description: 'エンド時: 墓地の粘液獣1体を復活',
+      description: 'エンド時: 墓地の《粘液獣》1体を復活',
       effect: (context) => {
         return reviveFromGraveyard(
           context,
           (card) => {
+            // 《粘液獣》と名の付くモンスターを対象（名前判定）
             return (
               card.type === 'monster' &&
-              hasCategory(card, '【スライム】')
+              card.name &&
+              card.name.includes('粘液獣')
             );
           },
           false // 弱体化なし
@@ -943,22 +945,22 @@ export const primitiveCardTriggers = {
       type: TRIGGER_TYPES.ON_END_PHASE_SELF,
       activationType: ACTIVATION_TYPES.AUTOMATIC,
       priority: TRIGGER_PRIORITIES.NORMAL,
-      description: 'エンド時: 粘液獣3体以上でライフ500回復',
+      description: 'エンド時: 《粘液獣》3体以上でライフ500回復',
       effect: (context) => {
         const { addLog } = context;
         const { myField } = getPlayerContext(context);
 
-        // 粘液獣の数をカウント
+        // 《粘液獣》と名の付くモンスターの数をカウント（名前判定）
         const slimeCount = myField.filter(
-          (m) => m && hasCategory(m, '【スライム】')
+          (m) => m && m.name && m.name.includes('粘液獣')
         ).length;
 
         if (slimeCount >= 3) {
           healLife(context, 500, true);
-          addLog('粘液の巣窟: 粘液獣3体以上でライフ500回復！', 'heal');
+          addLog('粘液の巣窟: 《粘液獣》3体以上でライフ500回復！', 'heal');
           return true;
         } else {
-          addLog('粘液の巣窟: 粘液獣が3体未満のため回復なし', 'info');
+          addLog('粘液の巣窟: 《粘液獣》が3体未満のため回復なし', 'info');
           return false;
         }
       },
