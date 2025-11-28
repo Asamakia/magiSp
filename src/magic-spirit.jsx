@@ -74,6 +74,7 @@ import {
   ShopScreen,
   PackOpening,
   DeckBuilder,
+  DeckList,
 } from './collection';
 
 // ========================================
@@ -97,7 +98,7 @@ export default function MagicSpiritGame() {
   const [isLoadingCards, setIsLoadingCards] = useState(true);
 
   // ゲーム状態
-  const [gameState, setGameState] = useState('title'); // title, playing, gameOver, collection, shop, packOpening, deckEdit
+  const [gameState, setGameState] = useState('title'); // title, playing, gameOver, collection, shop, packOpening, deckList, deckEdit
   const [turn, setTurn] = useState(1);
   const [currentPlayer, setCurrentPlayer] = useState(1);
   const [phase, setPhase] = useState(0);
@@ -353,7 +354,23 @@ export default function MagicSpiritGame() {
 
     updatePlayerData(newPlayerData);
     setEditingDeck(null);
-    setGameState('title');
+    setGameState('deckList');
+  }, [playerData, updatePlayerData]);
+
+  // デッキ削除
+  const handleDeleteDeck = useCallback((deckId) => {
+    if (!playerData) return;
+
+    const userDecks = playerData.userDecks || [];
+    const newUserDecks = userDecks.filter(d => d.id !== deckId);
+
+    const newPlayerData = {
+      ...playerData,
+      userDecks: newUserDecks,
+      updatedAt: Date.now(),
+    };
+
+    updatePlayerData(newPlayerData);
   }, [playerData, updatePlayerData]);
 
   // ========================================
@@ -3055,10 +3072,7 @@ export default function MagicSpiritGame() {
                   🛒 ショップ
                 </button>
                 <button
-                  onClick={() => {
-                    setEditingDeck(null);
-                    setGameState('deckEdit');
-                  }}
+                  onClick={() => setGameState('deckList')}
                   style={{
                     ...styles.actionButton,
                     background: 'linear-gradient(135deg, #4ecdc4 0%, #44a08d 100%)',
@@ -3066,7 +3080,7 @@ export default function MagicSpiritGame() {
                     padding: '10px 20px',
                   }}
                 >
-                  🃏 デッキ編集
+                  🃏 マイデッキ
                 </button>
               </div>
 
@@ -3122,6 +3136,26 @@ export default function MagicSpiritGame() {
     );
   }
 
+  // デッキ一覧画面
+  if (gameState === 'deckList') {
+    return (
+      <DeckList
+        playerData={playerData}
+        allCards={allCards}
+        onBack={() => setGameState('title')}
+        onCreateNew={() => {
+          setEditingDeck(null);
+          setGameState('deckEdit');
+        }}
+        onEditDeck={(deck) => {
+          setEditingDeck(deck);
+          setGameState('deckEdit');
+        }}
+        onDeleteDeck={handleDeleteDeck}
+      />
+    );
+  }
+
   // デッキ編集画面
   if (gameState === 'deckEdit') {
     return (
@@ -3132,7 +3166,7 @@ export default function MagicSpiritGame() {
         editingDeck={editingDeck}
         onBack={() => {
           setEditingDeck(null);
-          setGameState('title');
+          setGameState('deckList');
         }}
         onSave={handleSaveDeck}
       />

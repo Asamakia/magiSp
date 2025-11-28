@@ -59,3 +59,4 @@ export { default as PackOpening } from './components/PackOpening';
 
 // Phase 5: デッキ構築
 export { default as DeckBuilder } from './components/DeckBuilder';
+export { default as DeckList } from './components/DeckList';
