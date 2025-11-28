@@ -2189,9 +2189,13 @@ export default function MagicSpiritGame() {
   // ダイレクトアタック
   const handleDirectAttack = () => {
     if (attackingMonster === null) return;
+    const currentField = currentPlayer === 1 ? p1Field : p2Field;
     const opponentField = currentPlayer === 1 ? p2Field : p1Field;
+    const attacker = currentField[attackingMonster];
     const hasTarget = opponentField.some(m => m !== null);
-    if (!hasTarget) {
+
+    // 相手にモンスターがいない場合、または攻撃者がダイレクトアタック可能フラグを持つ場合
+    if (!hasTarget || (attacker && attacker.canDirectAttackThisTurn)) {
       attack(attackingMonster, -1);
     } else {
       addLog('相手の場にモンスターがいます。対象を選択してください。', 'info');
