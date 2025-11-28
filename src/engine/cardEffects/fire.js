@@ -398,5 +398,95 @@ export const fireCardEffects = {
     return false;
   },
 
+  /**
+   * C0000023: レッドバーストドラゴン
+   * 基本技：自分の手札を1枚捨てて、このカードの攻撃力をターン終了時まで1000アップ
+   */
+  C0000023: (skillText, context) => {
+    const {
+      addLog,
+      currentPlayer,
+      monsterIndex,
+      p1Hand, p2Hand,
+      setP1Hand, setP2Hand,
+      p1Field, p2Field,
+      setP1Field, setP2Field,
+      setP1Graveyard, setP2Graveyard,
+      setPendingHandSelection,
+    } = context;
+
+    if (context.skillType === 'basic') {
+      const currentHand = currentPlayer === 1 ? p1Hand : p2Hand;
+      const setHand = currentPlayer === 1 ? setP1Hand : setP2Hand;
+      const currentField = currentPlayer === 1 ? p1Field : p2Field;
+      const setField = currentPlayer === 1 ? setP1Field : setP2Field;
+      const setGraveyard = currentPlayer === 1 ? setP1Graveyard : setP2Graveyard;
+
+      const monster = currentField[monsterIndex];
+      if (!monster) {
+        addLog('モンスターが存在しません', 'damage');
+        return false;
+      }
+
+      // 手札がない場合は失敗
+      if (currentHand.length === 0) {
+        addLog('レッドバーストドラゴンの基本技: 手札がありません', 'info');
+        return false;
+      }
+
+      // 1枚のみの場合は自動選択
+      if (currentHand.length === 1) {
+        const discardedCard = currentHand[0];
+        setHand([]);
+        setGraveyard(prev => [...prev, discardedCard]);
+        setField(prev => prev.map((m, idx) => {
+          if (idx === monsterIndex && m) {
+            const newAttack = m.attack + 1000;
+            return { ...m, attack: newAttack };
+          }
+          return m;
+        }));
+        addLog(`レッドバーストドラゴンの基本技: 「${discardedCard.name}」を捨てて攻撃力+1000！`, 'heal');
+        return true;
+      }
+
+      // 複数の場合は選択UI
+      if (setPendingHandSelection) {
+        setPendingHandSelection({
+          message: '捨てる手札を1枚選択してください',
+          filter: () => true, // 全ての手札が対象
+          callback: (selectedCard) => {
+            setHand(prev => prev.filter(c => c.uniqueId !== selectedCard.uniqueId));
+            setGraveyard(prev => [...prev, selectedCard]);
+            setField(prev => prev.map((m, idx) => {
+              if (idx === monsterIndex && m) {
+                const newAttack = m.attack + 1000;
+                return { ...m, attack: newAttack };
+              }
+              return m;
+            }));
+            addLog(`レッドバーストドラゴンの基本技: 「${selectedCard.name}」を捨てて攻撃力+1000！`, 'heal');
+          },
+        });
+        return true;
+      }
+
+      // フォールバック: 最初の手札を選択
+      const discardedCard = currentHand[0];
+      setHand(prev => prev.slice(1));
+      setGraveyard(prev => [...prev, discardedCard]);
+      setField(prev => prev.map((m, idx) => {
+        if (idx === monsterIndex && m) {
+          const newAttack = m.attack + 1000;
+          return { ...m, attack: newAttack };
+        }
+        return m;
+      }));
+      addLog(`レッドバーストドラゴンの基本技: 「${discardedCard.name}」を捨てて攻撃力+1000！`, 'heal');
+      return true;
+    }
+    return false;
+  },
+
   // 他の炎属性カードを追加...
 };
