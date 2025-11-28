@@ -69,7 +69,9 @@ export const recordPriceHistory = (priceHistory, marketState, allCards, getBaseV
   const currentDay = marketState.currentDay;
 
   // 属性別・カテゴリ別・ティア別の集計用
+  console.log('[recordPriceHistory] Creating attributeTotals from ATTRIBUTES:', ATTRIBUTES, 'length:', ATTRIBUTES?.length);
   const attributeTotals = Object.fromEntries(ATTRIBUTES.map(a => [a, { sum: 0, count: 0 }]));
+  console.log('[recordPriceHistory] attributeTotals initialized:', JSON.stringify(attributeTotals));
   const categoryTotals = Object.fromEntries(CATEGORIES.map(c => [c, { sum: 0, count: 0 }]));
   const tierTotals = Object.fromEntries(TIERS.map(t => [t, { sum: 0, count: 0 }]));
   let marketTotal = 0;
