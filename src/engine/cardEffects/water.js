@@ -1162,5 +1162,142 @@ export const waterCardEffects = {
     return false;
   },
 
+  /**
+   * C0000049: タイダルシフト
+   * 場にいる水属性モンスター1体をデッキに戻し、デッキから同じコスト以下の別の水属性モンスターを場に出す（コスト不要）
+   */
+  C0000049: (skillText, context) => {
+    const {
+      addLog,
+      currentPlayer,
+      p1Field, p2Field,
+      setP1Field, setP2Field,
+      p1Deck, p2Deck,
+      setP1Deck, setP2Deck,
+      setPendingTargetSelection,
+      setPendingDeckReview,
+    } = context;
+
+    const currentField = currentPlayer === 1 ? p1Field : p2Field;
+    const setField = currentPlayer === 1 ? setP1Field : setP2Field;
+    const currentDeck = currentPlayer === 1 ? p1Deck : p2Deck;
+    const setDeck = currentPlayer === 1 ? setP1Deck : setP2Deck;
+
+    // 自分の場の水属性モンスターを取得
+    const waterMonsters = currentField
+      .map((m, idx) => ({ monster: m, index: idx }))
+      .filter(({ monster }) => monster !== null && monster.attribute === '水');
+
+    if (waterMonsters.length === 0) {
+      addLog('場に水属性モンスターがいません', 'info');
+      return false;
+    }
+
+    // モンスターを選択してシフトする処理
+    const performTidalShift = (selectedIndex) => {
+      const selectedMonster = currentField[selectedIndex];
+      if (!selectedMonster) return;
+
+      const targetCost = selectedMonster.cost;
+
+      // デッキから同コスト以下の別の水属性モンスターを検索
+      const eligibleMonsters = currentDeck.filter(card =>
+        card.type === 'monster' &&
+        card.attribute === '水' &&
+        card.cost <= targetCost &&
+        card.id !== selectedMonster.id // 別のモンスター
+      );
+
+      if (eligibleMonsters.length === 0) {
+        addLog(`コスト${targetCost}以下の別の水属性モンスターがデッキにいません`, 'info');
+        // モンスターは戻さず効果失敗
+        return;
+      }
+
+      // 選択したモンスターをデッキに戻す
+      setField(prev => {
+        const newField = [...prev];
+        newField[selectedIndex] = null;
+        return newField;
+      });
+      setDeck(prev => [...prev, selectedMonster]);
+      addLog(`${selectedMonster.name}をデッキに戻した`, 'info');
+
+      // 召喚処理
+      const summonReplacement = (newMonster) => {
+        setDeck(prev => prev.filter(c => c.uniqueId !== newMonster.uniqueId));
+        setField(prev => {
+          const newField = [...prev];
+          newField[selectedIndex] = {
+            ...newMonster,
+            currentHp: newMonster.hp,
+            currentAttack: newMonster.attack,
+            canAttack: false, // 召喚酔い
+            charges: [],
+            statusEffects: [],
+            owner: currentPlayer,
+          };
+          return newField;
+        });
+        addLog(`タイダルシフト: デッキから「${newMonster.name}」を特殊召喚！`, 'heal');
+      };
+
+      // 1体のみの場合は自動選択
+      if (eligibleMonsters.length === 1) {
+        summonReplacement(eligibleMonsters[0]);
+        return;
+      }
+
+      // 複数ある場合はデッキ選択UIを表示
+      if (setPendingDeckReview) {
+        setPendingDeckReview({
+          cards: eligibleMonsters,
+          title: 'タイダルシフト',
+          message: `コスト${targetCost}以下の水属性モンスターを1体選択して召喚`,
+          allowReorder: false,
+          selectMode: {
+            enabled: true,
+            count: 1,
+          },
+          onSelect: (selectedCards) => {
+            if (selectedCards.length > 0) {
+              summonReplacement(selectedCards[0]);
+            }
+          },
+          onCancel: () => {
+            addLog('タイダルシフト: 召喚をキャンセルしました', 'info');
+          },
+        });
+      } else {
+        // フォールバック: 最初の1体を召喚
+        summonReplacement(eligibleMonsters[0]);
+      }
+    };
+
+    // 水属性モンスターが1体のみの場合は自動選択
+    if (waterMonsters.length === 1) {
+      performTidalShift(waterMonsters[0].index);
+      return true;
+    }
+
+    // 複数いる場合は選択UI
+    if (setPendingTargetSelection) {
+      setPendingTargetSelection({
+        message: 'デッキに戻す水属性モンスターを選択',
+        targetType: 'self_monster',
+        validTargets: waterMonsters.map(t => t.index),
+        isOpponent: false,
+        callback: (selectedIndex) => {
+          performTidalShift(selectedIndex);
+        },
+      });
+      return true;
+    }
+
+    // フォールバック: 最初の水属性モンスットー
+    performTidalShift(waterMonsters[0].index);
+    return true;
+  },
+
   // 他の水属性カードを追加...
 };
