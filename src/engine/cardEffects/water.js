@@ -1294,8 +1294,31 @@ export const waterCardEffects = {
       return true;
     }
 
-    // フォールバック: 最初の水属性モンスットー
+    // フォールバック: 最初の水属性モンスター
     performTidalShift(waterMonsters[0].index);
+    return true;
+  },
+
+  /**
+   * C0000047: マーメイドの恵み
+   * 次の自分のターンのSPトークン増加量を1増加させる（1ターンに1度のみ）
+   */
+  C0000047: (skillText, context) => {
+    const {
+      addLog,
+      currentPlayer,
+      setP1NextTurnSPBonus,
+      setP2NextTurnSPBonus,
+    } = context;
+
+    // 次のターンのSP増加ボーナスを+1
+    if (currentPlayer === 1) {
+      setP1NextTurnSPBonus(prev => prev + 1);
+    } else {
+      setP2NextTurnSPBonus(prev => prev + 1);
+    }
+
+    addLog('マーメイドの恵み: 次のターンのSP増加量+1！', 'heal');
     return true;
   },
 

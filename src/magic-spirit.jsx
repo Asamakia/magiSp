@@ -116,6 +116,10 @@ export default function MagicSpiritGame() {
   const [p1StatusEffects, setP1StatusEffects] = useState([]);
   const [p2StatusEffects, setP2StatusEffects] = useState([]);
 
+  // 次のターンのSP増加ボーナス（マーメイドの恵み等）
+  const [p1NextTurnSPBonus, setP1NextTurnSPBonus] = useState(0);
+  const [p2NextTurnSPBonus, setP2NextTurnSPBonus] = useState(0);
+
   // UI状態
   const [selectedHandCard, setSelectedHandCard] = useState(null);
   const [selectedFieldMonster, setSelectedFieldMonster] = useState(null);
@@ -242,6 +246,8 @@ export default function MagicSpiritGame() {
     setP2ActiveSP(INITIAL_SP);
     setP1RestedSP(0);
     setP2RestedSP(0);
+    setP1NextTurnSPBonus(0);
+    setP2NextTurnSPBonus(0);
     setP1Field([null, null, null, null, null]);
     setP2Field([null, null, null, null, null]);
     setP1FieldCard(null);
@@ -308,6 +314,7 @@ export default function MagicSpiritGame() {
         restedSP: p1RestedSP, setRestedSP: setP1RestedSP,
         fieldCard: p1FieldCard, setFieldCard: setP1FieldCard,
         phaseCard: p1PhaseCard, setPhaseCard: setP1PhaseCard,
+        spBonus: p1NextTurnSPBonus, setSpBonus: setP1NextTurnSPBonus,
       };
     }
     return {
@@ -320,6 +327,7 @@ export default function MagicSpiritGame() {
       restedSP: p2RestedSP, setRestedSP: setP2RestedSP,
       fieldCard: p2FieldCard, setFieldCard: setP2FieldCard,
       phaseCard: p2PhaseCard, setPhaseCard: setP2PhaseCard,
+      spBonus: p2NextTurnSPBonus, setSpBonus: setP2NextTurnSPBonus,
     };
   };
 
@@ -379,11 +387,21 @@ export default function MagicSpiritGame() {
 
     switch (phaseIndex) {
       case 0: // ターン開始フェイズ
-        // SPトークン追加（最大10）
+        // SPトークン追加（最大10）+ ボーナス
         const totalSP = player.activeSP + player.restedSP;
+        const spGain = 1 + (player.spBonus || 0); // 通常1 + ボーナス
         if (totalSP < MAX_SP) {
-          player.setActiveSP(prev => Math.min(prev + 1, MAX_SP));
-          addLog(`プレイヤー${currentPlayer}: SPトークン+1`, 'info');
+          const actualGain = Math.min(spGain, MAX_SP - totalSP);
+          player.setActiveSP(prev => Math.min(prev + actualGain, MAX_SP));
+          if (player.spBonus > 0) {
+            addLog(`プレイヤー${currentPlayer}: SPトークン+${actualGain}（マーメイドの恵み効果）`, 'heal');
+          } else {
+            addLog(`プレイヤー${currentPlayer}: SPトークン+1`, 'info');
+          }
+        }
+        // SPボーナスをリセット
+        if (player.spBonus > 0) {
+          player.setSpBonus(0);
         }
         // レスト状態のSPをアクティブに
         player.setActiveSP(prev => prev + player.restedSP);
@@ -1097,6 +1115,9 @@ export default function MagicSpiritGame() {
           addLog,
           setPendingDeckReview,
           setPendingMonsterTarget,
+          // SPボーナス設定（マーメイドの恵み等）
+          setP1NextTurnSPBonus,
+          setP2NextTurnSPBonus,
         };
         executeSkillEffects(card.effect, context, card.id);
       }
