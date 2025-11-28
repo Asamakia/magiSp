@@ -1755,6 +1755,15 @@ export default function MagicSpiritGame() {
 
     // 魔法効果を実行
     if (card.effect) {
+      // 攻撃宣言時の場合、攻撃者情報をコンテキストに追加
+      const attackerInfo = {};
+      if (pendingAction.type === 'attack') {
+        const attackerField = currentPlayer === 1 ? p1Field : p2Field;
+        attackerInfo.attacker = attackerField[pendingAction.attackerIndex];
+        attackerInfo.attackerIndex = pendingAction.attackerIndex;
+        attackerInfo.targetIndex = pendingAction.targetIndex;
+      }
+
       const context = {
         currentPlayer: askingPlayer,
         monsterIndex: null,
@@ -1780,6 +1789,9 @@ export default function MagicSpiritGame() {
         setPendingDeckReview,
         setPendingMonsterTarget,
         setPendingHandSelection,
+        // 刹那詠唱用: 攻撃宣言時の攻撃モンスター情報
+        ...attackerInfo,
+        chainContext: chainConfirmation.context,
       };
       executeSkillEffects(card.effect, context, card.id);
     }

@@ -473,5 +473,59 @@ export const primitiveCardEffects = {
     return true;
   },
 
+  /**
+   * C0000013: 粘液の罠
+   * 【刹那詠唱】相手モンスター攻撃時、発動可能。
+   * そのモンスターの攻撃力を800ダウン、次のターンまで行動不能にする。
+   */
+  C0000013: (skillText, context) => {
+    const {
+      addLog,
+      currentPlayer,
+      attacker,
+      attackerIndex,
+      setP1Field,
+      setP2Field,
+    } = context;
+
+    // 刹那詠唱で発動された場合のみ有効
+    // attacker は攻撃宣言をしたモンスター（相手フィールドにいる）
+    if (!attacker || attackerIndex === undefined) {
+      addLog('粘液の罠: 攻撃対象がありません', 'info');
+      return false;
+    }
+
+    // 攻撃者は「相手フィールド」にいる
+    // currentPlayer = 刹那詠唱使用者
+    // 攻撃者は currentPlayer の相手のフィールドにいる
+    const setOpponentField = currentPlayer === 1 ? setP2Field : setP1Field;
+
+    // 攻撃力を800ダウン & STUN（行動不能）を付与
+    setOpponentField(prev => prev.map((m, idx) => {
+      if (idx === attackerIndex && m) {
+        const newAttack = Math.max(0, (m.currentAttack || m.attack) - 800);
+        const updatedMonster = {
+          ...m,
+          currentAttack: newAttack,
+        };
+
+        // STUN状態異常を付与（次のターンまで行動不能）
+        statusEffectEngine.applyStatus(updatedMonster, STATUS_EFFECT_TYPES.STUN, {
+          duration: 1, // 次のターンまで
+          source: 'C0000013',
+          sourceName: '粘液の罠',
+        });
+
+        addLog(`粘液の罠: ${m.name}の攻撃力を800ダウン（${m.currentAttack || m.attack}→${newAttack}）`, 'info');
+        addLog(`粘液の罠: ${m.name}は次のターンまで行動不能！`, 'info');
+
+        return updatedMonster;
+      }
+      return m;
+    }));
+
+    return true;
+  },
+
   // 他の原始属性カードを追加...
 };
