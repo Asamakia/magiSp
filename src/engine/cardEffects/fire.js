@@ -24,7 +24,7 @@ export const fireCardEffects = {
    * 基本技：自身の攻撃力の半分のダメージを相手モンスター1体に与える
    */
   C0000021: (skillText, context) => {
-    const { addLog, monsterIndex, setPendingTargetSelection } = context;
+    const { addLog, monsterIndex, setPendingMonsterTarget } = context;
     const { myField, opponentField, setOpponentField } = getPlayerContext(context);
 
     if (context.skillType === 'basic') {
@@ -553,7 +553,7 @@ export const fireCardEffects = {
    * 基本技：自身の攻撃力の半分のダメージを相手モンスター1体に与える
    */
   C0000025: (skillText, context) => {
-    const { addLog, monsterIndex, setPendingTargetSelection } = context;
+    const { addLog, monsterIndex, setPendingMonsterTarget } = context;
     const { myField, opponentField, setOpponentField, setOpponentGraveyard } = getPlayerContext(context);
 
     if (context.skillType === 'basic') {
@@ -1105,7 +1105,7 @@ export const fireCardEffects = {
    * 【刹那詠唱】相手モンスター1体に800ダメージを与えた後、相手モンスター全体に300ダメージを与える。
    */
   C0000032: (skillText, context) => {
-    const { addLog, setPendingTargetSelection } = context;
+    const { addLog, setPendingMonsterTarget } = context;
     const { opponentField, setOpponentField, setOpponentGraveyard } = getPlayerContext(context);
 
     // 相手フィールドのモンスターをチェック
