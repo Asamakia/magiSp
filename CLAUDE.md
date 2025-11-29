@@ -289,6 +289,19 @@ Currently a **prototype version** with local 2-player gameplay and AI opponent s
     - 原因: `resolveValue()`がdispatch前に関数を解決し、古いクロージャ値を使用
     - 修正: resolveValue削除、関数をreducerに直接渡してapplyUpdatePlayerStateで解決
     - 7行削減
+- **2025-11-29 (Tournament Reward UX Improvement)**: 大会報酬受け取りのUX改善 ⭐⭐
+  - **PENDING_REWARD状態**: 大会終了後、報酬受け取り待ち状態を追加
+    - CLOSED → runTournament → PENDING_REWARD → 報酬受け取り → FINISHED
+  - **大会観戦ダイアログ** (TournamentViewer.jsx ~580行)
+    - 締切日の対戦終了後にダイアログ表示
+    - 「観戦する」: トーナメント表が自動進行（1.5秒ごと）
+    - 「スキップ」: 結果画面へ直接ジャンプ
+    - 進捗バーで試合進行を表示
+    - 結果画面で賭け結果表示＋報酬受け取りボタン
+  - **見ないで日をまたいだ場合**: TournamentTabで報酬受け取り可能
+    - 優勝者・準優勝者表示
+    - 賭け結果一覧（的中/不的中）
+    - 収支表示 + 報酬受け取りボタン
   - **magic-spirit.jsx**: 6,171行 → 6,114行（57行削減）
   - **41テスト全パス**
 
@@ -345,6 +358,19 @@ Currently a **prototype version** with local 2-player gameplay and AI opponent s
 │   │   ├── hooks/                # Custom hooks
 │   │   │   ├── index.js          # Hook exports (10 lines)
 │   │   │   └── useMediaQuery.js  # Responsive design hooks (73 lines)
+│   │   ├── tournament/           # Tournament betting system ⭐⭐ NEW
+│   │   │   ├── index.js          # Tournament module exports
+│   │   │   ├── data/
+│   │   │   │   └── competitors.js    # NPC competitors data
+│   │   │   ├── systems/
+│   │   │   │   ├── tournamentManager.js  # Tournament lifecycle & status
+│   │   │   │   ├── bettingSystem.js      # Bet validation & payout
+│   │   │   │   ├── oddsCalculator.js     # Odds calculation via simulation
+│   │   │   │   ├── matchSimulator.js     # Match simulation engine
+│   │   │   │   └── deckInfoSystem.js     # Competitor deck info purchase
+│   │   │   └── components/
+│   │   │       ├── TournamentTab.jsx     # Tournament betting UI (~970 lines)
+│   │   │       └── TournamentViewer.jsx  # Tournament viewer dialog (~580 lines) ⭐ NEW
 │   │   └── components/           # Collection UI (~4,313 lines)
 │   │       ├── CollectionScreen.jsx  # Collection view (380 lines)
 │   │       ├── ShopScreen.jsx        # Shop view with market info (576 lines)
