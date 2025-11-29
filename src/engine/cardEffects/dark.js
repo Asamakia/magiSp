@@ -9,7 +9,9 @@ import {
   searchCard,
   reviveFromGraveyard,
   modifyAttack,
+  selectAndApplyStatusToOpponent,
 } from '../effectHelpers';
+import { STATUS_EFFECT_TYPES } from '../statusEffects';
 
 /**
  * 闇属性カードの固有効果
@@ -508,6 +510,99 @@ export const darkCardEffects = {
     }
 
     return true;
+  },
+
+  /**
+   * C0000075: シャドウ・バインド
+   * 【刹那詠唱】相手のモンスター1体を動けなくする（1ターン行動不能）。
+   */
+  C0000075: (skillText, context) => {
+    const { addLog, setPendingMonsterTarget } = context;
+    const { opponentField, setOpponentField } = getPlayerContext(context);
+
+    // 相手モンスターがいるか確認
+    const validTargets = opponentField
+      .map((m, idx) => m ? idx : -1)
+      .filter(idx => idx !== -1);
+
+    if (validTargets.length === 0) {
+      addLog('相手の場にモンスターがいません', 'info');
+      return false;
+    }
+
+    // 1体しかいない場合は自動選択
+    if (validTargets.length === 1) {
+      return selectAndApplyStatusToOpponent(
+        context,
+        STATUS_EFFECT_TYPES.STUN,
+        { duration: 1 },
+        'シャドウ・バインド'
+      );
+    }
+
+    // 複数いる場合は選択UI
+    if (setPendingMonsterTarget) {
+      setPendingMonsterTarget({
+        message: '行動不能にするモンスターを選択',
+        targetPlayer: 'opponent',
+        validIndices: validTargets,
+        callback: (selectedIndex) => {
+          const { statusEffectEngine } = require('../statusEffects');
+          setOpponentField(prev => prev.map((m, idx) => {
+            if (idx === selectedIndex && m) {
+              statusEffectEngine.applyStatus(m, STATUS_EFFECT_TYPES.STUN, {
+                duration: 1,
+                source: 'C0000075',
+                sourceName: 'シャドウ・バインド',
+              });
+              addLog(`シャドウ・バインド: ${m.name}を行動不能にした！`, 'damage');
+              return { ...m };
+            }
+            return m;
+          }));
+        },
+      });
+      return true;
+    }
+
+    // フォールバック：自動選択
+    return selectAndApplyStatusToOpponent(
+      context,
+      STATUS_EFFECT_TYPES.STUN,
+      { duration: 1 },
+      'シャドウ・バインド'
+    );
+  },
+
+  /**
+   * C0000079: 深淵の騎士ガルム
+   * 基本技：このターンこのカードは2回攻撃ができる。
+   */
+  C0000079: (skillText, context) => {
+    const { addLog, monsterIndex } = context;
+    const { myField, setMyField } = getPlayerContext(context);
+
+    if (context.skillType === 'basic') {
+      if (monsterIndex === undefined || !myField[monsterIndex]) {
+        addLog('対象のモンスターが見つかりません', 'info');
+        return false;
+      }
+
+      // 2回攻撃フラグを設定
+      setMyField(prev => {
+        const newField = [...prev];
+        newField[monsterIndex] = {
+          ...newField[monsterIndex],
+          canDoubleAttack: true,
+          attacksRemaining: 2,
+        };
+        return newField;
+      });
+
+      addLog('深淵の騎士ガルム: このターン2回攻撃が可能になった！', 'info');
+      return true;
+    }
+    return false;
   },
 
   // 他の闇属性カードを追加...
