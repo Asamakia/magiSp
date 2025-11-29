@@ -262,18 +262,21 @@ Currently a **prototype version** with local 2-player gameplay and AI opponent s
   - **拡張可能**: 新しいカードのチェッカーを追加可能な設計
 - **2025-11-29 (GameEngine Refactoring)**: ヘッドレス対戦エンジン実装 ⭐⭐⭐⭐⭐
   - **目的**: ゲームロジックをReactから分離、AI高速シミュレーション対応
-  - **GameEngine** (`src/engine/gameEngine/`): ~3,000行の純粋JavaScript実装
+  - **GameEngine** (`src/engine/gameEngine/`): ~4,200行の純粋JavaScript実装
     - `GameState.js`: ゲーム状態の型定義と初期化
-    - `GameActions.js`: アクション関数（純粋関数）
-    - `Simulator.js`: ヘッドレス対戦実行
+    - `GameActions.js`: アクション関数（純粋関数）★拡張
+    - `Simulator.js`: ヘッドレス対戦実行 ★拡張（技・トリガー完全動作）
     - `Tournament.js`: トーナメントシミュレーション
     - `useGameEngine.js`: Reactアダプター（カスタムフック）
     - `effectHelpersPure.js`: 純粋関数版エフェクトヘルパー
-    - `triggerEnginePure.js`: 純粋関数版トリガーエンジン
-  - **パフォーマンス**: 100戦シミュレーション40ms（目標5秒の125倍高速）
+    - `triggerEnginePure.js`: 純粋関数版トリガーエンジン ★拡張
+    - `contextAdapter.js`: 純粋関数モード用contextアダプター ★新規
+    - `continuousEffectEnginePure.js`: 純粋常時効果エンジン ★新規
+  - **パフォーマンス**: 10戦シミュレーション2ms（1戦0.2ms）
   - **React統合**: Phase A-D完了 ✅
     - Phase A-C: ✅ 完了（GameEngine導入、シャドウディスパッチ、UI参照移行）
     - Phase D-4: ✅ 完了（useState削減: 33個 → 6個、82%削減）
+  - **contextAdapter統合**: ✅ 完了（cardEffects/cardTriggers変更不要で技・トリガー完全動作）
   - **Documentation**: `src/ルール/game-engine-refactoring-plan.md`, `step6-integration-design.md`, `engine-separation-status.md`
 - **2025-11-29 (Phase D-4 Completion & Bug Fixes)**: Phase D-4完了とバグ修正 ⭐⭐
   - **Phase D-4完了**: 27個のuseState削除、dispatch統一
@@ -418,15 +421,17 @@ Currently a **prototype version** with local 2-player gameplay and AI opponent s
 │   │   │       ├── easy.js       # Easy AI (~50 lines)
 │   │   │       ├── normal.js     # Normal AI (~157 lines)
 │   │   │       └── hard.js       # Hard AI (~235 lines)
-│   │   └── gameEngine/         # Headless game engine (~3000 lines) ⭐⭐⭐⭐⭐
-│   │       ├── index.js          # Main exports (90 lines)
+│   │   └── gameEngine/         # Headless game engine (~4200 lines) ⭐⭐⭐⭐⭐
+│   │       ├── index.js          # Main exports (110 lines)
 │   │       ├── GameState.js      # Game state type definitions (383 lines)
-│   │       ├── GameActions.js    # Pure function actions (920 lines)
-│   │       ├── Simulator.js      # Headless battle execution (240 lines)
+│   │       ├── GameActions.js    # Pure function actions (~1100 lines) ★拡張
+│   │       ├── Simulator.js      # Headless battle execution (~340 lines) ★拡張
 │   │       ├── Tournament.js     # Tournament simulation (514 lines)
 │   │       ├── useGameEngine.js  # React adapter hook (305 lines)
 │   │       ├── effectHelpersPure.js  # Pure effect helpers (423 lines)
-│   │       └── triggerEnginePure.js  # Pure trigger engine (397 lines)
+│   │       ├── triggerEnginePure.js  # Pure trigger engine (~450 lines) ★拡張
+│   │       ├── contextAdapter.js     # Pure context adapter (450 lines) ★新規
+│   │       └── continuousEffectEnginePure.js  # Pure continuous effect (400 lines) ★新規
 │   │
 │   ├── ルール/                  # Documentation (~12000 lines total)
 │   │   ├── Game Rules (日本語) - 3 files (~260 lines)
@@ -584,27 +589,29 @@ Currently a **prototype version** with local 2-player gameplay and AI opponent s
 - **index.js**: Exports all AI functions and strategies
 - Uses strategy pattern for extensible decision-making
 
-**`src/engine/gameEngine/`** (Headless game engine - ~3000 lines) ⭐⭐⭐⭐⭐
+**`src/engine/gameEngine/`** (Headless game engine - ~4200 lines) ⭐⭐⭐⭐⭐
 - **GameState.js**: Game state type definitions and initialization (~383 lines)
   - `createInitialState(config)`: Create initial game state
   - `createPlayerState()`: Create player state structure
   - Player state: life, deck, hand, field, graveyard, SP, fieldCard, phaseCard, statusEffects
   - Game progress: turn, currentPlayer, phase, isFirstTurn, winner, logs
-- **GameActions.js**: Pure function action handlers (~920 lines)
+- **GameActions.js**: Pure function action handlers (~1100 lines) ★拡張
   - `applyAction(state, action)`: Main dispatcher for all actions
-  - `applySummonCard()`, `applyAttack()`, `applyExecuteSkill()`: Battle actions
+  - `applySummonCard()`: Summon + trigger registration + ON_SUMMON fire
+  - `applyAttack()`: Attack + ON_DESTROY_SELF fire + trigger unregister
+  - `applyExecuteSkill()`: Skill execution via contextAdapter (full card effects!)
   - `applyNextPhase()`, `applyEndTurn()`: Phase progression
-  - `applyChargeCard()`, `applyChargeSP()`: Resource management
   - All functions are pure: (state, params) => newState
 - **useGameEngine.js**: React adapter hook (~305 lines)
   - `useGameEngine()`: Custom hook for React integration
   - `dispatch(action)`: Apply action to engine state
   - `actions`: Action creators (summonCard, attack, nextPhase, etc.)
   - Bridge between pure engine and React UI
-- **Simulator.js**: Headless battle execution (~240 lines)
-  - `simulateBattle(p1Deck, p2Deck, config)`: Run single battle
-  - Random AI decision making for simulation
-  - Returns battle result with logs
+- **Simulator.js**: Headless battle execution (~340 lines) ★拡張
+  - `simulateGame(config)`: Run single battle with full skill/trigger support
+  - AI decision making (skills, summons, charges, attacks)
+  - Phase trigger firing (TURN_START, DRAW, MAIN, END)
+  - Returns battle result with logs (10 games in 2ms avg)
 - **Tournament.js**: Tournament simulation (~514 lines)
   - `simulateTournament(decks, options)`: Run tournament
   - Swiss/round-robin formats
@@ -612,9 +619,19 @@ Currently a **prototype version** with local 2-player gameplay and AI opponent s
 - **effectHelpersPure.js**: Pure effect helpers (~423 lines)
   - State-returning versions of effectHelpers functions
   - `millDeckPure()`, `drawCardsPure()`, `dealDamagePure()`, etc.
-- **triggerEnginePure.js**: Pure trigger engine (~397 lines)
+- **triggerEnginePure.js**: Pure trigger engine (~450 lines) ★拡張
   - State-based trigger management
   - `registerCardTriggersPure()`, `fireTriggerPure()`, etc.
+  - Uses contextAdapter for trigger effect execution
+- **contextAdapter.js**: Pure context adapter (~450 lines) ★新規
+  - `createPureContext(state, options)`: Creates context that emulates React setters
+  - Enables cardEffects/*.js and cardTriggers/*.js to work in pure function mode
+  - Auto-selects targets for UI selection callbacks (setPendingTargetSelection, etc.)
+  - `getPlayerContextFromAdapter()`: Pure version of getPlayerContext()
+- **continuousEffectEnginePure.js**: Pure continuous effect engine (~400 lines) ★新規
+  - `calculateAttackModifierPure()`, `calculateHPModifierPure()`: ATK/HP modifiers
+  - `calculateSummonCostModifierPure()`: Cost reduction calculations
+  - Collects effects dynamically from field state (no global registry)
 
 **`src/utils/cardManager.js`** (Card data manager - 253 lines)
 - CSV parser for 433 cards

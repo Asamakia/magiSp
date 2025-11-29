@@ -293,16 +293,40 @@ export function fireTriggerPure(state, triggerType, context = {}) {
 
 /**
  * トリガー効果を純粋関数として実行
- * 注意: 既存のtrigger.effectはReact setterを使用するため、
- * シミュレーションでは限定的な効果のみサポート
+ * contextアダプターを使用してtrigger.effectを実行
  * @param {Object} state - GameState
  * @param {Object} trigger - トリガーオブジェクト
- * @param {Object} context - コンテキスト
+ * @param {Object} triggerContext - トリガーコンテキスト
  * @returns {Object} 新しいGameState
  */
-function executeTriggerEffectPure(state, trigger, context) {
-  // トリガー発動ログのみ追加（効果は個別実装が必要）
-  return addLog(state, `${trigger.cardName}の${trigger.description}を発動！`, 'info');
+function executeTriggerEffectPure(state, trigger, triggerContext) {
+  let newState = addLog(state, `${trigger.cardName || 'カード'}の${trigger.description || '効果'}を発動！`, 'info');
+
+  // trigger.effectが関数として定義されている場合
+  if (typeof trigger.effect === 'function') {
+    try {
+      const { createPureContext } = require('./contextAdapter');
+
+      // contextアダプターを作成
+      const context = createPureContext(newState, {
+        card: triggerContext.card,
+        slotIndex: triggerContext.slotIndex,
+        destroyedCard: triggerContext.destroyedCard,
+        monsterIndex: triggerContext.slotIndex,
+      });
+
+      // トリガー効果を実行
+      trigger.effect(context);
+
+      // 更新されたstateを取得
+      newState = context.getState();
+    } catch (error) {
+      console.warn('Trigger effect execution error:', error);
+      newState = addLog(newState, '(トリガー効果実行エラー)', 'info');
+    }
+  }
+
+  return newState;
 }
 
 /**

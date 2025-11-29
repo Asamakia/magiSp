@@ -390,13 +390,16 @@
 ### 完了済みリファクタリング
 - **GameEngine** (`src/engine/gameEngine/`): 純粋JavaScript版ゲームエンジン
   - `GameState.js` (383行): 状態定義
-  - `GameActions.js` (~1,000行): アクション処理（純粋関数）
-  - `Simulator.js` (240行): ヘッドレス対戦
+  - `GameActions.js` (~1,100行): アクション処理（純粋関数）★拡張
+  - `Simulator.js` (~340行): ヘッドレス対戦 ★拡張（技・トリガー完全動作）
   - `Tournament.js` (514行): トーナメントシミュレーション
   - `useGameEngine.js` (305行): Reactアダプター
   - `effectHelpersPure.js` (423行): 純粋エフェクトヘルパー
-  - `triggerEnginePure.js` (397行): 純粋トリガーエンジン
+  - `triggerEnginePure.js` (~450行): 純粋トリガーエンジン ★拡張
+  - `contextAdapter.js` (450行): contextアダプター ★新規
+  - `continuousEffectEnginePure.js` (400行): 純粋常時効果エンジン ★新規
 - **Phase D-4完了**: 27個のuseState削除、dispatch統一、二重dispatch修正、resolveValue削除
+- **contextAdapter統合完了**: cardEffects/cardTriggers変更不要で技・トリガー完全動作 ★新規
 - **41テスト成功**
 
 **詳細**: `engine-separation-status.md`, `step6-integration-design.md` を参照

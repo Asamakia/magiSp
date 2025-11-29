@@ -21,6 +21,9 @@ import {
   actions,
 } from './GameActions';
 
+import { fireTriggerPure } from './triggerEnginePure';
+import { TRIGGER_TYPES } from '../triggerTypes';
+
 // ========================================
 // シミュレーション設定
 // ========================================
@@ -36,15 +39,47 @@ export const SIMULATION_CONFIG = {
 // ========================================
 
 /**
+ * モンスターが技を使用可能か判定
+ * @param {Object} monster - モンスター
+ * @returns {Object|null} { skillType: 'basic' | 'advanced' }
+ */
+function canUseSkill(monster) {
+  if (!monster) return null;
+  if (monster.usedSkillThisTurn) return null;
+
+  const chargesCount = monster.charges?.length || 0;
+
+  // 上級技を優先（チャージ2個以上）
+  if (chargesCount >= 2 && monster.advancedSkill) {
+    return { skillType: 'advanced' };
+  }
+
+  // 基本技（チャージ1個以上）
+  if (chargesCount >= 1 && monster.basicSkill) {
+    return { skillType: 'basic' };
+  }
+
+  return null;
+}
+
+/**
  * シンプルなAI判断（メインフェイズ）
  * @param {Object} state - GameState
  * @returns {Object|null} アクション
  */
 function getAIMainPhaseAction(state) {
   const player = getCurrentPlayer(state);
-  const playerNum = state.currentPlayer;
 
-  // 1. 召喚可能なカードがあれば召喚
+  // 1. 使用可能な技があれば発動
+  for (let i = 0; i < player.field.length; i++) {
+    const monster = player.field[i];
+    const skillInfo = canUseSkill(monster);
+    if (skillInfo) {
+      return actions.executeSkill(i, skillInfo.skillType);
+    }
+  }
+
+  // 2. 召喚可能なカードがあれば召喚
   const emptySlot = getFirstEmptySlot(player.field);
   if (emptySlot !== -1) {
     for (let i = 0; i < player.hand.length; i++) {
@@ -55,7 +90,23 @@ function getAIMainPhaseAction(state) {
     }
   }
 
-  // 2. アクションなし → 次のフェイズへ
+  // 3. チャージ可能ならチャージ（手札にカードがあり、フィールドにモンスターがいる場合）
+  if (!state.turnFlags.chargeUsedThisTurn) {
+    for (let monsterIdx = 0; monsterIdx < player.field.length; monsterIdx++) {
+      const monster = player.field[monsterIdx];
+      if (!monster) continue;
+
+      for (let cardIdx = 0; cardIdx < player.hand.length; cardIdx++) {
+        const card = player.hand[cardIdx];
+        // 同属性またはなし属性
+        if (card.attribute === monster.attribute || card.attribute === 'なし') {
+          return actions.chargeCard(cardIdx, monsterIdx);
+        }
+      }
+    }
+  }
+
+  // 4. アクションなし → 次のフェイズへ
   return null;
 }
 
@@ -100,16 +151,23 @@ function executeTurn(state) {
 
   // ターン開始
   newState = applyAction(newState, actions.processPhase(PHASES.TURN_START));
+  // ターン開始トリガー発火
+  newState = fireTriggerPure(newState, TRIGGER_TYPES.ON_TURN_START_SELF, {});
   newState = applyAction(newState, actions.nextPhase());
 
   // ドロー
   newState = applyAction(newState, actions.processPhase(PHASES.DRAW));
+  // ドローフェイズトリガー発火
+  newState = fireTriggerPure(newState, TRIGGER_TYPES.ON_DRAW_PHASE_SELF, {});
   newState = applyAction(newState, actions.nextPhase());
 
   // メインフェイズ
+  // メインフェイズ開始トリガー発火
+  newState = fireTriggerPure(newState, TRIGGER_TYPES.ON_MAIN_PHASE_SELF, {});
+
   let mainPhaseActions = 0;
-  const maxMainActions = 10; // 無限ループ防止
-  while (mainPhaseActions < maxMainActions) {
+  const maxMainActions = 20; // 無限ループ防止（技使用を考慮して増加）
+  while (mainPhaseActions < maxMainActions && newState.gameStatus !== GAME_STATUS.GAME_OVER) {
     const action = getAIMainPhaseAction(newState);
     if (!action) break;
     newState = applyAction(newState, action);
@@ -130,6 +188,10 @@ function executeTurn(state) {
 
   // エンドフェイズ
   newState = applyAction(newState, actions.processPhase(PHASES.END));
+  // エンドフェイズトリガー発火
+  newState = fireTriggerPure(newState, TRIGGER_TYPES.ON_END_PHASE_SELF, {});
+  // 相手エンドフェイズトリガー発火（相手のカードが対象）
+  newState = fireTriggerPure(newState, TRIGGER_TYPES.ON_OPPONENT_END_PHASE, {});
   newState = applyAction(newState, actions.nextPhase()); // ターン終了
 
   return newState;
