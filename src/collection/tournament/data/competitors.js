@@ -253,8 +253,22 @@ export const COMPETITORS = {
     decks: ['聖なる巨鳥', '果実の人形劇'],
   },
 
-  // 追加1人（未定義、グランドカップ用プレースホルダー）
-  extra_1: { id: 'extra_1', name: '（未定）', decks: [] },
+  // ドッペルゲンガー（プレイヤーのデッキを使用）
+  doppelganger: {
+    id: 'doppelganger',
+    name: 'ドッペルゲンガー',
+    attribute: 'なし',
+    portrait: '🎭',
+    style: '模倣',
+    personality: '無言、不気味、プレイヤーの動きをコピー',
+    appearance: '黒い霧のような姿、時折プレイヤーの姿に変わる',
+    quotes: {
+      win: '...（あなたの声で笑う）',
+      lose: '...（霧となって消える）',
+      start: '...（あなたを見つめている）',
+    },
+    decks: ['プレイヤーコピー'],  // 特殊デッキ：プレイヤーのデッキを使用
+  },
 };
 
 // ============================================================
@@ -1044,6 +1058,16 @@ export const DECKS = {
     concept: '何を使うか分からない。予測不能の戦術。',
     cards: null,  // nullでランダム生成を示す
   },
+
+  // デッキ27: プレイヤーコピー（ドッペルゲンガー）- 特別処理
+  'プレイヤーコピー': {
+    name: 'プレイヤーコピー',
+    owner: 'doppelganger',
+    attribute: '混合',
+    type: 'コピー',
+    concept: 'プレイヤーの保存デッキを使用。デッキがない場合はNPCのランダムデッキを使用。',
+    cards: 'player',  // 'player'でプレイヤーデッキコピーを示す
+  },
 };
 
 // ============================================================
@@ -1125,8 +1149,25 @@ export function getAllCompetitorIds() {
     ...getBaseCompetitorIds(),
     'elda',
     ...getCollectorIds(),
-    'extra_1',
+    'doppelganger',
   ];
+}
+
+/**
+ * ドッペルゲンガーのIDを取得
+ * @returns {string} ドッペルゲンガーのID
+ */
+export function getDoppelgangerId() {
+  return 'doppelganger';
+}
+
+/**
+ * ドッペルゲンガーかどうかを判定
+ * @param {string} competitorId - NPC ID
+ * @returns {boolean} ドッペルゲンガーならtrue
+ */
+export function isDoppelganger(competitorId) {
+  return competitorId === 'doppelganger';
 }
 
 /**
