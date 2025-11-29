@@ -109,3 +109,10 @@ export {
   getCardTriggersPure,
   getTriggerStatsPure,
 } from './triggerEnginePure';
+
+// React Adapter - Reactアダプター
+export {
+  useGameEngine,
+  toLegacyState,
+  fromLegacyState,
+} from './useGameEngine';
