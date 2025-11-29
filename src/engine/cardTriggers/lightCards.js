@@ -1010,6 +1010,65 @@ export const lightCardTriggers = {
   ],
 
   /**
+   * C0000063: 聖獣フェニックス
+   * 【自ライフ3000以下】このカードが墓地にある場合、1度だけ場に戻る（攻撃力2000、HP1500）。
+   */
+  C0000063: [
+    {
+      type: TRIGGER_TYPES.ON_MAIN_PHASE_FROM_GRAVEYARD,
+      activationType: ACTIVATION_TYPES.OPTIONAL,
+      description: 'ライフ3000以下: 攻撃力2000、HP1500で場に戻る（1度のみ）',
+      effect: (context) => {
+        const { addLog, card } = context;
+        const { myLife, myField, setMyField, setMyGraveyard } = getPlayerContext(context);
+
+        // ライフ条件チェック
+        if (myLife > 3000) {
+          addLog('聖獣フェニックスの効果: ライフが3000より高いため発動不可', 'info');
+          return;
+        }
+
+        // 既に復活済みかチェック
+        if (card && card.phoenixRevived) {
+          addLog('聖獣フェニックスの効果: 既に1度復活済みのため発動不可', 'info');
+          return;
+        }
+
+        // 空きスロットを探す
+        const emptySlot = myField.findIndex((slot) => slot === null);
+        if (emptySlot === -1) {
+          addLog('聖獣フェニックスの効果: フィールドに空きがありません', 'info');
+          return;
+        }
+
+        // 墓地からカードを取り出し、フィールドに特殊召喚
+        setMyGraveyard((prev) => prev.filter((c) => c.uniqueId !== card.uniqueId));
+
+        const revivedMonster = {
+          ...card,
+          currentAttack: 2000,
+          attack: 2000,
+          currentHp: 1500,
+          maxHp: 1500,
+          hp: 1500,
+          canAttack: false,
+          charges: 0,
+          statusEffects: [],
+          phoenixRevived: true, // 復活済みフラグ
+        };
+
+        setMyField((prev) => {
+          const newField = [...prev];
+          newField[emptySlot] = revivedMonster;
+          return newField;
+        });
+
+        addLog('聖獣フェニックスの効果: 墓地から攻撃力2000、HP1500で場に戻った！', 'heal');
+      },
+    },
+  ],
+
+  /**
    * C0000374: 虹羽密林の輝甲虫・ルクセリオ
    * 【自分エンドフェイズ時】自分のライフを400回復し、デッキの上から1枚を墓地に送る。
    */
