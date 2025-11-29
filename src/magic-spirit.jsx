@@ -111,6 +111,11 @@ import {
   removeBet,
   checkTournamentTrigger,
   createTournament,
+  runTournament,
+  updateTournamentStatus,
+  calculatePayouts,
+  createHistoryEntry,
+  updateTotalStats,
   TOURNAMENT_STATUS,
 } from './collection';
 
@@ -600,27 +605,105 @@ export default function MagicSpiritGame() {
         newMarketState.currentDay
       );
 
-      // 大会トリガーチェック（非同期で実行）
+      // 大会システム処理（非同期で実行）
       const currentDay = newMarketState.currentDay;
-      const existingTournament = updatedPlayerData.tournamentData?.currentTournament;
-      const triggerType = checkTournamentTrigger(currentDay, existingTournament);
+      let existingTournament = updatedPlayerData.tournamentData?.currentTournament;
 
-      if (triggerType) {
-        // 新規大会を作成（非同期）
-        createTournament(triggerType, currentDay).then((newTournament) => {
-          if (newTournament) {
+      // 1. 既存大会のステータス更新（締切チェック）
+      if (existingTournament && existingTournament.status === TOURNAMENT_STATUS.BETTING) {
+        existingTournament = updateTournamentStatus(existingTournament, currentDay);
+        updatedPlayerData = {
+          ...updatedPlayerData,
+          tournamentData: {
+            ...updatedPlayerData.tournamentData,
+            currentTournament: existingTournament,
+          },
+        };
+      }
+
+      // 2. CLOSED状態の大会を実行
+      if (existingTournament && existingTournament.status === TOURNAMENT_STATUS.CLOSED) {
+        runTournament(existingTournament).then((finishedTournament) => {
+          if (finishedTournament) {
+            console.log(`[Tournament] ${finishedTournament.name} 終了: 優勝 ${finishedTournament.finalWinner}`);
+
+            // 賭け結果を計算
+            const currentBets = updatedPlayerData.tournamentData?.currentBets || [];
+            const payoutResults = calculatePayouts(currentBets, finishedTournament);
+
+            // 総払戻金
+            const totalPayout = payoutResults.reduce((sum, r) => sum + r.payout, 0);
+            const totalBetAmount = currentBets.reduce((sum, b) => sum + b.amount, 0);
+
+            // 履歴エントリ作成
+            const historyEntry = createHistoryEntry(finishedTournament, currentBets, payoutResults);
+
+            // 統計更新
+            const newTotalStats = updateTotalStats(
+              updatedPlayerData.tournamentData?.totalStats || {},
+              currentBets,
+              payoutResults
+            );
+
+            // プレイヤーデータ更新
             updatePlayerData((prev) => ({
               ...prev,
+              gold: prev.gold + totalPayout,
               tournamentData: {
                 ...prev.tournamentData,
-                currentTournament: newTournament,
+                currentTournament: null, // 大会終了
+                currentBets: [], // 賭けクリア
+                purchasedInfo: {}, // 購入情報クリア
+                history: [historyEntry, ...(prev.tournamentData?.history || [])].slice(0, 30),
+                totalStats: newTotalStats,
               },
             }));
-            console.log(`[Tournament] ${newTournament.name} が開催されました`);
+
+            if (totalPayout > 0) {
+              console.log(`[Tournament] 払戻: ${totalPayout.toLocaleString()}G (賭金: ${totalBetAmount.toLocaleString()}G)`);
+            }
+
+            // 3. 新規大会作成チェック
+            const triggerType = checkTournamentTrigger(currentDay, null);
+            if (triggerType) {
+              createTournament(triggerType, currentDay).then((newTournament) => {
+                if (newTournament) {
+                  updatePlayerData((prev) => ({
+                    ...prev,
+                    tournamentData: {
+                      ...prev.tournamentData,
+                      currentTournament: newTournament,
+                    },
+                  }));
+                  console.log(`[Tournament] ${newTournament.name} が開催されました`);
+                }
+              }).catch((err) => {
+                console.error('[Tournament] 大会作成エラー:', err);
+              });
+            }
           }
         }).catch((err) => {
-          console.error('[Tournament] 大会作成エラー:', err);
+          console.error('[Tournament] 大会実行エラー:', err);
         });
+      } else {
+        // 既存大会がない or FINISHED の場合、新規大会チェック
+        const triggerType = checkTournamentTrigger(currentDay, existingTournament);
+        if (triggerType) {
+          createTournament(triggerType, currentDay).then((newTournament) => {
+            if (newTournament) {
+              updatePlayerData((prev) => ({
+                ...prev,
+                tournamentData: {
+                  ...prev.tournamentData,
+                  currentTournament: newTournament,
+                },
+              }));
+              console.log(`[Tournament] ${newTournament.name} が開催されました`);
+            }
+          }).catch((err) => {
+            console.error('[Tournament] 大会作成エラー:', err);
+          });
+        }
       }
     }
 
