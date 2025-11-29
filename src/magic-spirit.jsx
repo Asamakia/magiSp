@@ -4295,6 +4295,19 @@ export default function MagicSpiritGame() {
             </div>
           </div>
         </div>
+
+        {/* 大会観戦ダイアログ（ゲームオーバー画面でも表示） */}
+        {showTournamentViewer && pendingTournamentResult && (
+          <TournamentViewer
+            tournament={pendingTournamentResult}
+            currentBets={playerData?.tournamentData?.currentBets || []}
+            onClaimReward={handleClaimTournamentReward}
+            onClose={() => {
+              setShowTournamentViewer(false);
+              setPendingTournamentResult(null);
+            }}
+          />
+        )}
       </div>
     );
   }
