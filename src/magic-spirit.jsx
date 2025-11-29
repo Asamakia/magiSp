@@ -76,8 +76,6 @@ import {
 // GameEngine (ヘッドレス対戦用)
 import {
   useGameEngine,
-  toLegacyState,
-  fromLegacyState,
   actions as gameActions, // Phase B: dispatch用アクションクリエイター
 } from './engine/gameEngine';
 import styles from './styles/gameStyles';
@@ -416,69 +414,9 @@ export default function MagicSpiritGame() {
   }, [p1Field, p2Field, p1Life, p2Life]);
 
   // ========================================
-  // Phase B: engineState → useState 同期
-  // engineStateの変更をuseStateに反映（dispatch駆動）
+  // Phase D-2: legacyStateSync削除完了
+  // engineState → useState 同期は不要（UIは*FromEngine変数を参照）
   // ========================================
-  const syncEngineToLegacy = useCallback(() => {
-    if (!engineState) return;
-
-    // toLegacyStateを使ってengineStateからuseState形式に変換
-    const legacy = toLegacyState(engineState);
-    if (!legacy) return;
-
-    // ゲーム進行状態
-    setTurn(legacy.turn);
-    setCurrentPlayer(legacy.currentPlayer);
-    setPhase(legacy.phase);
-    setIsFirstTurn(legacy.isFirstTurn);
-    setWinner(legacy.winner);
-    setLogs(legacy.logs);
-
-    // P1状態
-    setP1Life(legacy.p1Life);
-    setP1Deck(legacy.p1Deck);
-    setP1Hand(legacy.p1Hand);
-    setP1Field(legacy.p1Field);
-    setP1Graveyard(legacy.p1Graveyard);
-    setP1ActiveSP(legacy.p1ActiveSP);
-    setP1RestedSP(legacy.p1RestedSP);
-    setP1FieldCard(legacy.p1FieldCard);
-    setP1PhaseCard(legacy.p1PhaseCard);
-    setP1StatusEffects(legacy.p1StatusEffects);
-    setP1NextTurnSPBonus(legacy.p1NextTurnSPBonus);
-    setP1MagicBlocked(legacy.p1MagicBlocked);
-    setP1SpReduction(legacy.p1SpReduction);
-
-    // P2状態
-    setP2Life(legacy.p2Life);
-    setP2Deck(legacy.p2Deck);
-    setP2Hand(legacy.p2Hand);
-    setP2Field(legacy.p2Field);
-    setP2Graveyard(legacy.p2Graveyard);
-    setP2ActiveSP(legacy.p2ActiveSP);
-    setP2RestedSP(legacy.p2RestedSP);
-    setP2FieldCard(legacy.p2FieldCard);
-    setP2PhaseCard(legacy.p2PhaseCard);
-    setP2StatusEffects(legacy.p2StatusEffects);
-    setP2NextTurnSPBonus(legacy.p2NextTurnSPBonus);
-    setP2MagicBlocked(legacy.p2MagicBlocked);
-    setP2SpReduction(legacy.p2SpReduction);
-
-    // ターンフラグ
-    setChargeUsedThisTurn(legacy.chargeUsedThisTurn);
-  }, [engineState]);
-
-  // engineStateが変更されたらuseStateに同期（Phase B）
-  // 注意: dispatchを使ったアクションのみこの同期が必要
-  // 従来のuseState直接更新では不要（下位互換性）
-  useEffect(() => {
-    // プレイ中でない場合はスキップ
-    if (gameState !== 'playing') return;
-    // engineStateがnullの場合はスキップ
-    if (!engineState) return;
-    // 初期化直後は同期不要（initGameで両方セットされる）
-    // ここではdispatch後の同期のみ行う
-  }, [engineState, gameState]);
 
   // 下位互換性: 従来のuseState → engineState同期（非推奨、将来削除）
   useEffect(() => {
