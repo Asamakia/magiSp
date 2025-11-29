@@ -132,15 +132,14 @@ export default function MagicSpiritGame() {
     dispatch,
     initGame: engineInitGame,
     resetGame: engineResetGame,
-    syncFromLegacy,
   } = useGameEngine();
 
   // ========================================
-  // Phase C-1: 互換レイヤー変数（engineStateからの読み取り）
-  // 将来的にuseStateを置き換え、engineStateを唯一の状態源泉にする
+  // Phase D-4完了: ゲーム状態はengineStateが唯一の状態源泉
+  // セッターはdispatch経由でengineStateを更新
   // ========================================
 
-  // ゲーム進行状態（6個）- Phase D-3: useState削除、engineState直接参照
+  // ゲーム進行状態（6個）- engineState直接参照
   const turn = engineState?.turn ?? 1;
   const currentPlayer = engineState?.currentPlayer ?? 1;
   const phase = engineState?.phase ?? 0;
