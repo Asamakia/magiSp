@@ -63,6 +63,9 @@ export const ACTION_TYPES = {
   // 勝敗判定
   CHECK_WINNER: 'CHECK_WINNER',
   SET_WINNER: 'SET_WINNER',
+
+  // ログ
+  ADD_LOG: 'ADD_LOG',
 };
 
 // ========================================
@@ -115,12 +118,18 @@ export const actions = {
 
   checkWinner: () => createAction(ACTION_TYPES.CHECK_WINNER),
 
+  setWinner: (winner) => createAction(ACTION_TYPES.SET_WINNER, { winner }),
+
   // Phase B-5: フィールドカード・フェイズカード配置
   placeFieldCard: (cardIndex) =>
     createAction(ACTION_TYPES.PLACE_FIELD_CARD, { cardIndex }),
 
   placePhaseCard: (cardIndex) =>
     createAction(ACTION_TYPES.CHARGE_PHASE_CARD, { cardIndex }),
+
+  // Phase D-3: ログ追加
+  addLog: (message, type = 'info') =>
+    createAction(ACTION_TYPES.ADD_LOG, { message, type }),
 };
 
 // ========================================
@@ -194,6 +203,10 @@ export function applyAction(state, action) {
 
     case ACTION_TYPES.CHARGE_PHASE_CARD:
       return applyPlacePhaseCard(state, action.payload);
+
+    // Phase D-3: ログ追加
+    case ACTION_TYPES.ADD_LOG:
+      return addLog(state, action.payload.message, action.payload.type);
 
     default:
       console.warn(`Unknown action type: ${action.type}`);

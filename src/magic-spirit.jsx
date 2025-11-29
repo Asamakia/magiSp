@@ -140,13 +140,13 @@ export default function MagicSpiritGame() {
   // 将来的にuseStateを置き換え、engineStateを唯一の状態源泉にする
   // ========================================
 
-  // ゲーム進行状態（6個）
-  const turnFromEngine = engineState?.turn ?? 1;
-  const currentPlayerFromEngine = engineState?.currentPlayer ?? 1;
-  const phaseFromEngine = engineState?.phase ?? 0;
-  const isFirstTurnFromEngine = engineState?.isFirstTurn ?? true;
-  const winnerFromEngine = engineState?.winner ?? null;
-  const logsFromEngine = engineState?.logs ?? [];
+  // ゲーム進行状態（6個）- Phase D-3: useState削除、engineState直接参照
+  const turn = engineState?.turn ?? 1;
+  const currentPlayer = engineState?.currentPlayer ?? 1;
+  const phase = engineState?.phase ?? 0;
+  const isFirstTurn = engineState?.isFirstTurn ?? true;
+  const winner = engineState?.winner ?? null;
+  const logs = engineState?.logs ?? [];
 
   // P1状態（13個）
   const p1LifeFromEngine = engineState?.p1?.life ?? INITIAL_LIFE;
@@ -187,12 +187,8 @@ export default function MagicSpiritGame() {
 
   // ゲーム状態
   const [gameState, setGameState] = useState('title'); // title, playing, gameOver, collection, shop, packOpening, deckList, deckEdit, merchantGuild, merchantShop
-  const [turn, setTurn] = useState(1);
-  const [currentPlayer, setCurrentPlayer] = useState(1);
-  const [phase, setPhase] = useState(0);
-  const [isFirstTurn, setIsFirstTurn] = useState(true);
-  const [winner, setWinner] = useState(null);
-  const [logs, setLogs] = useState([]);
+  // Phase D-3: turn, currentPlayer, phase, isFirstTurn, winner, logs のuseStateは削除
+  // これらは engineState から直接参照（上部の互換レイヤー変数を使用）
 
   // コレクションシステム状態
   const [playerData, setPlayerData] = useState(null); // プレイヤーデータ（コレクション、G等）
@@ -298,17 +294,10 @@ export default function MagicSpiritGame() {
     setAIThinkingSpeed(speed);
   }, []);
 
-  // ログ追加関数（最大100件保持）
+  // ログ追加関数（Phase D-3: dispatch経由）
   const addLog = useCallback((message, type = 'info') => {
-    setLogs(prev => {
-      const newLogs = [...prev, { message, type, time: Date.now() }];
-      // 100件を超えたら古いログを削除
-      if (newLogs.length > 100) {
-        return newLogs.slice(-100);
-      }
-      return newLogs;
-    });
-  }, []);
+    dispatch(gameActions.addLog(message, type));
+  }, [dispatch]);
 
   // ========================================
   // GameEngine同期関数（Phase A-3）
@@ -865,12 +854,9 @@ export default function MagicSpiritGame() {
     setP1Graveyard([]);
     setP2Graveyard([]);
 
-    setTurn(1);
-    setCurrentPlayer(firstPlayer);
-    setPhase(0);
-    setIsFirstTurn(true);
-    setWinner(null);
-    setLogs([{ message: `🎲 ${firstPlayer === 1 ? 'P1' : 'P2'} が先行！`, type: 'info' }]);
+    // Phase D-3: turn, currentPlayer, phase, isFirstTurn, winner, logs は engineInitGame() で設定済み
+    // 初期ログはengineInitGame内で追加されるため、ここでのset*呼び出しは不要
+
     setSelectedHandCard(null);
     setSelectedFieldMonster(null);
     setAttackingMonster(null);
@@ -1074,7 +1060,7 @@ export default function MagicSpiritGame() {
 
       case 3: // バトルフェイズ
         // 先攻1ターン目は攻撃不可（Phase C-2: engineState参照）
-        if (isFirstTurnFromEngine && currentPlayer === 1) {
+        if (isFirstTurn && currentPlayer === 1) {
           addLog('先攻1ターン目は攻撃できません', 'info');
           // Phase D-1: dispatchのみで状態更新
           dispatch(gameActions.setPhase(4));
@@ -2862,10 +2848,10 @@ export default function MagicSpiritGame() {
       executeAttack(pendingAction.attackerIndex, pendingAction.targetIndex);
     } else if (pendingAction.type === 'battleStart') {
       // バトルフェイズへ進行
-      setPhase(3);
+      dispatch(gameActions.setPhase(3));
       setSelectedHandCard(null);
     }
-  }, [chainConfirmation, executeAttack]);
+  }, [chainConfirmation, executeAttack, dispatch]);
 
   // チェーン確認で刹那詠唱を発動する
   const activateSetsunaInChain = useCallback((card) => {
@@ -3001,17 +2987,17 @@ export default function MagicSpiritGame() {
   // 勝敗判定
   useEffect(() => {
     if (gameState !== 'playing') return;
-    
+
     if (p1Life <= 0) {
-      setWinner(2);
+      dispatch(gameActions.setWinner(2));
       setGameState('gameOver');
-      addLog('プレイヤー2の勝利！', 'info');
+      // ログはsetWinnerで追加される
     } else if (p2Life <= 0) {
-      setWinner(1);
+      dispatch(gameActions.setWinner(1));
       setGameState('gameOver');
-      addLog('プレイヤー1の勝利！', 'info');
+      // ログはsetWinnerで追加される
     }
-  }, [p1Life, p2Life, gameState, addLog]);
+  }, [p1Life, p2Life, gameState, dispatch]);
 
   // フェイズ自動進行
   useEffect(() => {
@@ -3045,14 +3031,14 @@ export default function MagicSpiritGame() {
       if (pendingSetsunaAction.type === 'attack') {
         executeAttack(pendingSetsunaAction.attackerIndex, pendingSetsunaAction.targetIndex);
       } else if (pendingSetsunaAction.type === 'battleStart') {
-        setPhase(3);
+        dispatch(gameActions.setPhase(3));
         setSelectedHandCard(null);
       }
       setPendingSetsunaAction(null);
     }, 100);
 
     return () => clearTimeout(timeoutId);
-  }, [pendingSetsunaAction, pendingMonsterTarget, pendingHandSelection, pendingGraveyardSelection, pendingDeckReview, executeAttack]);
+  }, [pendingSetsunaAction, pendingMonsterTarget, pendingHandSelection, pendingGraveyardSelection, pendingDeckReview, executeAttack, dispatch]);
 
   // AIターン実行
   useEffect(() => {
@@ -3071,7 +3057,7 @@ export default function MagicSpiritGame() {
         const strategy = getStrategy(difficulty);
 
         const gameStateData = {
-          phase, turn, isFirstTurn: isFirstTurnFromEngine, // Phase C-2: engineState参照
+          phase, turn, isFirstTurn, // Phase D-3: engineState直接参照
           p1Life, p2Life,
           p1Hand, p2Hand,
           p1Field, p2Field,
@@ -3110,7 +3096,7 @@ export default function MagicSpiritGame() {
     const strategy = getStrategy(difficulty);
 
     const gameStateData = {
-      phase, turn, isFirstTurn: isFirstTurnFromEngine, // Phase C-2: engineState参照
+      phase, turn, isFirstTurn, // Phase D-3: engineState直接参照
       p1Life, p2Life,
       p1Hand, p2Hand,
       p1Field, p2Field,
@@ -4196,10 +4182,10 @@ export default function MagicSpiritGame() {
   if (gameState === 'gameOver') {
     // 報酬が未付与なら付与する
     if (!battleReward && playerData) {
-      // Phase C-2: engineState参照
-      // winnerFromEngine === 1 は P1 勝利、winnerFromEngine === 2 は P2 勝利
+      // Phase D-3: engineState直接参照
+      // winner === 1 は P1 勝利、winner === 2 は P2 勝利
       // ここでは P1 視点で報酬付与（将来的にマルチプレイヤー対応時に調整）
-      awardBattleRewards(winnerFromEngine === 1);
+      awardBattleRewards(winner === 1);
     }
 
     return (
@@ -4210,7 +4196,7 @@ export default function MagicSpiritGame() {
               🏆 ゲーム終了 🏆
             </h2>
             <p style={{ textAlign: 'center', fontSize: '24px', marginBottom: '16px' }}>
-              プレイヤー{winnerFromEngine}の勝利！ {/* Phase C-2: engineState参照 */}
+              プレイヤー{winner}の勝利！ {/* Phase D-3: engineState直接参照 */}
             </p>
 
             {/* 報酬表示 */}
@@ -4301,14 +4287,14 @@ export default function MagicSpiritGame() {
       <header style={styles.header}>
         <h1 style={styles.title}>✨ Magic Spirit</h1>
         <div style={{ display: 'flex', gap: '24px', alignItems: 'center' }}>
-          <span>ターン {turnFromEngine}</span>
+          <span>ターン {turn}</span>
           <span style={{
-            background: currentPlayerFromEngine === 1 ? '#4da6ff' : '#ff6b6b',
+            background: currentPlayer === 1 ? '#4da6ff' : '#ff6b6b',
             padding: '4px 12px',
             borderRadius: '4px',
             fontWeight: 'bold',
           }}>
-            プレイヤー{currentPlayerFromEngine}
+            プレイヤー{currentPlayer}
           </span>
         </div>
       </header>
@@ -4868,7 +4854,7 @@ export default function MagicSpiritGame() {
             <div style={{ fontSize: '12px', fontWeight: 'bold', color: '#888', marginBottom: '8px' }}>
               📜 ログ
             </div>
-            <GameLog logs={logsFromEngine} /> {/* Phase C-2: engineState参照 */}
+            <GameLog logs={logs} /> {/* Phase D-3: engineState直接参照 */}
           </div>
         </div>
 
