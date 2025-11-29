@@ -664,33 +664,32 @@ Phase D-3: 読み取り専用useState削除（6個） ✅ 完了
 - [x] GameActions.jsにADD_LOG, setWinnerアクション追加
 - 結果: useState 6個削減、-59B gzip
 
-Phase D-4: 効果コンテキスト移行 🔄 進行中
+Phase D-4: 効果コンテキスト移行 ✅ 完了
 **アプローチ**: アダプターパターン（effectHelpers/cardEffects/cardTriggersの150+箇所を直接修正せず、コンテキストアダプターで対応）
 
-D-4-1: GameActions拡張
-- [ ] UPDATE_PLAYER_STATEアクション追加（life, deck, hand, field, graveyard, activeSP, restedSP, fieldCard, phaseCard, statusEffects, nextTurnSPBonus, magicBlocked, spReduction）
-- [ ] SET_GAME_FLAGSアクション追加（chargeUsedThisTurn等）
-- [ ] 各アクションのapplyAction実装
+D-4-1: GameActions拡張 ✅
+- [x] UPDATE_PLAYER_STATEアクション追加（life, deck, hand, field, graveyard, activeSP, restedSP, fieldCard, phaseCard, statusEffects, nextTurnSPBonus, magicBlocked, spReduction）
+- [x] SET_GAME_FLAGSアクション追加（chargeUsedThisTurn等）
+- [x] 各アクションのapplyAction実装
 
-D-4-2: コンテキストアダプター作成
-- [ ] createEffectContext関数作成
-- [ ] set*関数をdispatch呼び出しにラップ
-- [ ] resolveValue関数（関数形式 vs 直接値の両対応）
-- [ ] 11箇所のコンテキスト生成箇所を修正
+D-4-2: コンテキストアダプター作成 ✅
+- [x] createEffectContext関数作成
+- [x] set*関数をdispatch呼び出しにラップ（26個のセッター関数）
+- [x] resolveValue関数（関数形式 vs 直接値の両対応）
 
-D-4-3: 同期処理削除
-- [ ] syncGameStateToEngine関数削除
-- [ ] summonCard, attack等の「同期後dispatch」パターン削除
-- [ ] syncFromLegacy関連削除
+D-4-3: 同期処理削除 ✅
+- [x] syncGameStateToEngine関数削除（~60行）
+- [x] 同期useEffect削除（~20行）
+- [x] *FromEngine重複変数削除（~30行）
 
-D-4-4: 残りuseState削除（27個）
-- [ ] P1/P2状態のuseState削除
-- [ ] chargeUsedThisTurnのuseState削除
-- [ ] engineStateからの直接参照に変更
+D-4-4: 残りuseState削除（27個） ✅
+- [x] P1/P2状態のuseState削除（各13個）
+- [x] chargeUsedThisTurnのuseState削除
+- [x] engineStateからの直接参照に変更
 
-**詳細**: `step6-integration-design.md` Phase D-4セクションを参照
+**結果**: gzip -775B削減、useState 33個 → 6個（UI状態のみ）
 
-**対象useState（33個）**
+**対象useState（33個）** ✅ すべて完了
 - 読み取り専用（Phase D-3）✅: turn, currentPlayer, phase, isFirstTurn, winner, logs
-- 効果コンテキスト依存（Phase D-4）: P1/P2のlife, deck, hand, field, graveyard, activeSP, restedSP, fieldCard, phaseCard, statusEffects, nextTurnSPBonus, magicBlocked, spReduction
-- ターンフラグ（Phase D-4）: chargeUsedThisTurn
+- 効果コンテキスト依存（Phase D-4）✅: P1/P2のlife, deck, hand, field, graveyard, activeSP, restedSP, fieldCard, phaseCard, statusEffects, nextTurnSPBonus, magicBlocked, spReduction
+- ターンフラグ（Phase D-4）✅: chargeUsedThisTurn
