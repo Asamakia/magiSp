@@ -163,6 +163,65 @@ export const lightCardTriggers = {
   ],
 
   /**
+   * C0000063: 聖獣フェニックス
+   * 【自ライフ3000以下】このカードが墓地にある場合、1度だけ場に戻る（攻撃力2000、HP1500）。
+   */
+  C0000063: [
+    {
+      type: TRIGGER_TYPES.ON_END_PHASE_FROM_GRAVEYARD,
+      activationType: ACTIVATION_TYPES.AUTOMATIC,
+      description: 'ライフ3000以下で墓地から復活（1度だけ）',
+      effect: (context) => {
+        const { addLog, card } = context;
+        const { myLife, myField, setMyField, setMyGraveyard, currentPlayer } = getPlayerContext(context);
+
+        // 既に復活済みなら発動しない
+        if (card.phoenixRevived) {
+          return;
+        }
+
+        // ライフ3000以下条件をチェック
+        if (myLife > 3000) {
+          return;
+        }
+
+        // フィールドに空きがあるかチェック
+        const emptySlotIndex = myField.findIndex((slot) => slot === null);
+        if (emptySlotIndex === -1) {
+          addLog('聖獣フェニックスの効果: フィールドに空きがありません', 'info');
+          return;
+        }
+
+        // 墓地から削除
+        setMyGraveyard((prev) => prev.filter((c) => c.uniqueId !== card.uniqueId));
+
+        // 攻撃力2000、HP1500で復活
+        const revivedMonster = {
+          ...card,
+          attack: 2000,
+          currentAttack: 2000,
+          maxHp: 1500,
+          currentHp: 1500,
+          canAttack: false,
+          charges: 0,
+          statusEffects: [],
+          phoenixRevived: true, // 復活フラグ
+          owner: currentPlayer,
+        };
+
+        // フィールドに配置
+        setMyField((prev) => {
+          const newField = [...prev];
+          newField[emptySlotIndex] = revivedMonster;
+          return newField;
+        });
+
+        addLog(`聖獣フェニックスの効果: ライフが${myLife}のため、攻撃力2000/HP1500で墓地から復活！`, 'heal');
+      },
+    },
+  ],
+
+  /**
    * C0000071: クリスタルサンクチュアリ
    * 【常時】光属性モンスターの攻撃力を500アップ。
    * 【常時】2体以上光属性モンスターが場にいるとき相手の基本技の効果を1ターンに1度無効化できる。
