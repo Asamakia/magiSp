@@ -3639,7 +3639,7 @@ export default function MagicSpiritGame() {
   // タイトル画面
   if (gameState === 'title') {
     return (
-      <div style={styles.container}>
+      <div style={{...styles.container, overflow: 'auto'}}>
         <div style={{
           display: 'flex',
           flexDirection: 'column',
