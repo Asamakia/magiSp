@@ -640,14 +640,33 @@ useEffect(() => {
   - Step 3: 配列表示（deck, hand, field, graveyard） → *FromEngine
   - Step 4: カード表示（fieldCard, phaseCard） → *FromEngine
 
-**Phase D: useState削除（最終目標）**
-- [ ] 全UIがengineState参照を確認
-- [ ] 33個のゲーム状態useStateを削除
-- [ ] magic-spirit.jsx 大幅行数削減
+**Phase D: useState削除（段階的移行）**
+
+Phase D-1: シャドウディスパッチ箇所整理
+- [ ] nextPhase(), processPhase()のset*呼び出し削除
+- [ ] summonCard(), executeAttack()のset*呼び出し削除
+- [ ] chargeCard(), chargeSP(), executeSkill()のset*呼び出し削除
+- [ ] placeFieldCard(), placePhaseCard()のset*呼び出し削除
+
+Phase D-2: legacyStateSync削除
+- [ ] initializeGameFromEngine()関数を削除
+- [ ] useEffectからの呼び出しを削除
+
+Phase D-3: 読み取り専用useState削除（6個）
+- [ ] turn, currentPlayer, phase, isFirstTurn, winner, logsのuseState削除
+- [ ] *FromEngine変数をリネーム（任意）
+- [ ] addLog関数をdispatch経由に修正
+
+Phase D-4: 効果コンテキスト移行（将来）
+- [ ] effectHelpersをdispatch対応に
+- [ ] cardEffectsをdispatch対応に
+
+Phase D-5: 残りuseState削除（27個、将来）
+- [ ] P1/P2状態のuseState削除
 
 **詳細**: `step6-integration-design.md` を参照
 
 **対象useState（33個）**
-- ゲーム進行: turn, currentPlayer, phase, isFirstTurn, winner, logs
-- P1/P2状態: life, deck, hand, field, graveyard, activeSP, restedSP, fieldCard, phaseCard, statusEffects, nextTurnSPBonus, magicBlocked, spReduction
+- 読み取り専用（Phase D-3）: turn, currentPlayer, phase, isFirstTurn, winner, logs
+- 効果コンテキスト依存（Phase D-4/D-5）: P1/P2のlife, deck, hand, field, graveyard, activeSP, restedSP, fieldCard, phaseCard, statusEffects, nextTurnSPBonus, magicBlocked, spReduction
 - ターンフラグ: chargeUsedThisTurn

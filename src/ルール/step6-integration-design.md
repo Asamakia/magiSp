@@ -382,6 +382,7 @@ if (isFirstTurnFromEngine && currentPlayer === 1)
 
 ### Phase D: useState削除（最終目標）
 
+**目標**:
 1. `engineState` が唯一の状態源泉
 2. UIは `engineState` を参照、アクションは `dispatch` 経由
 3. magic-spirit.jsx のロジック行数を大幅削減
@@ -389,9 +390,167 @@ if (isFirstTurnFromEngine && currentPlayer === 1)
 
 #### Phase D 実行条件
 
-- Phase C-3 完了（全UIがengineStateを参照）
+- Phase C-3 完了（全UIがengineStateを参照） ✅
 - 検証ツールで不整合ゼロを確認
 - 主要ゲームフローのE2Eテスト通過
+
+#### Phase D 現状分析
+
+**set*関数の使用状況** (約500箇所):
+- useState宣言: 33箇所
+- legacyStateSync: ~60箇所（initGame後の同期）
+- エフェクトコンテキスト: ~100箇所（effectHelpers, cardEffectsに渡される）
+- 直接状態更新: ~300箇所（processPhase, summonCard, attack等）
+
+**課題**:
+1. effectHelpers.jsは`set*`関数をcontextで受け取り直接呼び出す
+2. cardEffects/*.jsも同様にcontext経由で`set*`を使用
+3. 状態異常ヘルパー（processStatusEffectsTurnStart等）も`set*`を使用
+4. これらを全てdispatch経由に変更するのは大規模リファクタリング
+
+#### Phase D 実装戦略
+
+**アプローチ: 段階的な移行**
+
+```
+Phase D-1: シャドウディスパッチ箇所の整理
+├── 目的: dispatch呼び出しがある箇所でuseState更新を削除
+├── 対象: summonCard, attack, nextPhase, processPhase等
+├── リスク: 低（既にdispatchで状態が更新されている）
+└── 削減: ~50箇所のset*呼び出し
+
+Phase D-2: legacyStateSync削除
+├── 目的: initGame後の同期処理を削除
+├── 対象: initializeGameFromEngine()のset*呼び出し群
+├── 前提: initGameがdispatch経由で完結している
+└── 削減: ~60箇所のset*呼び出し
+
+Phase D-3: useState宣言削除（第1弾: 読み取り専用）
+├── 目的: UI表示のみに使用されるuseStateを削除
+├── 対象: turn, currentPlayer, phase, isFirstTurn, winner, logs
+├── 方法: *FromEngine変数を直接使用（リネーム不要）
+└── 削減: 6個のuseState
+
+Phase D-4: 効果コンテキストの移行
+├── 目的: effectHelpers/cardEffectsをdispatch対応に
+├── 対象: set*をcontextで受け取る全関数
+├── 方法: dispatchとアクション関数をcontextに追加
+├── リスク: 高（50+ファイルに影響）
+└── 検討: Phase D-4は将来の拡張として保留も可
+
+Phase D-5: useState宣言削除（第2弾: 残り全て）
+├── 目的: 残り27個のuseStateを削除
+├── 前提: Phase D-4完了
+└── 削減: 27個のuseState
+```
+
+#### Phase D-1 詳細設計
+
+**対象**: シャドウディスパッチ箇所（Phase Bで追加）
+
+既にdispatchを呼び出している箇所から、冗長なuseState更新を削除:
+
+```javascript
+// Before (シャドウディスパッチ)
+setPhase(newPhase);  // useState更新
+dispatch(gameActions.setPhase(newPhase));  // dispatch更新
+
+// After (dispatchのみ)
+dispatch(gameActions.setPhase(newPhase));
+```
+
+**対象関数**:
+1. `nextPhase()` - setPhase呼び出し削除
+2. `processPhase()` - 各フェイズのset*呼び出し削除
+3. `summonCard()` - setField, setHand, setSP呼び出し削除
+4. `executeAttack()` - setLife, setField呼び出し削除
+5. `chargeCard()` / `chargeSP()` - 関連set*呼び出し削除
+6. `executeSkill()` - usedSkillThisTurnフラグのset削除
+7. `placeFieldCard()` / `placePhaseCard()` - set*呼び出し削除
+
+**注意点**:
+- 依存配列はそのまま維持（変更検出に必要）
+- エフェクトコンテキストに渡すset*は残す（Phase D-4で対応）
+
+#### Phase D-2 詳細設計
+
+**対象**: `initializeGameFromEngine()` 関数
+
+```javascript
+// Before
+const initializeGameFromEngine = useCallback((legacy) => {
+  setTurn(legacy.turn);
+  setCurrentPlayer(legacy.currentPlayer);
+  // ... 60行のset*呼び出し
+}, []);
+
+// After
+// 関数自体を削除（useEffectからの呼び出しも削除）
+```
+
+**前提**:
+- `initGame()`が`dispatch(gameActions.initGame(...))`を呼び出し済み
+- engineStateが初期化されている
+- UIは*FromEngine変数を参照している
+
+#### Phase D-3 詳細設計
+
+**対象**: 読み取り専用の6個のuseState
+
+```javascript
+// Before
+const [turn, setTurn] = useState(1);
+const turnFromEngine = engineState?.turn ?? 1;
+
+// After
+const turn = engineState?.turn ?? 1;
+// setTurnは削除（dispatch経由のみ）
+```
+
+**削除対象**:
+- `[turn, setTurn]`
+- `[currentPlayer, setCurrentPlayer]`
+- `[phase, setPhase]`
+- `[isFirstTurn, setIsFirstTurn]`
+- `[winner, setWinner]`
+- `[logs, setLogs]` → `addLog`関数も要修正
+
+**特別な考慮: addLog関数**
+```javascript
+// Before
+const addLog = useCallback((message, type = 'info') => {
+  setLogs(prev => [...prev, { message, type, timestamp: Date.now() }]);
+}, []);
+
+// After
+const addLog = useCallback((message, type = 'info') => {
+  dispatch(gameActions.addLog(message, type));
+}, [dispatch]);
+```
+
+#### Phase D リスク評価
+
+| Phase | リスク | 影響範囲 | ロールバック容易性 |
+|-------|-------|---------|-----------------|
+| D-1 | 低 | magic-spirit.jsx | 高（git revert） |
+| D-2 | 低 | magic-spirit.jsx | 高 |
+| D-3 | 中 | magic-spirit.jsx + 依存配列 | 高 |
+| D-4 | 高 | 50+ファイル | 中 |
+| D-5 | 高 | 全体 | 低 |
+
+#### 推奨実装順序
+
+1. **Phase D-1**: シャドウディスパッチ箇所整理（本セッション）
+2. **Phase D-2**: legacyStateSync削除（本セッション）
+3. **Phase D-3**: 読み取り専用useState削除（本セッション）
+4. **Phase D-4**: 将来の拡張として保留（大規模リファクタリング）
+5. **Phase D-5**: Phase D-4完了後に実施
+
+**Phase D-1〜D-3で達成されること**:
+- 冗長なuseState更新の削除
+- 読み取り専用useStateの削除（6個）
+- legacyStateSync関数の削除
+- コード行数: 約200行削減見込み
 
 ---
 
