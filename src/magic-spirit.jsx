@@ -72,6 +72,13 @@ import {
   setAIThinkingSpeed,
   getScaledDelay,
 } from './engine/ai';
+
+// GameEngine (ヘッドレス対戦用)
+import {
+  useGameEngine,
+  toLegacyState,
+  fromLegacyState,
+} from './engine/gameEngine';
 import styles from './styles/gameStyles';
 import Card from './components/Card';
 import FieldMonster from './components/FieldMonster';
@@ -117,6 +124,17 @@ const getEffectWithoutSkills = (effectText) => {
 // メインゲームコンポーネント
 // ========================================
 export default function MagicSpiritGame() {
+  // ========================================
+  // GameEngine (ヘッドレス対戦シミュレーション用)
+  // 段階的移行: 現在は初期化のみ、将来的に状態管理を統合
+  // ========================================
+  const {
+    state: engineState,
+    dispatch,
+    initGame: engineInitGame,
+    resetGame: engineResetGame,
+  } = useGameEngine();
+
   // カードデータ管理
   const [allCards, setAllCards] = useState(SAMPLE_CARDS);
   const [isLoadingCards, setIsLoadingCards] = useState(true);
@@ -498,6 +516,16 @@ export default function MagicSpiritGame() {
     const deck1 = createDeckFromSelection(p1SelectedDeck);
     const deck2 = createDeckFromSelection(p2SelectedDeck);
 
+    // 先行・後攻をランダムに決定（GameEngineと共有）
+    const firstPlayer = Math.random() < 0.5 ? 1 : 2;
+
+    // ========================================
+    // GameEngine初期化（ヘッドレス対戦シミュレーション用）
+    // 現在はUI状態と並行して管理、将来的に統合予定
+    // ========================================
+    engineInitGame({ deck1, deck2, firstPlayer });
+
+    // 既存のuseState初期化（互換性維持）
     setP1Deck(deck1.slice(INITIAL_HAND_SIZE));
     setP1Hand(deck1.slice(0, INITIAL_HAND_SIZE));
     setP2Deck(deck2.slice(INITIAL_HAND_SIZE));
@@ -523,8 +551,6 @@ export default function MagicSpiritGame() {
     setP2Graveyard([]);
 
     setTurn(1);
-    // 先行・後攻をランダムに決定
-    const firstPlayer = Math.random() < 0.5 ? 1 : 2;
     setCurrentPlayer(firstPlayer);
     setPhase(0);
     setIsFirstTurn(true);
@@ -566,7 +592,7 @@ export default function MagicSpiritGame() {
 
     setGameState('playing');
     addLog('ゲーム開始！先攻プレイヤー1のターン', 'info');
-  }, [addLog, allCards, p1SelectedDeck, p2SelectedDeck, playerData]);
+  }, [addLog, allCards, p1SelectedDeck, p2SelectedDeck, playerData, engineInitGame]);
 
   // 現在のプレイヤーのデータを取得
   const getCurrentPlayerData = () => {
