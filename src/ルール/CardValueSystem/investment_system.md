@@ -17,7 +17,8 @@
 >   - `TournamentTab.jsx`: 大会表示・賭けUI
 >   - `MerchantGuild.jsx`: タブナビゲーション追加
 > - ⏳ Phase 4: ファンド投資（地域・メタ・カテゴリファンド）
-> - ⏳ Phase 5: デッキ情報購入システム
+> - ✅ Phase 5: デッキ情報購入システム
+>   - `deckInfoSystem.js`: NPC大会デッキ情報の購入・管理（318行）
 >
 > 関連ドキュメント: `merchant_system.md`, `market_system.md`, `engine-separation-status.md`
 
