@@ -596,3 +596,56 @@ export function executeShinsyokuEffect(context, sourceName, setPendingTargetSele
   return true;
 }
 
+// =============================================================================
+// 【死触】関連
+// =============================================================================
+
+/**
+ * 【死触】を持つカードか判定
+ * @param {Object} card - カードオブジェクト
+ * @returns {boolean}
+ */
+export function hasShishoku(card) {
+  return hasKeyword(card, KEYWORD_ABILITIES.SHISHOKU);
+}
+
+/**
+ * 【死触】の対象カードID一覧
+ * C0000409: 血涙の叫女バンシーディス
+ * C0000426: 灰塵の怨念スペクトラグス
+ */
+export const SHISHOKU_CARD_IDS = ['C0000409', 'C0000426'];
+
+/**
+ * 【死触】効果を適用すべきか判定
+ * ダメージが1以上であれば、相手モンスターを即座に破壊
+ * @param {Object} attacker - 攻撃者モンスター
+ * @param {number} damage - 与えたダメージ
+ * @returns {boolean} 【死触】で破壊すべきかどうか
+ */
+export function shouldApplyShishoku(attacker, damage) {
+  if (!attacker) return false;
+  if (damage < 1) return false;
+  return hasShishoku(attacker);
+}
+
+// =============================================================================
+// 【魔障壁】関連
+// =============================================================================
+
+/**
+ * 【魔障壁】を持つカードか判定
+ * @param {Object} card - カードオブジェクト
+ * @returns {boolean}
+ */
+export function hasMashouheki(card) {
+  return hasKeyword(card, KEYWORD_ABILITIES.MASHOUHEKI);
+}
+
+/**
+ * 【魔障壁】の対象カードID一覧
+ * C0000002: 触覚持ち粘液獣
+ * C0000234: 撮影会のリリカ（既にMAGIC_NEGATIONで実装済み）
+ */
+export const MASHOUHEKI_CARD_IDS = ['C0000002', 'C0000234'];
+

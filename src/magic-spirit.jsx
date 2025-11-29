@@ -46,6 +46,7 @@ import {
   CHAIN_POINT_NAMES,
   processLinkEndPhaseDamage,
   handleLinkBreak,
+  shouldApplyShishoku,
 } from './engine/keywordAbilities';
 import {
   getStrategy,
@@ -1830,7 +1831,16 @@ export default function MagicSpiritGame() {
         addLog(`${target.name}の守護でダメージ軽減！`, 'info');
       }
       addLog(`${target.name}に${damage}ダメージ！`, 'damage');
-      if (targetHasIndestructible && targetForDamage.currentHp - damage <= 0) {
+
+      // 【死触】チェック: ダメージが1以上であれば、HPに関係なく相手モンスターを破壊
+      const shishokuTriggered = shouldApplyShishoku(attacker, damage);
+      if (shishokuTriggered) {
+        addLog(`【死触】${attacker.name}のダメージにより${target.name}は即座に破壊される！`, 'damage');
+      }
+
+      // 破壊耐性による救済（【死触】含む）
+      const targetShouldBeDestroyed = newTargetHp <= 0 || shishokuTriggered;
+      if (targetHasIndestructible && targetShouldBeDestroyed) {
         addLog(`${target.name}は破壊されない！（HP: 1）`, 'info');
       }
       addLog(`反撃で${attacker.name}に${counterDamage}ダメージ！`, 'damage');
@@ -1839,8 +1849,10 @@ export default function MagicSpiritGame() {
       }
 
       // 【貫通ダメージ】モンスター破壊時に余剰ダメージの50%を相手ライフに与える
+      // 【死触】による破壊は貫通ダメージなし（余剰ダメージがないため）
       let piercingDamage = 0;
-      if (RULE_PIERCING_DAMAGE && newTargetHp <= 0 && !targetHasIndestructible) {
+      const targetWillBeDestroyedByDamage = newTargetHp <= 0 && !targetHasIndestructible;
+      if (RULE_PIERCING_DAMAGE && targetWillBeDestroyedByDamage) {
         const excessDamage = damage - targetForDamage.currentHp;
         piercingDamage = Math.floor(excessDamage * PIERCING_DAMAGE_RATE);
         if (piercingDamage > 0) {
@@ -1849,9 +1861,11 @@ export default function MagicSpiritGame() {
       }
 
       // 相手フィールドの更新
+      // 【死触】による破壊も含む（破壊耐性がない場合）
+      const targetDestroyed = targetShouldBeDestroyed && !targetHasIndestructible;
       if (currentPlayer === 1) {
         // プレイヤー1が攻撃 → 相手はプレイヤー2
-        if (newTargetHp <= 0) {
+        if (targetDestroyed) {
           // 破壊時トリガーを発火（破壊される前）
           const destroyContext = {
             currentPlayer: 2, // 破壊されるモンスターのオーナー
@@ -1981,7 +1995,7 @@ export default function MagicSpiritGame() {
         }
       } else {
         // プレイヤー2が攻撃 → 相手はプレイヤー1
-        if (newTargetHp <= 0) {
+        if (targetDestroyed) {
           // 破壊時トリガーを発火（破壊される前）
           const destroyContext = {
             currentPlayer: 1, // 破壊されるモンスターのオーナー
