@@ -267,7 +267,7 @@ export function createPureContext(initialState, options = {}) {
      * モンスターターゲット選択（自動選択）
      * 最もHPが低いターゲットを優先
      */
-    setPendingTargetSelection: (options) => {
+    setPendingMonsterTarget: (options) => {
       const { validTargets, isOpponent, callback } = options;
 
       if (!validTargets || validTargets.length === 0) {

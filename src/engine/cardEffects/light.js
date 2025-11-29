@@ -323,7 +323,7 @@ export const lightCardEffects = {
    * 基本技: 自分の光属性モンスター1体にこのターン【守護】（次に受けるダメージを半減）を付与。
    */
   C0000057: (skillText, context) => {
-    const { addLog, setPendingTargetSelection } = context;
+    const { addLog, setPendingMonsterTarget } = context;
     const { myField, setMyField } = getPlayerContext(context);
 
     if (context.skillType === 'basic') {
@@ -357,8 +357,8 @@ export const lightCardEffects = {
       }
 
       // 複数いる場合は選択UI
-      if (setPendingTargetSelection) {
-        setPendingTargetSelection({
+      if (setPendingMonsterTarget) {
+        setPendingMonsterTarget({
           message: '【守護】を付与する光属性モンスターを選択',
           targetType: 'own_monster',
           validIndices: lightMonsters.map(l => l.index),
@@ -466,7 +466,7 @@ export const lightCardEffects = {
    * 光以外の相手モンスター1体を破壊する。自分の場に光属性モンスターが2体以上いる場合自分はその攻撃力の半分回復する。
    */
   C0000064: (skillText, context) => {
-    const { addLog, setPendingTargetSelection } = context;
+    const { addLog, setPendingMonsterTarget } = context;
     const { myField, opponentField, setOpponentField, setOpponentGraveyard } = getPlayerContext(context);
 
     // 光以外の相手モンスターを検索
@@ -508,8 +508,8 @@ export const lightCardEffects = {
     }
 
     // 複数いる場合は選択UI
-    if (setPendingTargetSelection) {
-      setPendingTargetSelection({
+    if (setPendingMonsterTarget) {
+      setPendingMonsterTarget({
         message: '破壊する光以外のモンスターを選択',
         targetType: 'opponent_monster',
         validIndices: nonLightMonsters.map((m) => m.index),
@@ -622,7 +622,7 @@ export const lightCardEffects = {
    * 相手の場にいるモンスター1体のコントロールをターン終了時まで奪う。そのモンスターの攻撃力は半分になる。
    */
   C0000067: (skillText, context) => {
-    const { addLog, setPendingTargetSelection } = context;
+    const { addLog, setPendingMonsterTarget } = context;
     const { myField, opponentField, setMyField, setOpponentField } = getPlayerContext(context);
 
     // 相手モンスターを検索
@@ -679,8 +679,8 @@ export const lightCardEffects = {
     }
 
     // 複数いる場合は選択UI
-    if (setPendingTargetSelection) {
-      setPendingTargetSelection({
+    if (setPendingMonsterTarget) {
+      setPendingMonsterTarget({
         message: 'コントロールを奪うモンスターを選択',
         targetType: 'opponent_monster',
         validIndices: opponentMonsters.map((m) => m.index),

@@ -183,7 +183,7 @@ export const templateCardEffects = {
   //   addLog, monsterIndex, skillType
   //
   // UI制御:
-  //   setPendingHandSelection, setPendingTargetSelection,
+  //   setPendingHandSelection, setPendingMonsterTarget,
   //   setPendingMonsterTarget, setPendingGraveyardSelection,
   //   setPendingDeckReview, setShowGraveyardViewer
   //
