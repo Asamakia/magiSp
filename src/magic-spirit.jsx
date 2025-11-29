@@ -676,6 +676,128 @@ export default function MagicSpiritGame() {
     });
   }, [playerData, updatePlayerData, cardValueMap, allCards]);
 
+  // 休んで次の日に進む（対戦報酬なし）
+  const restAndAdvanceDay = useCallback(() => {
+    if (!playerData) return;
+
+    let updatedPlayerData = { ...playerData };
+
+    // 市場データを更新（1日進める）
+    if (updatedPlayerData.market) {
+      // 市場日を進める
+      const newMarketState = advanceDay(updatedPlayerData.market);
+
+      // 価格履歴を記録
+      const getBaseValue = (card) => {
+        const cardValue = cardValueMap?.get?.(card.id);
+        if (cardValue) {
+          return cardValue.baseValue;
+        }
+        return valueCalculator.calculateBaseValue(card);
+      };
+      const getTier = (card) => {
+        const cardValue = cardValueMap?.get?.(card.id);
+        if (cardValue) {
+          return cardValue.tier;
+        }
+        const baseValue = valueCalculator.calculateBaseValue(card);
+        return valueCalculator.determineTier(baseValue);
+      };
+
+      const getMarketModifier = (card, tier) => {
+        return calculateMarketModifier(card, newMarketState, null, tier);
+      };
+
+      const newPriceHistory = recordPriceHistory(
+        newMarketState.priceHistory,
+        newMarketState,
+        allCards || [],
+        getBaseValue,
+        getTier,
+        getMarketModifier
+      );
+
+      updatedPlayerData = {
+        ...updatedPlayerData,
+        market: {
+          ...newMarketState,
+          priceHistory: newPriceHistory,
+        },
+      };
+
+      // 資産スナップショットを記録
+      updatedPlayerData = recordAssetSnapshot(
+        updatedPlayerData,
+        allCards || [],
+        newMarketState,
+        newMarketState.currentDay
+      );
+
+      // 大会システム処理
+      const currentDay = newMarketState.currentDay;
+      let existingTournament = updatedPlayerData.tournamentData?.currentTournament;
+
+      // 1. 既存大会のステータス更新（締切チェック）
+      if (existingTournament && existingTournament.status === TOURNAMENT_STATUS.BETTING) {
+        existingTournament = updateTournamentStatus(existingTournament, currentDay);
+        updatedPlayerData = {
+          ...updatedPlayerData,
+          tournamentData: {
+            ...updatedPlayerData.tournamentData,
+            currentTournament: existingTournament,
+          },
+        };
+      }
+
+      // 2. CLOSED状態の大会を実行
+      if (existingTournament && existingTournament.status === TOURNAMENT_STATUS.CLOSED) {
+        runTournament(existingTournament).then((finishedTournament) => {
+          if (finishedTournament) {
+            console.log(`[Tournament] ${finishedTournament.name} 終了: 優勝 ${finishedTournament.finalWinner}`);
+
+            updatePlayerData((prev) => ({
+              ...prev,
+              tournamentData: {
+                ...prev.tournamentData,
+                currentTournament: finishedTournament,
+              },
+            }));
+
+            // 観戦ダイアログを表示
+            setPendingTournamentResult(finishedTournament);
+            setShowTournamentViewer(true);
+          }
+        }).catch((err) => {
+          console.error('[Tournament] 大会実行エラー:', err);
+        });
+      } else {
+        // 既存大会がない or FINISHED の場合、新規大会チェック
+        const triggerType = checkTournamentTrigger(currentDay, existingTournament);
+        if (triggerType) {
+          createTournament(triggerType, currentDay).then((newTournament) => {
+            if (newTournament) {
+              updatePlayerData((prev) => ({
+                ...prev,
+                tournamentData: {
+                  ...prev.tournamentData,
+                  currentTournament: newTournament,
+                },
+              }));
+              console.log(`[Tournament] ${newTournament.name} が開催されました`);
+            }
+          }).catch((err) => {
+            console.error('[Tournament] 大会作成エラー:', err);
+          });
+        }
+      }
+    }
+
+    updatePlayerData(updatedPlayerData);
+
+    // 休息完了メッセージを表示
+    alert(`休息しました。現在は ${updatedPlayerData.market?.currentDay || 1} 日目です。`);
+  }, [playerData, updatePlayerData, cardValueMap, allCards]);
+
   // パック開封画面へ遷移
   const handleOpenPack = useCallback((cards, packCount = 1) => {
     setPendingPackCards({ cards, packCount });
@@ -3661,18 +3783,35 @@ export default function MagicSpiritGame() {
             スピリットウェイヴァーよ、戦いの時だ
           </p>
 
-          {/* 所持G表示 */}
+          {/* 所持G・日数表示 */}
           {playerData && (
             <div style={{
-              fontSize: '18px',
-              fontWeight: 'bold',
-              color: '#ffd700',
-              padding: '8px 24px',
-              background: 'rgba(255,215,0,0.1)',
-              borderRadius: '8px',
-              border: '1px solid rgba(255,215,0,0.3)',
+              display: 'flex',
+              gap: '16px',
+              alignItems: 'center',
             }}>
-              💰 {currencyManager.formatGold(playerData.gold)}
+              <div style={{
+                fontSize: '18px',
+                fontWeight: 'bold',
+                color: '#ffd700',
+                padding: '8px 24px',
+                background: 'rgba(255,215,0,0.1)',
+                borderRadius: '8px',
+                border: '1px solid rgba(255,215,0,0.3)',
+              }}>
+                💰 {currencyManager.formatGold(playerData.gold)}
+              </div>
+              <div style={{
+                fontSize: '16px',
+                fontWeight: 'bold',
+                color: '#88ccff',
+                padding: '8px 20px',
+                background: 'rgba(136,204,255,0.1)',
+                borderRadius: '8px',
+                border: '1px solid rgba(136,204,255,0.3)',
+              }}>
+                📅 {playerData.market?.currentDay || 1} 日目
+              </div>
             </div>
           )}
 
@@ -3937,16 +4076,40 @@ export default function MagicSpiritGame() {
                 </div>
               )}
 
-              <button
-                onClick={initGame}
-                style={{
-                  ...styles.actionButton,
-                  fontSize: '18px',
-                  padding: '12px 40px',
-                }}
-              >
-                ゲーム開始
-              </button>
+              {/* ゲーム開始・休むボタン */}
+              <div style={{
+                display: 'flex',
+                gap: '16px',
+                alignItems: 'center',
+              }}>
+                <button
+                  onClick={initGame}
+                  style={{
+                    ...styles.actionButton,
+                    fontSize: '18px',
+                    padding: '12px 40px',
+                  }}
+                >
+                  ゲーム開始
+                </button>
+                <button
+                  onClick={restAndAdvanceDay}
+                  disabled={!playerData}
+                  style={{
+                    ...styles.actionButton,
+                    background: playerData
+                      ? 'linear-gradient(135deg, #6b8e9f 0%, #4a6670 100%)'
+                      : '#444',
+                    fontSize: '16px',
+                    padding: '12px 28px',
+                    cursor: playerData ? 'pointer' : 'not-allowed',
+                    opacity: playerData ? 1 : 0.5,
+                  }}
+                  title="対戦せずに次の日へ進みます（報酬なし）"
+                >
+                  休む
+                </button>
+              </div>
 
               {/* コレクション・ショップ・デッキ編集ボタン */}
               <div style={{
