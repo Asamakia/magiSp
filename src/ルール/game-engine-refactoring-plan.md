@@ -633,9 +633,9 @@ useEffect(() => {
 - [x] Phase B-5: placeFieldCard/placePhaseCard のシャドウディスパッチ化
 
 **Phase C: UIの状態参照移行**
-- [ ] Phase C-1: 互換レイヤー変数の導入（検証付き）
-- [ ] Phase C-2: 検証ツールの導入（開発モード）
-- [ ] Phase C-3: 段階的置き換え（logs, life, field順）
+- [x] Phase C-1: 互換レイヤー変数の導入（33個）+ 検証ツール拡張
+- [ ] Phase C-2: UIの一部で互換レイヤー変数を使用
+- [ ] Phase C-3: 全UIを互換レイヤー経由に切り替え
 
 **Phase D: useState削除（最終目標）**
 - [ ] 全UIがengineState参照を確認

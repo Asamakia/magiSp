@@ -300,7 +300,12 @@ if (success !== false) {
 | P2 | （P1と同様） | state.p2.* |
 | ターンフラグ | chargeUsedThisTurn | state.turnFlags.chargeUsedThisTurn |
 
-#### Phase C-1: 互換レイヤー変数の導入
+#### Phase C-1: 互換レイヤー変数の導入 ✅ 完了
+
+**実装内容**:
+- 33個の互換レイヤー変数を追加（`*FromEngine` 命名規則）
+- 検証ツール `verifyStateSync()` を全33項目に拡張
+- 開発コンソールから `window.magicSpirit.verifySync()` で呼び出し可能
 
 ```javascript
 // 既存のuseState
