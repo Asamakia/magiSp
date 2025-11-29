@@ -4058,11 +4058,14 @@ export default function MagicSpiritGame() {
             alert(validation.error);
             return false;
           }
-          const result = addBet(playerData.tournamentData, bet);
+          const newBets = addBet(currentBets, bet);
           updatePlayerData({
             ...playerData,
             gold: playerData.gold - bet.amount,
-            tournamentData: result.tournamentData,
+            tournamentData: {
+              ...playerData.tournamentData,
+              currentBets: newBets,
+            },
           });
           return true;
         }}
@@ -4070,11 +4073,14 @@ export default function MagicSpiritGame() {
           const currentBets = playerData?.tournamentData?.currentBets || [];
           if (betIndex < 0 || betIndex >= currentBets.length) return false;
           const bet = currentBets[betIndex];
-          const result = removeBet(playerData.tournamentData, betIndex);
+          const newBets = removeBet(currentBets, bet.id);
           updatePlayerData({
             ...playerData,
             gold: playerData.gold + bet.amount,
-            tournamentData: result.tournamentData,
+            tournamentData: {
+              ...playerData.tournamentData,
+              currentBets: newBets,
+            },
           });
           return true;
         }}
