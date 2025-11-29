@@ -3658,6 +3658,11 @@ export default function MagicSpiritGame() {
 
   // タイトル画面
   if (gameState === 'title') {
+    // 曜日計算（商人ギルドと同じロジック）
+    const weekdays = ['日', '月', '火', '水', '木', '金', '土'];
+    const currentDay = playerData?.market?.currentDay || 1;
+    const currentWeekday = weekdays[currentDay % 7];
+
     return (
       <div style={{...styles.container, overflow: 'auto'}}>
         <div style={{
@@ -3708,7 +3713,7 @@ export default function MagicSpiritGame() {
                 borderRadius: '8px',
                 border: '1px solid rgba(136,204,255,0.3)',
               }}>
-                📅 {playerData.market?.currentDay || 1} 日目
+                📅 {currentDay} 日目（{currentWeekday}）
               </div>
             </div>
           )}
@@ -4112,7 +4117,7 @@ export default function MagicSpiritGame() {
                 border: '1px solid rgba(255,215,0,0.3)',
                 marginBottom: '20px',
               }}>
-                📅 {playerData?.market?.currentDay || 1} 日目
+                📅 {currentDay} 日目（{currentWeekday}）
               </div>
               <p style={{
                 color: '#888',
