@@ -148,14 +148,31 @@ const styles = {
   // シンプル表示用
   simpleContainer: {
     display: 'flex',
-    flexDirection: 'column',
+    flexDirection: 'row',
+    flexWrap: 'wrap',
     gap: '8px',
+    justifyContent: 'center',
   },
   halfBracket: {
     padding: '12px',
     background: 'rgba(50,50,80,0.4)',
     borderRadius: '8px',
     border: '1px solid #4a4a6a',
+    flex: '1 1 calc(50% - 8px)',
+    minWidth: '200px',
+    maxWidth: 'calc(50% - 4px)',
+    boxSizing: 'border-box',
+  },
+  // 4ブロック用（2x2グリッド）
+  quarterBracket: {
+    padding: '12px',
+    background: 'rgba(50,50,80,0.4)',
+    borderRadius: '8px',
+    border: '1px solid #4a4a6a',
+    flex: '1 1 calc(50% - 8px)',
+    minWidth: '200px',
+    maxWidth: 'calc(50% - 4px)',
+    boxSizing: 'border-box',
   },
   halfBracketTitle: {
     fontSize: '12px',
@@ -401,50 +418,40 @@ const SimpleBracket8 = ({ bracket, participants }) => {
 };
 
 /**
- * シンプルなブラケット表示（16人用）
+ * シンプルなブラケット表示（16人用）- 4ブロック2x2グリッド
  */
 const SimpleBracket16 = ({ bracket, participants }) => {
   const firstRound = getFirstRoundMatchups(bracket);
 
+  // 16人を4ブロックに分ける（各ブロック4人、1回戦2試合ずつ）
+  const blocks = [
+    { name: 'A', icon: '🔷', matches: firstRound.slice(0, 2) },
+    { name: 'B', icon: '🔶', matches: firstRound.slice(2, 4) },
+    { name: 'C', icon: '💠', matches: firstRound.slice(4, 6) },
+    { name: 'D', icon: '🔸', matches: firstRound.slice(6, 8) },
+  ];
+
   return (
     <div style={styles.simpleContainer}>
-      {/* Aブロック */}
-      <div style={styles.halfBracket}>
-        <div style={styles.halfBracketTitle}>🔷 Aブロック（準々決勝進出者を決定）</div>
-        <div style={{ fontSize: '10px', color: '#888', marginBottom: '6px' }}>
-          ※ このブロックから決勝進出者1名
-        </div>
-        {firstRound.slice(0, 4).map((match, idx) => (
-          <div key={idx} style={styles.matchupRow}>
-            <div style={styles.participantChip}>
-              {getCompetitorPortrait(match.p1)} {getCompetitorDisplayName(match.p1)}
-            </div>
-            <span style={styles.vsText}>vs</span>
-            <div style={styles.participantChip}>
-              {getCompetitorPortrait(match.p2)} {getCompetitorDisplayName(match.p2)}
-            </div>
+      {blocks.map((block, blockIdx) => (
+        <div key={block.name} style={styles.quarterBracket}>
+          <div style={styles.halfBracketTitle}>{block.icon} {block.name}ブロック</div>
+          <div style={{ fontSize: '10px', color: '#888', marginBottom: '6px' }}>
+            ※ 勝者同士で準々決勝
           </div>
-        ))}
-      </div>
-
-      {/* Bブロック */}
-      <div style={styles.halfBracket}>
-        <div style={styles.halfBracketTitle}>🔶 Bブロック（準々決勝進出者を決定）</div>
-        <div style={{ fontSize: '10px', color: '#888', marginBottom: '6px' }}>
-          ※ このブロックから決勝進出者1名
+          {block.matches.map((match, idx) => (
+            <div key={idx} style={styles.matchupRow}>
+              <div style={styles.participantChip}>
+                {getCompetitorPortrait(match.p1)} {getCompetitorDisplayName(match.p1)}
+              </div>
+              <span style={styles.vsText}>vs</span>
+              <div style={styles.participantChip}>
+                {getCompetitorPortrait(match.p2)} {getCompetitorDisplayName(match.p2)}
+              </div>
+            </div>
+          ))}
         </div>
-        {firstRound.slice(4, 8).map((match, idx) => (
-          <div key={idx} style={styles.matchupRow}>
-            <div style={styles.participantChip}>
-              {getCompetitorPortrait(match.p1)} {getCompetitorDisplayName(match.p1)}
-            </div>
-            <span style={styles.vsText}>vs</span>
-            <div style={styles.participantChip}>
-              {getCompetitorPortrait(match.p2)} {getCompetitorDisplayName(match.p2)}
-            </div>
-          </div>
-        ))}
-      </div>
+      ))}
 
       {/* 説明 */}
       <div style={{
@@ -452,8 +459,9 @@ const SimpleBracket16 = ({ bracket, participants }) => {
         color: '#a0a0a0',
         textAlign: 'center',
         marginTop: '8px',
+        width: '100%',
       }}>
-        💡 Aブロック代表 vs Bブロック代表 で決勝
+        💡 A vs B勝者 → 準決勝① / C vs D勝者 → 準決勝② → 決勝
       </div>
     </div>
   );
@@ -474,6 +482,42 @@ const TournamentBracket = ({ tournament, showResults = false }) => {
 
   // ブロック分けの説明テキストを生成
   const getBlockExplanation = () => {
+    // 16人大会の場合は4ブロック表示
+    if (numParticipants === 16) {
+      const quarter = participants.length / 4;
+      const blockData = [
+        { name: 'A', icon: '🔷', color: '#6b9eff', members: participants.slice(0, quarter) },
+        { name: 'B', icon: '🔶', color: '#ff9500', members: participants.slice(quarter, quarter * 2) },
+        { name: 'C', icon: '💠', color: '#6bffff', members: participants.slice(quarter * 2, quarter * 3) },
+        { name: 'D', icon: '🔸', color: '#ffaa00', members: participants.slice(quarter * 3) },
+      ];
+
+      return (
+        <div style={{
+          fontSize: '11px',
+          color: '#888',
+          marginTop: '8px',
+          padding: '8px',
+          background: 'rgba(255,215,0,0.05)',
+          borderRadius: '6px',
+          border: '1px dashed #ffd700',
+        }}>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px 16px' }}>
+            {blockData.map(block => (
+              <div key={block.name} style={{ marginBottom: '4px', minWidth: '45%' }}>
+                <strong style={{ color: block.color }}>{block.icon} {block.name}ブロック:</strong>{' '}
+                {block.members.map(id => getCompetitorDisplayName(id)).join('、')}
+              </div>
+            ))}
+          </div>
+          <div style={{ marginTop: '8px', color: '#ffd700' }}>
+            ⚠️ 同じ側（A/B または C/D）からは決勝に1人ずつ。2連単を賭ける際は注意してください。
+          </div>
+        </div>
+      );
+    }
+
+    // 4人・8人大会の場合は2ブロック表示
     const blocks = splitParticipantsIntoBlocks(participants);
     const leftNames = blocks.left.map(id => getCompetitorDisplayName(id)).join('、');
     const rightNames = blocks.right.map(id => getCompetitorDisplayName(id)).join('、');
@@ -488,11 +532,13 @@ const TournamentBracket = ({ tournament, showResults = false }) => {
         borderRadius: '6px',
         border: '1px dashed #ffd700',
       }}>
-        <div style={{ marginBottom: '4px' }}>
-          <strong style={{ color: '#6b9eff' }}>🔷 Aブロック:</strong> {leftNames}
-        </div>
-        <div>
-          <strong style={{ color: '#ff9500' }}>🔶 Bブロック:</strong> {rightNames}
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px 16px' }}>
+          <div style={{ marginBottom: '4px', minWidth: '45%' }}>
+            <strong style={{ color: '#6b9eff' }}>🔷 Aブロック:</strong> {leftNames}
+          </div>
+          <div>
+            <strong style={{ color: '#ff9500' }}>🔶 Bブロック:</strong> {rightNames}
+          </div>
         </div>
         <div style={{ marginTop: '8px', color: '#ffd700' }}>
           ⚠️ 同じブロック内の選手同士は決勝で対戦しません。
