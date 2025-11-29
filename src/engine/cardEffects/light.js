@@ -427,5 +427,38 @@ export const lightCardEffects = {
     return false;
   },
 
+  /**
+   * C0000070: 支配光の連鎖
+   * 自分の場に光属性モンスターがいる場合、相手の手札を1枚ランダムに捨てる。
+   */
+  C0000070: (skillText, context) => {
+    const { addLog } = context;
+    const { myField, opponentHand, setOpponentHand, setOpponentGraveyard } = getPlayerContext(context);
+
+    // 魔法カードなのでskillTextで判定しない
+    // 場に光属性モンスターがいるか確認
+    const hasLightMonster = myField.some(m => m && m.attribute === '光');
+
+    if (!hasLightMonster) {
+      addLog('場に光属性モンスターがいないため効果なし', 'info');
+      return false;
+    }
+
+    if (opponentHand.length === 0) {
+      addLog('相手の手札がありません', 'info');
+      return true; // 条件は満たしていたので成功扱い
+    }
+
+    // ランダムに1枚選択して捨てる
+    const randomIndex = Math.floor(Math.random() * opponentHand.length);
+    const discardedCard = opponentHand[randomIndex];
+
+    setOpponentHand(prev => prev.filter((_, idx) => idx !== randomIndex));
+    setOpponentGraveyard(prev => [...prev, discardedCard]);
+
+    addLog(`支配光の連鎖: 相手の手札「${discardedCard.name}」を捨てさせた！`, 'damage');
+    return true;
+  },
+
   // 他の光属性カードを追加...
 };
