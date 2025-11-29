@@ -27,6 +27,15 @@ import {
   getRemainingBetLimit,
   getBetTypeDescription,
 } from '../systems/bettingSystem';
+import {
+  INFO_TYPES,
+  INFO_TYPE_NAMES,
+  getInfoPrice,
+  validateInfoPurchase,
+  hasInfo,
+  getPurchasedInfo,
+  getAnalysisComment,
+} from '../systems/deckInfoSystem';
 
 // ========================================
 // スタイル定義
@@ -280,6 +289,290 @@ const styles = {
     fontWeight: 'bold',
     color: '#fff',
   },
+  // デッキ情報購入UI
+  deckInfoSection: {
+    marginTop: '16px',
+    padding: '16px',
+    background: 'rgba(0,0,0,0.3)',
+    borderRadius: '8px',
+  },
+  deckInfoGrid: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '12px',
+  },
+  competitorInfoRow: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '12px',
+    padding: '12px',
+    background: 'rgba(50,50,80,0.5)',
+    borderRadius: '8px',
+    flexWrap: 'wrap',
+  },
+  competitorIdentity: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '8px',
+    minWidth: '120px',
+  },
+  infoButtons: {
+    display: 'flex',
+    gap: '8px',
+    flexWrap: 'wrap',
+    flex: 1,
+  },
+  infoButton: {
+    padding: '6px 10px',
+    borderRadius: '6px',
+    border: '1px solid #6b4ce6',
+    background: 'rgba(107,76,230,0.3)',
+    color: '#fff',
+    cursor: 'pointer',
+    fontSize: '11px',
+    fontWeight: 'bold',
+    transition: 'all 0.2s ease',
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    gap: '2px',
+  },
+  infoButtonPurchased: {
+    border: '1px solid #4caf50',
+    background: 'rgba(76,175,80,0.3)',
+    cursor: 'default',
+  },
+  infoButtonDisabled: {
+    opacity: 0.5,
+    cursor: 'not-allowed',
+  },
+  infoPrice: {
+    fontSize: '10px',
+    color: '#ffd700',
+  },
+  purchasedBadge: {
+    fontSize: '10px',
+    color: '#4caf50',
+  },
+  deckInfoDisplay: {
+    marginTop: '8px',
+    padding: '10px',
+    background: 'rgba(0,0,0,0.3)',
+    borderRadius: '6px',
+    fontSize: '12px',
+  },
+  deckInfoLabel: {
+    color: '#a0a0a0',
+    marginBottom: '4px',
+  },
+  deckInfoValue: {
+    color: '#fff',
+  },
+  keyCardList: {
+    display: 'flex',
+    flexWrap: 'wrap',
+    gap: '4px',
+  },
+  keyCardItem: {
+    padding: '2px 6px',
+    background: 'rgba(107,76,230,0.3)',
+    borderRadius: '4px',
+    fontSize: '11px',
+    color: '#e0e0e0',
+  },
+  fullListItem: {
+    padding: '2px 4px',
+    background: 'rgba(50,50,80,0.5)',
+    borderRadius: '3px',
+    fontSize: '10px',
+    color: '#c0c0c0',
+  },
+  analysisComment: {
+    marginTop: '8px',
+    padding: '8px',
+    background: 'rgba(255,215,0,0.1)',
+    borderRadius: '4px',
+    fontSize: '11px',
+    color: '#ffd700',
+    fontStyle: 'italic',
+  },
+};
+
+// ========================================
+// デッキ情報購入サブコンポーネント
+// ========================================
+
+const DeckInfoSection = ({
+  tournament,
+  tournamentData,
+  playerGold,
+  expandedCompetitor,
+  setExpandedCompetitor,
+  onPurchaseInfo,
+}) => {
+  // 情報購入ハンドラ
+  const handlePurchase = (competitorId, infoType) => {
+    const validation = validateInfoPurchase({
+      competitorId,
+      infoType,
+      tournament,
+      purchasedInfo: tournamentData.purchasedInfo,
+      playerGold,
+    });
+
+    if (validation.valid && onPurchaseInfo) {
+      onPurchaseInfo(competitorId, infoType, tournament);
+    }
+  };
+
+  // 情報タイプのボタンを描画
+  const renderInfoButton = (competitorId, infoType) => {
+    const purchased = hasInfo(tournamentData, tournament.id, competitorId, infoType);
+    const price = getInfoPrice(tournament.type, infoType);
+    const canAfford = playerGold >= price;
+
+    if (purchased) {
+      return (
+        <div
+          key={infoType}
+          style={{
+            ...styles.infoButton,
+            ...styles.infoButtonPurchased,
+          }}
+        >
+          <span>{INFO_TYPE_NAMES[infoType]}</span>
+          <span style={styles.purchasedBadge}>✓ 購入済</span>
+        </div>
+      );
+    }
+
+    return (
+      <button
+        key={infoType}
+        style={{
+          ...styles.infoButton,
+          ...(canAfford ? {} : styles.infoButtonDisabled),
+        }}
+        onClick={() => canAfford && handlePurchase(competitorId, infoType)}
+        disabled={!canAfford}
+      >
+        <span>{INFO_TYPE_NAMES[infoType]}</span>
+        <span style={styles.infoPrice}>{price.toLocaleString()}G</span>
+      </button>
+    );
+  };
+
+  // 購入済み情報の表示
+  const renderPurchasedInfo = (competitorId) => {
+    const info = getPurchasedInfo(tournamentData, tournament.id, competitorId);
+    if (!info) return null;
+
+    const participantInfo = tournament.participantDecks?.[competitorId];
+    const deckKey = participantInfo?.deckKey;
+
+    return (
+      <div style={styles.deckInfoDisplay}>
+        {/* デッキ型 */}
+        {info.deckType && (
+          <div style={{ marginBottom: '8px' }}>
+            <div style={styles.deckInfoLabel}>📋 デッキ型</div>
+            <div style={styles.deckInfoValue}>{info.deckType}</div>
+          </div>
+        )}
+
+        {/* キーカード */}
+        {info.keyCards && info.keyCards.length > 0 && (
+          <div style={{ marginBottom: '8px' }}>
+            <div style={styles.deckInfoLabel}>⭐ キーカード</div>
+            <div style={styles.keyCardList}>
+              {info.keyCards.map((card, idx) => (
+                <span key={idx} style={styles.keyCardItem}>
+                  {card.id} ×{card.count}
+                </span>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* フルリスト */}
+        {info.fullList && info.fullList.length > 0 && (
+          <div style={{ marginBottom: '8px' }}>
+            <div style={styles.deckInfoLabel}>📜 フルリスト ({info.fullList.reduce((sum, c) => sum + c.count, 0)}枚)</div>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
+              {info.fullList.map((card, idx) => (
+                <span key={idx} style={styles.fullListItem}>
+                  {card.id} ×{card.count}
+                </span>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* 分析コメント */}
+        {deckKey && (info.deckType || info.keyCards) && (
+          <div style={styles.analysisComment}>
+            💡 {getAnalysisComment(competitorId, deckKey) || '分析データなし'}
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  return (
+    <div style={styles.deckInfoSection}>
+      <div style={styles.sectionTitle}>🔍 デッキ情報</div>
+      <div style={{ fontSize: '12px', color: '#a0a0a0', marginBottom: '12px' }}>
+        選手のデッキ情報を購入できます。賭けの参考にしてください。
+      </div>
+
+      <div style={styles.deckInfoGrid}>
+        {tournament.participants.map(competitorId => {
+          const isExpanded = expandedCompetitor === competitorId;
+          const hasPurchasedAny = hasInfo(tournamentData, tournament.id, competitorId, INFO_TYPES.DECK_TYPE)
+            || hasInfo(tournamentData, tournament.id, competitorId, INFO_TYPES.KEY_CARDS)
+            || hasInfo(tournamentData, tournament.id, competitorId, INFO_TYPES.FULL_LIST);
+
+          return (
+            <div key={competitorId}>
+              <div
+                style={{
+                  ...styles.competitorInfoRow,
+                  cursor: hasPurchasedAny ? 'pointer' : 'default',
+                  border: isExpanded ? '1px solid #6b4ce6' : '1px solid transparent',
+                }}
+                onClick={() => hasPurchasedAny && setExpandedCompetitor(isExpanded ? null : competitorId)}
+              >
+                {/* 選手情報 */}
+                <div style={styles.competitorIdentity}>
+                  <span style={{ fontSize: '20px' }}>{getCompetitorPortrait(competitorId)}</span>
+                  <span style={{ fontSize: '13px', color: '#fff', fontWeight: 'bold' }}>
+                    {getCompetitorDisplayName(competitorId)}
+                  </span>
+                </div>
+
+                {/* 情報購入ボタン */}
+                <div style={styles.infoButtons}>
+                  {renderInfoButton(competitorId, INFO_TYPES.DECK_TYPE)}
+                  {renderInfoButton(competitorId, INFO_TYPES.KEY_CARDS)}
+                  {renderInfoButton(competitorId, INFO_TYPES.FULL_LIST)}
+                </div>
+
+                {/* 展開インジケータ */}
+                {hasPurchasedAny && (
+                  <span style={{ color: '#a0a0a0', fontSize: '12px' }}>
+                    {isExpanded ? '▲' : '▼'}
+                  </span>
+                )}
+              </div>
+
+              {/* 購入済み情報の表示 */}
+              {isExpanded && renderPurchasedInfo(competitorId)}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
 };
 
 // ========================================
@@ -291,10 +584,12 @@ const TournamentTab = ({
   currentBattle,
   onPlaceBet,
   onCancelBet,
+  onPurchaseInfo,
 }) => {
   const [selectedBetType, setSelectedBetType] = useState(BET_TYPES.WIN);
   const [selectedTarget, setSelectedTarget] = useState(null);
   const [betAmount, setBetAmount] = useState('');
+  const [expandedCompetitor, setExpandedCompetitor] = useState(null);
 
   const tournamentData = playerData?.tournamentData || {};
   const tournament = tournamentData.currentTournament;
@@ -485,6 +780,18 @@ const TournamentTab = ({
             </div>
           ))}
         </div>
+
+        {/* デッキ情報購入セクション */}
+        {canBet && (
+          <DeckInfoSection
+            tournament={tournament}
+            tournamentData={tournamentData}
+            playerGold={playerData?.gold || 0}
+            expandedCompetitor={expandedCompetitor}
+            setExpandedCompetitor={setExpandedCompetitor}
+            onPurchaseInfo={onPurchaseInfo}
+          />
+        )}
 
         {/* 賭け受付中の場合 */}
         {canBet && (

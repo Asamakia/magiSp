@@ -196,6 +196,8 @@ export {
   createTournament,
   runTournament,
   checkTournamentTrigger,
+  updateTournamentStatus,
+  calculateNextSchedule,
   // NPC
   COMPETITORS,
   getCompetitorDisplayName,

@@ -81,3 +81,20 @@ export {
   getRemainingBetLimit,
   getBetTypeDescription,
 } from './systems/bettingSystem';
+
+// デッキ情報購入システム
+export {
+  INFO_TYPES,
+  INFO_TYPE_NAMES,
+  INFO_PRICES,
+  getInfoPrice,
+  validateInfoPurchase,
+  purchaseInfo,
+  getPurchasedInfo,
+  hasInfo,
+  getDeckType,
+  getKeyCards,
+  getFullList,
+  getCompetitorName,
+  getAnalysisComment,
+} from './systems/deckInfoSystem';

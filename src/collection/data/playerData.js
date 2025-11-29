@@ -46,6 +46,9 @@ export const createInitialTournamentData = () => ({
     totalPayout: 0,
     totalProfit: 0,
   },
+
+  // 購入済みデッキ情報
+  purchasedInfo: {},
 });
 
 // ========================================

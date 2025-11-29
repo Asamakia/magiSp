@@ -382,6 +382,7 @@ const MerchantGuild = ({
   onPlayerDataUpdate,
   onPlaceBet,
   onCancelBet,
+  onPurchaseInfo,
 }) => {
   const [showTicketModal, setShowTicketModal] = useState(false);
   const [activeTab, setActiveTab] = useState('merchant'); // 'merchant' | 'tournament'
@@ -527,6 +528,7 @@ const MerchantGuild = ({
           currentBattle={dayId}
           onPlaceBet={onPlaceBet}
           onCancelBet={onCancelBet}
+          onPurchaseInfo={onPurchaseInfo}
         />
       ) : (
       <div style={styles.mainContent}>
