@@ -296,28 +296,84 @@ export function createPureContext(initialState, options = {}) {
 
     /**
      * デッキからカード選択（自動選択）
-     * コストが最も高いカードを優先
+     * - selectMode.enabled: true → onSelect(selectedCards) で選択結果を返す
+     * - allowReorder: true → onConfirm(cards) でそのまま返す（シミュレーションでは並び替えなし）
+     * - callback → callback(bestCard) で最高コストのカードを返す（後方互換）
      */
     setPendingDeckReview: (options) => {
-      const { cards, callback } = options;
+      const { cards, selectMode, allowReorder, onSelect, onConfirm, callback } = options;
 
       if (!cards || cards.length === 0) {
-        callback(null);
+        // 空の場合
+        if (onSelect) {
+          onSelect([]);
+        } else if (onConfirm) {
+          onConfirm([]);
+        } else if (callback) {
+          callback(null);
+        }
         return;
       }
 
-      // コストが最も高いカードを選択
-      let bestCard = cards[0];
-      let highestCost = -1;
+      // 選択モード（selectMode.enabled）
+      if (selectMode && selectMode.enabled && onSelect) {
+        const count = selectMode.count || 1;
+        const filter = selectMode.filter;
 
-      cards.forEach((card) => {
-        if (card.cost > highestCost) {
-          highestCost = card.cost;
-          bestCard = card;
+        // フィルター条件がある場合は適用
+        let targetCards = cards;
+        if (filter) {
+          targetCards = cards.filter(filter);
         }
-      });
 
-      callback(bestCard);
+        // コストが最も高いカードをcount枚選択
+        const sorted = [...targetCards].sort((a, b) => (b.cost || 0) - (a.cost || 0));
+        const selected = sorted.slice(0, Math.min(count, sorted.length));
+
+        // 残りのカード
+        const selectedIds = new Set(selected.map(c => c.uniqueId || c.id));
+        const remaining = cards.filter(c => !selectedIds.has(c.uniqueId || c.id));
+
+        // onSelectコールバック（引数パターンは2種類ある）
+        // パターン1: onSelect(selectedCards) - 配列のみ
+        // パターン2: onSelect(selectedCard, remainingCards) - カードと残り
+        if (count === 1 && selected.length > 0) {
+          onSelect(selected[0], remaining);
+        } else {
+          onSelect(selected, remaining);
+        }
+        return;
+      }
+
+      // 並び替えモード（allowReorder）
+      if (allowReorder && onConfirm) {
+        // シミュレーションでは並び替えなしでそのまま返す
+        onConfirm(cards);
+        return;
+      }
+
+      // 後方互換: callback
+      if (callback) {
+        // コストが最も高いカードを選択
+        let bestCard = cards[0];
+        let highestCost = -1;
+
+        cards.forEach((card) => {
+          if (card.cost > highestCost) {
+            highestCost = card.cost;
+            bestCard = card;
+          }
+        });
+
+        callback(bestCard);
+        return;
+      }
+
+      // onSelectのみでselectModeなしの場合も対応
+      if (onSelect) {
+        const sorted = [...cards].sort((a, b) => (b.cost || 0) - (a.cost || 0));
+        onSelect(sorted[0], sorted.slice(1));
+      }
     },
 
     /**
