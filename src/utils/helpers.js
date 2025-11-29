@@ -5,6 +5,19 @@
 import { DECK_SIZE } from './constants';
 import { PREBUILT_DECKS } from '../decks/prebuiltDecks';
 
+// グローバルカウンター: uniqueIdの一意性を保証
+let uniqueIdCounter = 0;
+
+/**
+ * 一意のIDを生成
+ * @param {string} cardId - カードID
+ * @returns {string} ユニークID
+ */
+export const generateUniqueId = (cardId) => {
+  uniqueIdCounter++;
+  return `${cardId}-${Date.now()}-${uniqueIdCounter}-${Math.random()}`;
+};
+
 /**
  * 配列をシャッフル
  */
@@ -41,7 +54,7 @@ export const createDeck = (cardPool = []) => {
     const maxCount = randomCard.isForbidden ? 1 : 3;
 
     if (count < maxCount) {
-      deck.push({ ...randomCard, uniqueId: `${randomCard.id}-${Date.now()}-${Math.random()}` });
+      deck.push({ ...randomCard, uniqueId: generateUniqueId(randomCard.id) });
     }
   }
   return shuffle(deck);
@@ -105,7 +118,7 @@ export const createDeckFromPrebuilt = (deckId, cardPool = []) => {
     if (cardData) {
       deck.push({
         ...cardData,
-        uniqueId: `${cardId}-${Date.now()}-${Math.random()}`,
+        uniqueId: generateUniqueId(cardId),
       });
     } else {
       console.warn(`カードが見つかりません: ${cardId}`);
@@ -122,7 +135,7 @@ export const createDeckFromPrebuilt = (deckId, cardPool = []) => {
       const randomCard = availableCards[Math.floor(Math.random() * availableCards.length)];
       deck.push({
         ...randomCard,
-        uniqueId: `${randomCard.id}-${Date.now()}-${Math.random()}`,
+        uniqueId: generateUniqueId(randomCard.id),
       });
     }
   }
@@ -149,7 +162,7 @@ export const createDeckFromUserDeck = (userDeck, cardPool = []) => {
       deck.push({
         ...cardData,
         rarity: deckCard.rarity, // レアリティを保持
-        uniqueId: `${deckCard.cardId}-${Date.now()}-${Math.random()}`,
+        uniqueId: generateUniqueId(deckCard.cardId),
       });
     } else {
       console.warn(`カードが見つかりません: ${deckCard.cardId}`);
@@ -166,7 +179,7 @@ export const createDeckFromUserDeck = (userDeck, cardPool = []) => {
       const randomCard = availableCards[Math.floor(Math.random() * availableCards.length)];
       deck.push({
         ...randomCard,
-        uniqueId: `${randomCard.id}-${Date.now()}-${Math.random()}`,
+        uniqueId: generateUniqueId(randomCard.id),
       });
     }
   }
