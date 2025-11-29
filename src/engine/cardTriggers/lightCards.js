@@ -19,6 +19,7 @@ import {
   modifyHP,
 } from '../effectHelpers';
 import { hasCategory } from '../../utils/helpers';
+import { executeZankonEffect } from '../keywordAbilities';
 
 /**
  * 光属性カードのトリガー定義
@@ -712,6 +713,48 @@ export const lightCardTriggers = {
           addLog('嵐光の騎士の効果: 相手モンスターに300ダメージ（未実装）', 'info');
           // TODO: 攻撃時トリガーが必要
         }
+      },
+    },
+  ],
+
+  /**
+   * C0000320: 雷帝ヴォルトロン
+   * 【残魂】破壊時、攻撃力-1000で場に戻る（1回のみ）。
+   */
+  C0000320: [
+    {
+      type: TRIGGER_TYPES.ON_DESTROY_SELF,
+      activationType: ACTIVATION_TYPES.AUTOMATIC,
+      description: '【残魂】破壊時: 攻撃力-1000で場に戻る',
+      effect: (context) => {
+        const monster = context.destroyedCard;
+        // 既に残魂を使用している場合は発動しない
+        if (monster && monster.zankonUsed) {
+          context.addLog(`【残魂】${monster.name}は既に残魂を使用済み`, 'info');
+          return;
+        }
+        executeZankonEffect(context, monster);
+      },
+    },
+  ],
+
+  /**
+   * C0000327: 雷嵐龍サンダーストーム・レックス
+   * 【残魂】破壊時、攻撃力-1000で場に戻る（1回のみ）。
+   */
+  C0000327: [
+    {
+      type: TRIGGER_TYPES.ON_DESTROY_SELF,
+      activationType: ACTIVATION_TYPES.AUTOMATIC,
+      description: '【残魂】破壊時: 攻撃力-1000で場に戻る',
+      effect: (context) => {
+        const monster = context.destroyedCard;
+        // 既に残魂を使用している場合は発動しない
+        if (monster && monster.zankonUsed) {
+          context.addLog(`【残魂】${monster.name}は既に残魂を使用済み`, 'info');
+          return;
+        }
+        executeZankonEffect(context, monster);
       },
     },
   ],

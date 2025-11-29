@@ -596,3 +596,300 @@ export function executeShinsyokuEffect(context, sourceName, setPendingTargetSele
   return true;
 }
 
+// =============================================================================
+// 【死触】関連
+// =============================================================================
+
+/**
+ * 【死触】を持つカードか判定
+ * @param {Object} card - カードオブジェクト
+ * @returns {boolean}
+ */
+export function hasShishoku(card) {
+  return hasKeyword(card, KEYWORD_ABILITIES.SHISHOKU);
+}
+
+/**
+ * 【死触】の対象カードID一覧
+ * C0000409: 血涙の叫女バンシーディス
+ * C0000426: 灰塵の怨念スペクトラグス
+ */
+export const SHISHOKU_CARD_IDS = ['C0000409', 'C0000426'];
+
+/**
+ * 【死触】効果を適用すべきか判定
+ * ダメージが1以上であれば、相手モンスターを即座に破壊
+ * @param {Object} attacker - 攻撃者モンスター
+ * @param {number} damage - 与えたダメージ
+ * @returns {boolean} 【死触】で破壊すべきかどうか
+ */
+export function shouldApplyShishoku(attacker, damage) {
+  if (!attacker) return false;
+  if (damage < 1) return false;
+  return hasShishoku(attacker);
+}
+
+// =============================================================================
+// 【魔障壁】関連
+// =============================================================================
+
+/**
+ * 【魔障壁】を持つカードか判定
+ * @param {Object} card - カードオブジェクト
+ * @returns {boolean}
+ */
+export function hasMashouheki(card) {
+  return hasKeyword(card, KEYWORD_ABILITIES.MASHOUHEKI);
+}
+
+/**
+ * 【魔障壁】の対象カードID一覧
+ * C0000002: 触覚持ち粘液獣
+ * C0000234: 撮影会のリリカ（既にMAGIC_NEGATIONで実装済み）
+ */
+export const MASHOUHEKI_CARD_IDS = ['C0000002', 'C0000234'];
+
+// =============================================================================
+// 【残魂】関連
+// =============================================================================
+
+/**
+ * 【残魂】を持つカードか判定
+ * @param {Object} card - カードオブジェクト
+ * @returns {boolean}
+ */
+export function hasZankon(card) {
+  return hasKeyword(card, KEYWORD_ABILITIES.ZANKON);
+}
+
+/**
+ * 【残魂】の対象カードID一覧
+ * C0000320: 雷帝ヴォルトロン
+ * C0000327: 雷嵐龍サンダーストーム・レックス
+ */
+export const ZANKON_CARD_IDS = ['C0000320', 'C0000327'];
+
+/**
+ * 【残魂】攻撃力減少値
+ * 破壊時に攻撃力-1000で場に戻る
+ */
+export const ZANKON_ATK_REDUCTION = 1000;
+
+/**
+ * 【残魂】効果を実行
+ * 破壊時に攻撃力-1000で場に戻る
+ * @param {Object} context - 効果コンテキスト
+ * @param {Object} destroyedMonster - 破壊されたモンスター
+ * @returns {boolean} 効果を適用したかどうか
+ */
+export function executeZankonEffect(context, destroyedMonster) {
+  const { addLog, currentPlayer, p1Field, p2Field, setP1Field, setP2Field, p1Graveyard, p2Graveyard, setP1Graveyard, setP2Graveyard } = context;
+
+  if (!destroyedMonster || !hasZankon(destroyedMonster)) {
+    return false;
+  }
+
+  // 破壊されたモンスターのオーナーを確認
+  const monsterOwner = destroyedMonster.owner || currentPlayer;
+  const myField = monsterOwner === 1 ? p1Field : p2Field;
+  const setMyField = monsterOwner === 1 ? setP1Field : setP2Field;
+  const myGraveyard = monsterOwner === 1 ? p1Graveyard : p2Graveyard;
+  const setMyGraveyard = monsterOwner === 1 ? setP1Graveyard : setP2Graveyard;
+
+  // 空きスロットを探す
+  const emptySlot = myField.findIndex(slot => slot === null);
+  if (emptySlot === -1) {
+    addLog(`【残魂】${destroyedMonster.name}は場が満杯のため戻れなかった`, 'info');
+    return false;
+  }
+
+  // 新しい攻撃力を計算（元の攻撃力から-1000）
+  const baseAttack = destroyedMonster.attack || 0;
+  const newAttack = Math.max(0, baseAttack - ZANKON_ATK_REDUCTION);
+
+  // 攻撃力が0以下になる場合は戻れない
+  if (newAttack <= 0) {
+    addLog(`【残魂】${destroyedMonster.name}は攻撃力が0になるため戻れなかった`, 'info');
+    return false;
+  }
+
+  // 墓地からカードを取り除く
+  setMyGraveyard(prev => prev.filter(c => c.uniqueId !== destroyedMonster.uniqueId));
+
+  // 復活したモンスターを作成
+  const revivedMonster = {
+    ...destroyedMonster,
+    attack: newAttack,
+    currentAttack: newAttack,
+    currentHp: destroyedMonster.hp,
+    maxHp: destroyedMonster.hp,
+    canAttack: false,
+    usedSkillThisTurn: false,
+    charges: [],
+    statusEffects: [],
+    zankonUsed: true, // 残魂は1回のみ
+  };
+
+  // フィールドに戻す
+  setMyField(prev => {
+    const newField = [...prev];
+    newField[emptySlot] = revivedMonster;
+    return newField;
+  });
+
+  addLog(`【残魂】${destroyedMonster.name}が攻撃力${newAttack}で場に戻った！`, 'info');
+  return true;
+}
+
+// =============================================================================
+// 【毒侵】関連
+// =============================================================================
+
+/**
+ * 【毒侵】を持つカードか判定
+ * @param {Object} card - カードオブジェクト
+ * @returns {boolean}
+ */
+export function hasDokushin(card) {
+  return hasKeyword(card, KEYWORD_ABILITIES.DOKUSHIN);
+}
+
+/**
+ * 【毒侵】の対象カードID一覧
+ * C0000281: 毒使いカムラ
+ * C0000283: 酸毒竜
+ * C0000284: 白蛇の牙
+ */
+export const DOKUSHIN_CARD_IDS = ['C0000281', 'C0000283', 'C0000284'];
+
+/**
+ * 【毒侵】効果を適用すべきか判定
+ * プレイヤーにダイレクトアタックが成功した時に毒状態を付与
+ * @param {Object} attacker - 攻撃者モンスター
+ * @param {number} damage - 与えたダメージ
+ * @returns {boolean} 【毒侵】を適用すべきかどうか
+ */
+export function shouldApplyDokushin(attacker, damage) {
+  if (!attacker) return false;
+  if (damage < 1) return false;
+  return hasDokushin(attacker);
+}
+
+// =============================================================================
+// 【壮麗】関連
+// =============================================================================
+
+/**
+ * 【壮麗】を持つカードか判定
+ * @param {Object} card - カードオブジェクト
+ * @returns {boolean}
+ */
+export function hasSourei(card) {
+  return hasKeyword(card, KEYWORD_ABILITIES.SOUREI);
+}
+
+/**
+ * 【壮麗】の対象カードID一覧
+ */
+export const SOUREI_CARD_IDS = [
+  'C0000345', // ヴォランティス・アルディオン → 相手モンスター効果無効化
+  'C0000346', // ヴォランティス・セラヴェント → 【残魂】付与
+  'C0000348', // ヴォランティス・ファルクェス → 2回攻撃可能
+  'C0000359', // ヴォランティス・インフェルノ → 戦闘ダメージ1.5倍
+  'C0000360', // ヴォランティス・テンペスト → 相手SP増加-1
+  'C0000364', // ヴォランティス・エクリプス → 相手モンスター攻撃力半減
+];
+
+/**
+ * 【壮麗】の効果定義（カードごと）
+ */
+export const SOUREI_EFFECTS = {
+  C0000345: { description: '相手モンスター1体の効果を無効化', effectType: 'negate_effect' },
+  C0000346: { description: '自分モンスター1体に【残魂】を付与', effectType: 'grant_zankon' },
+  C0000348: { description: 'このターン2回攻撃可能', effectType: 'double_attack' },
+  C0000359: { description: '次の戦闘ダメージ1.5倍', effectType: 'damage_boost' },
+  C0000360: { description: '相手の次ターンSP増加を-1', effectType: 'sp_reduce' },
+  C0000364: { description: '相手モンスター全体の攻撃力を半減', effectType: 'halve_attack' },
+};
+
+/**
+ * 手札に同名カードがあるか確認
+ * @param {Array} hand - 手札
+ * @param {string} cardName - カード名
+ * @param {string} excludeUniqueId - 除外するuniqueId（自分自身）
+ * @returns {Object|null} 見つかったカード、または null
+ */
+export function findSameNameCardInHand(hand, cardName, excludeUniqueId) {
+  if (!hand || !cardName) return null;
+  return hand.find(c => c.name === cardName && c.uniqueId !== excludeUniqueId) || null;
+}
+
+/**
+ * 【壮麗】発動可能か判定
+ * @param {Object} monster - フィールド上のモンスター
+ * @param {Array} hand - 手札
+ * @returns {boolean}
+ */
+export function canActivateSourei(monster, hand) {
+  if (!monster || !hasSourei(monster)) return false;
+  if (monster.soureiUsedThisTurn) return false; // 1ターン1回
+  return findSameNameCardInHand(hand, monster.name, monster.uniqueId) !== null;
+}
+
+/**
+ * 【壮麗】効果の定義を取得
+ * @param {string} cardId - カードID
+ * @returns {Object|null}
+ */
+export function getSoureiEffect(cardId) {
+  return SOUREI_EFFECTS[cardId] || null;
+}
+
+// =============================================================================
+// 【犠現】関連
+// =============================================================================
+
+/**
+ * 【犠現】を持つカードか判定
+ * @param {Object} card - カードオブジェクト
+ * @returns {boolean}
+ */
+export function hasGigen(card) {
+  return hasKeyword(card, KEYWORD_ABILITIES.GIGEN);
+}
+
+/**
+ * 【犠現】の対象カードID一覧
+ * C0000353: ヴォランティス・エテルノス（コスト10）
+ */
+export const GIGEN_CARD_IDS = ['C0000353'];
+
+/**
+ * 【犠現】コスト軽減上限
+ */
+export const GIGEN_MAX_REDUCTION = 3;
+
+/**
+ * 【犠現】のコスト軽減を計算
+ * @param {Object} sacrificeMonster - 生贄にするモンスター
+ * @returns {number} コスト軽減量（最大3）
+ */
+export function calculateGigenReduction(sacrificeMonster) {
+  if (!sacrificeMonster) return 0;
+  const cost = sacrificeMonster.cost || 0;
+  return Math.min(cost, GIGEN_MAX_REDUCTION);
+}
+
+/**
+ * 【犠現】発動可能か判定
+ * @param {Object} card - 召喚しようとするカード
+ * @param {Array} field - 自分のフィールド
+ * @returns {boolean}
+ */
+export function canActivateGigen(card, field) {
+  if (!card || !hasGigen(card)) return false;
+  // フィールドにモンスターがいるか
+  const hasMonster = field && field.some(m => m !== null);
+  return hasMonster;
+}
+

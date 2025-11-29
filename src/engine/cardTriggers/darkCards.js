@@ -1165,20 +1165,9 @@ export const darkCardTriggers = {
   /**
    * C0000409: 血涙の叫女バンシーディス
    * 【死触】このモンスターが与えるダメージが1点でもあれば、その相手モンスターを破壊する。
+   * 実装済み: magic-spirit.jsx の executeAttack() 内で shouldApplyShishoku() を使用
    */
-  C0000409: [
-    {
-      type: TRIGGER_TYPES.CONTINUOUS,
-      activationType: ACTIVATION_TYPES.AUTOMATIC,
-      description: '死触: ダメージ1点でも相手モンスター破壊',
-      effect: (context) => {
-        const { addLog } = context;
-        // Note: Death Touch is a special ability that modifies combat
-        // This requires game engine changes to implement properly
-        addLog('【死触】発動：ダメージを与えた相手モンスターを破壊！', 'info');
-      },
-    },
-  ],
+  // C0000409: 【死触】は戦闘処理で直接実装されているため、トリガー定義不要
 
   /**
    * C0000418: 深層の隠蟲クリプトノムス
@@ -1287,19 +1276,9 @@ export const darkCardTriggers = {
   /**
    * C0000426: 灰塵の怨念スペクトラグス
    * 【死触】このモンスターが与えるダメージが1点でもあれば、相手モンスターを破壊する。
+   * 実装済み: magic-spirit.jsx の executeAttack() 内で shouldApplyShishoku() を使用
    */
-  C0000426: [
-    {
-      type: TRIGGER_TYPES.CONTINUOUS,
-      activationType: ACTIVATION_TYPES.AUTOMATIC,
-      description: '死触: ダメージ1点でも相手モンスター破壊',
-      effect: (context) => {
-        const { addLog } = context;
-        // Note: Death Touch is a special ability that modifies combat
-        addLog('【死触】発動：ダメージを与えた相手モンスターを破壊！', 'info');
-      },
-    },
-  ],
+  // C0000426: 【死触】は戦闘処理で直接実装されているため、トリガー定義不要
 
   /**
    * C0000427: 灰塵の骨霊ファントマリス
