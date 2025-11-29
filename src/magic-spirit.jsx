@@ -542,9 +542,15 @@ export default function MagicSpiritGame() {
   // ========================================
 
   // プレイヤーデータを更新して保存
-  const updatePlayerData = useCallback((newData) => {
-    setPlayerData(newData);
-    storage.save(newData);
+  // 関数形式 (prev) => newData とオブジェクト形式の両方に対応
+  const updatePlayerData = useCallback((newDataOrUpdater) => {
+    setPlayerData((prev) => {
+      const newData = typeof newDataOrUpdater === 'function'
+        ? newDataOrUpdater(prev)
+        : newDataOrUpdater;
+      storage.save(newData);
+      return newData;
+    });
   }, []);
 
   // 対戦報酬を付与
