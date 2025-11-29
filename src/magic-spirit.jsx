@@ -185,6 +185,7 @@ export default function MagicSpiritGame() {
   const [currentMerchant, setCurrentMerchant] = useState(null); // 現在訪問中の商人名
   const [showTournamentViewer, setShowTournamentViewer] = useState(false); // 大会観戦ダイアログ表示
   const [pendingTournamentResult, setPendingTournamentResult] = useState(null); // 報酬受け取り待ち大会結果
+  const [showRestDialog, setShowRestDialog] = useState(false); // 休息完了ダイアログ表示
 
   // ========================================
   // Phase D-4: プレイヤー状態（engineStateから直接参照）
@@ -691,8 +692,8 @@ export default function MagicSpiritGame() {
 
     updatePlayerData(updatedPlayerData);
 
-    // 休息完了メッセージを表示
-    alert(`休息しました。現在は ${updatedPlayerData.market?.currentDay || 1} 日目です。`);
+    // 休息完了ダイアログを表示
+    setShowRestDialog(true);
   }, [playerData, updatePlayerData, processDayAdvancement]);
 
   // パック開封画面へ遷移
@@ -4072,6 +4073,67 @@ export default function MagicSpiritGame() {
             プロトタイプ版 - 2人対戦
           </div>
         </div>
+
+        {/* 休息完了ダイアログ */}
+        {showRestDialog && (
+          <div style={styles.modal}>
+            <div style={{
+              ...styles.modalContent,
+              textAlign: 'center',
+              maxWidth: '400px',
+            }}>
+              <div style={{
+                fontSize: '48px',
+                marginBottom: '16px',
+              }}>
+                🌙
+              </div>
+              <h2 style={{
+                color: '#88ccff',
+                fontSize: '24px',
+                marginBottom: '12px',
+              }}>
+                休息完了
+              </h2>
+              <p style={{
+                color: '#a0a0a0',
+                fontSize: '16px',
+                marginBottom: '8px',
+              }}>
+                ゆっくり休んで体力を回復した...
+              </p>
+              <div style={{
+                fontSize: '20px',
+                fontWeight: 'bold',
+                color: '#ffd700',
+                padding: '12px 24px',
+                background: 'rgba(255,215,0,0.1)',
+                borderRadius: '8px',
+                border: '1px solid rgba(255,215,0,0.3)',
+                marginBottom: '20px',
+              }}>
+                📅 {playerData?.market?.currentDay || 1} 日目
+              </div>
+              <p style={{
+                color: '#888',
+                fontSize: '13px',
+                marginBottom: '20px',
+              }}>
+                ※ 休息では対戦報酬は得られません
+              </p>
+              <button
+                onClick={() => setShowRestDialog(false)}
+                style={{
+                  ...styles.actionButton,
+                  fontSize: '16px',
+                  padding: '12px 32px',
+                }}
+              >
+                OK
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     );
   }
