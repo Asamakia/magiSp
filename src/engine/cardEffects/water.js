@@ -886,7 +886,7 @@ export const waterCardEffects = {
    * 基本技：相手の場にいるモンスター1体を指定し、その効果をターン終了時まで無効化。
    */
   C0000145: (skillText, context) => {
-    const { addLog, setPendingTargetSelection } = context;
+    const { addLog, setPendingMonsterTarget } = context;
     const { opponentField } = getPlayerContext(context);
 
     if (context.skillType === 'basic') {
@@ -942,7 +942,7 @@ export const waterCardEffects = {
    * 基本技：自身の攻撃力の半分のダメージを相手モンスター1体に与える。
    */
   C0000144: (skillText, context) => {
-    const { addLog, monsterIndex, setPendingTargetSelection } = context;
+    const { addLog, monsterIndex, setPendingMonsterTarget } = context;
     const { myField, opponentField, setOpponentField } = getPlayerContext(context);
 
     if (context.skillType === 'basic') {
@@ -1978,7 +1978,7 @@ export const waterCardEffects = {
    * ※攻撃リダイレクト効果として実装：相手モンスター2体を選び、前者が後者を攻撃する（同士討ち）
    */
   C0000048: (skillText, context) => {
-    const { addLog, setPendingTargetSelection } = context;
+    const { addLog, setPendingMonsterTarget } = context;
     const { opponentField, setOpponentField, setOpponentGraveyard } = getPlayerContext(context);
 
     // 相手フィールドのモンスターを取得
