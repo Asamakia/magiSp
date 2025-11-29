@@ -186,6 +186,8 @@ export {
   removeBet,
   clearBets,
   calculatePayouts,
+  createHistoryEntry,
+  updateTotalStats,
   getTotalBetAmount,
   getOdds,
   getRemainingBetLimit,
