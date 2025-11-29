@@ -47,6 +47,12 @@ import {
   processLinkEndPhaseDamage,
   handleLinkBreak,
   shouldApplyShishoku,
+  shouldApplyDokushin,
+  canActivateSourei,
+  getSoureiEffect,
+  findSameNameCardInHand,
+  canActivateGigen,
+  calculateGigenReduction,
 } from './engine/keywordAbilities';
 import {
   getStrategy,
@@ -167,6 +173,10 @@ export default function MagicSpiritGame() {
   const [p1MagicBlocked, setP1MagicBlocked] = useState(false);
   const [p2MagicBlocked, setP2MagicBlocked] = useState(false);
 
+  // 次ターンSP増加減少（【壮麗】効果）
+  const [p1SpReduction, setP1SpReduction] = useState(0);
+  const [p2SpReduction, setP2SpReduction] = useState(0);
+
   // UI状態
   const [selectedHandCard, setSelectedHandCard] = useState(null);
   const [selectedFieldMonster, setSelectedFieldMonster] = useState(null);
@@ -199,6 +209,10 @@ export default function MagicSpiritGame() {
   // 刹那詠唱効果完了後に実行するアクション（効果の選択UIが完了するまで待機）
   const [pendingSetsunaAction, setPendingSetsunaAction] = useState(null);
   // pendingSetsunaAction = { type: 'attack', attackerIndex, targetIndex } | { type: 'battleStart' }
+
+  // 【犠現】状態
+  const [pendingGigenActivation, setPendingGigenActivation] = useState(null);
+  // pendingGigenActivation = { card, slotIndex } - 召喚するカードとスロット
 
   // デッキ選択状態
   const [p1SelectedDeck, setP1SelectedDeck] = useState('starter'); // スターターデッキ「紅蓮の咆哮」をデフォルトに
@@ -568,6 +582,7 @@ export default function MagicSpiritGame() {
         fieldCard: p1FieldCard, setFieldCard: setP1FieldCard,
         phaseCard: p1PhaseCard, setPhaseCard: setP1PhaseCard,
         spBonus: p1NextTurnSPBonus, setSpBonus: setP1NextTurnSPBonus,
+        spReduction: p1SpReduction, setSpReduction: setP1SpReduction,
       };
     }
     return {
@@ -581,6 +596,7 @@ export default function MagicSpiritGame() {
       fieldCard: p2FieldCard, setFieldCard: setP2FieldCard,
       phaseCard: p2PhaseCard, setPhaseCard: setP2PhaseCard,
       spBonus: p2NextTurnSPBonus, setSpBonus: setP2NextTurnSPBonus,
+      spReduction: p2SpReduction, setSpReduction: setP2SpReduction,
     };
   };
 
@@ -648,21 +664,31 @@ export default function MagicSpiritGame() {
 
     switch (phaseIndex) {
       case 0: // ターン開始フェイズ
-        // SPトークン追加（最大10）+ ボーナス
+        // SPトークン追加（最大10）+ ボーナス - 減少
         const totalSP = player.activeSP + player.restedSP;
-        const spGain = 1 + (player.spBonus || 0); // 通常1 + ボーナス
-        if (totalSP < MAX_SP) {
-          const actualGain = Math.min(spGain, MAX_SP - totalSP);
+        const spBonus = player.spBonus || 0;
+        const spReduction = player.spReduction || 0;
+        const netSpGain = Math.max(0, 1 + spBonus - spReduction); // 通常1 + ボーナス - 減少（最小0）
+        if (totalSP < MAX_SP && netSpGain > 0) {
+          const actualGain = Math.min(netSpGain, MAX_SP - totalSP);
           player.setActiveSP(prev => Math.min(prev + actualGain, MAX_SP));
-          if (player.spBonus > 0) {
-            addLog(`プレイヤー${currentPlayer}: SPトークン+${actualGain}（マーメイドの恵み効果）`, 'heal');
+          if (spBonus > 0 || spReduction > 0) {
+            const modifiers = [];
+            if (spBonus > 0) modifiers.push(`ボーナス+${spBonus}`);
+            if (spReduction > 0) modifiers.push(`減少-${spReduction}`);
+            addLog(`プレイヤー${currentPlayer}: SPトークン+${actualGain}（${modifiers.join('、')}）`, spReduction > 0 ? 'damage' : 'heal');
           } else {
             addLog(`プレイヤー${currentPlayer}: SPトークン+1`, 'info');
           }
+        } else if (netSpGain === 0) {
+          addLog(`プレイヤー${currentPlayer}: SP増加なし（【壮麗】効果）`, 'damage');
         }
-        // SPボーナスをリセット
+        // SPボーナスとSP減少をリセット
         if (player.spBonus > 0) {
           player.setSpBonus(0);
+        }
+        if (player.spReduction > 0) {
+          player.setSpReduction(0);
         }
         // レスト状態のSPをアクティブに
         player.setActiveSP(prev => prev + player.restedSP);
@@ -1259,6 +1285,267 @@ export default function MagicSpiritGame() {
       setP1Deck, setP2Deck, setP1Graveyard, setP2Graveyard,
       setP1ActiveSP, setP2ActiveSP, setP1RestedSP, setP2RestedSP, setPendingMonsterTarget,
       setPendingHandSelection, setP1MagicBlocked, setP2MagicBlocked]);
+
+  // 【壮麗】発動
+  const activateSourei = useCallback((monsterIndex) => {
+    const myHand = currentPlayer === 1 ? p1Hand : p2Hand;
+    const myField = currentPlayer === 1 ? p1Field : p2Field;
+    const setMyHand = currentPlayer === 1 ? setP1Hand : setP2Hand;
+    const setMyField = currentPlayer === 1 ? setP1Field : setP2Field;
+    const setMyGraveyard = currentPlayer === 1 ? setP1Graveyard : setP2Graveyard;
+    const setOpponentField = currentPlayer === 1 ? setP2Field : setP1Field;
+
+    const monster = myField[monsterIndex];
+    if (!monster) return;
+
+    // 同名カードを手札から探す
+    const sameNameCard = findSameNameCardInHand(myHand, monster.name, monster.uniqueId);
+    if (!sameNameCard) {
+      addLog(`【壮麗】${monster.name}: 手札に同名カードがありません`, 'info');
+      return;
+    }
+
+    // 手札から捨てる
+    setMyHand(prev => prev.filter(c => c.uniqueId !== sameNameCard.uniqueId));
+    setMyGraveyard(prev => [...prev, sameNameCard]);
+    addLog(`【壮麗】${monster.name}: 手札から同名カードを捨てて効果発動！`, 'info');
+
+    // 効果を適用
+    const effect = getSoureiEffect(monster.id);
+    if (!effect) return;
+
+    switch (effect.effectType) {
+      case 'negate_effect':
+        // 相手モンスター1体の効果を無効化
+        setPendingMonsterTarget({
+          message: '効果を無効化するモンスターを選択',
+          isOpponent: true,
+          callback: (targetIndex) => {
+            setOpponentField(prev => {
+              const newField = [...prev];
+              if (newField[targetIndex]) {
+                newField[targetIndex] = { ...newField[targetIndex], effectNegated: true };
+              }
+              return newField;
+            });
+            addLog(`${monster.name}の【壮麗】効果: 相手モンスターの効果を無効化`, 'info');
+          }
+        });
+        break;
+
+      case 'grant_zankon':
+        // 自分モンスター1体に【残魂】を付与
+        setPendingMonsterTarget({
+          message: '【残魂】を付与するモンスターを選択',
+          isOpponent: false,
+          callback: (targetIndex) => {
+            setMyField(prev => {
+              const newField = [...prev];
+              if (newField[targetIndex]) {
+                newField[targetIndex] = {
+                  ...newField[targetIndex],
+                  keyword: (newField[targetIndex].keyword || '') + '【残魂】',
+                  grantedZankon: true
+                };
+              }
+              return newField;
+            });
+            addLog(`${monster.name}の【壮麗】効果: 【残魂】を付与`, 'info');
+          }
+        });
+        break;
+
+      case 'double_attack':
+        // このターン2回攻撃可能
+        setMyField(prev => {
+          const newField = [...prev];
+          if (newField[monsterIndex]) {
+            newField[monsterIndex] = { ...newField[monsterIndex], canDoubleAttack: true, attackCount: 0 };
+          }
+          return newField;
+        });
+        addLog(`${monster.name}の【壮麗】効果: このターン2回攻撃可能`, 'info');
+        break;
+
+      case 'damage_boost':
+        // 次の戦闘ダメージ1.5倍
+        setMyField(prev => {
+          const newField = [...prev];
+          if (newField[monsterIndex]) {
+            newField[monsterIndex] = { ...newField[monsterIndex], damageBoost: 1.5 };
+          }
+          return newField;
+        });
+        addLog(`${monster.name}の【壮麗】効果: 次の戦闘ダメージ1.5倍`, 'info');
+        break;
+
+      case 'sp_reduce':
+        // 相手の次ターンSP増加を-1（状態として記録）
+        if (currentPlayer === 1) {
+          setP2SpReduction(prev => prev + 1);
+        } else {
+          setP1SpReduction(prev => prev + 1);
+        }
+        addLog(`${monster.name}の【壮麗】効果: 相手の次ターンSP増加-1`, 'info');
+        break;
+
+      case 'halve_attack':
+        // 相手モンスター全体の攻撃力を半減
+        setOpponentField(prev => {
+          return prev.map(m => {
+            if (m) {
+              const newAtk = Math.floor((m.currentAttack || m.attack) / 2);
+              return { ...m, currentAttack: newAtk };
+            }
+            return m;
+          });
+        });
+        addLog(`${monster.name}の【壮麗】効果: 相手モンスター全体の攻撃力半減`, 'info');
+        break;
+
+      default:
+        addLog(`${monster.name}の【壮麗】効果: 未実装の効果タイプ`, 'info');
+    }
+
+    // 壮麗使用済みフラグを設定
+    setMyField(prev => {
+      const newField = [...prev];
+      if (newField[monsterIndex]) {
+        newField[monsterIndex] = { ...newField[monsterIndex], soureiUsedThisTurn: true };
+      }
+      return newField;
+    });
+  }, [currentPlayer, p1Hand, p2Hand, p1Field, p2Field, addLog,
+      setP1Hand, setP2Hand, setP1Field, setP2Field, setP1Graveyard, setP2Graveyard,
+      setPendingMonsterTarget, setP1SpReduction, setP2SpReduction]);
+
+  // 【犠現】発動開始（生贄選択UIを表示）
+  const startGigenActivation = useCallback((card, slotIndex) => {
+    const myField = currentPlayer === 1 ? p1Field : p2Field;
+
+    // フィールドにモンスターがいるか確認
+    const validTargets = myField
+      .map((m, idx) => ({ monster: m, index: idx }))
+      .filter(({ monster }) => monster !== null);
+
+    if (validTargets.length === 0) {
+      addLog('【犠現】フィールドに生贄にできるモンスターがいません', 'damage');
+      return;
+    }
+
+    // 生贄選択待ち状態を設定
+    setPendingGigenActivation({ card, slotIndex });
+    setPendingMonsterTarget({
+      message: '【犠現】生贄にするモンスターを選択',
+      isOpponent: false,
+      callback: (sacrificeIndex) => {
+        completeGigenSummon(card, slotIndex, sacrificeIndex);
+      }
+    });
+  }, [currentPlayer, p1Field, p2Field, addLog, setPendingGigenActivation, setPendingMonsterTarget]);
+
+  // 【犠現】召喚完了（生贄選択後）
+  const completeGigenSummon = useCallback((card, slotIndex, sacrificeIndex) => {
+    const activeSP = currentPlayer === 1 ? p1ActiveSP : p2ActiveSP;
+    const myField = currentPlayer === 1 ? p1Field : p2Field;
+    const setMyField = currentPlayer === 1 ? setP1Field : setP2Field;
+    const setMyHand = currentPlayer === 1 ? setP1Hand : setP2Hand;
+    const setMyGraveyard = currentPlayer === 1 ? setP1Graveyard : setP2Graveyard;
+    const setActiveSP = currentPlayer === 1 ? setP1ActiveSP : setP2ActiveSP;
+    const setRestedSP = currentPlayer === 1 ? setP1RestedSP : setP2RestedSP;
+
+    const sacrifice = myField[sacrificeIndex];
+    if (!sacrifice) {
+      addLog('【犠現】生贄対象が見つかりません', 'damage');
+      setPendingGigenActivation(null);
+      return;
+    }
+
+    // コスト軽減を計算
+    const reduction = calculateGigenReduction(sacrifice);
+    const reducedCost = Math.max(0, card.cost - reduction);
+
+    if (activeSP < reducedCost) {
+      addLog(`【犠現】SPが足りません（必要: ${reducedCost}, 現在: ${activeSP}）`, 'damage');
+      setPendingGigenActivation(null);
+      return;
+    }
+
+    // スロットが使用中でないか確認
+    if (myField[slotIndex] !== null && slotIndex !== sacrificeIndex) {
+      addLog('そのスロットは使用中です', 'damage');
+      setPendingGigenActivation(null);
+      return;
+    }
+
+    // 生贄モンスターを墓地へ
+    setMyGraveyard(prev => [...prev, sacrifice]);
+    addLog(`【犠現】${sacrifice.name}を生贄に捧げた（コスト-${reduction}）`, 'info');
+
+    // モンスターを召喚
+    const monsterInstance = createMonsterInstance(card);
+    monsterInstance.canAttack = false;
+    monsterInstance.owner = currentPlayer;
+
+    // 召喚先スロット（生贄スロットでも可）
+    const targetSlot = slotIndex !== sacrificeIndex ? slotIndex : sacrificeIndex;
+
+    setMyField(prev => {
+      const newField = [...prev];
+      // 生贄スロットを空にする（別スロットに召喚する場合）
+      if (slotIndex !== sacrificeIndex) {
+        newField[sacrificeIndex] = null;
+      }
+      newField[targetSlot] = monsterInstance;
+      return newField;
+    });
+
+    // 手札から削除
+    setMyHand(prev => prev.filter(c => c.uniqueId !== card.uniqueId));
+
+    // SPを消費
+    if (reducedCost > 0) {
+      setActiveSP(prev => Math.max(0, prev - reducedCost));
+      setRestedSP(prev => prev + reducedCost);
+    }
+
+    addLog(`${card.name}を召喚！（【犠現】コスト: ${reducedCost}）`, 'info');
+
+    // トリガー登録
+    registerCardTriggers(monsterInstance, currentPlayer, targetSlot);
+
+    // 召喚時トリガーを発火
+    fireTrigger(TRIGGER_TYPES.ON_SUMMON, {
+      currentPlayer,
+      card: monsterInstance,
+      slotIndex: targetSlot,
+      setP1Life, setP2Life,
+      setP1Field, setP2Field,
+      setP1Hand, setP2Hand,
+      setP1Deck, setP2Deck,
+      setP1Graveyard, setP2Graveyard,
+      p1Field: currentPlayer === 1 ? [...myField.slice(0, sacrificeIndex), null, ...myField.slice(sacrificeIndex + 1)] : p1Field,
+      p2Field: currentPlayer === 2 ? [...myField.slice(0, sacrificeIndex), null, ...myField.slice(sacrificeIndex + 1)] : p2Field,
+      p1Hand, p2Hand,
+      p1Deck, p2Deck,
+      p1Graveyard, p2Graveyard,
+      p1Life, p2Life,
+      addLog,
+      setPendingHandSelection,
+      setPendingGraveyardSelection,
+      setShowGraveyardViewer,
+      setPendingDeckReview,
+    });
+
+    setPendingGigenActivation(null);
+    setSelectedHandCard(null);
+  }, [currentPlayer, p1ActiveSP, p2ActiveSP, p1Field, p2Field, p1Hand, p2Hand,
+      p1Deck, p2Deck, p1Graveyard, p2Graveyard, p1Life, p2Life, addLog,
+      setP1Field, setP2Field, setP1Hand, setP2Hand, setP1Graveyard, setP2Graveyard,
+      setP1ActiveSP, setP2ActiveSP, setP1RestedSP, setP2RestedSP,
+      setP1Life, setP2Life, setP1Deck, setP2Deck,
+      setPendingHandSelection, setPendingGraveyardSelection, setShowGraveyardViewer, setPendingDeckReview,
+      setSelectedHandCard, setPendingGigenActivation]);
 
   // カード召喚
   const summonCard = useCallback((card, slotIndex) => {
@@ -2157,11 +2444,21 @@ export default function MagicSpiritGame() {
           return newField;
         });
       }
+
+      // 【毒侵】判定: ダイレクトアタック成功時に相手プレイヤーを毒状態にする
+      if (shouldApplyDokushin(attacker, damage)) {
+        const setOpponentStatusEffects = currentPlayer === 1 ? setP2StatusEffects : setP1StatusEffects;
+        setOpponentStatusEffects(prev => [
+          ...prev,
+          { type: 'poison', value: 100, source: attacker.id, sourceName: attacker.name }
+        ]);
+        addLog(`【毒侵】${attacker.name}により相手プレイヤーが毒状態に！（毎ターン100ダメージ）`, 'damage');
+      }
     }
 
     setAttackingMonster(null);
     setSelectedFieldMonster(null);
-  }, [currentPlayer, p1Field, p2Field, p1FieldCard, p2FieldCard, p1Life, p2Life, p1Hand, p2Hand, p1Deck, p2Deck, p1Graveyard, p2Graveyard, addLog]);
+  }, [currentPlayer, p1Field, p2Field, p1FieldCard, p2FieldCard, p1Life, p2Life, p1Hand, p2Hand, p1Deck, p2Deck, p1Graveyard, p2Graveyard, p1StatusEffects, p2StatusEffects, addLog]);
 
   // チェーン確認をスキップ（発動しない）
   const skipChainConfirmation = useCallback(() => {
@@ -4617,6 +4914,20 @@ export default function MagicSpiritGame() {
                         💠 SPチャージ (残SP: {p1ActiveSP})
                       </button>
                     )}
+                    {/* 【壮麗】ボタン（P1用） */}
+                    {canActivateSourei(monster, p1Hand) && !monster.soureiUsedThisTurn && (
+                      <button
+                        onClick={() => activateSourei(selectedFieldMonster)}
+                        style={{
+                          ...styles.actionButton,
+                          background: 'linear-gradient(135deg, #e91e63 0%, #f48fb1 100%)',
+                          fontSize: '12px',
+                          padding: '8px 16px',
+                        }}
+                      >
+                        ✨ 【壮麗】発動 ({getSoureiEffect(monster.id)?.description || '追加効果'})
+                      </button>
+                    )}
                     {/* メインフェイズトリガー */}
                     {(() => {
                       const triggers = getCardMainPhaseTriggers(monster, currentPlayer);
@@ -4724,15 +5035,29 @@ export default function MagicSpiritGame() {
                         onClick={() => chargeSP(selectedFieldMonster)}
                         style={{
                           ...styles.actionButton,
-                          background: (chargeUsedThisTurn || monster.charges?.length >= 2 || p1ActiveSP < 1)
+                          background: (chargeUsedThisTurn || monster.charges?.length >= 2 || p2ActiveSP < 1)
                             ? 'linear-gradient(135deg, #666 0%, #888 100%)'
                             : 'linear-gradient(135deg, #9c27b0 0%, #ba68c8 100%)',
                           fontSize: '12px',
                           padding: '8px 16px',
                         }}
-                        disabled={chargeUsedThisTurn || monster.charges?.length >= 2 || p1ActiveSP < 1}
+                        disabled={chargeUsedThisTurn || monster.charges?.length >= 2 || p2ActiveSP < 1}
                       >
-                        💠 SPチャージ (残SP: {p1ActiveSP})
+                        💠 SPチャージ (残SP: {p2ActiveSP})
+                      </button>
+                    )}
+                    {/* 【壮麗】ボタン（P2用） */}
+                    {canActivateSourei(monster, p2Hand) && !monster.soureiUsedThisTurn && (
+                      <button
+                        onClick={() => activateSourei(selectedFieldMonster)}
+                        style={{
+                          ...styles.actionButton,
+                          background: 'linear-gradient(135deg, #e91e63 0%, #f48fb1 100%)',
+                          fontSize: '12px',
+                          padding: '8px 16px',
+                        }}
+                      >
+                        ✨ 【壮麗】発動 ({getSoureiEffect(monster.id)?.description || '追加効果'})
                       </button>
                     )}
                     {/* メインフェイズトリガー */}
@@ -4806,6 +5131,31 @@ export default function MagicSpiritGame() {
                   }}
                 >
                   ✨ 魔法カード発動
+                </button>
+              )}
+              {/* 【犠現】発動ボタン */}
+              {phase === 2 && selectedHandCard && selectedHandCard.type === 'monster' &&
+               canActivateGigen(selectedHandCard, currentPlayer === 1 ? p1Field : p2Field) && (
+                <button
+                  onClick={() => {
+                    // 空きスロットを探す
+                    const field = currentPlayer === 1 ? p1Field : p2Field;
+                    const emptySlot = field.findIndex(m => m === null);
+                    if (emptySlot !== -1) {
+                      startGigenActivation(selectedHandCard, emptySlot);
+                    } else {
+                      // 空きがない場合は生贄スロットに召喚
+                      startGigenActivation(selectedHandCard, 0);
+                    }
+                  }}
+                  style={{
+                    ...styles.actionButton,
+                    background: 'linear-gradient(135deg, #ff6f00 0%, #ffa726 100%)',
+                    fontSize: '14px',
+                    padding: '10px 20px',
+                  }}
+                >
+                  🔥 【犠現】発動（生贄でコスト軽減）
                 </button>
               )}
               <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', justifyContent: 'center' }}>
