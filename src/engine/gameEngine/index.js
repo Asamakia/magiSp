@@ -116,3 +116,21 @@ export {
   toLegacyState,
   fromLegacyState,
 } from './useGameEngine';
+
+// Context Adapter - 純粋関数モード用contextアダプター
+export {
+  createPureContext,
+  getPlayerContextFromAdapter,
+} from './contextAdapter';
+
+// Continuous Effect Engine Pure - 状態ベース版常時効果エンジン
+export {
+  calculateAttackModifierPure,
+  calculateHPModifierPure,
+  calculateSummonCostModifierPure,
+  calculateDamageReductionPure,
+  getSummonBuffsPure,
+  canAttackPure,
+  isMagicNegatedPure,
+  getAllActiveEffectsPure,
+} from './continuousEffectEnginePure';

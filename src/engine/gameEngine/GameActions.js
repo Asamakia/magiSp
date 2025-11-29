@@ -27,6 +27,8 @@ import {
 
 import { MAX_SP, COUNTER_ATTACK_RATE } from '../../utils/constants';
 import { createMonsterInstance } from '../../utils/helpers';
+import { TRIGGER_TYPES } from '../triggerTypes';
+import { registerCardTriggersPure, fireTriggerPure } from './triggerEnginePure';
 
 // ========================================
 // アクションタイプ定義
@@ -451,8 +453,14 @@ function applySummonCard(state, { cardIndex, slotIndex }) {
 
   newState = addLog(newState, `${card.name}を召喚！ (コスト: ${card.cost}SP)`, 'info');
 
-  // TODO: トリガー発火（ON_SUMMON等）
-  // TODO: 常時効果登録
+  // トリガー登録
+  newState = registerCardTriggersPure(newState, monster, currentPlayer, slotIndex);
+
+  // ON_SUMMONトリガー発火
+  newState = fireTriggerPure(newState, TRIGGER_TYPES.ON_SUMMON, {
+    card: monster,
+    slotIndex,
+  });
 
   return newState;
 }
@@ -568,6 +576,16 @@ function executeMonsterAttack(state, attacker, target, attackerIndex, targetInde
       graveyard: newGraveyard,
     });
     newState = addLog(newState, `${attacker.name}は反撃で破壊された！`, 'damage');
+
+    // 破壊時トリガー発火
+    newState = fireTriggerPure(newState, TRIGGER_TYPES.ON_DESTROY_SELF, {
+      destroyedCard: attacker,
+      slotIndex: attackerIndex,
+    });
+
+    // トリガー解除
+    const { unregisterCardTriggersPure } = require('./triggerEnginePure');
+    newState = unregisterCardTriggersPure(newState, attacker.uniqueId);
   } else {
     // 攻撃側HP減少
     updatedPlayerField[attackerIndex] = {
@@ -590,6 +608,16 @@ function executeMonsterAttack(state, attacker, target, attackerIndex, targetInde
       graveyard: newGraveyard,
     });
     newState = addLog(newState, `${target.name}を破壊！`, 'damage');
+
+    // 破壊時トリガー発火
+    newState = fireTriggerPure(newState, TRIGGER_TYPES.ON_DESTROY_SELF, {
+      destroyedCard: target,
+      slotIndex: targetIndex,
+    });
+
+    // トリガー解除
+    const { unregisterCardTriggersPure } = require('./triggerEnginePure');
+    newState = unregisterCardTriggersPure(newState, target.uniqueId);
   } else {
     // 防御側HP減少
     updatedOpponentField[targetIndex] = {
@@ -605,8 +633,8 @@ function executeMonsterAttack(state, attacker, target, attackerIndex, targetInde
 }
 
 /**
- * 技発動（スタブ実装）
- * TODO: effectEngineとの統合
+ * 技発動（contextアダプター統合版）
+ * effectEngineと連携して完全な技効果を実行
  */
 function applyExecuteSkill(state, { monsterIndex, skillType }) {
   const player = getCurrentPlayer(state);
@@ -620,17 +648,59 @@ function applyExecuteSkill(state, { monsterIndex, skillType }) {
     return addLog(state, 'このモンスターは既に技を使用しています', 'info');
   }
 
-  // TODO: 実際の技効果実行（effectEngineとの統合）
+  // チャージ確認
+  const requiredCharges = skillType === 'basic' ? 1 : 2;
+  const chargesCount = monster.charges?.length || 0;
+  if (chargesCount < requiredCharges) {
+    return addLog(state, `チャージが足りません（必要: ${requiredCharges}, 現在: ${chargesCount}）`, 'info');
+  }
 
-  // 技使用済みフラグを設定
+  // スキルテキストを取得
+  const skillText = skillType === 'basic'
+    ? (monster.basicSkill || '')
+    : (monster.advancedSkill || '');
+
+  if (!skillText) {
+    return addLog(state, '技が見つかりません', 'info');
+  }
+
+  // 技使用済みフラグを設定し、チャージを消費
+  const newCharges = [...(monster.charges || [])];
+  for (let i = 0; i < requiredCharges; i++) {
+    newCharges.shift();
+  }
+
   const newField = [...player.field];
   newField[monsterIndex] = {
     ...monster,
     usedSkillThisTurn: true,
+    charges: newCharges,
   };
 
   let newState = updatePlayer(state, state.currentPlayer, { field: newField });
   newState = addLog(newState, `${monster.name}が${skillType === 'basic' ? '基本技' : '上級技'}を発動！`, 'info');
+
+  // contextアダプターを使用して技効果を実行
+  try {
+    const { createPureContext } = require('./contextAdapter');
+    const { executeSkillEffects } = require('../effectEngine');
+
+    const context = createPureContext(newState, {
+      monsterIndex,
+      skillType,
+      card: monster,
+    });
+
+    // 技効果を実行
+    executeSkillEffects(skillText, context, monster.id);
+
+    // 更新されたstateを取得
+    newState = context.getState();
+  } catch (error) {
+    // effectEngineが使えない場合はログのみ
+    console.warn('Effect engine not available:', error);
+    newState = addLog(newState, '(シミュレーション: 技効果省略)', 'info');
+  }
 
   return newState;
 }
