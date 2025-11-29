@@ -1163,6 +1163,10 @@ export default function MagicSpiritGame() {
         attribute: card.attribute,
       };
 
+      // Phase B-3: handCardIndexを取得（dispatch用）
+      const hand = currentPlayer === 1 ? p1Hand : p2Hand;
+      const handCardIndex = hand.findIndex(c => c.uniqueId === card.uniqueId);
+
       if (currentPlayer === 1) {
         setP1Field(prev => {
           const newField = [...prev];
@@ -1187,12 +1191,18 @@ export default function MagicSpiritGame() {
 
       setChargeUsedThisTurn(true);
       addLog(`${monster.name}に${card.name}をチャージしました`, 'info');
+
+      // Phase B-3: engineStateにも反映
+      if (handCardIndex !== -1) {
+        dispatch(gameActions.chargeCard(handCardIndex, monsterIndex));
+      }
+
       return true;
     }
 
     addLog('チャージできるのは属性カードのみです', 'damage');
     return false;
-  }, [currentPlayer, p1Field, p2Field, chargeUsedThisTurn, addLog]);
+  }, [currentPlayer, p1Field, p2Field, p1Hand, p2Hand, chargeUsedThisTurn, addLog, dispatch]);
 
   // SPチャージ処理（SPトークンをモンスターにチャージ）
   const chargeSP = useCallback((monsterIndex) => {
@@ -1244,8 +1254,12 @@ export default function MagicSpiritGame() {
     setChargeUsedThisTurn(true);
 
     addLog(`${monster.name}にSPトークンをチャージ`, 'info');
+
+    // Phase B-3: engineStateにも反映
+    dispatch(gameActions.chargeSP(monsterIndex));
+
     return true;
-  }, [currentPlayer, p1Field, p2Field, p1ActiveSP, p2ActiveSP, chargeUsedThisTurn, addLog]);
+  }, [currentPlayer, p1Field, p2Field, p1ActiveSP, p2ActiveSP, chargeUsedThisTurn, addLog, dispatch]);
 
   // フェイズカードへのチャージ処理
   const chargePhaseCard = useCallback((card) => {

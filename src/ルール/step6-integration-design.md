@@ -246,7 +246,33 @@ const nextPhase = () => {
 
 ---
 
-## 7. 成功基準
+## 7. 次のステップ（Phase B-3以降）
+
+### Phase B-3: 補助アクションのシャドウディスパッチ化
+
+| アクション | 優先度 | 複雑度 | 備考 |
+|-----------|-------|-------|------|
+| chargeCard | 中 | 低 | 単純なカード移動 |
+| chargeSP | 中 | 低 | SPトークン消費 |
+| executeSkill | 高 | 高 | effectEngine統合必要 |
+| placeFieldCard | 低 | 中 | フィールドカード配置 |
+| useMagicCard | 中 | 高 | effectEngine統合必要 |
+
+### Phase C: UIの状態参照移行（将来）
+
+1. UIコンポーネントが `engineState` を直接参照
+2. 互換レイヤー (`p1Life = engineState?.p1?.life ?? INITIAL_LIFE`) を活用
+3. 読み取り専用参照から段階的に移行
+
+### Phase D: useState削除（最終目標）
+
+1. `engineState` が唯一の状態源泉
+2. UIは `engineState` を参照、アクションは `dispatch` 経由
+3. magic-spirit.jsx のロジック行数を大幅削減
+
+---
+
+## 8. 成功基準
 
 1. **既存機能維持**: 全ての現行機能が動作
 2. **useState削減**: 33個 → 1個（GameState）

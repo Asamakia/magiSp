@@ -378,41 +378,25 @@
 
 ---
 
-## 🏗️ アーキテクチャ課題
+## 🏗️ アーキテクチャ課題とリファクタリング
 
-### 現状の問題点
+**詳細**: `game-engine-refactoring-plan.md` を参照
 
-```
-magic-spirit.jsx (5,909行)
-├── useState × 70個           ← React依存
-├── ゲームロジック (~3,900行)  ← UIと密結合
-└── UIレンダリング (~2,000行)
-```
+### 現状
+- `magic-spirit.jsx` (5,909行) にゲームロジックとUIが密結合
+- React hooks (useState × 70個) に依存
+- ヘッドレス実行・ユニットテストが困難
 
-**問題**:
-1. ゲームロジックがReact hooksに依存
-2. ヘッドレス（UIなし）実行が不可能
-3. テストが困難
-4. AI対戦シミュレーションができない
+### 進行中のリファクタリング
+- **GameEngine** (`src/engine/gameEngine/`): 純粋JavaScript版ゲームエンジン
+  - `GameState.js` (385行): 状態定義
+  - `GameActions.js` (805行): アクション処理
+  - `Simulator.js` (245行): ヘッドレス対戦（100戦40ms達成）
+  - `useGameEngine.js` (260行): Reactアダプター
+- **シャドウディスパッチ方式**: UI (useState) と GameEngine (engineState) の並行更新
+- **進捗**: Step 6 (React統合) 進行中、41テスト成功
 
-### 理想の構造
-
-```
-src/engine/
-├── gameEngine/              # 新規（ヘッドレス実行可能）
-│   ├── GameState.js        # 状態型定義
-│   ├── GameActions.js      # 純粋関数アクション
-│   ├── GameFlow.js         # フェイズ進行
-│   └── Simulator.js        # 高速シミュレーション
-│
-├── effectEngine.js          # 既存（そのまま使用）
-├── triggerEngine.js         # 既存（そのまま使用）
-├── continuousEffects/       # 既存（そのまま使用）
-├── statusEffects/           # 既存（そのまま使用）
-└── ai/                      # 既存（そのまま使用）
-
-src/magic-spirit.jsx         # UIアダプター化（ロジック削減）
-```
+**統合詳細**: `step6-integration-design.md` を参照
 
 ---
 

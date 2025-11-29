@@ -625,7 +625,16 @@ useEffect(() => {
 
 ### 次のステップ
 
-**magic-spirit.jsx への統合（保留）**
+**Phase B進行中（シャドウディスパッチ方式）**
+- [x] Phase B-1: nextPhase/processPhase のシャドウディスパッチ化
+- [x] Phase B-2: summonCard/attack のシャドウディスパッチ化
+- [ ] Phase B-3: chargeCard/chargeSP のシャドウディスパッチ化
+- [ ] Phase B-4: executeSkill のシャドウディスパッチ化（effectEngine統合必要）
+
+**詳細**: `step6-integration-design.md` を参照
+
+**最終目標（magic-spirit.jsx 大幅改修）**
 - 約70個のuseStateを1つのGameStateに統合
+- UIがengineStateを直接参照
 - 大規模変更のためリスク評価が必要
 - 既存機能が多いため段階的移行を推奨
