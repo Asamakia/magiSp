@@ -1078,5 +1078,367 @@ export const darkCardEffects = {
     return false;
   },
 
+  /**
+   * C0000100: 闇の収集
+   * 相手の墓地のカードを2枚除外し、デッキから闇属性モンスター1枚を手札に加える。
+   */
+  C0000100: (skillText, context) => {
+    const { addLog } = context;
+    const { opponentGraveyard, setOpponentGraveyard } = getPlayerContext(context);
+
+    // 相手の墓地から2枚除外
+    if (opponentGraveyard.length < 2) {
+      addLog('相手の墓地にカードが2枚以上ありません', 'info');
+      return false;
+    }
+
+    // 2枚を除外（ランダムに選択）
+    const graveyardCopy = [...opponentGraveyard];
+    const exiledCards = [];
+    for (let i = 0; i < 2 && graveyardCopy.length > 0; i++) {
+      const randomIndex = Math.floor(Math.random() * graveyardCopy.length);
+      exiledCards.push(graveyardCopy.splice(randomIndex, 1)[0]);
+    }
+
+    setOpponentGraveyard(graveyardCopy);
+    addLog(`相手の墓地から${exiledCards.map(c => c.name).join('、')}を除外`, 'info');
+
+    // デッキから闇属性モンスターをサーチ
+    const foundCard = searchCard(context, (card) => {
+      return card.attribute === '闇' && card.type === 'monster';
+    });
+
+    if (foundCard) {
+      addLog(`${foundCard.name}を手札に加えた`, 'info');
+    } else {
+      addLog('デッキに闇属性モンスターがありませんでした', 'info');
+    }
+
+    return true;
+  },
+
+  /**
+   * C0000101: シャドウ・カース
+   * 相手モンスター1体の攻撃力をターン終了時まで0にし、
+   * そのモンスターの効果を次のターン終了時まで無効化。
+   */
+  C0000101: (skillText, context) => {
+    const { addLog, setPendingTargetSelection } = context;
+    const { opponentField, setOpponentField } = getPlayerContext(context);
+
+    const monsters = opponentField.filter((m) => m !== null);
+    if (monsters.length === 0) {
+      addLog('相手フィールドにモンスターがいません', 'info');
+      return false;
+    }
+
+    // 対象選択が必要
+    if (monsters.length > 1 && setPendingTargetSelection) {
+      setPendingTargetSelection({
+        message: 'シャドウ・カースの対象を選択',
+        validTargets: opponentField.map((m, i) => (m ? i : -1)).filter((i) => i >= 0),
+        isOpponentField: true,
+        callback: (targetIndex) => {
+          setOpponentField((prev) => {
+            const newField = [...prev];
+            if (newField[targetIndex]) {
+              const target = newField[targetIndex];
+              addLog(`${target.name}の攻撃力が0に、効果が無効化された！`, 'info');
+              newField[targetIndex] = {
+                ...target,
+                currentAttack: 0,
+                effectNegatedUntilEndOfNextTurn: true,
+              };
+            }
+            return newField;
+          });
+        },
+      });
+      return true;
+    }
+
+    // 1体のみの場合は自動選択
+    const targetIndex = opponentField.findIndex((m) => m !== null);
+    setOpponentField((prev) => {
+      const newField = [...prev];
+      if (newField[targetIndex]) {
+        const target = newField[targetIndex];
+        addLog(`${target.name}の攻撃力が0に、効果が無効化された！`, 'info');
+        newField[targetIndex] = {
+          ...target,
+          currentAttack: 0,
+          effectNegatedUntilEndOfNextTurn: true,
+        };
+      }
+      return newField;
+    });
+
+    return true;
+  },
+
+  /**
+   * C0000102: 暗黒の略奪
+   * 手札を1枚捨てる。そのコスト以下の相手の場にいる禁忌カード以外のモンスター1体のコントロールを奪う。
+   * エンドフェイズに、そのモンスターを破壊して自分に800ダメージ。
+   */
+  C0000102: (skillText, context) => {
+    const { addLog, setPendingHandSelection, setPendingTargetSelection } = context;
+    const { myHand, setMyHand, myField, setMyField, opponentField, setOpponentField, currentPlayer } =
+      getPlayerContext(context);
+
+    if (myHand.length === 0) {
+      addLog('手札がありません', 'info');
+      return false;
+    }
+
+    // 手札選択が必要
+    if (setPendingHandSelection) {
+      setPendingHandSelection({
+        message: '捨てるカードを選択（そのコスト以下のモンスターを奪う）',
+        callback: (selectedCard) => {
+          // 手札から削除
+          setMyHand((prev) => prev.filter((c) => c.uniqueId !== selectedCard.uniqueId));
+          addLog(`${selectedCard.name}を捨てた（コスト: ${selectedCard.cost || 0}）`, 'info');
+
+          const discardedCost = selectedCard.cost || 0;
+
+          // 対象となるモンスターを検索
+          const validTargets = opponentField
+            .map((m, i) => ({ monster: m, index: i }))
+            .filter(
+              ({ monster }) =>
+                monster &&
+                !monster.forbidden &&
+                (monster.cost || 0) <= discardedCost
+            );
+
+          if (validTargets.length === 0) {
+            addLog('コントロールを奪える対象がいません', 'info');
+            return;
+          }
+
+          // 自分の場の空きスロットを確認
+          const emptySlotIndex = myField.findIndex((slot) => slot === null);
+          if (emptySlotIndex === -1) {
+            addLog('自分の場が満杯です', 'info');
+            return;
+          }
+
+          // 対象選択
+          if (validTargets.length > 1 && setPendingTargetSelection) {
+            setPendingTargetSelection({
+              message: 'コントロールを奪うモンスターを選択',
+              validTargets: validTargets.map((t) => t.index),
+              isOpponentField: true,
+              callback: (targetIndex) => {
+                const stolenMonster = opponentField[targetIndex];
+                // 相手の場から削除
+                setOpponentField((prev) => {
+                  const newField = [...prev];
+                  newField[targetIndex] = null;
+                  return newField;
+                });
+                // 自分の場に追加（エンドフェイズに破壊フラグ）
+                setMyField((prev) => {
+                  const newField = [...prev];
+                  newField[emptySlotIndex] = {
+                    ...stolenMonster,
+                    owner: currentPlayer,
+                    canAttack: false,
+                    destroyAtEndPhase: true,
+                    damageOwnerOnDestroy: 800,
+                  };
+                  return newField;
+                });
+                addLog(`${stolenMonster.name}のコントロールを奪った！`, 'info');
+              },
+            });
+          } else {
+            // 1体のみ
+            const { monster: stolenMonster, index: targetIndex } = validTargets[0];
+            setOpponentField((prev) => {
+              const newField = [...prev];
+              newField[targetIndex] = null;
+              return newField;
+            });
+            setMyField((prev) => {
+              const newField = [...prev];
+              newField[emptySlotIndex] = {
+                ...stolenMonster,
+                owner: currentPlayer,
+                canAttack: false,
+                destroyAtEndPhase: true,
+                damageOwnerOnDestroy: 800,
+              };
+              return newField;
+            });
+            addLog(`${stolenMonster.name}のコントロールを奪った！`, 'info');
+          }
+        },
+      });
+      return true;
+    }
+
+    return false;
+  },
+
+  /**
+   * C0000103: 奈落の呼び声
+   * 自分の墓地のコスト4以下闇属性モンスター1体を場に戻し、そのターン終了時まで攻撃力を600アップ。
+   */
+  C0000103: (skillText, context) => {
+    const { addLog, setPendingGraveyardSelection } = context;
+    const { myGraveyard, setMyGraveyard, myField, setMyField, currentPlayer } = getPlayerContext(context);
+
+    // 対象となるモンスターを検索
+    const validMonsters = myGraveyard.filter(
+      (card) =>
+        card.type === 'monster' &&
+        card.attribute === '闇' &&
+        (card.cost || 0) <= 4
+    );
+
+    if (validMonsters.length === 0) {
+      addLog('墓地にコスト4以下の闇属性モンスターがいません', 'info');
+      return false;
+    }
+
+    // 空きスロット確認
+    const emptySlotIndex = myField.findIndex((slot) => slot === null);
+    if (emptySlotIndex === -1) {
+      addLog('場が満杯です', 'info');
+      return false;
+    }
+
+    // 墓地選択が必要
+    if (validMonsters.length > 1 && setPendingGraveyardSelection) {
+      setPendingGraveyardSelection({
+        message: '蘇生するコスト4以下の闇属性モンスターを選択',
+        cards: validMonsters,
+        callback: (selectedCard) => {
+          // 墓地から削除
+          setMyGraveyard((prev) => prev.filter((c) => c.uniqueId !== selectedCard.uniqueId));
+          // 場に蘇生（攻撃力+600）
+          setMyField((prev) => {
+            const newField = [...prev];
+            const boostedAttack = (selectedCard.attack || 0) + 600;
+            newField[emptySlotIndex] = {
+              ...selectedCard,
+              currentAttack: boostedAttack,
+              currentHp: selectedCard.hp || selectedCard.currentHp,
+              maxHp: selectedCard.hp,
+              canAttack: false,
+              owner: currentPlayer,
+              charges: [],
+              statusEffects: [],
+              usedSkillThisTurn: false,
+              attackBoostUntilEndOfTurn: 600,
+            };
+            return newField;
+          });
+          addLog(`${selectedCard.name}を蘇生！攻撃力が600アップ！`, 'info');
+        },
+      });
+      return true;
+    }
+
+    // 1体のみの場合
+    const targetCard = validMonsters[0];
+    setMyGraveyard((prev) => prev.filter((c) => c.uniqueId !== targetCard.uniqueId));
+    setMyField((prev) => {
+      const newField = [...prev];
+      const boostedAttack = (targetCard.attack || 0) + 600;
+      newField[emptySlotIndex] = {
+        ...targetCard,
+        currentAttack: boostedAttack,
+        currentHp: targetCard.hp || targetCard.currentHp,
+        maxHp: targetCard.hp,
+        canAttack: false,
+        owner: currentPlayer,
+        charges: [],
+        statusEffects: [],
+        usedSkillThisTurn: false,
+        attackBoostUntilEndOfTurn: 600,
+      };
+      return newField;
+    });
+    addLog(`${targetCard.name}を蘇生！攻撃力が600アップ！`, 'info');
+
+    return true;
+  },
+
+  /**
+   * C0000104: 闇の崩壊
+   * 場にいる全てのモンスターの攻撃力を半分にし、相手モンスター全体にその差分の合計ダメージを与える。
+   */
+  C0000104: (skillText, context) => {
+    const { addLog } = context;
+    const { myField, setMyField, opponentField, setOpponentField, setOpponentGraveyard } =
+      getPlayerContext(context);
+
+    let totalDamage = 0;
+
+    // 自分のモンスターの攻撃力を半減し、差分を計算
+    setMyField((prev) => {
+      return prev.map((monster) => {
+        if (monster) {
+          const oldAttack = monster.currentAttack || monster.attack || 0;
+          const newAttack = Math.floor(oldAttack / 2);
+          const diff = oldAttack - newAttack;
+          totalDamage += diff;
+          addLog(`${monster.name}の攻撃力: ${oldAttack} → ${newAttack}`, 'info');
+          return { ...monster, currentAttack: newAttack };
+        }
+        return monster;
+      });
+    });
+
+    // 相手のモンスターの攻撃力を半減し、差分を計算
+    const opponentDiffs = [];
+    setOpponentField((prev) => {
+      return prev.map((monster) => {
+        if (monster) {
+          const oldAttack = monster.currentAttack || monster.attack || 0;
+          const newAttack = Math.floor(oldAttack / 2);
+          const diff = oldAttack - newAttack;
+          totalDamage += diff;
+          opponentDiffs.push({ name: monster.name, oldAttack, newAttack });
+          addLog(`${monster.name}の攻撃力: ${oldAttack} → ${newAttack}`, 'info');
+          return { ...monster, currentAttack: newAttack };
+        }
+        return monster;
+      });
+    });
+
+    addLog(`攻撃力差分の合計: ${totalDamage}`, 'info');
+
+    // 相手モンスター全体に差分ダメージ
+    if (totalDamage > 0) {
+      const destroyedMonsters = [];
+      setOpponentField((prev) => {
+        return prev.map((monster) => {
+          if (monster) {
+            const newHp = monster.currentHp - totalDamage;
+            addLog(`${monster.name}に${totalDamage}ダメージ！（残りHP: ${Math.max(0, newHp)}）`, 'damage');
+            if (newHp <= 0) {
+              destroyedMonsters.push(monster);
+              return null;
+            }
+            return { ...monster, currentHp: newHp };
+          }
+          return monster;
+        });
+      });
+
+      // 破壊されたモンスターを墓地に送る
+      if (destroyedMonsters.length > 0) {
+        setOpponentGraveyard((prev) => [...prev, ...destroyedMonsters]);
+        destroyedMonsters.forEach((m) => addLog(`${m.name}は破壊された！`, 'damage'));
+      }
+    }
+
+    return true;
+  },
+
   // 他の闇属性カードを追加...
 };

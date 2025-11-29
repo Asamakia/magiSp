@@ -141,10 +141,11 @@ export const futureCardEffects = {
   /**
    * C0000105: 魔導炉の残骸獣
    * 【召喚時】自分の墓地の未来属性カード1枚をデッキに戻す。その後、相手プレイヤーに300ダメージを与える
+   * 基本技: このカードの攻撃力をターン終了時まで1200に変更
    */
   C0000105: (skillText, context) => {
-    const { addLog } = context;
-    const { myGraveyard, setMyGraveyard, setMyDeck } = getPlayerContext(context);
+    const { addLog, monsterIndex } = context;
+    const { myGraveyard, setMyGraveyard, setMyDeck, setMyField } = getPlayerContext(context);
 
     if (skillText.includes('【召喚時】')) {
       // 墓地から未来属性カードを検索
@@ -161,6 +162,18 @@ export const futureCardEffects = {
 
       // 相手に300ダメージ
       conditionalDamage(context, 300, 'opponent');
+      return true;
+    }
+
+    // 基本技: 攻撃力を1200に変更
+    if (context.skillType === 'basic') {
+      setMyField(prev => prev.map((m, idx) => {
+        if (idx === monsterIndex && m) {
+          addLog(`${m.name}の攻撃力が1200に変更！`, 'info');
+          return { ...m, currentAttack: 1200, attackModifiedUntilEndOfTurn: true };
+        }
+        return m;
+      }));
       return true;
     }
 
@@ -1075,6 +1088,166 @@ export const futureCardEffects = {
       });
 
       return true;
+    }
+
+    return false;
+  },
+
+  /**
+   * C0000107: 守護の魔導ゴーレム
+   * 基本技: SPトークン2個をレスト状態にし、自分のモンスター全体に「守護」を付与する
+   * 上級技: 自分の手札1枚を墓地に送り、自分の墓地のモンスター1体を場に戻す（攻撃力半減、HP半減、効果無効）
+   * ※トリガー（エンドフェイズ時のHP回復）はfutureCards.jsで実装済み
+   */
+  C0000107: (skillText, context) => {
+    const { addLog, setPendingHandSelection, setPendingGraveyardSelection } = context;
+    const {
+      myField,
+      setMyField,
+      myActiveSP,
+      setMyActiveSP,
+      setMyRestedSP,
+      myHand,
+      setMyHand,
+      myGraveyard,
+      setMyGraveyard,
+      currentPlayer,
+    } = getPlayerContext(context);
+
+    // 基本技: SP2個レスト、全体に守護付与
+    if (context.skillType === 'basic') {
+      // SP確認
+      if (myActiveSP < 2) {
+        addLog('アクティブSPが2個以上必要です', 'info');
+        return false;
+      }
+
+      // SP2個をレスト
+      setMyActiveSP((prev) => prev - 2);
+      setMyRestedSP((prev) => prev + 2);
+      addLog('SPトークン2個をレスト状態にした', 'info');
+
+      // 自分のモンスター全体に守護を付与
+      let guardApplied = false;
+      setMyField((prev) =>
+        prev.map((monster) => {
+          if (monster) {
+            guardApplied = true;
+            // 既存のstatusEffectsに守護を追加
+            const newStatusEffects = [...(monster.statusEffects || [])];
+            // 既に守護があれば追加しない
+            if (!newStatusEffects.some((e) => e.type === 'GUARD')) {
+              newStatusEffects.push({
+                type: 'GUARD',
+                duration: -1, // 1回使用で消費
+                source: 'C0000107',
+                sourceName: '守護の魔導ゴーレム',
+              });
+              addLog(`${monster.name}に守護を付与！`, 'info');
+            }
+            return { ...monster, statusEffects: newStatusEffects };
+          }
+          return monster;
+        })
+      );
+
+      if (!guardApplied) {
+        addLog('守護を付与する対象がいません', 'info');
+      }
+
+      return true;
+    }
+
+    // 上級技: 手札1枚捨て、墓地からモンスター蘇生（半減、効果無効）
+    if (context.skillType === 'advanced') {
+      // 手札確認
+      if (myHand.length === 0) {
+        addLog('手札がありません', 'info');
+        return false;
+      }
+
+      // 墓地にモンスターがあるか確認
+      const validMonsters = myGraveyard.filter((card) => card.type === 'monster');
+      if (validMonsters.length === 0) {
+        addLog('墓地にモンスターがいません', 'info');
+        return false;
+      }
+
+      // 空きスロット確認
+      const emptySlotIndex = myField.findIndex((slot) => slot === null);
+      if (emptySlotIndex === -1) {
+        addLog('場が満杯です', 'info');
+        return false;
+      }
+
+      // 手札選択
+      if (setPendingHandSelection) {
+        setPendingHandSelection({
+          message: '墓地に送るカードを選択',
+          callback: (selectedCard) => {
+            // 手札から墓地へ
+            setMyHand((prev) => prev.filter((c) => c.uniqueId !== selectedCard.uniqueId));
+            setMyGraveyard((prev) => [...prev, selectedCard]);
+            addLog(`${selectedCard.name}を墓地に送った`, 'info');
+
+            // 墓地からモンスター選択
+            const monstersInGraveyard = myGraveyard.filter((card) => card.type === 'monster');
+
+            if (monstersInGraveyard.length === 1) {
+              // 1体のみの場合は自動選択
+              const targetCard = monstersInGraveyard[0];
+              performRevive(targetCard);
+            } else if (monstersInGraveyard.length > 1 && setPendingGraveyardSelection) {
+              // 複数の場合は選択
+              setPendingGraveyardSelection({
+                message: '蘇生するモンスターを選択（攻撃力・HP半減、効果無効）',
+                cards: monstersInGraveyard,
+                callback: (targetCard) => {
+                  performRevive(targetCard);
+                },
+              });
+            }
+
+            function performRevive(targetCard) {
+              // 墓地から削除
+              setMyGraveyard((prev) => prev.filter((c) => c.uniqueId !== targetCard.uniqueId));
+
+              // 場に蘇生（攻撃力・HP半減、効果無効）
+              const halfAttack = Math.floor((targetCard.attack || 0) / 2);
+              const halfHp = Math.floor((targetCard.hp || 0) / 2);
+
+              setMyField((prev) => {
+                const newField = [...prev];
+                const slot = newField.findIndex((s) => s === null);
+                if (slot !== -1) {
+                  newField[slot] = {
+                    ...targetCard,
+                    currentAttack: halfAttack,
+                    attack: halfAttack,
+                    currentHp: halfHp,
+                    maxHp: halfHp,
+                    hp: halfHp,
+                    canAttack: false,
+                    owner: currentPlayer,
+                    charges: [],
+                    statusEffects: [],
+                    usedSkillThisTurn: false,
+                    effectNegated: true, // 効果無効
+                  };
+                  addLog(
+                    `${targetCard.name}を蘇生！（ATK: ${halfAttack}, HP: ${halfHp}, 効果無効）`,
+                    'info'
+                  );
+                }
+                return newField;
+              });
+            }
+          },
+        });
+        return true;
+      }
+
+      return false;
     }
 
     return false;
