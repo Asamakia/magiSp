@@ -4,11 +4,20 @@
  * 価格変動の計算を行うコアロジック
  */
 
-import { MAX_MODIFIER_UP, MAX_MODIFIER_DOWN, DAYS_PER_WEEK, SUDDEN_EVENT_CHANCE } from './constants';
+import {
+  MAX_MODIFIER_UP,
+  MAX_MODIFIER_DOWN,
+  DAYS_PER_WEEK,
+  SUDDEN_EVENT_CHANCE,
+  PERSISTENT_ACCUMULATION_RATE,
+  REGRESSION_THRESHOLDS,
+  ATTRIBUTES,
+} from './constants';
 import { createWeeklyTrend } from './weeklyTrend';
 import { generateDailyNews } from './newsGenerator';
 import { generateSuddenEvent } from './suddenEvents';
 import { createInitialPriceHistory } from './priceHistory';
+import { CATEGORIES } from './data/categories';
 
 // ========================================
 // 市場変動計算
@@ -110,6 +119,40 @@ export const isCardAffected = (card, target, rarity = null, tier = null) => {
 };
 
 /**
+ * カードに適用される永続変動を計算
+ *
+ * @param {Object} card - カードデータ
+ * @param {Object} persistentModifiers - 永続変動データ
+ * @returns {number} 永続変動率（%）
+ */
+export const calculatePersistentModifier = (card, persistentModifiers) => {
+  if (!persistentModifiers) return 0;
+
+  let totalPersistent = 0;
+
+  // 属性の永続変動
+  const rawAttribute = card.attribute?.trim?.() || card.attribute;
+  const attribute = (rawAttribute && rawAttribute !== '') ? rawAttribute : 'なし';
+  if (persistentModifiers.attributes && persistentModifiers.attributes[attribute]) {
+    totalPersistent += persistentModifiers.attributes[attribute];
+  }
+
+  // カテゴリの永続変動
+  let category = null;
+  if (Array.isArray(card.category) && card.category.length > 0) {
+    category = card.category[0];
+  } else if (card.category && typeof card.category === 'string') {
+    const match = card.category.match(/【([^】]+)】/);
+    category = match ? match[1] : null;
+  }
+  if (category && persistentModifiers.categories && persistentModifiers.categories[category]) {
+    totalPersistent += persistentModifiers.categories[category];
+  }
+
+  return totalPersistent;
+};
+
+/**
  * 市場変動率を計算
  *
  * @param {Object} card - カードデータ
@@ -120,6 +163,10 @@ export const isCardAffected = (card, target, rarity = null, tier = null) => {
  */
 export const calculateMarketModifier = (card, marketState, rarity = null, tier = null) => {
   let totalModifier = 0;
+
+  // 0. 永続変動の効果（上限なしで適用）
+  const persistentModifier = calculatePersistentModifier(card, marketState.persistentModifiers);
+  totalModifier += persistentModifier;
 
   // 1. 週間トレンドの効果
   if (marketState.weeklyTrend && marketState.weeklyTrend.effects) {
@@ -173,7 +220,7 @@ export const calculateMarketModifier = (card, marketState, rarity = null, tier =
     }
   }
 
-  // 4. 上限・下限の適用
+  // 4. 上限・下限の適用（永続変動は上限を超えていても、一時的変動との合計に適用）
   totalModifier = Math.max(MAX_MODIFIER_DOWN, Math.min(MAX_MODIFIER_UP, totalModifier));
 
   return totalModifier;
@@ -207,6 +254,15 @@ export const getCardMarketPrice = (card, baseValue, marketState, rarity = null, 
 
   // 内訳を生成
   const breakdown = [];
+
+  // 永続変動の内訳
+  const persistentMod = calculatePersistentModifier(card, marketState.persistentModifiers);
+  if (persistentMod !== 0) {
+    breakdown.push({
+      source: '永続トレンド',
+      modifier: `${persistentMod > 0 ? '+' : ''}${Math.round(persistentMod * 10) / 10}%`,
+    });
+  }
 
   if (marketState.weeklyTrend) {
     for (const effect of marketState.weeklyTrend.effects) {
@@ -266,6 +322,20 @@ export const getCardMarketPrice = (card, baseValue, marketState, rarity = null, 
 // ========================================
 
 /**
+ * 初期永続変動データを作成
+ *
+ * @returns {Object} 永続変動データ
+ */
+export const createInitialPersistentModifiers = () => {
+  return {
+    // 属性別永続変動
+    attributes: Object.fromEntries(ATTRIBUTES.map(a => [a, 0])),
+    // カテゴリ別永続変動
+    categories: Object.fromEntries(CATEGORIES.map(c => [c, 0])),
+  };
+};
+
+/**
  * 初期市場状態を作成
  *
  * @returns {Object} 初期市場状態
@@ -282,7 +352,100 @@ export const createInitialMarketState = () => {
     recentNews: [dailyNews],
     recentSuddenEvents: [],
     priceHistory: createInitialPriceHistory(),
+    persistentModifiers: createInitialPersistentModifiers(),
   };
+};
+
+/**
+ * 回帰圧力を適用
+ * 永続変動が大きいほど0に戻ろうとする力が働く
+ *
+ * @param {number} currentValue - 現在の永続変動値
+ * @returns {number} 回帰後の値
+ */
+const applyRegressionPressure = (currentValue) => {
+  const absValue = Math.abs(currentValue);
+
+  // 閾値は大きい順にチェック
+  for (const { threshold, chance, amount } of REGRESSION_THRESHOLDS) {
+    if (absValue > threshold) {
+      if (Math.random() < chance) {
+        // 0に向かって回帰
+        const regression = currentValue > 0 ? -amount : amount;
+        return currentValue + regression;
+      }
+      break; // 最初にマッチした閾値のみ適用
+    }
+  }
+
+  return currentValue;
+};
+
+/**
+ * デイリーニュースから永続変動を蓄積
+ *
+ * @param {Object} persistentModifiers - 現在の永続変動
+ * @param {Object} dailyNews - 当日のデイリーニュース
+ * @returns {Object} 更新された永続変動
+ */
+const accumulatePersistentModifiers = (persistentModifiers, dailyNews) => {
+  if (!dailyNews) return persistentModifiers;
+
+  const newModifiers = JSON.parse(JSON.stringify(persistentModifiers));
+
+  // デイリーニュースのターゲットから永続変動を蓄積
+  const processTarget = (target, modifier) => {
+    const accumulation = modifier * PERSISTENT_ACCUMULATION_RATE;
+
+    // 属性ターゲット
+    if (target.attribute && newModifiers.attributes[target.attribute] !== undefined) {
+      newModifiers.attributes[target.attribute] += accumulation;
+    }
+
+    // カテゴリターゲット
+    if (target.category) {
+      // 【】を除去してカテゴリ名を取得
+      const categoryName = target.category.replace(/【|】/g, '');
+      if (newModifiers.categories[categoryName] !== undefined) {
+        newModifiers.categories[categoryName] += accumulation;
+      }
+    }
+  };
+
+  // 比較型ニュース
+  if (dailyNews.type === 'comparison' && dailyNews.targets) {
+    for (const targetInfo of dailyNews.targets) {
+      processTarget(targetInfo.target, targetInfo.modifier);
+    }
+  }
+  // 通常ニュース
+  else if (dailyNews.target && dailyNews.modifier) {
+    processTarget(dailyNews.target, dailyNews.modifier);
+  }
+
+  return newModifiers;
+};
+
+/**
+ * 全永続変動に回帰圧力を適用
+ *
+ * @param {Object} persistentModifiers - 永続変動データ
+ * @returns {Object} 回帰後の永続変動データ
+ */
+const applyAllRegressionPressure = (persistentModifiers) => {
+  const newModifiers = JSON.parse(JSON.stringify(persistentModifiers));
+
+  // 属性の回帰
+  for (const attr of Object.keys(newModifiers.attributes)) {
+    newModifiers.attributes[attr] = applyRegressionPressure(newModifiers.attributes[attr]);
+  }
+
+  // カテゴリの回帰
+  for (const cat of Object.keys(newModifiers.categories)) {
+    newModifiers.categories[cat] = applyRegressionPressure(newModifiers.categories[cat]);
+  }
+
+  return newModifiers;
 };
 
 /**
@@ -299,6 +462,21 @@ export const advanceDay = (marketState) => {
   if (!newState.priceHistory) {
     newState.priceHistory = createInitialPriceHistory();
   }
+
+  // persistentModifiersがない場合は初期化（マイグレーション対応）
+  if (!newState.persistentModifiers) {
+    newState.persistentModifiers = createInitialPersistentModifiers();
+  }
+
+  // === 永続変動の更新（日をまたぐ前の処理） ===
+  // 1. 前日のデイリーニュースから永続変動を蓄積
+  const accumulatedModifiers = accumulatePersistentModifiers(
+    newState.persistentModifiers,
+    marketState.dailyNews
+  );
+
+  // 2. 回帰圧力を適用
+  newState.persistentModifiers = applyAllRegressionPressure(accumulatedModifiers);
 
   // 週間トレンドの更新チェック（7戦ごと）
   const daysSinceTrendStart = newDay - marketState.weeklyTrend.startDay;
@@ -335,9 +513,11 @@ export const advanceDay = (marketState) => {
 
 export default {
   isCardAffected,
+  calculatePersistentModifier,
   calculateMarketModifier,
   calculateMarketPrice,
   getCardMarketPrice,
+  createInitialPersistentModifiers,
   createInitialMarketState,
   advanceDay,
 };
