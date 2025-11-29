@@ -162,7 +162,9 @@ export function clearBets() {
  * @returns {Object} 払い戻し結果
  */
 export function calculatePayouts(bets, tournament) {
-  if (tournament.status !== TOURNAMENT_STATUS.FINISHED) {
+  // PENDING_REWARD (報酬受け取り待ち) と FINISHED (終了) の両方で計算を許可
+  if (tournament.status !== TOURNAMENT_STATUS.FINISHED &&
+      tournament.status !== TOURNAMENT_STATUS.PENDING_REWARD) {
     return {
       bets: [],
       totalBet: 0,
