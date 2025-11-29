@@ -325,24 +325,27 @@ if (p1Life !== p1LifeFromEngine) {
 2. 表示用状態（life, SP, field）
 3. ロジック参照状態（hand, deck, graveyard）
 
-#### Phase C-2: 検証ツールの導入
+#### Phase C-2: UIの一部で互換レイヤー変数を使用 ✅ 完了
 
-開発中に二重管理の不整合を検出するツールを追加:
+**実装内容**:
+- 読み取り専用で影響が小さい3つの状態を互換レイヤー変数に置き換え
+- `logs` → `logsFromEngine`（GameLogコンポーネント）
+- `winner` → `winnerFromEngine`（ゲームオーバー画面）
+- `isFirstTurn` → `isFirstTurnFromEngine`（バトルフェイズ判定、AI用データ）
 
 ```javascript
-// useEffect で同期検証（開発モード）
-useEffect(() => {
-  if (process.env.NODE_ENV === 'development' && engineState) {
-    const mismatches = [];
-    if (p1Life !== engineState.p1?.life) mismatches.push('p1Life');
-    if (phase !== engineState.phase) mismatches.push('phase');
-    // ... 他の状態も
-    if (mismatches.length > 0) {
-      console.warn('State sync mismatch:', mismatches);
-    }
-  }
-}, [engineState, p1Life, phase, /* 他の依存 */]);
+// Before
+<GameLog logs={logs} />
+プレイヤー{winner}の勝利！
+if (isFirstTurn && currentPlayer === 1)
+
+// After (Phase C-2)
+<GameLog logs={logsFromEngine} />
+プレイヤー{winnerFromEngine}の勝利！
+if (isFirstTurnFromEngine && currentPlayer === 1)
 ```
+
+**注意**: 依存配列（useCallback等）にはuseStateを維持（変更検出用）
 
 #### Phase C-3: 段階的置き換え
 

@@ -634,7 +634,7 @@ useEffect(() => {
 
 **Phase C: UIの状態参照移行**
 - [x] Phase C-1: 互換レイヤー変数の導入（33個）+ 検証ツール拡張
-- [ ] Phase C-2: UIの一部で互換レイヤー変数を使用
+- [x] Phase C-2: UIの一部で互換レイヤー変数を使用（logs, winner, isFirstTurn）
 - [ ] Phase C-3: 全UIを互換レイヤー経由に切り替え
 
 **Phase D: useState削除（最終目標）**

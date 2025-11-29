@@ -1137,8 +1137,8 @@ export default function MagicSpiritGame() {
         break;
 
       case 3: // バトルフェイズ
-        // 先攻1ターン目は攻撃不可
-        if (isFirstTurn && currentPlayer === 1) {
+        // 先攻1ターン目は攻撃不可（Phase C-2: engineState参照）
+        if (isFirstTurnFromEngine && currentPlayer === 1) {
           addLog('先攻1ターン目は攻撃できません', 'info');
           // Phase B: dispatch経由でphaseを更新
           dispatch(gameActions.setPhase(4));
@@ -1286,7 +1286,7 @@ export default function MagicSpiritGame() {
         } else {
           setCurrentPlayer(1);
           setTurn(prev => prev + 1);
-          if (isFirstTurn) setIsFirstTurn(false);
+          if (isFirstTurnFromEngine) setIsFirstTurn(false); // Phase C-2: 読み取りはengineState
         }
         addLog(`プレイヤー${currentPlayer}のターン終了`, 'info');
         break;
@@ -3145,7 +3145,7 @@ export default function MagicSpiritGame() {
         const strategy = getStrategy(difficulty);
 
         const gameStateData = {
-          phase, turn, isFirstTurn,
+          phase, turn, isFirstTurn: isFirstTurnFromEngine, // Phase C-2: engineState参照
           p1Life, p2Life,
           p1Hand, p2Hand,
           p1Field, p2Field,
@@ -3184,7 +3184,7 @@ export default function MagicSpiritGame() {
     const strategy = getStrategy(difficulty);
 
     const gameStateData = {
-      phase, turn, isFirstTurn,
+      phase, turn, isFirstTurn: isFirstTurnFromEngine, // Phase C-2: engineState参照
       p1Life, p2Life,
       p1Hand, p2Hand,
       p1Field, p2Field,
@@ -4273,9 +4273,10 @@ export default function MagicSpiritGame() {
   if (gameState === 'gameOver') {
     // 報酬が未付与なら付与する
     if (!battleReward && playerData) {
-      // winner === 1 は P1 勝利、winner === 2 は P2 勝利
+      // Phase C-2: engineState参照
+      // winnerFromEngine === 1 は P1 勝利、winnerFromEngine === 2 は P2 勝利
       // ここでは P1 視点で報酬付与（将来的にマルチプレイヤー対応時に調整）
-      awardBattleRewards(winner === 1);
+      awardBattleRewards(winnerFromEngine === 1);
     }
 
     return (
@@ -4286,7 +4287,7 @@ export default function MagicSpiritGame() {
               🏆 ゲーム終了 🏆
             </h2>
             <p style={{ textAlign: 'center', fontSize: '24px', marginBottom: '16px' }}>
-              プレイヤー{winner}の勝利！
+              プレイヤー{winnerFromEngine}の勝利！ {/* Phase C-2: engineState参照 */}
             </p>
 
             {/* 報酬表示 */}
@@ -4944,7 +4945,7 @@ export default function MagicSpiritGame() {
             <div style={{ fontSize: '12px', fontWeight: 'bold', color: '#888', marginBottom: '8px' }}>
               📜 ログ
             </div>
-            <GameLog logs={logs} />
+            <GameLog logs={logsFromEngine} /> {/* Phase C-2: engineState参照 */}
           </div>
         </div>
 
