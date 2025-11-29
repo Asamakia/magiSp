@@ -3646,18 +3646,18 @@ export default function MagicSpiritGame() {
           alignItems: 'center',
           justifyContent: 'center',
           minHeight: '100vh',
-          gap: '32px',
-          padding: '32px 0',
+          gap: '12px',
+          padding: '12px 0',
           boxSizing: 'border-box',
         }}>
           <h1 style={{
             ...styles.title,
-            fontSize: '48px',
+            fontSize: '36px',
             textAlign: 'center',
           }}>
             ✨ Magic Spirit ✨
           </h1>
-          <p style={{ color: '#a0a0a0', fontSize: '18px' }}>
+          <p style={{ color: '#a0a0a0', fontSize: '16px', margin: 0 }}>
             スピリットウェイヴァーよ、戦いの時だ
           </p>
 
@@ -3685,8 +3685,8 @@ export default function MagicSpiritGame() {
               {/* デッキ選択UI */}
               <div style={{
                 display: 'flex',
-                gap: '40px',
-                marginBottom: '16px',
+                gap: '24px',
+                marginBottom: '4px',
               }}>
                 {/* プレイヤー1のデッキ選択 */}
                 <div style={{
@@ -3909,8 +3909,7 @@ export default function MagicSpiritGame() {
                   alignItems: 'center',
                   justifyContent: 'center',
                   gap: '12px',
-                  marginBottom: '16px',
-                  padding: '12px 20px',
+                  padding: '8px 16px',
                   background: 'rgba(255, 215, 0, 0.1)',
                   borderRadius: '8px',
                   border: '1px solid rgba(255, 215, 0, 0.3)',
@@ -3942,8 +3941,8 @@ export default function MagicSpiritGame() {
                 onClick={initGame}
                 style={{
                   ...styles.actionButton,
-                  fontSize: '20px',
-                  padding: '16px 48px',
+                  fontSize: '18px',
+                  padding: '12px 40px',
                 }}
               >
                 ゲーム開始
