@@ -656,9 +656,9 @@ function applyExecuteSkill(state, { monsterIndex, skillType }) {
   }
 
   // スキルテキストを取得
-  const skillText = skillType === 'basic'
-    ? (monster.basicSkill || '')
-    : (monster.advancedSkill || '');
+  // basicSkill/advancedSkillはオブジェクト（{text, attribute, cost}）または文字列
+  const skillData = skillType === 'basic' ? monster.basicSkill : monster.advancedSkill;
+  const skillText = typeof skillData === 'object' ? skillData?.text : skillData;
 
   if (!skillText) {
     return addLog(state, '技が見つかりません', 'info');
