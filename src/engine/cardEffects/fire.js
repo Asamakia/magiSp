@@ -1045,7 +1045,7 @@ export const fireCardEffects = {
    * 場にいる［ドラゴン］と名の付いたモンスター1体の攻撃力をターン終了時まで500アップし、相手プレイヤーに300ダメージを与える。
    */
   C0000031: (skillText, context) => {
-    const { addLog, setPendingTargetSelection } = context;
+    const { addLog, setPendingMonsterTarget } = context;
     const { myField, setMyField } = getPlayerContext(context);
 
     // ドラゴンモンスターを探す
@@ -1079,9 +1079,9 @@ export const fireCardEffects = {
     // 1体のみの場合は自動選択
     if (dragonIndices.length === 1) {
       applyBuff(dragonIndices[0].index);
-    } else if (setPendingTargetSelection) {
+    } else if (setPendingMonsterTarget) {
       // 複数の場合はターゲット選択UI
-      setPendingTargetSelection({
+      setPendingMonsterTarget({
         message: '攻撃力+500するドラゴンを選択',
         validTargets: dragonIndices.map(d => d.index),
         isOpponent: false,
@@ -1279,7 +1279,7 @@ export const fireCardEffects = {
    * 自分の場にいる《ドラゴン》と名のついたモンスター1体を破壊し、その攻撃力分のダメージを相手プレイヤーに与える。
    */
   C0000036: (skillText, context) => {
-    const { addLog, setPendingTargetSelection } = context;
+    const { addLog, setPendingMonsterTarget } = context;
     const { myField, setMyField, setMyGraveyard, setOpponentLife } = getPlayerContext(context);
 
     // 自分フィールドのドラゴンを探す
@@ -1319,8 +1319,8 @@ export const fireCardEffects = {
     // 1体のみの場合は自動選択
     if (dragonIndices.length === 1) {
       destroyAndDamage(dragonIndices[0].index);
-    } else if (setPendingTargetSelection) {
-      setPendingTargetSelection({
+    } else if (setPendingMonsterTarget) {
+      setPendingMonsterTarget({
         message: '破壊するドラゴンを選択',
         validTargets: dragonIndices.map(d => d.index),
         isOpponent: false,

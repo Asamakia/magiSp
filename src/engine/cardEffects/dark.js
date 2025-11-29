@@ -1123,7 +1123,7 @@ export const darkCardEffects = {
    * そのモンスターの効果を次のターン終了時まで無効化。
    */
   C0000101: (skillText, context) => {
-    const { addLog, setPendingTargetSelection } = context;
+    const { addLog, setPendingMonsterTarget } = context;
     const { opponentField, setOpponentField } = getPlayerContext(context);
 
     const monsters = opponentField.filter((m) => m !== null);
@@ -1133,8 +1133,8 @@ export const darkCardEffects = {
     }
 
     // 対象選択が必要
-    if (monsters.length > 1 && setPendingTargetSelection) {
-      setPendingTargetSelection({
+    if (monsters.length > 1 && setPendingMonsterTarget) {
+      setPendingMonsterTarget({
         message: 'シャドウ・カースの対象を選択',
         validTargets: opponentField.map((m, i) => (m ? i : -1)).filter((i) => i >= 0),
         isOpponentField: true,
@@ -1182,7 +1182,7 @@ export const darkCardEffects = {
    * エンドフェイズに、そのモンスターを破壊して自分に800ダメージ。
    */
   C0000102: (skillText, context) => {
-    const { addLog, setPendingHandSelection, setPendingTargetSelection } = context;
+    const { addLog, setPendingHandSelection, setPendingMonsterTarget } = context;
     const { myHand, setMyHand, myField, setMyField, opponentField, setOpponentField, currentPlayer } =
       getPlayerContext(context);
 
@@ -1225,8 +1225,8 @@ export const darkCardEffects = {
           }
 
           // 対象選択
-          if (validTargets.length > 1 && setPendingTargetSelection) {
-            setPendingTargetSelection({
+          if (validTargets.length > 1 && setPendingMonsterTarget) {
+            setPendingMonsterTarget({
               message: 'コントロールを奪うモンスターを選択',
               validTargets: validTargets.map((t) => t.index),
               isOpponentField: true,

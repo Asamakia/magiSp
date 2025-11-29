@@ -617,7 +617,7 @@ export const waterCardTriggers = {
       activationType: ACTIVATION_TYPES.AUTOMATIC,
       description: '召喚時: 《ブリザードキャット》×500ダメージ',
       effect: (context) => {
-        const { addLog, setPendingTargetSelection } = context;
+        const { addLog, setPendingMonsterTarget } = context;
         const { myField, opponentField, setOpponentField, setOpponentGraveyard } = getPlayerContext(context);
 
         // 場の《ブリザードキャット》をカウント
@@ -674,9 +674,9 @@ export const waterCardTriggers = {
         }
 
         // 複数いる場合は選択UI
-        if (setPendingTargetSelection) {
+        if (setPendingMonsterTarget) {
           addLog(`ブリザードキャット×${blizzardCatCount}で${damage}ダメージ！対象を選択...`, 'info');
-          setPendingTargetSelection({
+          setPendingMonsterTarget({
             message: `${damage}ダメージを与える相手モンスターを選択してください`,
             targetType: 'opponent_monster',
             callback: (selectedIndex) => {
@@ -1031,7 +1031,7 @@ export const waterCardTriggers = {
       activationType: ACTIVATION_TYPES.OPTIONAL,
       description: '【魂結】: 『ヴェルゼファール』とリンクし双方ATK+100',
       effect: (context) => {
-        const { monsterIndex, addLog, setPendingTargetSelection } = context;
+        const { monsterIndex, addLog, setPendingMonsterTarget } = context;
         const { myField, setMyField } = getPlayerContext(context);
 
         const effect = getKonketsuEffect('C0000333');
@@ -1057,8 +1057,8 @@ export const waterCardTriggers = {
         }
 
         // 複数対象がいる場合は選択UI
-        if (setPendingTargetSelection) {
-          setPendingTargetSelection({
+        if (setPendingMonsterTarget) {
+          setPendingMonsterTarget({
             message: '【魂結】リンク対象を選択してください',
             targetType: 'own_monster',
             validIndices: targets.map(t => t.slotIndex),
@@ -1089,7 +1089,7 @@ export const waterCardTriggers = {
       activationType: ACTIVATION_TYPES.OPTIONAL,
       description: '【魂結】: 『ヴェルゼファール』とリンクし双方ATK+300',
       effect: (context) => {
-        const { monsterIndex, addLog, setPendingTargetSelection } = context;
+        const { monsterIndex, addLog, setPendingMonsterTarget } = context;
         const { myField, setMyField } = getPlayerContext(context);
 
         const effect = getKonketsuEffect('C0000334');
@@ -1114,8 +1114,8 @@ export const waterCardTriggers = {
           return;
         }
 
-        if (setPendingTargetSelection) {
-          setPendingTargetSelection({
+        if (setPendingMonsterTarget) {
+          setPendingMonsterTarget({
             message: '【魂結】リンク対象を選択してください',
             targetType: 'own_monster',
             validIndices: targets.map(t => t.slotIndex),
@@ -1138,8 +1138,8 @@ export const waterCardTriggers = {
       activationType: ACTIVATION_TYPES.AUTOMATIC,
       description: '【深蝕】: 相手モンスター1体のATK-500、0で破壊',
       effect: (context) => {
-        const { card, setPendingTargetSelection } = context;
-        executeShinsyokuEffect(context, card?.name || 'クラディオム', setPendingTargetSelection);
+        const { card, setPendingMonsterTarget } = context;
+        executeShinsyokuEffect(context, card?.name || 'クラディオム', setPendingMonsterTarget);
       },
     },
   ],
@@ -1155,7 +1155,7 @@ export const waterCardTriggers = {
       activationType: ACTIVATION_TYPES.OPTIONAL,
       description: '【魂結】: 『ヴェルゼファール』とリンクし双方にターン終了時300ダメージ付与',
       effect: (context) => {
-        const { monsterIndex, addLog, setPendingTargetSelection } = context;
+        const { monsterIndex, addLog, setPendingMonsterTarget } = context;
         const { myField, setMyField } = getPlayerContext(context);
 
         const effect = getKonketsuEffect('C0000335');
@@ -1180,8 +1180,8 @@ export const waterCardTriggers = {
           return;
         }
 
-        if (setPendingTargetSelection) {
-          setPendingTargetSelection({
+        if (setPendingMonsterTarget) {
+          setPendingMonsterTarget({
             message: '【魂結】リンク対象を選択してください',
             targetType: 'own_monster',
             validIndices: targets.map(t => t.slotIndex),
@@ -1204,8 +1204,8 @@ export const waterCardTriggers = {
       activationType: ACTIVATION_TYPES.AUTOMATIC,
       description: '【深蝕】: 相手モンスター1体のATK-500、0で破壊',
       effect: (context) => {
-        const { card, setPendingTargetSelection } = context;
-        executeShinsyokuEffect(context, card?.name || 'シスラゴン', setPendingTargetSelection);
+        const { card, setPendingMonsterTarget } = context;
+        executeShinsyokuEffect(context, card?.name || 'シスラゴン', setPendingMonsterTarget);
       },
     },
   ],
@@ -1221,7 +1221,7 @@ export const waterCardTriggers = {
       activationType: ACTIVATION_TYPES.OPTIONAL,
       description: '【魂結】: 『ヴェルゼファール』とリンクし双方HP+800',
       effect: (context) => {
-        const { monsterIndex, addLog, setPendingTargetSelection } = context;
+        const { monsterIndex, addLog, setPendingMonsterTarget } = context;
         const { myField, setMyField } = getPlayerContext(context);
 
         const effect = getKonketsuEffect('C0000336');
@@ -1246,8 +1246,8 @@ export const waterCardTriggers = {
           return;
         }
 
-        if (setPendingTargetSelection) {
-          setPendingTargetSelection({
+        if (setPendingMonsterTarget) {
+          setPendingMonsterTarget({
             message: '【魂結】リンク対象を選択してください',
             targetType: 'own_monster',
             validIndices: targets.map(t => t.slotIndex),
@@ -1270,8 +1270,8 @@ export const waterCardTriggers = {
       activationType: ACTIVATION_TYPES.AUTOMATIC,
       description: '【深蝕】: 相手モンスター1体のATK-500、0で破壊',
       effect: (context) => {
-        const { card, setPendingTargetSelection } = context;
-        executeShinsyokuEffect(context, card?.name || 'ルミナクール', setPendingTargetSelection);
+        const { card, setPendingMonsterTarget } = context;
+        executeShinsyokuEffect(context, card?.name || 'ルミナクール', setPendingMonsterTarget);
       },
     },
   ],
@@ -1288,7 +1288,7 @@ export const waterCardTriggers = {
       activationType: ACTIVATION_TYPES.OPTIONAL,
       description: '【魂結】: 『ヴェルゼファール』とリンクし双方ATK+1000、ターン終了時800ダメージ付与',
       effect: (context) => {
-        const { monsterIndex, addLog, setPendingTargetSelection } = context;
+        const { monsterIndex, addLog, setPendingMonsterTarget } = context;
         const { myField, setMyField } = getPlayerContext(context);
 
         const effect = getKonketsuEffect('C0000337');
@@ -1313,8 +1313,8 @@ export const waterCardTriggers = {
           return;
         }
 
-        if (setPendingTargetSelection) {
-          setPendingTargetSelection({
+        if (setPendingMonsterTarget) {
+          setPendingMonsterTarget({
             message: '【魂結】リンク対象を選択してください',
             targetType: 'own_monster',
             validIndices: targets.map(t => t.slotIndex),
@@ -1337,8 +1337,8 @@ export const waterCardTriggers = {
       activationType: ACTIVATION_TYPES.AUTOMATIC,
       description: '【深蝕】: 相手モンスター1体のATK-500、0で破壊',
       effect: (context) => {
-        const { card, setPendingTargetSelection } = context;
-        executeShinsyokuEffect(context, card?.name || 'タラッサロス', setPendingTargetSelection);
+        const { card, setPendingMonsterTarget } = context;
+        executeShinsyokuEffect(context, card?.name || 'タラッサロス', setPendingMonsterTarget);
       },
     },
   ],
@@ -1415,7 +1415,7 @@ export const waterCardTriggers = {
       activationType: ACTIVATION_TYPES.OPTIONAL,
       description: '召喚時: 『ヴェルゼファール』1体をコスト不要で召喚',
       effect: (context) => {
-        const { addLog, setPendingHandSelection, setPendingTargetSelection } = context;
+        const { addLog, setPendingHandSelection, setPendingMonsterTarget } = context;
         const { myHand, setMyHand, myField, setMyField, currentPlayer } = getPlayerContext(context);
 
         // 手札から『ヴェルゼファール』モンスターを探す
@@ -1493,7 +1493,7 @@ export const waterCardTriggers = {
       priority: TRIGGER_PRIORITIES.LOW, // 特殊召喚の後に発動
       description: '【魂結】: 『ヴェルゼファール』とリンクし双方にターン終了時800ダメージ付与',
       effect: (context) => {
-        const { monsterIndex, addLog, setPendingTargetSelection } = context;
+        const { monsterIndex, addLog, setPendingMonsterTarget } = context;
         const { myField, setMyField } = getPlayerContext(context);
 
         const effect = getKonketsuEffect('C0000340');
@@ -1518,8 +1518,8 @@ export const waterCardTriggers = {
           return;
         }
 
-        if (setPendingTargetSelection) {
-          setPendingTargetSelection({
+        if (setPendingMonsterTarget) {
+          setPendingMonsterTarget({
             message: '【魂結】リンク対象を選択してください',
             targetType: 'own_monster',
             validIndices: targets.map(t => t.slotIndex),
@@ -1542,8 +1542,8 @@ export const waterCardTriggers = {
       activationType: ACTIVATION_TYPES.AUTOMATIC,
       description: '【深蝕】: 相手モンスター1体のATK-500、0で破壊',
       effect: (context) => {
-        const { card, setPendingTargetSelection } = context;
-        executeShinsyokuEffect(context, card?.name || 'ヴェルゼファール', setPendingTargetSelection);
+        const { card, setPendingMonsterTarget } = context;
+        executeShinsyokuEffect(context, card?.name || 'ヴェルゼファール', setPendingMonsterTarget);
       },
     },
     {

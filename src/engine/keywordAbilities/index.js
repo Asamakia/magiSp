@@ -526,10 +526,10 @@ export const SHINSYOKU_CARD_IDS = [
  * 自分のターン終了時、相手モンスター1体の攻撃力を500下げ、0になると破壊
  * @param {Object} context - 効果コンテキスト
  * @param {string} sourceName - 効果発動元のカード名
- * @param {Function} setPendingTargetSelection - ターゲット選択UI設定関数（オプション）
+ * @param {Function} setPendingMonsterTarget - ターゲット選択UI設定関数（オプション）
  * @returns {boolean} 効果を適用したかどうか
  */
-export function executeShinsyokuEffect(context, sourceName, setPendingTargetSelection = null) {
+export function executeShinsyokuEffect(context, sourceName, setPendingMonsterTarget = null) {
   const { addLog, currentPlayer, p1Field, p2Field, setP1Field, setP2Field, setP1Graveyard, setP2Graveyard } = context;
 
   // 相手のフィールドを取得
@@ -580,8 +580,8 @@ export function executeShinsyokuEffect(context, sourceName, setPendingTargetSele
   }
 
   // 複数いる場合は選択UI（またはフォールバックで最初のターゲット）
-  if (setPendingTargetSelection) {
-    setPendingTargetSelection({
+  if (setPendingMonsterTarget) {
+    setPendingMonsterTarget({
       message: `【深蝕】攻撃力を500下げる相手モンスターを選択`,
       targetType: 'opponent_monster',
       callback: (selectedIndex) => {

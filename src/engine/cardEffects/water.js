@@ -27,7 +27,7 @@ export const waterCardEffects = {
    * 召喚時効果は cardTriggers/waterCards.js に実装済み
    */
   C0000142: (skillText, context) => {
-    const { addLog, setPendingTargetSelection } = context;
+    const { addLog, setPendingMonsterTarget } = context;
     const { opponentField, setOpponentField } = getPlayerContext(context);
 
     // 相手モンスターを取得
@@ -68,8 +68,8 @@ export const waterCardEffects = {
       }
 
       // 複数いる場合は選択UI
-      if (setPendingTargetSelection) {
-        setPendingTargetSelection({
+      if (setPendingMonsterTarget) {
+        setPendingMonsterTarget({
           message: '攻撃力ダウン+ダメージを与える相手モンスターを選択',
           targetType: 'opponent_monster',
           callback: (selectedIndex) => {
@@ -110,8 +110,8 @@ export const waterCardEffects = {
       }
 
       // 複数いる場合は選択UI
-      if (setPendingTargetSelection) {
-        setPendingTargetSelection({
+      if (setPendingMonsterTarget) {
+        setPendingMonsterTarget({
           message: '凍結させる相手モンスターを選択',
           targetType: 'opponent_monster',
           callback: (selectedIndex) => {
@@ -159,7 +159,7 @@ export const waterCardEffects = {
    * 基本技：自分の水属性モンスター1体の状態異常を回復する。
    */
   C0000045: (skillText, context) => {
-    const { addLog, setPendingTargetSelection } = context;
+    const { addLog, setPendingMonsterTarget } = context;
     const { myField, setMyField } = getPlayerContext(context);
 
     if (context.skillType === 'basic') {
@@ -206,8 +206,8 @@ export const waterCardEffects = {
       }
 
       // 複数いる場合は選択UI
-      if (setPendingTargetSelection) {
-        setPendingTargetSelection({
+      if (setPendingMonsterTarget) {
+        setPendingMonsterTarget({
           message: '状態異常を回復する水属性モンスターを選択',
           validTargets: afflictedMonsters.map(t => t.index),
           isOpponent: false,
@@ -325,7 +325,7 @@ export const waterCardEffects = {
    * 相手はターン開始時にSP1支払いで解除可能
    */
   C0000150: (skillText, context) => {
-    const { addLog, setPendingTargetSelection } = context;
+    const { addLog, setPendingMonsterTarget } = context;
     const { opponentField, setOpponentField } = getPlayerContext(context);
 
     // 対象となる相手モンスターを取得
@@ -368,8 +368,8 @@ export const waterCardEffects = {
     }
 
     // 複数体の場合は選択UI表示
-    if (setPendingTargetSelection) {
-      setPendingTargetSelection({
+    if (setPendingMonsterTarget) {
+      setPendingMonsterTarget({
         message: '凍結を与える相手モンスターを選択してください',
         targetType: 'opponent_monster',
         callback: (selectedIndex) => {
@@ -401,7 +401,7 @@ export const waterCardEffects = {
       return true;
     }
 
-    // setPendingTargetSelectionがない場合は最初の対象を選択
+    // setPendingMonsterTargetがない場合は最初の対象を選択
     const targetIndex = validTargets[0].index;
     const targetMonster = validTargets[0].monster;
 
@@ -568,7 +568,7 @@ export const waterCardEffects = {
    * 相手モンスターへの攻撃を2回行えるようにする
    */
   C0000154: (skillText, context) => {
-    const { addLog, setPendingTargetSelection } = context;
+    const { addLog, setPendingMonsterTarget } = context;
     const { myField, setMyField } = getPlayerContext(context);
 
     // ブリザードキャットを取得
@@ -605,8 +605,8 @@ export const waterCardEffects = {
     }
 
     // 複数いる場合は選択UI
-    if (setPendingTargetSelection) {
-      setPendingTargetSelection({
+    if (setPendingMonsterTarget) {
+      setPendingMonsterTarget({
         message: '覚醒させるブリザードキャットを選択してください',
         targetType: 'self_monster',
         callback: (selectedIndex) => {
@@ -627,7 +627,7 @@ export const waterCardEffects = {
    * 【刹那詠唱】
    */
   C0000288: (skillText, context) => {
-    const { addLog, setPendingTargetSelection } = context;
+    const { addLog, setPendingMonsterTarget } = context;
     const { opponentField, setOpponentField } = getPlayerContext(context);
 
     // 相手モンスターを取得
@@ -661,8 +661,8 @@ export const waterCardEffects = {
     }
 
     // 複数いる場合は選択UI
-    if (setPendingTargetSelection) {
-      setPendingTargetSelection({
+    if (setPendingMonsterTarget) {
+      setPendingMonsterTarget({
         message: '攻撃力を0にする相手モンスターを選択してください',
         targetType: 'opponent_monster',
         callback: (selectedIndex) => {
@@ -683,7 +683,7 @@ export const waterCardEffects = {
    * 場に『ヴェルゼファール』モンスターがいる場合、この効果をターン終了時まで全体に変更
    */
   C0000344: (skillText, context) => {
-    const { addLog, setPendingTargetSelection } = context;
+    const { addLog, setPendingMonsterTarget } = context;
     const { myField, opponentField, setOpponentField } = getPlayerContext(context);
 
     // ヴェルゼファールがいるかチェック
@@ -742,8 +742,8 @@ export const waterCardEffects = {
     }
 
     // 複数いる場合は選択UI
-    if (setPendingTargetSelection) {
-      setPendingTargetSelection({
+    if (setPendingMonsterTarget) {
+      setPendingMonsterTarget({
         message: '汚染する相手モンスターを選択してください',
         targetType: 'opponent_monster',
         callback: (selectedIndex) => {
@@ -765,7 +765,7 @@ export const waterCardEffects = {
    * 【刹那詠唱】
    */
   C0000402: (skillText, context) => {
-    const { addLog, setPendingTargetSelection } = context;
+    const { addLog, setPendingMonsterTarget } = context;
     const { opponentField, setOpponentField } = getPlayerContext(context);
 
     // 相手モンスターを取得
@@ -814,8 +814,8 @@ export const waterCardEffects = {
     }
 
     // 複数いる場合は選択UI
-    if (setPendingTargetSelection) {
-      setPendingTargetSelection({
+    if (setPendingMonsterTarget) {
+      setPendingMonsterTarget({
         message: '封印する相手モンスターを選択してください',
         targetType: 'opponent_monster',
         callback: (selectedIndex) => {
@@ -1031,7 +1031,7 @@ export const waterCardEffects = {
    * 場にいる水属性モンスター1体をデッキに戻し、デッキから同じコスト以下の別の水属性モンスターを場に出す（コスト不要）
    */
   C0000049: (skillText, context) => {
-    const { addLog, setPendingTargetSelection, setPendingDeckReview } = context;
+    const { addLog, setPendingMonsterTarget, setPendingDeckReview } = context;
     const { myField, setMyField, myDeck, setMyDeck, currentPlayer } = getPlayerContext(context);
 
     // 自分の場の水属性モンスターを取得
@@ -1132,8 +1132,8 @@ export const waterCardEffects = {
     }
 
     // 複数いる場合は選択UI
-    if (setPendingTargetSelection) {
-      setPendingTargetSelection({
+    if (setPendingMonsterTarget) {
+      setPendingMonsterTarget({
         message: 'デッキに戻す水属性モンスターを選択',
         targetType: 'self_monster',
         validTargets: waterMonsters.map(t => t.index),
@@ -1496,7 +1496,7 @@ export const waterCardEffects = {
    * 基本技: 相手モンスター1体を次のターン終了まで行動不能にする。
    */
   C0000336: (skillText, context) => {
-    const { addLog, setPendingTargetSelection } = context;
+    const { addLog, setPendingMonsterTarget } = context;
     const { opponentField } = getPlayerContext(context);
 
     if (context.skillType === 'basic') {
@@ -1525,8 +1525,8 @@ export const waterCardEffects = {
         return true;
       }
 
-      if (setPendingTargetSelection) {
-        setPendingTargetSelection({
+      if (setPendingMonsterTarget) {
+        setPendingMonsterTarget({
           message: '行動不能にする相手モンスターを選択',
           targetType: 'opponent_monster',
           callback: (selectedIndex) => applyStun(selectedIndex),
@@ -1657,7 +1657,7 @@ export const waterCardEffects = {
    * 場に『深みの儀式者』がいる場合、召喚したモンスターの攻撃力をターン終了時まで800アップ。
    */
   C0000341: (skillText, context) => {
-    const { addLog, setPendingTargetSelection, setPendingDeckReview } = context;
+    const { addLog, setPendingMonsterTarget, setPendingDeckReview } = context;
     const { myField, setMyField, myDeck, setMyDeck, setMyGraveyard, currentPlayer } = getPlayerContext(context);
 
     // 場のヴェルゼファールモンスターを取得
@@ -1758,8 +1758,8 @@ export const waterCardEffects = {
     }
 
     // 複数いる場合は選択UI
-    if (setPendingTargetSelection) {
-      setPendingTargetSelection({
+    if (setPendingMonsterTarget) {
+      setPendingMonsterTarget({
         message: 'リリースする『ヴェルゼファール』モンスターを選択',
         targetType: 'self_monster',
         validTargets: verzefaalMonsters.map(v => v.index),
@@ -1780,7 +1780,7 @@ export const waterCardEffects = {
    * ターン終了時までそのモンスターの基本技を封じる。
    */
   C0000342: (skillText, context) => {
-    const { addLog, setPendingTargetSelection } = context;
+    const { addLog, setPendingMonsterTarget } = context;
     const { myField, setMyField, setOpponentLife } = getPlayerContext(context);
 
     // 場のアクアレギナモンスターを取得
@@ -1834,8 +1834,8 @@ export const waterCardEffects = {
     }
 
     // 複数いる場合は選択UI
-    if (setPendingTargetSelection) {
-      setPendingTargetSelection({
+    if (setPendingMonsterTarget) {
+      setPendingMonsterTarget({
         message: 'HPを1000アップする『アクアレギナ』モンスターを選択',
         targetType: 'self_monster',
         validTargets: aquaReginaMonsters.map(a => a.index),
@@ -1856,7 +1856,7 @@ export const waterCardEffects = {
    * 相手モンスター1体の攻撃力をターン終了時まで1000下げる。
    */
   C0000343: (skillText, context) => {
-    const { addLog, setPendingTargetSelection } = context;
+    const { addLog, setPendingMonsterTarget } = context;
     const { myField, setMyField, opponentField, setOpponentField, myFieldCard } = getPlayerContext(context);
 
     // 場のアクアレギナモンスターを取得
@@ -1920,8 +1920,8 @@ export const waterCardEffects = {
       }
 
       // 複数いる場合は選択UI
-      if (setPendingTargetSelection) {
-        setPendingTargetSelection({
+      if (setPendingMonsterTarget) {
+        setPendingMonsterTarget({
           message: '攻撃力を1000下げる相手モンスターを選択',
           targetType: 'opponent_monster',
           callback: (selectedIndex) => applyAtkReduction(selectedIndex),
