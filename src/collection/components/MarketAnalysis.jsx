@@ -39,6 +39,7 @@ const TIERS = ['S', 'A', 'B', 'C', 'D'];
 
 const TABS = [
   { id: 'overview', label: '総合', icon: '📊' },
+  { id: 'persistent', label: '永続', icon: '📈' },
   { id: 'attributes', label: '属性', icon: '🔮' },
   { id: 'categories', label: 'カテゴリ', icon: '🏷️' },
   { id: 'tiers', label: 'ティア', icon: '⭐' },
@@ -377,6 +378,169 @@ const Sparkline = ({ data, color = '#4dabf7', isMobile }) => {
           }}
         />
       ))}
+    </div>
+  );
+};
+
+/**
+ * 永続トレンドタブ
+ */
+const PersistentTab = ({ persistentModifiers, isMobile }) => {
+  const styles = createStyles(isMobile);
+
+  // 永続変動がない場合
+  if (!persistentModifiers) {
+    return (
+      <div style={{ padding: '20px', textAlign: 'center', color: '#aaa' }}>
+        <p>永続変動データがありません</p>
+        <p style={{ fontSize: '14px', marginTop: '8px' }}>
+          対戦を重ねることで、デイリーニュースの10%が永続的なトレンドとして蓄積されます
+        </p>
+      </div>
+    );
+  }
+
+  // ソート用ヘルパー（値が大きい順）
+  const sortByAbsValue = (entries) => {
+    return [...entries].sort((a, b) => Math.abs(b[1]) - Math.abs(a[1]));
+  };
+
+  // 変動値の表示色
+  const getValueColor = (value) => {
+    if (value > 10) return '#4caf50';
+    if (value > 0) return '#8bc34a';
+    if (value < -10) return '#f44336';
+    if (value < 0) return '#ff9800';
+    return '#888';
+  };
+
+  // 変動バーの幅（最大100%）
+  const getBarWidth = (value) => {
+    return Math.min(Math.abs(value), 100);
+  };
+
+  const attributeEntries = sortByAbsValue(Object.entries(persistentModifiers.attributes || {}));
+  const categoryEntries = sortByAbsValue(Object.entries(persistentModifiers.categories || {}))
+    .filter(([, v]) => Math.abs(v) >= 0.1); // 微小な値は表示しない
+
+  return (
+    <div>
+      {/* 説明 */}
+      <div style={{
+        ...styles.card,
+        marginBottom: '16px',
+        padding: '16px',
+        backgroundColor: 'rgba(255, 215, 0, 0.1)',
+        border: '1px solid rgba(255, 215, 0, 0.3)',
+      }}>
+        <div style={{ fontSize: '14px', color: '#ffd700', marginBottom: '8px' }}>
+          📈 永続トレンドとは？
+        </div>
+        <div style={{ fontSize: '13px', color: '#ccc', lineHeight: '1.6' }}>
+          デイリーニュースの変動の10%が毎日蓄積され、長期的な市場トレンドを形成します。
+          <br />
+          ・大きく変動した属性・カテゴリは徐々に平均に回帰します（回帰圧力）
+          <br />
+          ・上限はありませんが、±50%を超えると回帰が始まります
+        </div>
+      </div>
+
+      {/* 属性別永続変動 */}
+      <div style={{ ...styles.card, marginBottom: '16px' }}>
+        <h3 style={{ fontSize: '16px', marginBottom: '12px', color: '#ffd700' }}>
+          🔮 属性別永続変動
+        </h3>
+        {attributeEntries.map(([attr, value]) => (
+          <div key={attr} style={{
+            display: 'flex',
+            alignItems: 'center',
+            marginBottom: '8px',
+            padding: '8px 12px',
+            backgroundColor: 'rgba(0, 0, 0, 0.3)',
+            borderRadius: '4px',
+          }}>
+            <span style={{
+              width: '60px',
+              color: ATTRIBUTE_COLORS[attr] || '#888',
+              fontWeight: 'bold',
+            }}>
+              {attr}
+            </span>
+            <div style={{
+              flex: 1,
+              height: '20px',
+              backgroundColor: 'rgba(255, 255, 255, 0.1)',
+              borderRadius: '4px',
+              overflow: 'hidden',
+              position: 'relative',
+            }}>
+              <div style={{
+                position: 'absolute',
+                left: value >= 0 ? '50%' : `${50 - getBarWidth(value) / 2}%`,
+                width: `${getBarWidth(value) / 2}%`,
+                height: '100%',
+                backgroundColor: getValueColor(value),
+                opacity: 0.7,
+              }} />
+              <div style={{
+                position: 'absolute',
+                left: '50%',
+                width: '1px',
+                height: '100%',
+                backgroundColor: '#666',
+              }} />
+            </div>
+            <span style={{
+              width: '80px',
+              textAlign: 'right',
+              color: getValueColor(value),
+              fontWeight: 'bold',
+              fontSize: '14px',
+            }}>
+              {value > 0 ? '+' : ''}{value.toFixed(1)}%
+            </span>
+          </div>
+        ))}
+      </div>
+
+      {/* カテゴリ別永続変動（変動があるもののみ） */}
+      {categoryEntries.length > 0 && (
+        <div style={styles.card}>
+          <h3 style={{ fontSize: '16px', marginBottom: '12px', color: '#ffd700' }}>
+            🏷️ カテゴリ別永続変動（上位）
+          </h3>
+          {categoryEntries.slice(0, 15).map(([cat, value]) => (
+            <div key={cat} style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              padding: '6px 12px',
+              marginBottom: '4px',
+              backgroundColor: 'rgba(0, 0, 0, 0.3)',
+              borderRadius: '4px',
+            }}>
+              <span style={{ color: '#ccc' }}>【{cat}】</span>
+              <span style={{
+                color: getValueColor(value),
+                fontWeight: 'bold',
+              }}>
+                {value > 0 ? '+' : ''}{value.toFixed(1)}%
+              </span>
+            </div>
+          ))}
+          {categoryEntries.length > 15 && (
+            <div style={{ textAlign: 'center', color: '#888', fontSize: '12px', marginTop: '8px' }}>
+              他 {categoryEntries.length - 15} カテゴリ
+            </div>
+          )}
+        </div>
+      )}
+
+      {categoryEntries.length === 0 && (
+        <div style={{ ...styles.card, textAlign: 'center', color: '#888' }}>
+          <p>カテゴリ別の永続変動はまだありません</p>
+        </div>
+      )}
     </div>
   );
 };
@@ -1060,6 +1224,8 @@ const MarketAnalysis = ({ marketState, allCards, assetHistory, onClose, onCardSe
     switch (activeTab) {
       case 'overview':
         return <OverviewTab priceHistory={priceHistory} isMobile={isMobile} />;
+      case 'persistent':
+        return <PersistentTab persistentModifiers={marketState?.persistentModifiers} isMobile={isMobile} />;
       case 'attributes':
         return <AttributesTab priceHistory={priceHistory} isMobile={isMobile} />;
       case 'categories':

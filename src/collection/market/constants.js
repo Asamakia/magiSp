@@ -25,6 +25,23 @@ export const MAX_MODIFIER_UP = 100;
 export const MAX_MODIFIER_DOWN = -50;
 
 // ========================================
+// 永続変動システム
+// ========================================
+
+/** デイリー変動から永続変動への蓄積率（10%） */
+export const PERSISTENT_ACCUMULATION_RATE = 0.10;
+
+/**
+ * 回帰圧力の閾値と設定
+ * 永続変動の絶対値がthresholdを超えると、chanceの確率でamountだけ0に向かう
+ */
+export const REGRESSION_THRESHOLDS = [
+  { threshold: 100, chance: 0.50, amount: 15 },
+  { threshold: 80, chance: 0.30, amount: 10 },
+  { threshold: 50, chance: 0.10, amount: 5 },
+];
+
+// ========================================
 // 突発イベント発生確率
 // ========================================
 
@@ -115,6 +132,8 @@ export default {
   PRICE_HISTORY_LENGTH,
   MAX_MODIFIER_UP,
   MAX_MODIFIER_DOWN,
+  PERSISTENT_ACCUMULATION_RATE,
+  REGRESSION_THRESHOLDS,
   SUDDEN_EVENT_CHANCE,
   DIRECTIONS,
   UP_DIRECTIONS,
