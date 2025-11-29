@@ -66,11 +66,10 @@ export const fireCardEffects = {
       }
 
       // 複数の場合はターゲット選択UI
-      if (setPendingTargetSelection) {
-        setPendingTargetSelection({
+      if (setPendingMonsterTarget) {
+        setPendingMonsterTarget({
           message: `${damage}ダメージを与える相手モンスターを選択`,
-          validTargets: validTargets.map(t => t.index),
-          isOpponent: true,
+          targetPlayer: 'opponent',
           callback: (targetIndex) => {
             setOpponentField(prev => prev.map((m, idx) => {
               if (idx === targetIndex && m) {
@@ -155,8 +154,7 @@ export const fireCardEffects = {
     if (setPendingMonsterTarget) {
       setPendingMonsterTarget({
         message: '1000ダメージを与える相手モンスターを選択',
-        validTargets: validTargets.map(t => t.index),
-        isOpponent: true,
+        targetPlayer: 'opponent',
         callback: (targetIndex) => {
           setOpponentField(prev => {
             const newField = [...prev];
@@ -607,11 +605,10 @@ export const fireCardEffects = {
       }
 
       // 複数の場合はターゲット選択UI
-      if (setPendingTargetSelection) {
-        setPendingTargetSelection({
+      if (setPendingMonsterTarget) {
+        setPendingMonsterTarget({
           message: `${damage}ダメージを与える相手モンスターを選択`,
-          validTargets: validTargets.map(t => t.index),
-          isOpponent: true,
+          targetPlayer: 'opponent',
           callback: (targetIndex) => {
             const targetMonster = opponentField[targetIndex];
             if (!targetMonster) return;
@@ -1180,11 +1177,10 @@ export const fireCardEffects = {
     // 1体のみの場合は自動選択
     if (validTargets.length === 1) {
       apply800Damage(validTargets[0].index);
-    } else if (setPendingTargetSelection) {
-      setPendingTargetSelection({
+    } else if (setPendingMonsterTarget) {
+      setPendingMonsterTarget({
         message: '800ダメージを与える相手モンスターを選択',
-        validTargets: validTargets.map(t => t.index),
-        isOpponent: true,
+        targetPlayer: 'opponent',
         callback: (targetIndex) => {
           apply800Damage(targetIndex);
         },

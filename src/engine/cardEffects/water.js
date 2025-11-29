@@ -919,11 +919,10 @@ export const waterCardEffects = {
       }
 
       // 複数の場合はターゲット選択UI
-      if (setPendingTargetSelection) {
-        setPendingTargetSelection({
+      if (setPendingMonsterTarget) {
+        setPendingMonsterTarget({
           message: '効果を無効化する相手モンスターを選択',
-          validTargets: validTargets.map(t => t.index),
-          isOpponent: true,
+          targetPlayer: 'opponent',
           callback: (targetIndex) => {
             applySilence(targetIndex);
           },
@@ -986,11 +985,10 @@ export const waterCardEffects = {
       }
 
       // 複数の場合はターゲット選択UI
-      if (setPendingTargetSelection) {
-        setPendingTargetSelection({
+      if (setPendingMonsterTarget) {
+        setPendingMonsterTarget({
           message: `${damage}ダメージを与える相手モンスターを選択`,
-          validTargets: validTargets.map(t => t.index),
-          isOpponent: true,
+          targetPlayer: 'opponent',
           callback: (targetIndex) => {
             setOpponentField(prev => prev.map((m, idx) => {
               if (idx === targetIndex && m) {
@@ -2024,12 +2022,11 @@ export const waterCardEffects = {
     };
 
     // ターゲット選択が使用可能な場合
-    if (setPendingTargetSelection) {
+    if (setPendingMonsterTarget) {
       // Step 1: 攻撃するモンスターを選択
-      setPendingTargetSelection({
+      setPendingMonsterTarget({
         message: '攻撃させる相手モンスターを選択',
-        validTargets: validMonsters.map((t) => t.index),
-        isOpponent: true,
+        targetPlayer: 'opponent',
         callback: (attackerIndex) => {
           // Step 2: 攻撃先モンスターを選択
           const remainingTargets = validMonsters.filter((t) => t.index !== attackerIndex);
@@ -2046,10 +2043,9 @@ export const waterCardEffects = {
           }
 
           // 複数いる場合は選択
-          setPendingTargetSelection({
+          setPendingMonsterTarget({
             message: '攻撃先の相手モンスターを選択',
-            validTargets: remainingTargets.map((t) => t.index),
-            isOpponent: true,
+            targetPlayer: 'opponent',
             callback: (targetIndex) => {
               performCombat(attackerIndex, targetIndex);
             },
