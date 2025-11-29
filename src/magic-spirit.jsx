@@ -1802,6 +1802,10 @@ export default function MagicSpiritGame() {
 
   // カード召喚
   const summonCard = useCallback((card, slotIndex) => {
+    // Phase B: cardIndexを取得（dispatch用）
+    const hand = currentPlayer === 1 ? p1Hand : p2Hand;
+    const cardIndex = hand.findIndex(c => c.uniqueId === card.uniqueId);
+
     // 現在のプレイヤーのSPを直接取得
     const activeSP = currentPlayer === 1 ? p1ActiveSP : p2ActiveSP;
     const field = currentPlayer === 1 ? p1Field : p2Field;
@@ -2010,6 +2014,11 @@ export default function MagicSpiritGame() {
       };
       fireTrigger(TRIGGER_TYPES.ON_SUMMON, triggerContext);
 
+      // Phase B: engineStateにも反映
+      if (cardIndex !== -1) {
+        dispatch(gameActions.summonCard(cardIndex, slotIndex));
+      }
+
       return true;
     }
 
@@ -2110,6 +2119,11 @@ export default function MagicSpiritGame() {
         addLog,
       };
       fireTrigger(TRIGGER_TYPES.ON_OPPONENT_MAGIC_ACTIVATED, opponentMagicTriggerContext);
+
+      // Phase B: engineStateにも反映（魔法カード）
+      if (cardIndex !== -1) {
+        dispatch(gameActions.useMagic(cardIndex));
+      }
 
       return true;
     }
@@ -2221,7 +2235,7 @@ export default function MagicSpiritGame() {
       setP1Life, setP2Life, setP1Field, setP2Field, setP1Hand, setP2Hand,
       setP1Deck, setP2Deck, setP1Graveyard, setP2Graveyard,
       setP1ActiveSP, setP1RestedSP, setP2ActiveSP, setP2RestedSP, setP1FieldCard, setP2FieldCard,
-      setP1PhaseCard, setP2PhaseCard]);
+      setP1PhaseCard, setP2PhaseCard, dispatch]); // Phase B: dispatch追加
 
   // =============================================================================
   // チェーンポイントシステム（刹那詠唱の発動タイミング）
@@ -2709,9 +2723,12 @@ export default function MagicSpiritGame() {
       }
     }
 
+    // Phase B: engineStateにも反映
+    dispatch(gameActions.attack(attackerIndex, targetIndex));
+
     setAttackingMonster(null);
     setSelectedFieldMonster(null);
-  }, [currentPlayer, p1Field, p2Field, p1FieldCard, p2FieldCard, p1Life, p2Life, p1Hand, p2Hand, p1Deck, p2Deck, p1Graveyard, p2Graveyard, p1StatusEffects, p2StatusEffects, addLog]);
+  }, [currentPlayer, p1Field, p2Field, p1FieldCard, p2FieldCard, p1Life, p2Life, p1Hand, p2Hand, p1Deck, p2Deck, p1Graveyard, p2Graveyard, p1StatusEffects, p2StatusEffects, addLog, dispatch]);
 
   // チェーン確認をスキップ（発動しない）
   const skipChainConfirmation = useCallback(() => {
