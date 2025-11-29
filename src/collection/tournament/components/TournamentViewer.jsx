@@ -372,6 +372,14 @@ const TournamentViewer = ({
       const isCurrentRound = viewState === 'watching' && ri === currentRound;
       const isPastRound = viewState === 'result' || ri < currentRound;
 
+      // ネタバレ防止: 観戦中は現在のラウンドまでしか表示しない
+      // intro状態では1回戦のみ表示
+      const shouldHideRound = (viewState === 'intro' && ri > 0) ||
+                              (viewState === 'watching' && ri > currentRound);
+
+      // 未来のラウンドは参加者を「???」で表示
+      const shouldHideParticipants = shouldHideRound;
+
       roundsToShow.push(
         <div key={ri} style={styles.roundColumn}>
           <div style={styles.roundTitle}>
@@ -381,37 +389,46 @@ const TournamentViewer = ({
             const isCurrentMatch = isCurrentRound && mi === currentMatch;
             const isPastMatch = isPastRound || (isCurrentRound && mi < currentMatch);
 
+            // 参加者表示を決定
+            const p1Display = shouldHideParticipants
+              ? { portrait: '❓', name: '???' }
+              : { portrait: getCompetitorPortrait(match.p1), name: getCompetitorDisplayName(match.p1) };
+            const p2Display = shouldHideParticipants
+              ? { portrait: '❓', name: '???' }
+              : { portrait: getCompetitorPortrait(match.p2), name: getCompetitorDisplayName(match.p2) };
+
             return (
               <div
                 key={mi}
                 style={{
                   ...styles.matchCard,
                   ...(isCurrentMatch ? styles.matchCardActive : {}),
-                  ...(isPastMatch ? styles.matchCardFinished : {}),
+                  ...(isPastMatch && !shouldHideParticipants ? styles.matchCardFinished : {}),
+                  ...(shouldHideParticipants ? { opacity: 0.5 } : {}),
                 }}
               >
                 <div
                   style={{
                     ...styles.participant,
-                    ...(isPastMatch && match.winner === match.p1 ? styles.participantWinner : {}),
-                    ...(isPastMatch && match.winner === match.p2 ? styles.participantLoser : {}),
+                    ...(!shouldHideParticipants && isPastMatch && match.winner === match.p1 ? styles.participantWinner : {}),
+                    ...(!shouldHideParticipants && isPastMatch && match.winner === match.p2 ? styles.participantLoser : {}),
                   }}
                 >
-                  <span style={styles.portrait}>{getCompetitorPortrait(match.p1)}</span>
-                  <span style={styles.name}>{getCompetitorDisplayName(match.p1)}</span>
-                  {isPastMatch && match.winner === match.p1 && <span>🏆</span>}
+                  <span style={styles.portrait}>{p1Display.portrait}</span>
+                  <span style={styles.name}>{p1Display.name}</span>
+                  {!shouldHideParticipants && isPastMatch && match.winner === match.p1 && <span>🏆</span>}
                 </div>
                 <div style={styles.vs}>VS</div>
                 <div
                   style={{
                     ...styles.participant,
-                    ...(isPastMatch && match.winner === match.p2 ? styles.participantWinner : {}),
-                    ...(isPastMatch && match.winner === match.p1 ? styles.participantLoser : {}),
+                    ...(!shouldHideParticipants && isPastMatch && match.winner === match.p2 ? styles.participantWinner : {}),
+                    ...(!shouldHideParticipants && isPastMatch && match.winner === match.p1 ? styles.participantLoser : {}),
                   }}
                 >
-                  <span style={styles.portrait}>{getCompetitorPortrait(match.p2)}</span>
-                  <span style={styles.name}>{getCompetitorDisplayName(match.p2)}</span>
-                  {isPastMatch && match.winner === match.p2 && <span>🏆</span>}
+                  <span style={styles.portrait}>{p2Display.portrait}</span>
+                  <span style={styles.name}>{p2Display.name}</span>
+                  {!shouldHideParticipants && isPastMatch && match.winner === match.p2 && <span>🏆</span>}
                 </div>
               </div>
             );
