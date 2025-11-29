@@ -66,6 +66,17 @@ export function useGameEngine() {
     setEngineState(null);
   }, []);
 
+  /**
+   * 既存のuseStateからエンジン状態を同期
+   * Phase A-3: 段階的移行用 - useStateの値をengineStateに反映
+   * @param {Object} legacyState - 既存形式の状態オブジェクト
+   */
+  const syncFromLegacy = useCallback((legacyState) => {
+    if (!legacyState) return;
+    const newState = fromLegacyState(legacyState);
+    setEngineState(newState);
+  }, []);
+
   // ========================================
   // 便利なアクションラッパー
   // ========================================
@@ -159,6 +170,7 @@ export function useGameEngine() {
     dispatchMultiple,
     initGame,
     resetGame,
+    syncFromLegacy,
 
     // アクションラッパー
     summonCard,

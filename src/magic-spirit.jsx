@@ -133,6 +133,7 @@ export default function MagicSpiritGame() {
     dispatch,
     initGame: engineInitGame,
     resetGame: engineResetGame,
+    syncFromLegacy,
   } = useGameEngine();
 
   // カードデータ管理
@@ -264,6 +265,70 @@ export default function MagicSpiritGame() {
     });
   }, []);
 
+  // ========================================
+  // GameEngine同期関数（Phase A-3）
+  // useStateの値をengineStateに同期
+  // フェイズ終了時などのタイミングで呼び出す
+  // ========================================
+  const syncGameStateToEngine = useCallback(() => {
+    if (!syncFromLegacy) return;
+
+    const legacyState = {
+      // ゲーム進行
+      turn,
+      currentPlayer,
+      phase,
+      isFirstTurn,
+      winner,
+      logs,
+
+      // P1状態
+      p1Life,
+      p1Deck,
+      p1Hand,
+      p1Field,
+      p1Graveyard,
+      p1ActiveSP,
+      p1RestedSP,
+      p1FieldCard,
+      p1PhaseCard,
+      p1StatusEffects,
+      p1NextTurnSPBonus,
+      p1MagicBlocked,
+      p1SpReduction,
+
+      // P2状態
+      p2Life,
+      p2Deck,
+      p2Hand,
+      p2Field,
+      p2Graveyard,
+      p2ActiveSP,
+      p2RestedSP,
+      p2FieldCard,
+      p2PhaseCard,
+      p2StatusEffects,
+      p2NextTurnSPBonus,
+      p2MagicBlocked,
+      p2SpReduction,
+
+      // ターンフラグ
+      chargeUsedThisTurn,
+    };
+
+    syncFromLegacy(legacyState);
+  }, [
+    syncFromLegacy,
+    turn, currentPlayer, phase, isFirstTurn, winner, logs,
+    p1Life, p1Deck, p1Hand, p1Field, p1Graveyard,
+    p1ActiveSP, p1RestedSP, p1FieldCard, p1PhaseCard,
+    p1StatusEffects, p1NextTurnSPBonus, p1MagicBlocked, p1SpReduction,
+    p2Life, p2Deck, p2Hand, p2Field, p2Graveyard,
+    p2ActiveSP, p2RestedSP, p2FieldCard, p2PhaseCard,
+    p2StatusEffects, p2NextTurnSPBonus, p2MagicBlocked, p2SpReduction,
+    chargeUsedThisTurn,
+  ]);
+
   // カードのコスト修正情報を取得（手札表示用）
   const getModifiedCostInfo = useCallback((card, player) => {
     // モンスターカードのみコスト軽減対象
@@ -302,6 +367,29 @@ export default function MagicSpiritGame() {
 
     return { modifiedCost: actualCost, costModifierSource: sourceText };
   }, [p1Field, p2Field, p1Life, p2Life]);
+
+  // ========================================
+  // GameEngine状態同期（Phase A-3）
+  // ゲームプレイ中にuseStateの変更をengineStateに反映
+  // ========================================
+  useEffect(() => {
+    // プレイ中のみ同期
+    if (gameState !== 'playing') return;
+
+    // エンジンが初期化されていない場合はスキップ
+    if (!engineState) return;
+
+    syncGameStateToEngine();
+  }, [
+    gameState, engineState, syncGameStateToEngine,
+    // 主要なゲーム状態の変更を監視
+    turn, phase, currentPlayer, winner,
+    p1Life, p2Life,
+    p1Field, p2Field,
+    p1Hand, p2Hand,
+    p1Graveyard, p2Graveyard,
+    p1ActiveSP, p2ActiveSP,
+  ]);
 
   // CSVファイルの読み込み & プレイヤーデータ初期化
   useEffect(() => {
