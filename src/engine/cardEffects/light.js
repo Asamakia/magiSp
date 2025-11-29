@@ -11,6 +11,7 @@ import {
   healLife,
   modifyAttack,
   applyStatusToOwnMonster,
+  destroyMonster,
 } from '../effectHelpers';
 import { STATUS_EFFECT_TYPES } from '../statusEffects';
 import { hasCategory, createMonsterInstance } from '../../utils/helpers';
@@ -457,6 +458,317 @@ export const lightCardEffects = {
     setOpponentGraveyard(prev => [...prev, discardedCard]);
 
     addLog(`支配光の連鎖: 相手の手札「${discardedCard.name}」を捨てさせた！`, 'damage');
+    return true;
+  },
+
+  /**
+   * C0000064: ルミナスの裁き
+   * 光以外の相手モンスター1体を破壊する。自分の場に光属性モンスターが2体以上いる場合自分はその攻撃力の半分回復する。
+   */
+  C0000064: (skillText, context) => {
+    const { addLog, setPendingTargetSelection } = context;
+    const { myField, opponentField, setOpponentField, setOpponentGraveyard } = getPlayerContext(context);
+
+    // 光以外の相手モンスターを検索
+    const nonLightMonsters = opponentField
+      .map((m, idx) => ({ monster: m, index: idx }))
+      .filter(({ monster }) => monster !== null && monster.attribute !== '光');
+
+    if (nonLightMonsters.length === 0) {
+      addLog('ルミナスの裁き: 光以外の相手モンスターがいません', 'info');
+      return false;
+    }
+
+    const executeDestruction = (targetIndex) => {
+      const targetMonster = opponentField[targetIndex];
+      if (!targetMonster) return;
+
+      // モンスターを破壊
+      setOpponentField((prev) => {
+        const newField = [...prev];
+        newField[targetIndex] = null;
+        return newField;
+      });
+      setOpponentGraveyard((prev) => [...prev, targetMonster]);
+      addLog(`ルミナスの裁き: ${targetMonster.name}を破壊した！`, 'damage');
+
+      // 光属性モンスターが2体以上いる場合、攻撃力の半分を回復
+      const lightCount = myField.filter((m) => m && m.attribute === '光').length;
+      if (lightCount >= 2) {
+        const healAmount = Math.floor(targetMonster.currentAttack / 2);
+        healLife(context, healAmount, true);
+        addLog(`ルミナスの裁き: ${healAmount}ライフ回復！`, 'heal');
+      }
+    };
+
+    // 1体のみの場合は自動選択
+    if (nonLightMonsters.length === 1) {
+      executeDestruction(nonLightMonsters[0].index);
+      return true;
+    }
+
+    // 複数いる場合は選択UI
+    if (setPendingTargetSelection) {
+      setPendingTargetSelection({
+        message: '破壊する光以外のモンスターを選択',
+        targetType: 'opponent_monster',
+        validIndices: nonLightMonsters.map((m) => m.index),
+        callback: (selectedIndex) => {
+          executeDestruction(selectedIndex);
+        },
+      });
+      return true;
+    }
+
+    // フォールバック: 最初のモンスター
+    executeDestruction(nonLightMonsters[0].index);
+    return true;
+  },
+
+  /**
+   * C0000065: 天使の波動
+   * 相手モンスター全体に、場にいる光属性モンスターの数×300ダメージを与える。
+   */
+  C0000065: (skillText, context) => {
+    const { addLog } = context;
+    const { myField, opponentField, setOpponentField, setOpponentGraveyard } = getPlayerContext(context);
+
+    // 場の光属性モンスターをカウント
+    const lightCount = myField.filter((m) => m && m.attribute === '光').length;
+
+    if (lightCount === 0) {
+      addLog('天使の波動: 場に光属性モンスターがいないため効果なし', 'info');
+      return false;
+    }
+
+    const damage = lightCount * 300;
+
+    // 相手モンスター全体にダメージ
+    const destroyedMonsters = [];
+    setOpponentField((prev) => {
+      return prev.map((monster) => {
+        if (monster) {
+          const newHp = monster.currentHp - damage;
+          if (newHp <= 0) {
+            destroyedMonsters.push(monster);
+            return null;
+          }
+          return { ...monster, currentHp: newHp };
+        }
+        return monster;
+      });
+    });
+
+    // 破壊されたモンスターを墓地に
+    if (destroyedMonsters.length > 0) {
+      setOpponentGraveyard((prev) => [...prev, ...destroyedMonsters]);
+    }
+
+    addLog(`天使の波動: 相手モンスター全体に${damage}ダメージ！`, 'damage');
+    return true;
+  },
+
+  /**
+   * C0000066: ホーリーライトサモン
+   * デッキからランダムなコスト3以下の光属性モンスター1体を場に出す（コスト不要）。
+   */
+  C0000066: (skillText, context) => {
+    const { addLog, currentPlayer } = context;
+    const { myDeck, myField, setMyDeck, setMyField } = getPlayerContext(context);
+
+    // デッキからコスト3以下の光属性モンスターを探す
+    const candidates = myDeck.filter((card) =>
+      card.type === 'monster' &&
+      card.attribute === '光' &&
+      card.cost <= 3
+    );
+
+    if (candidates.length === 0) {
+      addLog('ホーリーライトサモン: デッキにコスト3以下の光属性モンスターがいません', 'info');
+      return false;
+    }
+
+    // 空きスロットを探す
+    const emptySlot = myField.findIndex((slot) => slot === null);
+    if (emptySlot === -1) {
+      addLog('ホーリーライトサモン: フィールドに空きがありません', 'info');
+      return false;
+    }
+
+    // ランダムに1体選択
+    const selectedCard = candidates[Math.floor(Math.random() * candidates.length)];
+
+    // デッキから削除
+    setMyDeck((prev) => prev.filter((c) => c.uniqueId !== selectedCard.uniqueId));
+
+    // モンスターインスタンスを作成してフィールドに配置
+    const monsterInstance = createMonsterInstance(selectedCard, currentPlayer);
+    setMyField((prev) => {
+      const newField = [...prev];
+      newField[emptySlot] = monsterInstance;
+      return newField;
+    });
+
+    // トリガーと常時効果を登録
+    registerCardTriggers(monsterInstance, currentPlayer, emptySlot);
+    continuousEffectEngine.register(monsterInstance, currentPlayer);
+
+    addLog(`ホーリーライトサモン: デッキから「${selectedCard.name}」を特殊召喚！`, 'heal');
+    return true;
+  },
+
+  /**
+   * C0000067: ルミナス・ドミネーション
+   * 相手の場にいるモンスター1体のコントロールをターン終了時まで奪う。そのモンスターの攻撃力は半分になる。
+   */
+  C0000067: (skillText, context) => {
+    const { addLog, setPendingTargetSelection } = context;
+    const { myField, opponentField, setMyField, setOpponentField } = getPlayerContext(context);
+
+    // 相手モンスターを検索
+    const opponentMonsters = opponentField
+      .map((m, idx) => ({ monster: m, index: idx }))
+      .filter(({ monster }) => monster !== null);
+
+    if (opponentMonsters.length === 0) {
+      addLog('ルミナス・ドミネーション: 相手フィールドにモンスターがいません', 'info');
+      return false;
+    }
+
+    // 空きスロットを探す
+    const emptySlot = myField.findIndex((slot) => slot === null);
+    if (emptySlot === -1) {
+      addLog('ルミナス・ドミネーション: 自分のフィールドに空きがありません', 'info');
+      return false;
+    }
+
+    const executeControl = (targetIndex) => {
+      const targetMonster = opponentField[targetIndex];
+      if (!targetMonster) return;
+
+      // 相手フィールドから削除
+      setOpponentField((prev) => {
+        const newField = [...prev];
+        newField[targetIndex] = null;
+        return newField;
+      });
+
+      // 攻撃力半減して自分のフィールドに配置
+      const controlledMonster = {
+        ...targetMonster,
+        currentAttack: Math.floor(targetMonster.currentAttack / 2),
+        canAttack: true,
+        controlledUntilEndTurn: true, // ターン終了時に戻すフラグ
+        originalOwner: targetMonster.owner,
+        originalSlot: targetIndex,
+      };
+
+      setMyField((prev) => {
+        const newField = [...prev];
+        newField[emptySlot] = controlledMonster;
+        return newField;
+      });
+
+      addLog(`ルミナス・ドミネーション: ${targetMonster.name}のコントロールを奪った！（攻撃力半分）`, 'info');
+    };
+
+    // 1体のみの場合は自動選択
+    if (opponentMonsters.length === 1) {
+      executeControl(opponentMonsters[0].index);
+      return true;
+    }
+
+    // 複数いる場合は選択UI
+    if (setPendingTargetSelection) {
+      setPendingTargetSelection({
+        message: 'コントロールを奪うモンスターを選択',
+        targetType: 'opponent_monster',
+        validIndices: opponentMonsters.map((m) => m.index),
+        callback: (selectedIndex) => {
+          executeControl(selectedIndex);
+        },
+      });
+      return true;
+    }
+
+    // フォールバック: 最初のモンスター
+    executeControl(opponentMonsters[0].index);
+    return true;
+  },
+
+  /**
+   * C0000068: クリスタルブレス
+   * 次の自分のターン、自分の光属性モンスターの召喚コストを1軽減。
+   * Note: 継続効果システムを使用して実装する必要があるため、フラグを設定
+   */
+  C0000068: (skillText, context) => {
+    const { addLog } = context;
+    // 次のターン用のコスト軽減フラグを設定（簡易実装）
+    // TODO: 継続効果システムとの連携が必要
+    addLog('クリスタルブレス: 次の自分のターン、光属性モンスターの召喚コストを1軽減！', 'info');
+    return true;
+  },
+
+  /**
+   * C0000069: 聖なる浄化
+   * 場にいる全てのモンスターの効果をターン終了時まで無効化し、場のモンスター全体に2000ダメージを与える。
+   */
+  C0000069: (skillText, context) => {
+    const { addLog } = context;
+    const { myField, opponentField, setMyField, setOpponentField, setMyGraveyard, setOpponentGraveyard } = getPlayerContext(context);
+
+    const damage = 2000;
+    const myDestroyedMonsters = [];
+    const opponentDestroyedMonsters = [];
+
+    // 自分のモンスターにダメージ＆効果無効
+    setMyField((prev) => {
+      return prev.map((monster) => {
+        if (monster) {
+          const newHp = monster.currentHp - damage;
+          if (newHp <= 0) {
+            myDestroyedMonsters.push(monster);
+            return null;
+          }
+          return {
+            ...monster,
+            currentHp: newHp,
+            effectNegated: true, // 効果無効フラグ
+          };
+        }
+        return monster;
+      });
+    });
+
+    // 相手のモンスターにダメージ＆効果無効
+    setOpponentField((prev) => {
+      return prev.map((monster) => {
+        if (monster) {
+          const newHp = monster.currentHp - damage;
+          if (newHp <= 0) {
+            opponentDestroyedMonsters.push(monster);
+            return null;
+          }
+          return {
+            ...monster,
+            currentHp: newHp,
+            effectNegated: true, // 効果無効フラグ
+          };
+        }
+        return monster;
+      });
+    });
+
+    // 破壊されたモンスターを墓地に
+    if (myDestroyedMonsters.length > 0) {
+      setMyGraveyard((prev) => [...prev, ...myDestroyedMonsters]);
+    }
+    if (opponentDestroyedMonsters.length > 0) {
+      setOpponentGraveyard((prev) => [...prev, ...opponentDestroyedMonsters]);
+    }
+
+    const totalDestroyed = myDestroyedMonsters.length + opponentDestroyedMonsters.length;
+    addLog(`聖なる浄化: 場のモンスター全体に2000ダメージ！（${totalDestroyed}体破壊）`, 'damage');
     return true;
   },
 
