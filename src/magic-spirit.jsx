@@ -631,9 +631,9 @@ export default function MagicSpiritGame() {
             const currentBets = updatedPlayerData.tournamentData?.currentBets || [];
             const payoutResults = calculatePayouts(currentBets, finishedTournament);
 
-            // 総払戻金
-            const totalPayout = payoutResults.reduce((sum, r) => sum + r.payout, 0);
-            const totalBetAmount = currentBets.reduce((sum, b) => sum + b.amount, 0);
+            // 総払戻金（payoutResultsはオブジェクト）
+            const totalPayout = payoutResults.totalPayout;
+            const totalBetAmount = payoutResults.totalBet;
 
             // 履歴エントリ作成
             const historyEntry = createHistoryEntry(finishedTournament, currentBets, payoutResults);
@@ -641,7 +641,6 @@ export default function MagicSpiritGame() {
             // 統計更新
             const newTotalStats = updateTotalStats(
               updatedPlayerData.tournamentData?.totalStats || {},
-              currentBets,
               payoutResults
             );
 
