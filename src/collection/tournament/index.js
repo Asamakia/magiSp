@@ -20,7 +20,46 @@ export {
   getCompetitorPortrait,
 } from './data/competitors';
 
-// TODO: Phase 1-3で追加予定
-// export { tournamentManager } from './systems/tournamentManager';
-// export { oddsCalculator } from './systems/oddsCalculator';
-// export { bettingSystem } from './systems/bettingSystem';
+// 試合シミュレーション
+export {
+  loadCardCache,
+  getCardById,
+  convertDeckToCards,
+  getCompetitorDeckCards,
+  simulateMatch,
+  simulateMatchMultiple,
+  simulateTournament,
+} from './systems/matchSimulator';
+
+// オッズ計算
+export {
+  PAYOUT_RATES,
+  SIM_COUNTS,
+  MIN_ODDS,
+  calculateOddsFromProbability,
+  calculateTournamentOdds,
+  sortOddsByPopularity,
+  getTopExactaOdds,
+  calculatePayout,
+  judgeBetResult,
+  judgeBetsResults,
+} from './systems/oddsCalculator';
+
+// 大会管理
+export {
+  TOURNAMENT_TYPES,
+  TOURNAMENT_CONFIG,
+  TOURNAMENT_STATUS,
+  selectParticipants,
+  generateBracket,
+  createTournament,
+  runTournament,
+  updateTournamentStatus,
+  calculateNextSchedule,
+  checkTournamentTrigger,
+  updateCompetitorStats,
+  initializeCompetitorStats,
+  getTournamentConfig,
+  getCompetitorInfo,
+  getRoundName,
+} from './systems/tournamentManager';

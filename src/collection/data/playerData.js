@@ -11,6 +11,44 @@ import { createInitialMerchantData } from '../merchant/merchantSystem';
 import { EFFECT_LEVELS } from '../../styles/rarityEffects';
 
 // ========================================
+// 大会データ初期化
+// ========================================
+
+/**
+ * 初期大会データを作成
+ * @returns {Object} 初期大会データ
+ */
+export const createInitialTournamentData = () => ({
+  // NPC戦績
+  competitorStats: {},
+
+  // 現在開催中の大会
+  currentTournament: null,
+
+  // 現在の賭け
+  currentBets: [],
+
+  // 大会履歴（最新30件）
+  history: [],
+
+  // 次回大会スケジュール
+  schedule: {
+    nextDaily: 1,
+    nextWeekly: 7,
+    nextMajor: 21,
+  },
+
+  // 通算成績
+  totalStats: {
+    totalBets: 0,
+    totalWins: 0,
+    totalBetAmount: 0,
+    totalPayout: 0,
+    totalProfit: 0,
+  },
+});
+
+// ========================================
 // 設定のデフォルト値
 // ========================================
 
@@ -119,6 +157,9 @@ export const createInitialPlayerData = (starterCards = STARTER_DECK_CARDS) => {
     // 商人システム
     merchantData: createInitialMerchantData(),
 
+    // 大会システム
+    tournamentData: createInitialTournamentData(),
+
     // ユーザー設定
     settings: { ...DEFAULT_SETTINGS },
 
@@ -164,6 +205,8 @@ export const validatePlayerData = (data) => {
   if (!data.merchantData || typeof data.merchantData !== 'object') return { valid: false, needsRepair: true };
   // settingsが存在しない場合は修復が必要
   if (!data.settings || typeof data.settings !== 'object') return { valid: false, needsRepair: true };
+  // tournamentDataが存在しない場合は修復が必要
+  if (!data.tournamentData || typeof data.tournamentData !== 'object') return { valid: false, needsRepair: true };
   return { valid: true };
 };
 
@@ -219,6 +262,23 @@ export const repairPlayerData = (data) => {
     ...(data.settings || {}),
   };
 
+  // tournamentDataの修復
+  let repairedTournamentData;
+  if (!data.tournamentData || typeof data.tournamentData !== 'object') {
+    repairedTournamentData = createInitialTournamentData();
+  } else {
+    const defaultTournament = createInitialTournamentData();
+    repairedTournamentData = {
+      ...defaultTournament,
+      ...data.tournamentData,
+      competitorStats: data.tournamentData.competitorStats || {},
+      currentBets: Array.isArray(data.tournamentData.currentBets) ? data.tournamentData.currentBets : [],
+      history: Array.isArray(data.tournamentData.history) ? data.tournamentData.history : [],
+      schedule: data.tournamentData.schedule || defaultTournament.schedule,
+      totalStats: { ...defaultTournament.totalStats, ...(data.tournamentData.totalStats || {}) },
+    };
+  }
+
   return {
     gold: typeof data.gold === 'number' ? data.gold : defaults.gold,
     unopenedPacks: typeof data.unopenedPacks === 'number' ? data.unopenedPacks : 0,
@@ -227,6 +287,7 @@ export const repairPlayerData = (data) => {
     market: repairedMarket,
     assetHistory: repairedAssetHistory,
     merchantData: repairedMerchantData,
+    tournamentData: repairedTournamentData,
     settings: repairedSettings,
     stats: {
       ...defaults.stats,
@@ -261,6 +322,7 @@ export default {
   DEFAULT_SETTINGS,
   STARTER_DECK_CARDS,
   createInitialPlayerData,
+  createInitialTournamentData,
   validatePlayerData,
   repairPlayerData,
   createUserDeck,
