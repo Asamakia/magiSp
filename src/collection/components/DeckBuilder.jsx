@@ -480,9 +480,14 @@ const DeckBuilder = ({
     });
   }, [ownedCards, filterAttribute, filterType, filterRarity, searchText]);
 
-  // デッキ内のカード数をカウント
+  // デッキ内のカード数をカウント（同名カード全体）
   const getCardCountInDeck = (cardId) => {
     return deckCards.filter(c => c.cardId === cardId).length;
+  };
+
+  // デッキ内の特定レアリティのカード数をカウント
+  const getCardCountInDeckByRarity = (cardId, rarity) => {
+    return deckCards.filter(c => c.cardId === cardId && c.rarity === rarity).length;
   };
 
   // デッキ内の禁忌カード数をカウント
@@ -503,15 +508,16 @@ const DeckBuilder = ({
       return { can: false, reason: `デッキは${DECK_SIZE}枚までです` };
     }
 
-    // 同名カード上限
+    // 同名カード上限（レアリティ問わず全体で3枚まで）
     const currentCount = getCardCountInDeck(cardId);
     if (currentCount >= MAX_COPIES) {
       return { can: false, reason: `同名カードは${MAX_COPIES}枚までです` };
     }
 
-    // 所持枚数チェック
-    if (currentCount >= quantity) {
-      return { can: false, reason: '所持枚数を超えています' };
+    // 所持枚数チェック（特定レアリティの使用枚数 vs 所持枚数）
+    const currentRarityCount = getCardCountInDeckByRarity(cardId, rarity);
+    if (currentRarityCount >= quantity) {
+      return { can: false, reason: 'このレアリティの所持枚数を超えています' };
     }
 
     // 禁忌カード上限
