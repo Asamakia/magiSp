@@ -37,6 +37,7 @@ export const ACTION_TYPES = {
   PROCESS_PHASE: 'PROCESS_PHASE',
   NEXT_PHASE: 'NEXT_PHASE',
   END_TURN: 'END_TURN',
+  SET_PHASE: 'SET_PHASE', // Phase B: 直接フェイズ設定用
 
   // カードアクション
   SUMMON_CARD: 'SUMMON_CARD',
@@ -83,6 +84,7 @@ export const actions = {
   processPhase: (phase) => createAction(ACTION_TYPES.PROCESS_PHASE, { phase }),
   nextPhase: () => createAction(ACTION_TYPES.NEXT_PHASE),
   endTurn: () => createAction(ACTION_TYPES.END_TURN),
+  setPhase: (phase) => createAction(ACTION_TYPES.SET_PHASE, { phase }), // Phase B: 直接設定
 
   summonCard: (cardIndex, slotIndex) =>
     createAction(ACTION_TYPES.SUMMON_CARD, { cardIndex, slotIndex }),
@@ -139,6 +141,9 @@ export function applyAction(state, action) {
 
     case ACTION_TYPES.END_TURN:
       return applyEndTurn(state);
+
+    case ACTION_TYPES.SET_PHASE:
+      return applySetPhase(state, action.payload);
 
     case ACTION_TYPES.SUMMON_CARD:
       return applySummonCard(state, action.payload);
@@ -328,6 +333,17 @@ function applyNextPhase(state) {
   }
 
   return updateGameProgress(state, { phase: nextPhase });
+}
+
+/**
+ * フェイズを直接設定（Phase B: UI統合用）
+ */
+function applySetPhase(state, { phase }) {
+  if (phase < PHASES.TURN_START || phase > PHASES.END) {
+    console.warn(`Invalid phase: ${phase}`);
+    return state;
+  }
+  return updateGameProgress(state, { phase });
 }
 
 /**

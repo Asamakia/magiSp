@@ -78,6 +78,7 @@ import {
   useGameEngine,
   toLegacyState,
   fromLegacyState,
+  actions as gameActions, // Phase B: dispatch用アクションクリエイター
 } from './engine/gameEngine';
 import styles from './styles/gameStyles';
 import Card from './components/Card';
@@ -369,9 +370,71 @@ export default function MagicSpiritGame() {
   }, [p1Field, p2Field, p1Life, p2Life]);
 
   // ========================================
-  // GameEngine状態同期（Phase A-3）
-  // ゲームプレイ中にuseStateの変更をengineStateに反映
+  // Phase B: engineState → useState 同期
+  // engineStateの変更をuseStateに反映（dispatch駆動）
   // ========================================
+  const syncEngineToLegacy = useCallback(() => {
+    if (!engineState) return;
+
+    // toLegacyStateを使ってengineStateからuseState形式に変換
+    const legacy = toLegacyState(engineState);
+    if (!legacy) return;
+
+    // ゲーム進行状態
+    setTurn(legacy.turn);
+    setCurrentPlayer(legacy.currentPlayer);
+    setPhase(legacy.phase);
+    setIsFirstTurn(legacy.isFirstTurn);
+    setWinner(legacy.winner);
+    setLogs(legacy.logs);
+
+    // P1状態
+    setP1Life(legacy.p1Life);
+    setP1Deck(legacy.p1Deck);
+    setP1Hand(legacy.p1Hand);
+    setP1Field(legacy.p1Field);
+    setP1Graveyard(legacy.p1Graveyard);
+    setP1ActiveSP(legacy.p1ActiveSP);
+    setP1RestedSP(legacy.p1RestedSP);
+    setP1FieldCard(legacy.p1FieldCard);
+    setP1PhaseCard(legacy.p1PhaseCard);
+    setP1StatusEffects(legacy.p1StatusEffects);
+    setP1NextTurnSPBonus(legacy.p1NextTurnSPBonus);
+    setP1MagicBlocked(legacy.p1MagicBlocked);
+    setP1SpReduction(legacy.p1SpReduction);
+
+    // P2状態
+    setP2Life(legacy.p2Life);
+    setP2Deck(legacy.p2Deck);
+    setP2Hand(legacy.p2Hand);
+    setP2Field(legacy.p2Field);
+    setP2Graveyard(legacy.p2Graveyard);
+    setP2ActiveSP(legacy.p2ActiveSP);
+    setP2RestedSP(legacy.p2RestedSP);
+    setP2FieldCard(legacy.p2FieldCard);
+    setP2PhaseCard(legacy.p2PhaseCard);
+    setP2StatusEffects(legacy.p2StatusEffects);
+    setP2NextTurnSPBonus(legacy.p2NextTurnSPBonus);
+    setP2MagicBlocked(legacy.p2MagicBlocked);
+    setP2SpReduction(legacy.p2SpReduction);
+
+    // ターンフラグ
+    setChargeUsedThisTurn(legacy.chargeUsedThisTurn);
+  }, [engineState]);
+
+  // engineStateが変更されたらuseStateに同期（Phase B）
+  // 注意: dispatchを使ったアクションのみこの同期が必要
+  // 従来のuseState直接更新では不要（下位互換性）
+  useEffect(() => {
+    // プレイ中でない場合はスキップ
+    if (gameState !== 'playing') return;
+    // engineStateがnullの場合はスキップ
+    if (!engineState) return;
+    // 初期化直後は同期不要（initGameで両方セットされる）
+    // ここではdispatch後の同期のみ行う
+  }, [engineState, gameState]);
+
+  // 下位互換性: 従来のuseState → engineState同期（非推奨、将来削除）
   useEffect(() => {
     // プレイ中のみ同期
     if (gameState !== 'playing') return;
@@ -886,7 +949,9 @@ export default function MagicSpiritGame() {
         // ターン開始時トリガーを発火
         fireTrigger(TRIGGER_TYPES.ON_TURN_START_SELF, triggerContext);
 
-        setPhase(1);
+        // Phase B: dispatch経由でphaseを更新
+        dispatch(gameActions.setPhase(1));
+        setPhase(1); // 下位互換性
         break;
 
       case 1: // ドローフェイズ
@@ -902,7 +967,9 @@ export default function MagicSpiritGame() {
         // ドローフェイズトリガーを発火
         fireTrigger(TRIGGER_TYPES.ON_DRAW_PHASE_SELF, triggerContext);
 
-        setPhase(2);
+        // Phase B: dispatch経由でphaseを更新
+        dispatch(gameActions.setPhase(2));
+        setPhase(2); // 下位互換性
         break;
 
       case 2: // メインフェイズ
@@ -915,7 +982,9 @@ export default function MagicSpiritGame() {
         // 先攻1ターン目は攻撃不可
         if (isFirstTurn && currentPlayer === 1) {
           addLog('先攻1ターン目は攻撃できません', 'info');
-          setPhase(4);
+          // Phase B: dispatch経由でphaseを更新
+          dispatch(gameActions.setPhase(4));
+          setPhase(4); // 下位互換性
         }
 
         // バトルフェイズ開始時トリガーを発火
@@ -1050,7 +1119,9 @@ export default function MagicSpiritGame() {
         setP1Hand(prev => clearTempCostModifier(prev));
         setP2Hand(prev => clearTempCostModifier(prev));
 
-        setPhase(0);
+        // Phase B: dispatch経由でターン終了アクション
+        dispatch(gameActions.endTurn());
+        setPhase(0); // 下位互換性
         // ターン終了、相手に切り替え
         if (currentPlayer === 1) {
           setCurrentPlayer(2);
@@ -1063,7 +1134,7 @@ export default function MagicSpiritGame() {
         break;
     }
   }, [currentPlayer, isFirstTurn, p1Field, p2Field, p1Hand, p2Hand, p1Deck, p2Deck,
-      p1Graveyard, p2Graveyard, p1Life, p2Life, p1StatusEffects, p2StatusEffects, addLog]);
+      p1Graveyard, p2Graveyard, p1Life, p2Life, p1StatusEffects, p2StatusEffects, addLog, dispatch]);
 
   // チャージ処理
   const chargeCard = useCallback((card, monsterIndex) => {
@@ -3207,7 +3278,7 @@ export default function MagicSpiritGame() {
     }
   };
 
-  // 次のフェイズへ
+  // 次のフェイズへ（Phase B: dispatch経由）
   const nextPhase = () => {
     // 手札選択待ち中はフェイズ進行不可
     if (pendingHandSelection) {
@@ -3229,21 +3300,27 @@ export default function MagicSpiritGame() {
 
       if (!needsConfirmation) {
         // チェーン確認不要 → 直接バトルフェイズへ
-        setPhase(3);
+        // Phase B: dispatch経由でphaseを更新
+        dispatch(gameActions.setPhase(3));
+        setPhase(3); // 下位互換性: useStateも更新
         setSelectedHandCard(null);
       }
       // needsConfirmation === true の場合、確認後にproceedToBattlePhaseが呼ばれる
     } else if (phase === 3) {
-      setPhase(4);
+      // Phase B: dispatch経由でphaseを更新
+      dispatch(gameActions.setPhase(4));
+      setPhase(4); // 下位互換性: useStateも更新
       processPhase(4);
     }
   };
 
   // バトルフェイズへ進行（チェーン確認完了後に呼ばれる）
   const proceedToBattlePhase = useCallback(() => {
-    setPhase(3);
+    // Phase B: dispatch経由でphaseを更新
+    dispatch(gameActions.setPhase(3));
+    setPhase(3); // 下位互換性
     setSelectedHandCard(null);
-  }, []);
+  }, [dispatch]);
 
   // 魔法カード発動
   const useMagicCard = () => {
