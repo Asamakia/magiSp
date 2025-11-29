@@ -1,0 +1,661 @@
+/**
+ * Tournament Tab - 大会タブコンポーネント
+ *
+ * 商人ギルド内で大会への賭けを行うUI
+ *
+ * Created: 2025-11-29
+ */
+
+import React, { useState, useMemo } from 'react';
+import {
+  TOURNAMENT_CONFIG,
+  TOURNAMENT_STATUS,
+  TOURNAMENT_TYPES,
+  getCompetitorDisplayName,
+  getCompetitorPortrait,
+  getRoundName,
+} from '../index';
+import {
+  BET_TYPES,
+  BET_TYPE_NAMES,
+  validateBet,
+  createBet,
+  addBet,
+  removeBet,
+  getOdds,
+  getTotalBetAmount,
+  getRemainingBetLimit,
+  getBetTypeDescription,
+} from '../systems/bettingSystem';
+
+// ========================================
+// スタイル定義
+// ========================================
+
+const styles = {
+  container: {
+    padding: '16px',
+  },
+  section: {
+    marginBottom: '24px',
+  },
+  sectionTitle: {
+    fontSize: '16px',
+    fontWeight: 'bold',
+    color: '#ffd700',
+    marginBottom: '12px',
+    display: 'flex',
+    alignItems: 'center',
+    gap: '8px',
+  },
+  tournamentCard: {
+    background: 'linear-gradient(135deg, #2a2a4a 0%, #3a3a5a 100%)',
+    borderRadius: '12px',
+    padding: '16px',
+    border: '2px solid #6b4ce6',
+    marginBottom: '16px',
+  },
+  tournamentHeader: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: '12px',
+  },
+  tournamentName: {
+    fontSize: '18px',
+    fontWeight: 'bold',
+    color: '#fff',
+  },
+  deadline: {
+    fontSize: '14px',
+    color: '#ff9500',
+    fontWeight: 'bold',
+  },
+  participantGrid: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(auto-fill, minmax(120px, 1fr))',
+    gap: '8px',
+    marginBottom: '16px',
+  },
+  participantItem: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '8px',
+    padding: '8px',
+    background: 'rgba(107,76,230,0.2)',
+    borderRadius: '8px',
+  },
+  participantPortrait: {
+    fontSize: '20px',
+  },
+  participantName: {
+    fontSize: '12px',
+    color: '#e0e0e0',
+    overflow: 'hidden',
+    textOverflow: 'ellipsis',
+    whiteSpace: 'nowrap',
+  },
+  betSection: {
+    marginTop: '16px',
+    padding: '16px',
+    background: 'rgba(0,0,0,0.3)',
+    borderRadius: '8px',
+  },
+  betTypeSelector: {
+    display: 'flex',
+    gap: '8px',
+    marginBottom: '16px',
+  },
+  betTypeButton: {
+    flex: 1,
+    padding: '10px 8px',
+    borderRadius: '8px',
+    border: '2px solid #4a4a6a',
+    background: 'transparent',
+    color: '#a0a0a0',
+    cursor: 'pointer',
+    fontSize: '12px',
+    fontWeight: 'bold',
+    transition: 'all 0.2s ease',
+  },
+  betTypeButtonActive: {
+    border: '2px solid #6b4ce6',
+    background: 'rgba(107,76,230,0.3)',
+    color: '#fff',
+  },
+  oddsGrid: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))',
+    gap: '8px',
+    marginBottom: '16px',
+  },
+  oddsItem: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: '10px 12px',
+    background: 'rgba(50,50,80,0.5)',
+    borderRadius: '8px',
+    cursor: 'pointer',
+    border: '2px solid transparent',
+    transition: 'all 0.2s ease',
+  },
+  oddsItemSelected: {
+    border: '2px solid #ffd700',
+    background: 'rgba(255,215,0,0.1)',
+  },
+  oddsValue: {
+    fontSize: '14px',
+    fontWeight: 'bold',
+    color: '#ffd700',
+  },
+  betInput: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '12px',
+    marginBottom: '12px',
+  },
+  input: {
+    flex: 1,
+    padding: '10px 12px',
+    borderRadius: '8px',
+    border: '2px solid #4a4a6a',
+    background: 'rgba(30,30,50,0.8)',
+    color: '#fff',
+    fontSize: '16px',
+    outline: 'none',
+  },
+  quickButton: {
+    padding: '8px 12px',
+    borderRadius: '6px',
+    border: 'none',
+    background: 'rgba(107,76,230,0.5)',
+    color: '#fff',
+    cursor: 'pointer',
+    fontSize: '12px',
+    fontWeight: 'bold',
+  },
+  betButton: {
+    width: '100%',
+    padding: '12px',
+    borderRadius: '8px',
+    border: 'none',
+    background: 'linear-gradient(90deg, #6b4ce6, #9d4ce6)',
+    color: '#fff',
+    cursor: 'pointer',
+    fontSize: '16px',
+    fontWeight: 'bold',
+    transition: 'all 0.2s ease',
+  },
+  betButtonDisabled: {
+    opacity: 0.5,
+    cursor: 'not-allowed',
+  },
+  currentBets: {
+    marginTop: '16px',
+  },
+  betListItem: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: '10px 12px',
+    background: 'rgba(50,50,80,0.5)',
+    borderRadius: '8px',
+    marginBottom: '8px',
+  },
+  betListInfo: {
+    flex: 1,
+  },
+  betListType: {
+    fontSize: '12px',
+    color: '#a0a0a0',
+  },
+  betListTarget: {
+    fontSize: '14px',
+    fontWeight: 'bold',
+    color: '#fff',
+  },
+  betListAmount: {
+    fontSize: '14px',
+    color: '#ffd700',
+    marginRight: '12px',
+  },
+  cancelButton: {
+    padding: '6px 12px',
+    borderRadius: '6px',
+    border: 'none',
+    background: 'rgba(255,100,100,0.5)',
+    color: '#fff',
+    cursor: 'pointer',
+    fontSize: '12px',
+  },
+  noTournament: {
+    textAlign: 'center',
+    padding: '40px',
+    color: '#a0a0a0',
+  },
+  historyItem: {
+    background: 'rgba(50,50,80,0.5)',
+    borderRadius: '8px',
+    padding: '12px',
+    marginBottom: '8px',
+  },
+  historyHeader: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    marginBottom: '8px',
+  },
+  historyName: {
+    fontWeight: 'bold',
+    color: '#fff',
+  },
+  historyProfit: {
+    fontWeight: 'bold',
+  },
+  historyProfitPositive: {
+    color: '#4caf50',
+  },
+  historyProfitNegative: {
+    color: '#f44336',
+  },
+  historyResult: {
+    fontSize: '12px',
+    color: '#a0a0a0',
+  },
+  totalStats: {
+    background: 'rgba(107,76,230,0.2)',
+    borderRadius: '8px',
+    padding: '12px',
+    display: 'grid',
+    gridTemplateColumns: 'repeat(3, 1fr)',
+    gap: '8px',
+    textAlign: 'center',
+  },
+  statItem: {
+    fontSize: '12px',
+    color: '#a0a0a0',
+  },
+  statValue: {
+    fontSize: '16px',
+    fontWeight: 'bold',
+    color: '#fff',
+  },
+};
+
+// ========================================
+// メインコンポーネント
+// ========================================
+
+const TournamentTab = ({
+  playerData,
+  currentBattle,
+  onPlaceBet,
+  onCancelBet,
+}) => {
+  const [selectedBetType, setSelectedBetType] = useState(BET_TYPES.WIN);
+  const [selectedTarget, setSelectedTarget] = useState(null);
+  const [betAmount, setBetAmount] = useState('');
+
+  const tournamentData = playerData?.tournamentData || {};
+  const tournament = tournamentData.currentTournament;
+  const currentBets = tournamentData.currentBets || [];
+  const history = tournamentData.history || [];
+  const totalStats = tournamentData.totalStats || {};
+
+  // オッズリストを取得
+  const oddsList = useMemo(() => {
+    if (!tournament || !tournament.odds) return [];
+
+    const odds = tournament.odds;
+    let items = [];
+
+    if (selectedBetType === BET_TYPES.WIN) {
+      items = tournament.participants.map(id => ({
+        target: id,
+        label: getCompetitorDisplayName(id),
+        portrait: getCompetitorPortrait(id),
+        odds: odds.win?.[id] || 0,
+      }));
+    } else if (selectedBetType === BET_TYPES.PLACE) {
+      items = tournament.participants.map(id => ({
+        target: id,
+        label: getCompetitorDisplayName(id),
+        portrait: getCompetitorPortrait(id),
+        odds: odds.place?.[id] || 0,
+      }));
+    } else if (selectedBetType === BET_TYPES.EXACTA) {
+      // 2連単: 人気順上位を表示
+      const exactaEntries = Object.entries(odds.exacta || {})
+        .map(([key, oddsValue]) => {
+          const [first, second] = key.split('-');
+          return {
+            target: key,
+            label: `${getCompetitorDisplayName(first)} → ${getCompetitorDisplayName(second)}`,
+            portrait: `${getCompetitorPortrait(first)}→${getCompetitorPortrait(second)}`,
+            odds: oddsValue,
+          };
+        })
+        .sort((a, b) => a.odds - b.odds)
+        .slice(0, 12); // 上位12件
+      items = exactaEntries;
+    }
+
+    return items.sort((a, b) => a.odds - b.odds);
+  }, [tournament, selectedBetType]);
+
+  // 賭け金額バリデーション
+  const betValidation = useMemo(() => {
+    if (!tournament || !selectedTarget || !betAmount) {
+      return { valid: false, error: null };
+    }
+
+    const amount = parseInt(betAmount) || 0;
+    const odds = getOdds(tournament, selectedBetType, selectedTarget);
+
+    return validateBet(
+      { type: selectedBetType, target: selectedTarget, amount },
+      tournament,
+      currentBets,
+      playerData?.gold || 0
+    );
+  }, [tournament, selectedBetType, selectedTarget, betAmount, currentBets, playerData?.gold]);
+
+  // 賭けを確定
+  const handlePlaceBet = () => {
+    if (!betValidation.valid) return;
+
+    const amount = parseInt(betAmount) || 0;
+    const odds = getOdds(tournament, selectedBetType, selectedTarget);
+
+    const bet = createBet(selectedBetType, selectedTarget, amount, odds);
+
+    if (onPlaceBet) {
+      onPlaceBet(bet);
+    }
+
+    // リセット
+    setSelectedTarget(null);
+    setBetAmount('');
+  };
+
+  // 賭けをキャンセル
+  const handleCancelBet = (betId) => {
+    if (onCancelBet) {
+      onCancelBet(betId);
+    }
+  };
+
+  // 残り賭け可能金額
+  const remainingLimit = tournament
+    ? getRemainingBetLimit(tournament, currentBets)
+    : 0;
+
+  // 大会がない場合
+  if (!tournament) {
+    return (
+      <div style={styles.container}>
+        <div style={styles.noTournament}>
+          <div style={{ fontSize: '48px', marginBottom: '16px' }}>🏆</div>
+          <div style={{ fontSize: '18px', marginBottom: '8px' }}>
+            現在開催中の大会はありません
+          </div>
+          <div style={{ fontSize: '14px' }}>
+            次の大会をお待ちください
+          </div>
+        </div>
+
+        {/* 通算成績 */}
+        {totalStats.totalBets > 0 && (
+          <div style={styles.section}>
+            <div style={styles.sectionTitle}>📊 通算成績</div>
+            <div style={styles.totalStats}>
+              <div>
+                <div style={styles.statItem}>賭け回数</div>
+                <div style={styles.statValue}>{totalStats.totalBets}回</div>
+              </div>
+              <div>
+                <div style={styles.statItem}>的中</div>
+                <div style={styles.statValue}>{totalStats.totalWins}回</div>
+              </div>
+              <div>
+                <div style={styles.statItem}>収支</div>
+                <div style={{
+                  ...styles.statValue,
+                  color: totalStats.totalProfit >= 0 ? '#4caf50' : '#f44336',
+                }}>
+                  {totalStats.totalProfit >= 0 ? '+' : ''}{totalStats.totalProfit?.toLocaleString()}G
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* 直近の結果 */}
+        {history.length > 0 && (
+          <div style={styles.section}>
+            <div style={styles.sectionTitle}>📜 直近の結果</div>
+            {history.slice(0, 5).map((entry, index) => (
+              <div key={index} style={styles.historyItem}>
+                <div style={styles.historyHeader}>
+                  <span style={styles.historyName}>{entry.name}</span>
+                  <span style={{
+                    ...styles.historyProfit,
+                    ...(entry.totalProfit >= 0
+                      ? styles.historyProfitPositive
+                      : styles.historyProfitNegative),
+                  }}>
+                    {entry.totalProfit >= 0 ? '+' : ''}{entry.totalProfit?.toLocaleString()}G
+                  </span>
+                </div>
+                <div style={styles.historyResult}>
+                  優勝: {getCompetitorDisplayName(entry.finalWinner)}
+                  {entry.wonCount > 0 && ` (${entry.wonCount}件的中)`}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  const config = TOURNAMENT_CONFIG[tournament.type];
+  const battlesUntilDeadline = tournament.deadline - currentBattle;
+  const canBet = tournament.status === TOURNAMENT_STATUS.BETTING && battlesUntilDeadline > 0;
+
+  return (
+    <div style={styles.container}>
+      {/* 開催中の大会 */}
+      <div style={styles.tournamentCard}>
+        <div style={styles.tournamentHeader}>
+          <span style={styles.tournamentName}>🏆 {tournament.name}</span>
+          {canBet ? (
+            <span style={styles.deadline}>締切まで あと{battlesUntilDeadline}戦</span>
+          ) : (
+            <span style={{ ...styles.deadline, color: '#f44336' }}>締切済み</span>
+          )}
+        </div>
+
+        {/* 出場者 */}
+        <div style={styles.participantGrid}>
+          {tournament.participants.map(id => (
+            <div key={id} style={styles.participantItem}>
+              <span style={styles.participantPortrait}>{getCompetitorPortrait(id)}</span>
+              <span style={styles.participantName}>{getCompetitorDisplayName(id)}</span>
+            </div>
+          ))}
+        </div>
+
+        {/* 賭け受付中の場合 */}
+        {canBet && (
+          <div style={styles.betSection}>
+            {/* 賭け種類選択 */}
+            <div style={styles.betTypeSelector}>
+              {Object.entries(BET_TYPE_NAMES).map(([type, name]) => (
+                <button
+                  key={type}
+                  style={{
+                    ...styles.betTypeButton,
+                    ...(selectedBetType === type ? styles.betTypeButtonActive : {}),
+                  }}
+                  onClick={() => {
+                    setSelectedBetType(type);
+                    setSelectedTarget(null);
+                  }}
+                >
+                  {name}
+                </button>
+              ))}
+            </div>
+
+            {/* オッズ一覧 */}
+            <div style={{ fontSize: '12px', color: '#a0a0a0', marginBottom: '8px' }}>
+              {getBetTypeDescription(selectedBetType)}
+            </div>
+            <div style={styles.oddsGrid}>
+              {oddsList.map(item => (
+                <div
+                  key={item.target}
+                  style={{
+                    ...styles.oddsItem,
+                    ...(selectedTarget === item.target ? styles.oddsItemSelected : {}),
+                  }}
+                  onClick={() => setSelectedTarget(item.target)}
+                >
+                  <span style={{ fontSize: '12px', color: '#e0e0e0' }}>
+                    {selectedBetType === BET_TYPES.EXACTA
+                      ? item.label.split(' → ').map((n, i) => (
+                          <span key={i}>{i > 0 && '→'}{n}</span>
+                        ))
+                      : (
+                          <>
+                            <span style={{ marginRight: '4px' }}>{item.portrait}</span>
+                            {item.label}
+                          </>
+                        )
+                    }
+                  </span>
+                  <span style={styles.oddsValue}>{item.odds}倍</span>
+                </div>
+              ))}
+            </div>
+
+            {/* 金額入力 */}
+            {selectedTarget && (
+              <>
+                <div style={styles.betInput}>
+                  <input
+                    type="number"
+                    style={styles.input}
+                    placeholder="賭け金額"
+                    value={betAmount}
+                    onChange={(e) => setBetAmount(e.target.value)}
+                  />
+                  <button
+                    style={styles.quickButton}
+                    onClick={() => setBetAmount(String(config.minBet))}
+                  >
+                    +{config.minBet.toLocaleString()}
+                  </button>
+                  <button
+                    style={styles.quickButton}
+                    onClick={() => setBetAmount(String(config.maxBet))}
+                  >
+                    MAX
+                  </button>
+                </div>
+
+                {/* エラー表示 */}
+                {betValidation.error && (
+                  <div style={{ color: '#f44336', fontSize: '12px', marginBottom: '8px' }}>
+                    {betValidation.error}
+                  </div>
+                )}
+
+                {/* 賭けボタン */}
+                <button
+                  style={{
+                    ...styles.betButton,
+                    ...(betValidation.valid ? {} : styles.betButtonDisabled),
+                  }}
+                  onClick={handlePlaceBet}
+                  disabled={!betValidation.valid}
+                >
+                  賭ける ({parseInt(betAmount || 0).toLocaleString()}G)
+                </button>
+              </>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* 現在の賭け */}
+      {currentBets.length > 0 && (
+        <div style={styles.section}>
+          <div style={styles.sectionTitle}>
+            💰 現在の賭け（合計 {getTotalBetAmount(currentBets).toLocaleString()}G）
+          </div>
+          {currentBets.map(bet => (
+            <div key={bet.id} style={styles.betListItem}>
+              <div style={styles.betListInfo}>
+                <div style={styles.betListType}>{BET_TYPE_NAMES[bet.type]}</div>
+                <div style={styles.betListTarget}>
+                  {bet.type === BET_TYPES.EXACTA
+                    ? bet.target.split('-').map(id => getCompetitorDisplayName(id)).join(' → ')
+                    : getCompetitorDisplayName(bet.target)
+                  }
+                </div>
+              </div>
+              <span style={styles.betListAmount}>
+                {bet.amount.toLocaleString()}G × {bet.odds}倍
+              </span>
+              {canBet && (
+                <button
+                  style={styles.cancelButton}
+                  onClick={() => handleCancelBet(bet.id)}
+                >
+                  取消
+                </button>
+              )}
+            </div>
+          ))}
+          <div style={{ fontSize: '12px', color: '#a0a0a0', marginTop: '8px' }}>
+            残り賭け可能: {remainingLimit.toLocaleString()}G
+          </div>
+        </div>
+      )}
+
+      {/* 通算成績 */}
+      {totalStats.totalBets > 0 && (
+        <div style={styles.section}>
+          <div style={styles.sectionTitle}>📊 通算成績</div>
+          <div style={styles.totalStats}>
+            <div>
+              <div style={styles.statItem}>賭け回数</div>
+              <div style={styles.statValue}>{totalStats.totalBets}回</div>
+            </div>
+            <div>
+              <div style={styles.statItem}>的中率</div>
+              <div style={styles.statValue}>
+                {totalStats.totalBets > 0
+                  ? Math.round((totalStats.totalWins / totalStats.totalBets) * 100)
+                  : 0}%
+              </div>
+            </div>
+            <div>
+              <div style={styles.statItem}>収支</div>
+              <div style={{
+                ...styles.statValue,
+                color: totalStats.totalProfit >= 0 ? '#4caf50' : '#f44336',
+              }}>
+                {totalStats.totalProfit >= 0 ? '+' : ''}{totalStats.totalProfit?.toLocaleString()}G
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+export default TournamentTab;
