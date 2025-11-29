@@ -66,6 +66,10 @@ export const ACTION_TYPES = {
 
   // ログ
   ADD_LOG: 'ADD_LOG',
+
+  // Phase D-4: 効果コンテキスト用
+  UPDATE_PLAYER_STATE: 'UPDATE_PLAYER_STATE',  // プレイヤー状態の部分更新
+  SET_GAME_FLAGS: 'SET_GAME_FLAGS',            // ゲームフラグの更新
 };
 
 // ========================================
@@ -130,6 +134,15 @@ export const actions = {
   // Phase D-3: ログ追加
   addLog: (message, type = 'info') =>
     createAction(ACTION_TYPES.ADD_LOG, { message, type }),
+
+  // Phase D-4: 効果コンテキスト用
+  // プレイヤー状態の部分更新（life, deck, hand, field, graveyard, activeSP, restedSP, fieldCard, phaseCard, statusEffects, nextTurnSPBonus, magicBlocked, spReduction）
+  updatePlayerState: (player, updates) =>
+    createAction(ACTION_TYPES.UPDATE_PLAYER_STATE, { player, updates }),
+
+  // ゲームフラグの更新（chargeUsedThisTurn等）
+  setGameFlags: (flags) =>
+    createAction(ACTION_TYPES.SET_GAME_FLAGS, { flags }),
 };
 
 // ========================================
@@ -207,6 +220,13 @@ export function applyAction(state, action) {
     // Phase D-3: ログ追加
     case ACTION_TYPES.ADD_LOG:
       return addLog(state, action.payload.message, action.payload.type);
+
+    // Phase D-4: 効果コンテキスト用
+    case ACTION_TYPES.UPDATE_PLAYER_STATE:
+      return applyUpdatePlayerState(state, action.payload);
+
+    case ACTION_TYPES.SET_GAME_FLAGS:
+      return applySetGameFlags(state, action.payload);
 
     default:
       console.warn(`Unknown action type: ${action.type}`);
@@ -930,4 +950,46 @@ function applyPlacePhaseCard(state, { cardIndex }) {
   newState = addLog(newState, `P${state.currentPlayer}: フェイズカード【${card.name}】を設置！【初期段階】`, 'info');
 
   return newState;
+}
+
+// ========================================
+// Phase D-4: 効果コンテキスト用アクション
+// ========================================
+
+/**
+ * プレイヤー状態の部分更新
+ * effectHelpers/cardEffects/cardTriggersからのset*呼び出しをdispatch経由に変換
+ *
+ * @param {Object} state - 現在のGameState
+ * @param {Object} payload - { player: 1|2, updates: { life?, deck?, hand?, field?, ... } }
+ * @returns {Object} 新しいGameState
+ */
+function applyUpdatePlayerState(state, { player, updates }) {
+  // 関数形式の値をサポート（setState(prev => prev + 1)形式）
+  const resolvedUpdates = {};
+  const playerData = getPlayer(state, player);
+
+  for (const [key, value] of Object.entries(updates)) {
+    if (typeof value === 'function') {
+      // 関数形式: 現在の値を引数に取り、新しい値を返す
+      resolvedUpdates[key] = value(playerData[key]);
+    } else {
+      // 直接値形式
+      resolvedUpdates[key] = value;
+    }
+  }
+
+  return updatePlayer(state, player, resolvedUpdates);
+}
+
+/**
+ * ゲームフラグの更新
+ * chargeUsedThisTurn等のターンフラグを更新
+ *
+ * @param {Object} state - 現在のGameState
+ * @param {Object} payload - { flags: { chargeUsedThisTurn?, ... } }
+ * @returns {Object} 新しいGameState
+ */
+function applySetGameFlags(state, { flags }) {
+  return updateTurnFlags(state, flags);
 }

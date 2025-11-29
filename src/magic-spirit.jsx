@@ -148,39 +148,6 @@ export default function MagicSpiritGame() {
   const winner = engineState?.winner ?? null;
   const logs = engineState?.logs ?? [];
 
-  // P1状態（13個）
-  const p1LifeFromEngine = engineState?.p1?.life ?? INITIAL_LIFE;
-  const p1DeckFromEngine = engineState?.p1?.deck ?? [];
-  const p1HandFromEngine = engineState?.p1?.hand ?? [];
-  const p1FieldFromEngine = engineState?.p1?.field ?? [null, null, null, null, null];
-  const p1GraveyardFromEngine = engineState?.p1?.graveyard ?? [];
-  const p1ActiveSPFromEngine = engineState?.p1?.activeSP ?? INITIAL_SP;
-  const p1RestedSPFromEngine = engineState?.p1?.restedSP ?? 0;
-  const p1FieldCardFromEngine = engineState?.p1?.fieldCard ?? null;
-  const p1PhaseCardFromEngine = engineState?.p1?.phaseCard ?? null;
-  const p1StatusEffectsFromEngine = engineState?.p1?.statusEffects ?? [];
-  const p1NextTurnSPBonusFromEngine = engineState?.p1?.nextTurnSPBonus ?? 0;
-  const p1MagicBlockedFromEngine = engineState?.p1?.magicBlocked ?? false;
-  const p1SpReductionFromEngine = engineState?.p1?.spReduction ?? 0;
-
-  // P2状態（13個）
-  const p2LifeFromEngine = engineState?.p2?.life ?? INITIAL_LIFE;
-  const p2DeckFromEngine = engineState?.p2?.deck ?? [];
-  const p2HandFromEngine = engineState?.p2?.hand ?? [];
-  const p2FieldFromEngine = engineState?.p2?.field ?? [null, null, null, null, null];
-  const p2GraveyardFromEngine = engineState?.p2?.graveyard ?? [];
-  const p2ActiveSPFromEngine = engineState?.p2?.activeSP ?? INITIAL_SP;
-  const p2RestedSPFromEngine = engineState?.p2?.restedSP ?? 0;
-  const p2FieldCardFromEngine = engineState?.p2?.fieldCard ?? null;
-  const p2PhaseCardFromEngine = engineState?.p2?.phaseCard ?? null;
-  const p2StatusEffectsFromEngine = engineState?.p2?.statusEffects ?? [];
-  const p2NextTurnSPBonusFromEngine = engineState?.p2?.nextTurnSPBonus ?? 0;
-  const p2MagicBlockedFromEngine = engineState?.p2?.magicBlocked ?? false;
-  const p2SpReductionFromEngine = engineState?.p2?.spReduction ?? 0;
-
-  // ターンフラグ（1個）
-  const chargeUsedThisTurnFromEngine = engineState?.turnFlags?.chargeUsedThisTurn ?? false;
-
   // カードデータ管理
   const [allCards, setAllCards] = useState(SAMPLE_CARDS);
   const [isLoadingCards, setIsLoadingCards] = useState(true);
@@ -199,49 +166,47 @@ export default function MagicSpiritGame() {
   const [showMarketAnalysis, setShowMarketAnalysis] = useState(false); // 市場分析画面表示
   const [currentMerchant, setCurrentMerchant] = useState(null); // 現在訪問中の商人名
 
+  // ========================================
+  // Phase D-4: プレイヤー状態（engineStateから直接参照）
+  // ========================================
+
   // プレイヤー1の状態
-  const [p1Life, setP1Life] = useState(INITIAL_LIFE);
-  const [p1Deck, setP1Deck] = useState([]);
-  const [p1Hand, setP1Hand] = useState([]);
-  const [p1Field, setP1Field] = useState([null, null, null, null, null]);
-  const [p1Graveyard, setP1Graveyard] = useState([]);
-  const [p1ActiveSP, setP1ActiveSP] = useState(INITIAL_SP);
-  const [p1RestedSP, setP1RestedSP] = useState(0);
-  const [p1FieldCard, setP1FieldCard] = useState(null);
-  const [p1PhaseCard, setP1PhaseCard] = useState(null);
+  const p1Life = engineState?.p1?.life ?? INITIAL_LIFE;
+  const p1Deck = engineState?.p1?.deck ?? [];
+  const p1Hand = engineState?.p1?.hand ?? [];
+  const p1Field = engineState?.p1?.field ?? [null, null, null, null, null];
+  const p1Graveyard = engineState?.p1?.graveyard ?? [];
+  const p1ActiveSP = engineState?.p1?.activeSP ?? INITIAL_SP;
+  const p1RestedSP = engineState?.p1?.restedSP ?? 0;
+  const p1FieldCard = engineState?.p1?.fieldCard ?? null;
+  const p1PhaseCard = engineState?.p1?.phaseCard ?? null;
+  const p1StatusEffects = engineState?.p1?.statusEffects ?? [];
+  const p1NextTurnSPBonus = engineState?.p1?.nextTurnSPBonus ?? 0;
+  const p1MagicBlocked = engineState?.p1?.magicBlocked ?? false;
+  const p1SpReduction = engineState?.p1?.spReduction ?? 0;
 
   // プレイヤー2の状態
-  const [p2Life, setP2Life] = useState(INITIAL_LIFE);
-  const [p2Deck, setP2Deck] = useState([]);
-  const [p2Hand, setP2Hand] = useState([]);
-  const [p2Field, setP2Field] = useState([null, null, null, null, null]);
-  const [p2Graveyard, setP2Graveyard] = useState([]);
-  const [p2ActiveSP, setP2ActiveSP] = useState(INITIAL_SP);
-  const [p2RestedSP, setP2RestedSP] = useState(0);
-  const [p2FieldCard, setP2FieldCard] = useState(null);
-  const [p2PhaseCard, setP2PhaseCard] = useState(null);
+  const p2Life = engineState?.p2?.life ?? INITIAL_LIFE;
+  const p2Deck = engineState?.p2?.deck ?? [];
+  const p2Hand = engineState?.p2?.hand ?? [];
+  const p2Field = engineState?.p2?.field ?? [null, null, null, null, null];
+  const p2Graveyard = engineState?.p2?.graveyard ?? [];
+  const p2ActiveSP = engineState?.p2?.activeSP ?? INITIAL_SP;
+  const p2RestedSP = engineState?.p2?.restedSP ?? 0;
+  const p2FieldCard = engineState?.p2?.fieldCard ?? null;
+  const p2PhaseCard = engineState?.p2?.phaseCard ?? null;
+  const p2StatusEffects = engineState?.p2?.statusEffects ?? [];
+  const p2NextTurnSPBonus = engineState?.p2?.nextTurnSPBonus ?? 0;
+  const p2MagicBlocked = engineState?.p2?.magicBlocked ?? false;
+  const p2SpReduction = engineState?.p2?.spReduction ?? 0;
 
-  // プレイヤー状態異常（毒など）
-  const [p1StatusEffects, setP1StatusEffects] = useState([]);
-  const [p2StatusEffects, setP2StatusEffects] = useState([]);
-
-  // 次のターンのSP増加ボーナス（マーメイドの恵み等）
-  const [p1NextTurnSPBonus, setP1NextTurnSPBonus] = useState(0);
-  const [p2NextTurnSPBonus, setP2NextTurnSPBonus] = useState(0);
-
-  // 魔法カード使用制限（触覚持ち粘液獣等）
-  const [p1MagicBlocked, setP1MagicBlocked] = useState(false);
-  const [p2MagicBlocked, setP2MagicBlocked] = useState(false);
-
-  // 次ターンSP増加減少（【壮麗】効果）
-  const [p1SpReduction, setP1SpReduction] = useState(0);
-  const [p2SpReduction, setP2SpReduction] = useState(0);
+  // Phase D-4: ターンフラグ（engineStateから直接参照）
+  const chargeUsedThisTurn = engineState?.turnFlags?.chargeUsedThisTurn ?? false;
 
   // UI状態
   const [selectedHandCard, setSelectedHandCard] = useState(null);
   const [selectedFieldMonster, setSelectedFieldMonster] = useState(null);
   const [attackingMonster, setAttackingMonster] = useState(null);
-  const [chargeUsedThisTurn, setChargeUsedThisTurn] = useState(false);
   const [selectedFieldCardInfo, setSelectedFieldCardInfo] = useState(null); // フィールド/フェイズカード情報表示用
   const [pendingHandSelection, setPendingHandSelection] = useState(null); // 手札選択待ち状態 { message, callback, filter? }
   const [pendingSelectedCard, setPendingSelectedCard] = useState(null); // 手札選択モード中の選択カード
@@ -300,67 +265,183 @@ export default function MagicSpiritGame() {
   }, [dispatch]);
 
   // ========================================
-  // GameEngine同期関数（Phase A-3）
-  // useStateの値をengineStateに同期
-  // フェイズ終了時などのタイミングで呼び出す
+  // Phase D-4-2: コンテキストアダプター
+  // effectHelpers/cardEffects/cardTriggersからのset*呼び出しをdispatch経由に変換
   // ========================================
-  const syncGameStateToEngine = useCallback(() => {
-    if (!syncFromLegacy) return;
 
-    const legacyState = {
-      // ゲーム進行
-      turn,
+  // ヘルパー: 関数または値を解決（setState(prev => prev + 1)形式をサポート）
+  const resolveValue = useCallback((valueOrUpdater, currentValue) => {
+    return typeof valueOrUpdater === 'function'
+      ? valueOrUpdater(currentValue)
+      : valueOrUpdater;
+  }, []);
+
+  // Phase D-4: useState削除後のセッター（dispatch経由）
+  // これらは直接呼び出し（initGame等）とコンテキスト経由両方で使用
+
+  // ライフ
+  const setP1Life = useCallback((value) => {
+    dispatch(gameActions.updatePlayerState(1, { life: resolveValue(value, p1Life) }));
+  }, [dispatch, resolveValue, p1Life]);
+  const setP2Life = useCallback((value) => {
+    dispatch(gameActions.updatePlayerState(2, { life: resolveValue(value, p2Life) }));
+  }, [dispatch, resolveValue, p2Life]);
+
+  // デッキ
+  const setP1Deck = useCallback((value) => {
+    dispatch(gameActions.updatePlayerState(1, { deck: resolveValue(value, p1Deck) }));
+  }, [dispatch, resolveValue, p1Deck]);
+  const setP2Deck = useCallback((value) => {
+    dispatch(gameActions.updatePlayerState(2, { deck: resolveValue(value, p2Deck) }));
+  }, [dispatch, resolveValue, p2Deck]);
+
+  // 手札
+  const setP1Hand = useCallback((value) => {
+    dispatch(gameActions.updatePlayerState(1, { hand: resolveValue(value, p1Hand) }));
+  }, [dispatch, resolveValue, p1Hand]);
+  const setP2Hand = useCallback((value) => {
+    dispatch(gameActions.updatePlayerState(2, { hand: resolveValue(value, p2Hand) }));
+  }, [dispatch, resolveValue, p2Hand]);
+
+  // フィールド
+  const setP1Field = useCallback((value) => {
+    dispatch(gameActions.updatePlayerState(1, { field: resolveValue(value, p1Field) }));
+  }, [dispatch, resolveValue, p1Field]);
+  const setP2Field = useCallback((value) => {
+    dispatch(gameActions.updatePlayerState(2, { field: resolveValue(value, p2Field) }));
+  }, [dispatch, resolveValue, p2Field]);
+
+  // 墓地
+  const setP1Graveyard = useCallback((value) => {
+    dispatch(gameActions.updatePlayerState(1, { graveyard: resolveValue(value, p1Graveyard) }));
+  }, [dispatch, resolveValue, p1Graveyard]);
+  const setP2Graveyard = useCallback((value) => {
+    dispatch(gameActions.updatePlayerState(2, { graveyard: resolveValue(value, p2Graveyard) }));
+  }, [dispatch, resolveValue, p2Graveyard]);
+
+  // SP
+  const setP1ActiveSP = useCallback((value) => {
+    dispatch(gameActions.updatePlayerState(1, { activeSP: resolveValue(value, p1ActiveSP) }));
+  }, [dispatch, resolveValue, p1ActiveSP]);
+  const setP2ActiveSP = useCallback((value) => {
+    dispatch(gameActions.updatePlayerState(2, { activeSP: resolveValue(value, p2ActiveSP) }));
+  }, [dispatch, resolveValue, p2ActiveSP]);
+  const setP1RestedSP = useCallback((value) => {
+    dispatch(gameActions.updatePlayerState(1, { restedSP: resolveValue(value, p1RestedSP) }));
+  }, [dispatch, resolveValue, p1RestedSP]);
+  const setP2RestedSP = useCallback((value) => {
+    dispatch(gameActions.updatePlayerState(2, { restedSP: resolveValue(value, p2RestedSP) }));
+  }, [dispatch, resolveValue, p2RestedSP]);
+
+  // フィールドカード・フェイズカード
+  const setP1FieldCard = useCallback((value) => {
+    dispatch(gameActions.updatePlayerState(1, { fieldCard: resolveValue(value, p1FieldCard) }));
+  }, [dispatch, resolveValue, p1FieldCard]);
+  const setP2FieldCard = useCallback((value) => {
+    dispatch(gameActions.updatePlayerState(2, { fieldCard: resolveValue(value, p2FieldCard) }));
+  }, [dispatch, resolveValue, p2FieldCard]);
+  const setP1PhaseCard = useCallback((value) => {
+    dispatch(gameActions.updatePlayerState(1, { phaseCard: resolveValue(value, p1PhaseCard) }));
+  }, [dispatch, resolveValue, p1PhaseCard]);
+  const setP2PhaseCard = useCallback((value) => {
+    dispatch(gameActions.updatePlayerState(2, { phaseCard: resolveValue(value, p2PhaseCard) }));
+  }, [dispatch, resolveValue, p2PhaseCard]);
+
+  // 状態異常
+  const setP1StatusEffects = useCallback((value) => {
+    dispatch(gameActions.updatePlayerState(1, { statusEffects: resolveValue(value, p1StatusEffects) }));
+  }, [dispatch, resolveValue, p1StatusEffects]);
+  const setP2StatusEffects = useCallback((value) => {
+    dispatch(gameActions.updatePlayerState(2, { statusEffects: resolveValue(value, p2StatusEffects) }));
+  }, [dispatch, resolveValue, p2StatusEffects]);
+
+  // SPボーナス
+  const setP1NextTurnSPBonus = useCallback((value) => {
+    dispatch(gameActions.updatePlayerState(1, { nextTurnSPBonus: resolveValue(value, p1NextTurnSPBonus) }));
+  }, [dispatch, resolveValue, p1NextTurnSPBonus]);
+  const setP2NextTurnSPBonus = useCallback((value) => {
+    dispatch(gameActions.updatePlayerState(2, { nextTurnSPBonus: resolveValue(value, p2NextTurnSPBonus) }));
+  }, [dispatch, resolveValue, p2NextTurnSPBonus]);
+
+  // 魔法ブロック
+  const setP1MagicBlocked = useCallback((value) => {
+    dispatch(gameActions.updatePlayerState(1, { magicBlocked: resolveValue(value, p1MagicBlocked) }));
+  }, [dispatch, resolveValue, p1MagicBlocked]);
+  const setP2MagicBlocked = useCallback((value) => {
+    dispatch(gameActions.updatePlayerState(2, { magicBlocked: resolveValue(value, p2MagicBlocked) }));
+  }, [dispatch, resolveValue, p2MagicBlocked]);
+
+  // SP減少
+  const setP1SpReduction = useCallback((value) => {
+    dispatch(gameActions.updatePlayerState(1, { spReduction: resolveValue(value, p1SpReduction) }));
+  }, [dispatch, resolveValue, p1SpReduction]);
+  const setP2SpReduction = useCallback((value) => {
+    dispatch(gameActions.updatePlayerState(2, { spReduction: resolveValue(value, p2SpReduction) }));
+  }, [dispatch, resolveValue, p2SpReduction]);
+
+  // ターンフラグ
+  const setChargeUsedThisTurn = useCallback((value) => {
+    dispatch(gameActions.setGameFlags({ chargeUsedThisTurn: resolveValue(value, chargeUsedThisTurn) }));
+  }, [dispatch, resolveValue, chargeUsedThisTurn]);
+
+  // 効果コンテキスト作成（dispatch経由のセッターを含む）
+  const createEffectContext = useCallback((overrides = {}) => {
+    // 読み取り専用データ
+    const readonlyContext = {
       currentPlayer,
-      phase,
-      isFirstTurn,
-      winner,
-      logs,
-
-      // P1状態
-      p1Life,
-      p1Deck,
-      p1Hand,
-      p1Field,
-      p1Graveyard,
-      p1ActiveSP,
-      p1RestedSP,
-      p1FieldCard,
-      p1PhaseCard,
-      p1StatusEffects,
-      p1NextTurnSPBonus,
-      p1MagicBlocked,
-      p1SpReduction,
-
-      // P2状態
-      p2Life,
-      p2Deck,
-      p2Hand,
-      p2Field,
-      p2Graveyard,
-      p2ActiveSP,
-      p2RestedSP,
-      p2FieldCard,
-      p2PhaseCard,
-      p2StatusEffects,
-      p2NextTurnSPBonus,
-      p2MagicBlocked,
-      p2SpReduction,
-
-      // ターンフラグ
-      chargeUsedThisTurn,
+      p1Life, p2Life,
+      p1Field, p2Field,
+      p1Hand, p2Hand,
+      p1Deck, p2Deck,
+      p1Graveyard, p2Graveyard,
+      p1ActiveSP, p2ActiveSP,
+      p1RestedSP, p2RestedSP,
+      p1FieldCard, p2FieldCard,
+      p1PhaseCard, p2PhaseCard,
+      p1StatusEffects, p2StatusEffects,
+      p1NextTurnSPBonus, p2NextTurnSPBonus,
+      p1MagicBlocked, p2MagicBlocked,
+      p1SpReduction, p2SpReduction,
     };
 
-    syncFromLegacy(legacyState);
+    // dispatch経由のセッター（上で定義したuseCallback版を使用）
+    const dispatchSetters = {
+      setP1Life, setP2Life,
+      setP1Field, setP2Field,
+      setP1Hand, setP2Hand,
+      setP1Deck, setP2Deck,
+      setP1Graveyard, setP2Graveyard,
+      setP1ActiveSP, setP2ActiveSP,
+      setP1RestedSP, setP2RestedSP,
+      setP1FieldCard, setP2FieldCard,
+      setP1PhaseCard, setP2PhaseCard,
+      setP1StatusEffects, setP2StatusEffects,
+      setP1NextTurnSPBonus, setP2NextTurnSPBonus,
+      setP1MagicBlocked, setP2MagicBlocked,
+      setP1SpReduction, setP2SpReduction,
+      // ログ（既にdispatch経由）
+      addLog,
+      // UI制御（これらはuseStateのまま - 純粋にUI関連）
+      setPendingMonsterTarget,
+      setPendingHandSelection,
+    };
+
+    return { ...readonlyContext, ...dispatchSetters, ...overrides };
   }, [
-    syncFromLegacy,
-    turn, currentPlayer, phase, isFirstTurn, winner, logs,
-    p1Life, p1Deck, p1Hand, p1Field, p1Graveyard,
-    p1ActiveSP, p1RestedSP, p1FieldCard, p1PhaseCard,
-    p1StatusEffects, p1NextTurnSPBonus, p1MagicBlocked, p1SpReduction,
-    p2Life, p2Deck, p2Hand, p2Field, p2Graveyard,
-    p2ActiveSP, p2RestedSP, p2FieldCard, p2PhaseCard,
-    p2StatusEffects, p2NextTurnSPBonus, p2MagicBlocked, p2SpReduction,
-    chargeUsedThisTurn,
+    addLog,
+    setP1Life, setP2Life, setP1Field, setP2Field, setP1Hand, setP2Hand,
+    setP1Deck, setP2Deck, setP1Graveyard, setP2Graveyard,
+    setP1ActiveSP, setP2ActiveSP, setP1RestedSP, setP2RestedSP,
+    setP1FieldCard, setP2FieldCard, setP1PhaseCard, setP2PhaseCard,
+    setP1StatusEffects, setP2StatusEffects, setP1NextTurnSPBonus, setP2NextTurnSPBonus,
+    setP1MagicBlocked, setP2MagicBlocked, setP1SpReduction, setP2SpReduction,
+    currentPlayer,
+    p1Life, p2Life, p1Field, p2Field, p1Hand, p2Hand, p1Deck, p2Deck,
+    p1Graveyard, p2Graveyard, p1ActiveSP, p2ActiveSP, p1RestedSP, p2RestedSP,
+    p1FieldCard, p2FieldCard, p1PhaseCard, p2PhaseCard,
+    p1StatusEffects, p2StatusEffects, p1NextTurnSPBonus, p2NextTurnSPBonus,
+    p1MagicBlocked, p2MagicBlocked, p1SpReduction, p2SpReduction,
+    setPendingMonsterTarget, setPendingHandSelection,
   ]);
 
   // カードのコスト修正情報を取得（手札表示用）
@@ -403,29 +484,10 @@ export default function MagicSpiritGame() {
   }, [p1Field, p2Field, p1Life, p2Life]);
 
   // ========================================
-  // Phase D-2: legacyStateSync削除完了
-  // engineState → useState 同期は不要（UIは*FromEngine変数を参照）
+  // Phase D-4: useState→engineState同期は不要になった
+  // 全プレイヤー状態はengineStateから直接参照
+  // セッターはdispatch経由で更新
   // ========================================
-
-  // 下位互換性: 従来のuseState → engineState同期（非推奨、将来削除）
-  useEffect(() => {
-    // プレイ中のみ同期
-    if (gameState !== 'playing') return;
-
-    // エンジンが初期化されていない場合はスキップ
-    if (!engineState) return;
-
-    syncGameStateToEngine();
-  }, [
-    gameState, engineState, syncGameStateToEngine,
-    // 主要なゲーム状態の変更を監視
-    turn, phase, currentPlayer, winner,
-    p1Life, p2Life,
-    p1Field, p2Field,
-    p1Hand, p2Hand,
-    p1Graveyard, p2Graveyard,
-    p1ActiveSP, p2ActiveSP,
-  ]);
 
   // ========================================
   // 状態同期検証（開発用）
@@ -4868,19 +4930,19 @@ export default function MagicSpiritGame() {
               プレイヤー2
             </div>
             <div style={{ marginBottom: '8px' }}>
-              <div style={{ fontSize: '12px', marginBottom: '4px' }}>LP: {p2LifeFromEngine}</div>
+              <div style={{ fontSize: '12px', marginBottom: '4px' }}>LP: {p2Life}</div>
               <div style={styles.lifeBar}>
                 <div style={{
                   ...styles.lifeBarFill,
-                  width: `${(p2LifeFromEngine / INITIAL_LIFE) * 100}%`,
+                  width: `${(p2Life / INITIAL_LIFE) * 100}%`,
                   background: 'linear-gradient(90deg, #ff6b6b, #ff8533)',
                 }} />
               </div>
             </div>
-            <div style={{ fontSize: '12px', marginBottom: '4px' }}>SP: {p2ActiveSPFromEngine}/{p2ActiveSPFromEngine + p2RestedSPFromEngine}</div>
-            <SPTokens active={p2ActiveSPFromEngine} rested={p2RestedSPFromEngine} max={MAX_SP} />
+            <div style={{ fontSize: '12px', marginBottom: '4px' }}>SP: {p2ActiveSP}/{p2ActiveSP + p2RestedSP}</div>
+            <SPTokens active={p2ActiveSP} rested={p2RestedSP} max={MAX_SP} />
             <div style={{ fontSize: '11px', marginTop: '8px', color: '#888', display: 'flex', gap: '8px' }}>
-              <span>デッキ: {p2DeckFromEngine.length}</span>
+              <span>デッキ: {p2Deck.length}</span>
               <span
                 onClick={() => p2Graveyard.length > 0 && setShowGraveyardViewer({ player: 2 })}
                 style={{
@@ -4890,7 +4952,7 @@ export default function MagicSpiritGame() {
                 }}
                 title={p2Graveyard.length > 0 ? 'クリックして墓地を閲覧' : '墓地にカードがありません'}
               >
-                墓地: {p2GraveyardFromEngine.length}
+                墓地: {p2Graveyard.length}
               </span>
             </div>
           </div>
@@ -4980,7 +5042,7 @@ export default function MagicSpiritGame() {
             )}
             {/* 手札（プレイヤー2のターンなら表示、それ以外は裏向き） */}
             <div style={{ ...styles.handArea, minHeight: '80px' }}>
-              {p2HandFromEngine.map((card, i) => {
+              {p2Hand.map((card, i) => {
                 const costInfo = currentPlayer === 2 ? getModifiedCostInfo(card, 2) : {};
                 // P2が人間でP2のターンの場合のみ手札を表示、AIの場合は常に裏向き
                 return (currentPlayer === 2 && p2PlayerType === 'human') ? (
@@ -5004,7 +5066,7 @@ export default function MagicSpiritGame() {
             </div>
             {/* モンスターゾーン */}
             <div style={styles.monsterZone}>
-              {p2FieldFromEngine.map((monster, i) => {
+              {p2Field.map((monster, i) => {
                 // 常時効果による修正値を計算
                 const effectContext = {
                   currentPlayer,
@@ -5044,19 +5106,19 @@ export default function MagicSpiritGame() {
               {/* フィールドカード */}
               <div style={styles.cardZoneItem}>
                 <div style={{ fontSize: '12px', marginBottom: '8px' }}>フィールド</div>
-                {p2FieldCardFromEngine ? (
+                {p2FieldCard ? (
                   <div
                     style={{
                       cursor: currentPlayer === 2 && phase === 2 ? 'pointer' : 'default',
-                      border: selectedFieldCardInfo?.card === p2FieldCardFromEngine ? '2px solid #ff6b6b' : 'none',
+                      border: selectedFieldCardInfo?.card === p2FieldCard ? '2px solid #ff6b6b' : 'none',
                       borderRadius: '4px',
                       padding: '2px',
                     }}
                     onClick={currentPlayer === 2 ? handleFieldCardZoneClick : undefined}
-                    onMouseEnter={() => setSelectedFieldCardInfo({ card: p2FieldCardFromEngine, type: 'field', player: 2 })}
+                    onMouseEnter={() => setSelectedFieldCardInfo({ card: p2FieldCard, type: 'field', player: 2 })}
                     onMouseLeave={() => setSelectedFieldCardInfo(null)}
                   >
-                    <Card card={p2FieldCardFromEngine} small />
+                    <Card card={p2FieldCard} small />
                   </div>
                 ) : (
                   <div
@@ -5078,26 +5140,26 @@ export default function MagicSpiritGame() {
               {/* フェイズカード */}
               <div style={styles.cardZoneItem}>
                 <div style={{ fontSize: '12px', marginBottom: '8px' }}>フェイズ</div>
-                {p2PhaseCardFromEngine ? (
+                {p2PhaseCard ? (
                   <div
                     style={{
                       cursor: currentPlayer === 2 && phase === 2 ? 'pointer' : 'default',
-                      border: currentPlayer === 2 && phase === 2 && selectedHandCard && (selectedHandCard.type === 'monster' || selectedHandCard.type === 'magic' || selectedHandCard.type === 'field' || selectedHandCard.type === 'phasecard') ? '2px solid #ff6b6b' : selectedFieldCardInfo?.card === p2PhaseCardFromEngine ? '2px solid #ff6b6b' : 'none',
+                      border: currentPlayer === 2 && phase === 2 && selectedHandCard && (selectedHandCard.type === 'monster' || selectedHandCard.type === 'magic' || selectedHandCard.type === 'field' || selectedHandCard.type === 'phasecard') ? '2px solid #ff6b6b' : selectedFieldCardInfo?.card === p2PhaseCard ? '2px solid #ff6b6b' : 'none',
                       borderRadius: '4px',
                       padding: '2px',
                     }}
                     onClick={currentPlayer === 2 ? handlePhaseCardZoneClick : undefined}
-                    onMouseEnter={() => setSelectedFieldCardInfo({ card: p2PhaseCardFromEngine, type: 'phasecard', player: 2 })}
+                    onMouseEnter={() => setSelectedFieldCardInfo({ card: p2PhaseCard, type: 'phasecard', player: 2 })}
                     onMouseLeave={() => setSelectedFieldCardInfo(null)}
                   >
-                    <Card card={p2PhaseCardFromEngine} small />
+                    <Card card={p2PhaseCard} small />
                     <div style={{ fontSize: '10px', color: '#ffd700', textAlign: 'center', marginTop: '4px' }}>
-                      ⚡ {getStageShortName(p2PhaseCardFromEngine.stage || 0)}段階 ({p2PhaseCardFromEngine.charges?.length || 0}/3)
+                      ⚡ {getStageShortName(p2PhaseCard.stage || 0)}段階 ({p2PhaseCard.charges?.length || 0}/3)
                     </div>
                     {currentPlayer === 2 && phase === 2 && selectedHandCard &&
                       (selectedHandCard.type === 'monster' || selectedHandCard.type === 'magic' || selectedHandCard.type === 'field' || selectedHandCard.type === 'phasecard') &&
-                      (selectedHandCard.attribute === p2PhaseCardFromEngine.attribute || selectedHandCard.attribute === 'なし' || p2PhaseCardFromEngine.attribute === 'なし') &&
-                      (p2PhaseCardFromEngine.stage || 0) < 3 && (
+                      (selectedHandCard.attribute === p2PhaseCard.attribute || selectedHandCard.attribute === 'なし' || p2PhaseCard.attribute === 'なし') &&
+                      (p2PhaseCard.stage || 0) < 3 && (
                       <div style={{ fontSize: '9px', color: '#4da6ff', textAlign: 'center', marginTop: '2px' }}>
                         クリックでチャージ
                       </div>
@@ -5236,7 +5298,7 @@ export default function MagicSpiritGame() {
             {/* 技発動ボタン（メインフェイズ） */}
             {phase === 2 && selectedFieldMonster !== null && currentPlayer === 1 && (
               (() => {
-                const monster = p1FieldFromEngine[selectedFieldMonster];
+                const monster = p1Field[selectedFieldMonster];
                 if (!monster) return null;
                 // 技を持たないモンスターは技発動セクションを表示しない
                 if (!monster.basicSkill && !monster.advancedSkill) return null;
@@ -5291,7 +5353,7 @@ export default function MagicSpiritGame() {
                         }}
                         disabled={chargeUsedThisTurn || monster.charges?.length >= 2 || p1ActiveSP < 1}
                       >
-                        💠 SPチャージ (残SP: {p1ActiveSPFromEngine})
+                        💠 SPチャージ (残SP: {p1ActiveSP})
                       </button>
                     )}
                     {/* 【壮麗】ボタン（P1用） */}
@@ -5368,7 +5430,7 @@ export default function MagicSpiritGame() {
             )}
             {phase === 2 && selectedFieldMonster !== null && currentPlayer === 2 && (
               (() => {
-                const monster = p2FieldFromEngine[selectedFieldMonster];
+                const monster = p2Field[selectedFieldMonster];
                 if (!monster) return null;
                 // 技を持たないモンスターは技発動セクションを表示しない
                 if (!monster.basicSkill && !monster.advancedSkill) return null;
@@ -5423,7 +5485,7 @@ export default function MagicSpiritGame() {
                         }}
                         disabled={chargeUsedThisTurn || monster.charges?.length >= 2 || p2ActiveSP < 1}
                       >
-                        💠 SPチャージ (残SP: {p2ActiveSPFromEngine})
+                        💠 SPチャージ (残SP: {p2ActiveSP})
                       </button>
                     )}
                     {/* 【壮麗】ボタン（P2用） */}
@@ -5590,19 +5652,19 @@ export default function MagicSpiritGame() {
               プレイヤー1
             </div>
             <div style={{ marginBottom: '8px' }}>
-              <div style={{ fontSize: '12px', marginBottom: '4px' }}>LP: {p1LifeFromEngine}</div>
+              <div style={{ fontSize: '12px', marginBottom: '4px' }}>LP: {p1Life}</div>
               <div style={styles.lifeBar}>
                 <div style={{
                   ...styles.lifeBarFill,
-                  width: `${(p1LifeFromEngine / INITIAL_LIFE) * 100}%`,
+                  width: `${(p1Life / INITIAL_LIFE) * 100}%`,
                   background: 'linear-gradient(90deg, #4da6ff, #66d9ff)',
                 }} />
               </div>
             </div>
-            <div style={{ fontSize: '12px', marginBottom: '4px' }}>SP: {p1ActiveSPFromEngine}/{p1ActiveSPFromEngine + p1RestedSPFromEngine}</div>
-            <SPTokens active={p1ActiveSPFromEngine} rested={p1RestedSPFromEngine} max={MAX_SP} />
+            <div style={{ fontSize: '12px', marginBottom: '4px' }}>SP: {p1ActiveSP}/{p1ActiveSP + p1RestedSP}</div>
+            <SPTokens active={p1ActiveSP} rested={p1RestedSP} max={MAX_SP} />
             <div style={{ fontSize: '11px', marginTop: '8px', color: '#888', display: 'flex', gap: '8px' }}>
-              <span>デッキ: {p1DeckFromEngine.length}</span>
+              <span>デッキ: {p1Deck.length}</span>
               <span
                 onClick={() => p1Graveyard.length > 0 && setShowGraveyardViewer({ player: 1 })}
                 style={{
@@ -5612,7 +5674,7 @@ export default function MagicSpiritGame() {
                 }}
                 title={p1Graveyard.length > 0 ? 'クリックして墓地を閲覧' : '墓地にカードがありません'}
               >
-                墓地: {p1GraveyardFromEngine.length}
+                墓地: {p1Graveyard.length}
               </span>
             </div>
           </div>
@@ -5621,7 +5683,7 @@ export default function MagicSpiritGame() {
           <div style={styles.fieldArea}>
             {/* モンスターゾーン */}
             <div style={styles.monsterZone}>
-              {p1FieldFromEngine.map((monster, i) => {
+              {p1Field.map((monster, i) => {
                 // 常時効果による修正値を計算
                 const effectContext = {
                   currentPlayer,
@@ -5655,7 +5717,7 @@ export default function MagicSpiritGame() {
             </div>
             {/* 手札 */}
             <div style={styles.handArea}>
-              {p1HandFromEngine.map((card) => {
+              {p1Hand.map((card) => {
                 const costInfo = currentPlayer === 1 ? getModifiedCostInfo(card, 1) : {};
                 // P1がAIでP2が人間の場合は裏向き
                 const shouldHideP1Hand = p1PlayerType === 'ai' && p2PlayerType === 'human';
@@ -5766,19 +5828,19 @@ export default function MagicSpiritGame() {
               {/* フィールドカード */}
               <div style={styles.cardZoneItem}>
                 <div style={{ fontSize: '12px', marginBottom: '8px' }}>フィールド</div>
-                {p1FieldCardFromEngine ? (
+                {p1FieldCard ? (
                   <div
                     style={{
                       cursor: currentPlayer === 1 && phase === 2 ? 'pointer' : 'default',
-                      border: selectedFieldCardInfo?.card === p1FieldCardFromEngine ? '2px solid #4da6ff' : 'none',
+                      border: selectedFieldCardInfo?.card === p1FieldCard ? '2px solid #4da6ff' : 'none',
                       borderRadius: '4px',
                       padding: '2px',
                     }}
                     onClick={currentPlayer === 1 ? handleFieldCardZoneClick : undefined}
-                    onMouseEnter={() => setSelectedFieldCardInfo({ card: p1FieldCardFromEngine, type: 'field', player: 1 })}
+                    onMouseEnter={() => setSelectedFieldCardInfo({ card: p1FieldCard, type: 'field', player: 1 })}
                     onMouseLeave={() => setSelectedFieldCardInfo(null)}
                   >
-                    <Card card={p1FieldCardFromEngine} small />
+                    <Card card={p1FieldCard} small />
                   </div>
                 ) : (
                   <div
@@ -5800,26 +5862,26 @@ export default function MagicSpiritGame() {
               {/* フェイズカード */}
               <div style={styles.cardZoneItem}>
                 <div style={{ fontSize: '12px', marginBottom: '8px' }}>フェイズ</div>
-                {p1PhaseCardFromEngine ? (
+                {p1PhaseCard ? (
                   <div
                     style={{
                       cursor: currentPlayer === 1 && phase === 2 ? 'pointer' : 'default',
-                      border: currentPlayer === 1 && phase === 2 && selectedHandCard && (selectedHandCard.type === 'monster' || selectedHandCard.type === 'magic' || selectedHandCard.type === 'field' || selectedHandCard.type === 'phasecard') ? '2px solid #4da6ff' : selectedFieldCardInfo?.card === p1PhaseCardFromEngine ? '2px solid #4da6ff' : 'none',
+                      border: currentPlayer === 1 && phase === 2 && selectedHandCard && (selectedHandCard.type === 'monster' || selectedHandCard.type === 'magic' || selectedHandCard.type === 'field' || selectedHandCard.type === 'phasecard') ? '2px solid #4da6ff' : selectedFieldCardInfo?.card === p1PhaseCard ? '2px solid #4da6ff' : 'none',
                       borderRadius: '4px',
                       padding: '2px',
                     }}
                     onClick={currentPlayer === 1 ? handlePhaseCardZoneClick : undefined}
-                    onMouseEnter={() => setSelectedFieldCardInfo({ card: p1PhaseCardFromEngine, type: 'phasecard', player: 1 })}
+                    onMouseEnter={() => setSelectedFieldCardInfo({ card: p1PhaseCard, type: 'phasecard', player: 1 })}
                     onMouseLeave={() => setSelectedFieldCardInfo(null)}
                   >
-                    <Card card={p1PhaseCardFromEngine} small />
+                    <Card card={p1PhaseCard} small />
                     <div style={{ fontSize: '10px', color: '#ffd700', textAlign: 'center', marginTop: '4px' }}>
-                      ⚡ {getStageShortName(p1PhaseCardFromEngine.stage || 0)}段階 ({p1PhaseCardFromEngine.charges?.length || 0}/3)
+                      ⚡ {getStageShortName(p1PhaseCard.stage || 0)}段階 ({p1PhaseCard.charges?.length || 0}/3)
                     </div>
                     {currentPlayer === 1 && phase === 2 && selectedHandCard &&
                       (selectedHandCard.type === 'monster' || selectedHandCard.type === 'magic' || selectedHandCard.type === 'field' || selectedHandCard.type === 'phasecard') &&
-                      (selectedHandCard.attribute === p1PhaseCardFromEngine.attribute || selectedHandCard.attribute === 'なし' || p1PhaseCardFromEngine.attribute === 'なし') &&
-                      (p1PhaseCardFromEngine.stage || 0) < 3 && (
+                      (selectedHandCard.attribute === p1PhaseCard.attribute || selectedHandCard.attribute === 'なし' || p1PhaseCard.attribute === 'なし') &&
+                      (p1PhaseCard.stage || 0) < 3 && (
                       <div style={{ fontSize: '9px', color: '#4da6ff', textAlign: 'center', marginTop: '2px' }}>
                         クリックでチャージ
                       </div>
