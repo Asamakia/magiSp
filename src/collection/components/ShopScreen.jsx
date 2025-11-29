@@ -478,6 +478,59 @@ const styles = {
   suddenEventEffect: {
     marginBottom: '2px',
   },
+  // スポットライトイベントセクション
+  spotlightSection: {
+    marginTop: '12px',
+    padding: '12px',
+    background: 'linear-gradient(135deg, rgba(255,215,0,0.2) 0%, rgba(255,165,0,0.15) 100%)',
+    borderRadius: '8px',
+    border: '2px solid rgba(255,215,0,0.6)',
+    borderLeft: '4px solid #ffd700',
+    boxShadow: '0 0 15px rgba(255,215,0,0.3)',
+  },
+  spotlightLabel: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '8px',
+    fontSize: '13px',
+    color: '#ffd700',
+    marginBottom: '8px',
+    fontWeight: 'bold',
+  },
+  spotlightTitle: {
+    fontSize: '15px',
+    fontWeight: 'bold',
+    color: '#fff',
+    marginBottom: '6px',
+  },
+  spotlightCardName: {
+    fontSize: '16px',
+    fontWeight: 'bold',
+    color: '#ffd700',
+    marginBottom: '4px',
+    textShadow: '0 0 8px rgba(255,215,0,0.5)',
+  },
+  spotlightDescription: {
+    fontSize: '13px',
+    color: '#e0e0e0',
+    lineHeight: '1.5',
+  },
+  spotlightBonus: {
+    marginTop: '8px',
+    padding: '6px 10px',
+    background: 'rgba(255,215,0,0.2)',
+    borderRadius: '4px',
+    fontSize: '14px',
+    fontWeight: 'bold',
+    color: '#6bff6b',
+    textAlign: 'center',
+  },
+  spotlightHint: {
+    marginTop: '6px',
+    fontSize: '11px',
+    color: '#b0a060',
+    textAlign: 'center',
+  },
   weekProgress: {
     marginTop: '12px',
     display: 'flex',
@@ -958,6 +1011,28 @@ const ShopScreen = ({
                         </div>
                       );
                     })}
+                  </div>
+                </div>
+              )}
+
+              {/* スポットライトイベント（単体カード10倍） */}
+              {playerData.market.spotlightEvent && (
+                <div style={styles.spotlightSection}>
+                  <div style={styles.spotlightLabel}>
+                    <span>🌟</span>
+                    <span>{playerData.market.spotlightEvent.title}</span>
+                  </div>
+                  <div style={styles.spotlightCardName}>
+                    {playerData.market.spotlightEvent.cardName}
+                  </div>
+                  <div style={styles.spotlightDescription}>
+                    {playerData.market.spotlightEvent.description}
+                  </div>
+                  <div style={styles.spotlightBonus}>
+                    売却価格 10倍！（+900%）
+                  </div>
+                  <div style={styles.spotlightHint}>
+                    本日限り！このカードを持っていれば高く売れます
                   </div>
                 </div>
               )}

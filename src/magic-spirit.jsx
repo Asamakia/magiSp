@@ -556,8 +556,8 @@ export default function MagicSpiritGame() {
       return updatedPlayerData;
     }
 
-    // 市場日を進める
-    const newMarketState = advanceDay(updatedPlayerData.market);
+    // 市場日を進める（allCardsを渡してスポットライト生成を可能にする）
+    const newMarketState = advanceDay(updatedPlayerData.market, allCards || []);
 
     // 価格履歴を記録
     const getBaseValue = (card) => {
