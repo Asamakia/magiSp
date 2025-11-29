@@ -185,6 +185,7 @@ export default function MagicSpiritGame() {
   const [currentMerchant, setCurrentMerchant] = useState(null); // 現在訪問中の商人名
   const [showTournamentViewer, setShowTournamentViewer] = useState(false); // 大会観戦ダイアログ表示
   const [pendingTournamentResult, setPendingTournamentResult] = useState(null); // 報酬受け取り待ち大会結果
+  const [showRestDialog, setShowRestDialog] = useState(false); // 休息完了ダイアログ表示
 
   // ========================================
   // Phase D-4: プレイヤー状態（engineStateから直接参照）
@@ -547,126 +548,132 @@ export default function MagicSpiritGame() {
   }, []);
 
   // 対戦報酬を付与
-  const awardBattleRewards = useCallback((isWin) => {
-    if (!playerData) return;
+  // 日付進行の共通処理（市場更新、価格履歴、資産スナップショット、大会処理）
+  const processDayAdvancement = useCallback((inputPlayerData) => {
+    let updatedPlayerData = { ...inputPlayerData };
 
-    const result = currencyManager.awardBattleReward(playerData, isWin);
-    let updatedPlayerData = result.playerData;
+    if (!updatedPlayerData.market) {
+      return updatedPlayerData;
+    }
 
-    // 市場データを更新（対戦ごとに1日進める）
-    if (updatedPlayerData.market) {
-      // 市場日を進める
-      const newMarketState = advanceDay(updatedPlayerData.market);
+    // 市場日を進める
+    const newMarketState = advanceDay(updatedPlayerData.market);
 
-      // 価格履歴を記録
-      const getBaseValue = (card) => {
-        // cardValueMapはMapオブジェクトなので.get()を使用
-        const cardValue = cardValueMap?.get?.(card.id);
-        if (cardValue) {
-          return cardValue.baseValue;
-        }
-        return valueCalculator.calculateBaseValue(card);
-      };
-      const getTier = (card) => {
-        // cardValueMapはMapオブジェクトなので.get()を使用
-        const cardValue = cardValueMap?.get?.(card.id);
-        if (cardValue) {
-          return cardValue.tier;
-        }
-        // determineTierはbaseValueを受け取る
-        const baseValue = valueCalculator.calculateBaseValue(card);
-        return valueCalculator.determineTier(baseValue);
-      };
+    // 価格履歴を記録
+    const getBaseValue = (card) => {
+      const cardValue = cardValueMap?.get?.(card.id);
+      if (cardValue) {
+        return cardValue.baseValue;
+      }
+      return valueCalculator.calculateBaseValue(card);
+    };
+    const getTier = (card) => {
+      const cardValue = cardValueMap?.get?.(card.id);
+      if (cardValue) {
+        return cardValue.tier;
+      }
+      const baseValue = valueCalculator.calculateBaseValue(card);
+      return valueCalculator.determineTier(baseValue);
+    };
+    const getMarketModifier = (card, tier) => {
+      return calculateMarketModifier(card, newMarketState, null, tier);
+    };
 
-      // 市場変動率を取得するコールバック
-      const getMarketModifier = (card, tier) => {
-        return calculateMarketModifier(card, newMarketState, null, tier);
-      };
+    const newPriceHistory = recordPriceHistory(
+      newMarketState.priceHistory,
+      newMarketState,
+      allCards || [],
+      getBaseValue,
+      getTier,
+      getMarketModifier
+    );
 
-      const newPriceHistory = recordPriceHistory(
-        newMarketState.priceHistory,
-        newMarketState,
-        allCards || [],
-        getBaseValue,
-        getTier,
-        getMarketModifier
-      );
+    updatedPlayerData = {
+      ...updatedPlayerData,
+      market: {
+        ...newMarketState,
+        priceHistory: newPriceHistory,
+      },
+    };
 
+    // 資産スナップショットを記録
+    updatedPlayerData = recordAssetSnapshot(
+      updatedPlayerData,
+      allCards || [],
+      newMarketState,
+      newMarketState.currentDay
+    );
+
+    // 大会システム処理
+    const currentDay = newMarketState.currentDay;
+    let existingTournament = updatedPlayerData.tournamentData?.currentTournament;
+
+    // 1. 既存大会のステータス更新（締切チェック）
+    if (existingTournament && existingTournament.status === TOURNAMENT_STATUS.BETTING) {
+      existingTournament = updateTournamentStatus(existingTournament, currentDay);
       updatedPlayerData = {
         ...updatedPlayerData,
-        market: {
-          ...newMarketState,
-          priceHistory: newPriceHistory,
+        tournamentData: {
+          ...updatedPlayerData.tournamentData,
+          currentTournament: existingTournament,
         },
       };
+    }
 
-      // 資産スナップショットを記録
-      updatedPlayerData = recordAssetSnapshot(
-        updatedPlayerData,
-        allCards || [],
-        newMarketState,
-        newMarketState.currentDay
-      );
+    // 2. CLOSED状態の大会を実行
+    if (existingTournament && existingTournament.status === TOURNAMENT_STATUS.CLOSED) {
+      runTournament(existingTournament).then((finishedTournament) => {
+        if (finishedTournament) {
+          console.log(`[Tournament] ${finishedTournament.name} 終了: 優勝 ${finishedTournament.finalWinner}`);
 
-      // 大会システム処理（非同期で実行）
-      const currentDay = newMarketState.currentDay;
-      let existingTournament = updatedPlayerData.tournamentData?.currentTournament;
+          updatePlayerData((prev) => ({
+            ...prev,
+            tournamentData: {
+              ...prev.tournamentData,
+              currentTournament: finishedTournament,
+            },
+          }));
 
-      // 1. 既存大会のステータス更新（締切チェック）
-      if (existingTournament && existingTournament.status === TOURNAMENT_STATUS.BETTING) {
-        existingTournament = updateTournamentStatus(existingTournament, currentDay);
-        updatedPlayerData = {
-          ...updatedPlayerData,
-          tournamentData: {
-            ...updatedPlayerData.tournamentData,
-            currentTournament: existingTournament,
-          },
-        };
-      }
-
-      // 2. CLOSED状態の大会を実行
-      if (existingTournament && existingTournament.status === TOURNAMENT_STATUS.CLOSED) {
-        runTournament(existingTournament).then((finishedTournament) => {
-          if (finishedTournament) {
-            console.log(`[Tournament] ${finishedTournament.name} 終了: 優勝 ${finishedTournament.finalWinner}`);
-
-            // 大会結果を保存（報酬受け取り待ち状態）
+          // 観戦ダイアログを表示
+          setPendingTournamentResult(finishedTournament);
+          setShowTournamentViewer(true);
+        }
+      }).catch((err) => {
+        console.error('[Tournament] 大会実行エラー:', err);
+      });
+    } else {
+      // 既存大会がない or FINISHED の場合、新規大会チェック
+      const triggerType = checkTournamentTrigger(currentDay, existingTournament);
+      if (triggerType) {
+        createTournament(triggerType, currentDay).then((newTournament) => {
+          if (newTournament) {
             updatePlayerData((prev) => ({
               ...prev,
               tournamentData: {
                 ...prev.tournamentData,
-                currentTournament: finishedTournament, // PENDING_REWARD状態で保存
+                currentTournament: newTournament,
               },
             }));
-
-            // 観戦ダイアログを表示
-            setPendingTournamentResult(finishedTournament);
-            setShowTournamentViewer(true);
+            console.log(`[Tournament] ${newTournament.name} が開催されました`);
           }
         }).catch((err) => {
-          console.error('[Tournament] 大会実行エラー:', err);
+          console.error('[Tournament] 大会作成エラー:', err);
         });
-      } else {
-        // 既存大会がない or FINISHED の場合、新規大会チェック
-        const triggerType = checkTournamentTrigger(currentDay, existingTournament);
-        if (triggerType) {
-          createTournament(triggerType, currentDay).then((newTournament) => {
-            if (newTournament) {
-              updatePlayerData((prev) => ({
-                ...prev,
-                tournamentData: {
-                  ...prev.tournamentData,
-                  currentTournament: newTournament,
-                },
-              }));
-              console.log(`[Tournament] ${newTournament.name} が開催されました`);
-            }
-          }).catch((err) => {
-            console.error('[Tournament] 大会作成エラー:', err);
-          });
-        }
       }
     }
+
+    return updatedPlayerData;
+  }, [cardValueMap, allCards, updatePlayerData]);
+
+  // 対戦報酬付与＋日付進行
+  const awardBattleRewards = useCallback((isWin) => {
+    if (!playerData) return;
+
+    // 対戦報酬を付与
+    const result = currencyManager.awardBattleReward(playerData, isWin);
+
+    // 日付進行処理（市場、価格履歴、資産、大会）
+    const updatedPlayerData = processDayAdvancement(result.playerData);
 
     updatePlayerData(updatedPlayerData);
     setBattleReward({
@@ -674,129 +681,20 @@ export default function MagicSpiritGame() {
       packReward: result.packReward,
       isWin,
     });
-  }, [playerData, updatePlayerData, cardValueMap, allCards]);
+  }, [playerData, updatePlayerData, processDayAdvancement]);
 
   // 休んで次の日に進む（対戦報酬なし）
   const restAndAdvanceDay = useCallback(() => {
     if (!playerData) return;
 
-    let updatedPlayerData = { ...playerData };
-
-    // 市場データを更新（1日進める）
-    if (updatedPlayerData.market) {
-      // 市場日を進める
-      const newMarketState = advanceDay(updatedPlayerData.market);
-
-      // 価格履歴を記録
-      const getBaseValue = (card) => {
-        const cardValue = cardValueMap?.get?.(card.id);
-        if (cardValue) {
-          return cardValue.baseValue;
-        }
-        return valueCalculator.calculateBaseValue(card);
-      };
-      const getTier = (card) => {
-        const cardValue = cardValueMap?.get?.(card.id);
-        if (cardValue) {
-          return cardValue.tier;
-        }
-        const baseValue = valueCalculator.calculateBaseValue(card);
-        return valueCalculator.determineTier(baseValue);
-      };
-
-      const getMarketModifier = (card, tier) => {
-        return calculateMarketModifier(card, newMarketState, null, tier);
-      };
-
-      const newPriceHistory = recordPriceHistory(
-        newMarketState.priceHistory,
-        newMarketState,
-        allCards || [],
-        getBaseValue,
-        getTier,
-        getMarketModifier
-      );
-
-      updatedPlayerData = {
-        ...updatedPlayerData,
-        market: {
-          ...newMarketState,
-          priceHistory: newPriceHistory,
-        },
-      };
-
-      // 資産スナップショットを記録
-      updatedPlayerData = recordAssetSnapshot(
-        updatedPlayerData,
-        allCards || [],
-        newMarketState,
-        newMarketState.currentDay
-      );
-
-      // 大会システム処理
-      const currentDay = newMarketState.currentDay;
-      let existingTournament = updatedPlayerData.tournamentData?.currentTournament;
-
-      // 1. 既存大会のステータス更新（締切チェック）
-      if (existingTournament && existingTournament.status === TOURNAMENT_STATUS.BETTING) {
-        existingTournament = updateTournamentStatus(existingTournament, currentDay);
-        updatedPlayerData = {
-          ...updatedPlayerData,
-          tournamentData: {
-            ...updatedPlayerData.tournamentData,
-            currentTournament: existingTournament,
-          },
-        };
-      }
-
-      // 2. CLOSED状態の大会を実行
-      if (existingTournament && existingTournament.status === TOURNAMENT_STATUS.CLOSED) {
-        runTournament(existingTournament).then((finishedTournament) => {
-          if (finishedTournament) {
-            console.log(`[Tournament] ${finishedTournament.name} 終了: 優勝 ${finishedTournament.finalWinner}`);
-
-            updatePlayerData((prev) => ({
-              ...prev,
-              tournamentData: {
-                ...prev.tournamentData,
-                currentTournament: finishedTournament,
-              },
-            }));
-
-            // 観戦ダイアログを表示
-            setPendingTournamentResult(finishedTournament);
-            setShowTournamentViewer(true);
-          }
-        }).catch((err) => {
-          console.error('[Tournament] 大会実行エラー:', err);
-        });
-      } else {
-        // 既存大会がない or FINISHED の場合、新規大会チェック
-        const triggerType = checkTournamentTrigger(currentDay, existingTournament);
-        if (triggerType) {
-          createTournament(triggerType, currentDay).then((newTournament) => {
-            if (newTournament) {
-              updatePlayerData((prev) => ({
-                ...prev,
-                tournamentData: {
-                  ...prev.tournamentData,
-                  currentTournament: newTournament,
-                },
-              }));
-              console.log(`[Tournament] ${newTournament.name} が開催されました`);
-            }
-          }).catch((err) => {
-            console.error('[Tournament] 大会作成エラー:', err);
-          });
-        }
-      }
-    }
+    // 日付進行処理のみ（報酬なし）
+    const updatedPlayerData = processDayAdvancement(playerData);
 
     updatePlayerData(updatedPlayerData);
 
-    // 休息完了メッセージを表示
-    alert(`休息しました。現在は ${updatedPlayerData.market?.currentDay || 1} 日目です。`);
-  }, [playerData, updatePlayerData, cardValueMap, allCards]);
+    // 休息完了ダイアログを表示
+    setShowRestDialog(true);
+  }, [playerData, updatePlayerData, processDayAdvancement]);
 
   // パック開封画面へ遷移
   const handleOpenPack = useCallback((cards, packCount = 1) => {
@@ -3760,6 +3658,11 @@ export default function MagicSpiritGame() {
 
   // タイトル画面
   if (gameState === 'title') {
+    // 曜日計算（商人ギルドと同じロジック）
+    const weekdays = ['日', '月', '火', '水', '木', '金', '土'];
+    const currentDay = playerData?.market?.currentDay || 1;
+    const currentWeekday = weekdays[currentDay % 7];
+
     return (
       <div style={{...styles.container, overflow: 'auto'}}>
         <div style={{
@@ -3810,7 +3713,7 @@ export default function MagicSpiritGame() {
                 borderRadius: '8px',
                 border: '1px solid rgba(136,204,255,0.3)',
               }}>
-                📅 {playerData.market?.currentDay || 1} 日目
+                📅 {currentDay} 日目（{currentWeekday}）
               </div>
             </div>
           )}
@@ -4175,6 +4078,67 @@ export default function MagicSpiritGame() {
             プロトタイプ版 - 2人対戦
           </div>
         </div>
+
+        {/* 休息完了ダイアログ */}
+        {showRestDialog && (
+          <div style={styles.modal}>
+            <div style={{
+              ...styles.modalContent,
+              textAlign: 'center',
+              maxWidth: '400px',
+            }}>
+              <div style={{
+                fontSize: '48px',
+                marginBottom: '16px',
+              }}>
+                🌙
+              </div>
+              <h2 style={{
+                color: '#88ccff',
+                fontSize: '24px',
+                marginBottom: '12px',
+              }}>
+                休息完了
+              </h2>
+              <p style={{
+                color: '#a0a0a0',
+                fontSize: '16px',
+                marginBottom: '8px',
+              }}>
+                ゆっくり休んで体力を回復した...
+              </p>
+              <div style={{
+                fontSize: '20px',
+                fontWeight: 'bold',
+                color: '#ffd700',
+                padding: '12px 24px',
+                background: 'rgba(255,215,0,0.1)',
+                borderRadius: '8px',
+                border: '1px solid rgba(255,215,0,0.3)',
+                marginBottom: '20px',
+              }}>
+                📅 {currentDay} 日目（{currentWeekday}）
+              </div>
+              <p style={{
+                color: '#888',
+                fontSize: '13px',
+                marginBottom: '20px',
+              }}>
+                ※ 休息では対戦報酬は得られません
+              </p>
+              <button
+                onClick={() => setShowRestDialog(false)}
+                style={{
+                  ...styles.actionButton,
+                  fontSize: '16px',
+                  padding: '12px 32px',
+                }}
+              >
+                OK
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     );
   }
