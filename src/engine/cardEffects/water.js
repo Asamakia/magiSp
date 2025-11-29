@@ -1936,4 +1936,95 @@ export const waterCardEffects = {
 
     return true;
   },
+
+  /**
+   * C0000048: 人魚の波誘い
+   * 【刹那詠唱】相手モンスター1体の攻撃先を別の相手モンスターに変更する。
+   * ※攻撃リダイレクト効果として実装：相手モンスター2体を選び、前者が後者を攻撃する（同士討ち）
+   */
+  C0000048: (skillText, context) => {
+    const { addLog, setPendingTargetSelection } = context;
+    const { opponentField, setOpponentField, setOpponentGraveyard } = getPlayerContext(context);
+
+    // 相手フィールドのモンスターを取得
+    const validMonsters = opponentField
+      .map((m, idx) => ({ monster: m, index: idx }))
+      .filter(({ monster }) => monster !== null);
+
+    if (validMonsters.length < 2) {
+      addLog('人魚の波誘い: 相手フィールドにモンスターが2体以上必要です', 'info');
+      return false;
+    }
+
+    // 戦闘処理を行う関数
+    const performCombat = (attackerIndex, targetIndex) => {
+      const attacker = opponentField[attackerIndex];
+      const target = opponentField[targetIndex];
+
+      if (!attacker || !target) {
+        addLog('人魚の波誘い: 対象モンスターが存在しません', 'info');
+        return;
+      }
+
+      // 攻撃者の攻撃力でダメージを与える
+      const damage = attacker.currentAttack || attacker.attack;
+      const newTargetHp = target.currentHp - damage;
+
+      addLog(`人魚の波誘い: ${attacker.name}が${target.name}を攻撃！${damage}ダメージ`, 'damage');
+
+      setOpponentField((prev) => {
+        const newField = [...prev];
+        if (newTargetHp <= 0) {
+          // 破壊
+          addLog(`${target.name}が破壊された！`, 'damage');
+          setOpponentGraveyard((g) => [...g, target]);
+          newField[targetIndex] = null;
+        } else {
+          newField[targetIndex] = { ...target, currentHp: newTargetHp };
+        }
+        return newField;
+      });
+    };
+
+    // ターゲット選択が使用可能な場合
+    if (setPendingTargetSelection) {
+      // Step 1: 攻撃するモンスターを選択
+      setPendingTargetSelection({
+        message: '攻撃させる相手モンスターを選択',
+        validTargets: validMonsters.map((t) => t.index),
+        isOpponent: true,
+        callback: (attackerIndex) => {
+          // Step 2: 攻撃先モンスターを選択
+          const remainingTargets = validMonsters.filter((t) => t.index !== attackerIndex);
+
+          if (remainingTargets.length === 0) {
+            addLog('人魚の波誘い: 攻撃先がありません', 'info');
+            return;
+          }
+
+          if (remainingTargets.length === 1) {
+            // 攻撃先が1体のみの場合は自動選択
+            performCombat(attackerIndex, remainingTargets[0].index);
+            return;
+          }
+
+          // 複数いる場合は選択
+          setPendingTargetSelection({
+            message: '攻撃先の相手モンスターを選択',
+            validTargets: remainingTargets.map((t) => t.index),
+            isOpponent: true,
+            callback: (targetIndex) => {
+              performCombat(attackerIndex, targetIndex);
+            },
+          });
+        },
+      });
+      return true;
+    }
+
+    // フォールバック: 最初の2体で自動戦闘
+    const [first, second] = validMonsters;
+    performCombat(first.index, second.index);
+    return true;
+  },
 };
