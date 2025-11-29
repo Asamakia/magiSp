@@ -10,7 +10,9 @@ import {
   drawCards,
   healLife,
   modifyAttack,
+  applyStatusToOwnMonster,
 } from '../effectHelpers';
+import { STATUS_EFFECT_TYPES } from '../statusEffects';
 import { hasCategory, createMonsterInstance } from '../../utils/helpers';
 import { registerCardTriggers } from '../triggerEngine';
 import { continuousEffectEngine } from '../continuousEffects';
@@ -312,6 +314,116 @@ export const lightCardEffects = {
       return true;
     }
 
+    return false;
+  },
+
+  /**
+   * C0000057: プリズム・ガーディアン
+   * 基本技: 自分の光属性モンスター1体にこのターン【守護】（次に受けるダメージを半減）を付与。
+   */
+  C0000057: (skillText, context) => {
+    const { addLog, setPendingTargetSelection } = context;
+    const { myField, setMyField } = getPlayerContext(context);
+
+    if (context.skillType === 'basic') {
+      // 自分の光属性モンスターを取得
+      const lightMonsters = myField
+        .map((m, idx) => ({ monster: m, index: idx }))
+        .filter(({ monster }) => monster !== null && monster.attribute === '光');
+
+      if (lightMonsters.length === 0) {
+        addLog('プリズム・ガーディアン: 場に光属性モンスターがいません', 'info');
+        return false;
+      }
+
+      const applyGuard = (targetIndex) => {
+        const targetMonster = myField[targetIndex];
+        if (!targetMonster) return;
+
+        // GUARDステータスを付与（次に受けるダメージを半減、1回使用で消える）
+        applyStatusToOwnMonster(context, targetIndex, STATUS_EFFECT_TYPES.GUARD, {
+          duration: 0, // ターン終了時まで
+          usesRemaining: 1, // 1回使用で消える
+        }, 'プリズム・ガーディアン');
+
+        addLog(`プリズム・ガーディアン: ${targetMonster.name}に【守護】を付与！`, 'heal');
+      };
+
+      // 1体のみの場合は自動選択
+      if (lightMonsters.length === 1) {
+        applyGuard(lightMonsters[0].index);
+        return true;
+      }
+
+      // 複数いる場合は選択UI
+      if (setPendingTargetSelection) {
+        setPendingTargetSelection({
+          message: '【守護】を付与する光属性モンスターを選択',
+          targetType: 'own_monster',
+          validIndices: lightMonsters.map(l => l.index),
+          callback: (selectedIndex) => {
+            applyGuard(selectedIndex);
+          },
+        });
+        return true;
+      }
+
+      // フォールバック: 最初のモンスター
+      applyGuard(lightMonsters[0].index);
+      return true;
+    }
+    return false;
+  },
+
+  /**
+   * C0000058: 熾天使セラフ
+   * 基本技: 自分の墓地の光属性モンスター1体を手札に戻す。
+   */
+  C0000058: (skillText, context) => {
+    const { addLog, setPendingGraveyardSelection, setShowGraveyardViewer } = context;
+    const { myGraveyard, setMyGraveyard, setMyHand, currentPlayer } = getPlayerContext(context);
+
+    if (context.skillType === 'basic') {
+      // 墓地の光属性モンスターを検索
+      const lightMonsters = myGraveyard.filter(card =>
+        card.type === 'monster' && card.attribute === '光'
+      );
+
+      if (lightMonsters.length === 0) {
+        addLog('熾天使セラフ: 墓地に光属性モンスターがいません', 'info');
+        return false;
+      }
+
+      // 手札に戻す処理
+      const returnToHand = (targetCard) => {
+        setMyGraveyard(prev => prev.filter(c => c.uniqueId !== targetCard.uniqueId));
+        setMyHand(prev => [...prev, targetCard]);
+        addLog(`熾天使セラフ: ${targetCard.name}を墓地から手札に戻した`, 'heal');
+      };
+
+      // 1体のみの場合は自動選択
+      if (lightMonsters.length === 1) {
+        returnToHand(lightMonsters[0]);
+        return true;
+      }
+
+      // 複数いる場合は墓地選択UIを表示
+      if (setPendingGraveyardSelection && setShowGraveyardViewer) {
+        setShowGraveyardViewer({ player: currentPlayer });
+        setPendingGraveyardSelection({
+          message: '手札に戻す光属性モンスターを選択',
+          filter: (card) => card.type === 'monster' && card.attribute === '光',
+          callback: (selectedCard) => {
+            returnToHand(selectedCard);
+          },
+        });
+        return true;
+      }
+
+      // フォールバック: 最初の1体を選択
+      returnToHand(lightMonsters[0]);
+      return true;
+    }
     return false;
   },
 

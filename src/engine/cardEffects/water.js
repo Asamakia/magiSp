@@ -1938,6 +1938,43 @@ export const waterCardEffects = {
   },
 
   /**
+   * C0000052: ネプチューンの加護
+   * このターン、自分の水属性モンスター全ての攻撃力を600アップ。
+   * 次のターン終了時まで、自分の水属性モンスター全てへの技のダメージが0になる。
+   */
+  C0000052: (skillText, context) => {
+    const { addLog } = context;
+    const { myField, setMyField } = getPlayerContext(context);
+
+    // 場の水属性モンスターを取得
+    const waterMonsters = myField.filter(m => m && m.attribute === '水');
+
+    if (waterMonsters.length === 0) {
+      addLog('ネプチューンの加護: 場に水属性モンスターがいません', 'info');
+      return true; // 魔法発動自体は成功
+    }
+
+    // 水属性モンスター全体に効果を適用
+    let buffedCount = 0;
+    setMyField(prev => prev.map(m => {
+      if (m && m.attribute === '水') {
+        buffedCount++;
+        return {
+          ...m,
+          currentAttack: m.currentAttack + 600,
+          atkBoostUntilEndOfTurn: (m.atkBoostUntilEndOfTurn || 0) + 600,
+          skillDamageImmunityUntilNextTurnEnd: true, // 次のターン終了時まで技ダメージ無効
+        };
+      }
+      return m;
+    }));
+
+    addLog(`ネプチューンの加護: 水属性モンスター${buffedCount}体の攻撃力+600！`, 'heal');
+    addLog('次のターン終了時まで水属性モンスターへの技ダメージが0になる！', 'heal');
+    return true;
+  },
+
+  /**
    * C0000048: 人魚の波誘い
    * 【刹那詠唱】相手モンスター1体の攻撃先を別の相手モンスターに変更する。
    * ※攻撃リダイレクト効果として実装：相手モンスター2体を選び、前者が後者を攻撃する（同士討ち）
