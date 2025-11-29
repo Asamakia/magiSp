@@ -664,16 +664,33 @@ Phase D-3: 読み取り専用useState削除（6個） ✅ 完了
 - [x] GameActions.jsにADD_LOG, setWinnerアクション追加
 - 結果: useState 6個削減、-59B gzip
 
-Phase D-4: 効果コンテキスト移行（将来）
-- [ ] effectHelpersをdispatch対応に
-- [ ] cardEffectsをdispatch対応に
+Phase D-4: 効果コンテキスト移行 🔄 進行中
+**アプローチ**: アダプターパターン（effectHelpers/cardEffects/cardTriggersの150+箇所を直接修正せず、コンテキストアダプターで対応）
 
-Phase D-5: 残りuseState削除（27個、将来）
+D-4-1: GameActions拡張
+- [ ] UPDATE_PLAYER_STATEアクション追加（life, deck, hand, field, graveyard, activeSP, restedSP, fieldCard, phaseCard, statusEffects, nextTurnSPBonus, magicBlocked, spReduction）
+- [ ] SET_GAME_FLAGSアクション追加（chargeUsedThisTurn等）
+- [ ] 各アクションのapplyAction実装
+
+D-4-2: コンテキストアダプター作成
+- [ ] createEffectContext関数作成
+- [ ] set*関数をdispatch呼び出しにラップ
+- [ ] resolveValue関数（関数形式 vs 直接値の両対応）
+- [ ] 11箇所のコンテキスト生成箇所を修正
+
+D-4-3: 同期処理削除
+- [ ] syncGameStateToEngine関数削除
+- [ ] summonCard, attack等の「同期後dispatch」パターン削除
+- [ ] syncFromLegacy関連削除
+
+D-4-4: 残りuseState削除（27個）
 - [ ] P1/P2状態のuseState削除
+- [ ] chargeUsedThisTurnのuseState削除
+- [ ] engineStateからの直接参照に変更
 
-**詳細**: `step6-integration-design.md` を参照
+**詳細**: `step6-integration-design.md` Phase D-4セクションを参照
 
 **対象useState（33個）**
-- 読み取り専用（Phase D-3）: turn, currentPlayer, phase, isFirstTurn, winner, logs
-- 効果コンテキスト依存（Phase D-4/D-5）: P1/P2のlife, deck, hand, field, graveyard, activeSP, restedSP, fieldCard, phaseCard, statusEffects, nextTurnSPBonus, magicBlocked, spReduction
-- ターンフラグ: chargeUsedThisTurn
+- 読み取り専用（Phase D-3）✅: turn, currentPlayer, phase, isFirstTurn, winner, logs
+- 効果コンテキスト依存（Phase D-4）: P1/P2のlife, deck, hand, field, graveyard, activeSP, restedSP, fieldCard, phaseCard, statusEffects, nextTurnSPBonus, magicBlocked, spReduction
+- ターンフラグ（Phase D-4）: chargeUsedThisTurn

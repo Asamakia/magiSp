@@ -528,6 +528,218 @@ const addLog = useCallback((message, type = 'info') => {
 }, [dispatch]);
 ```
 
+#### Phase D-4 詳細設計（効果コンテキスト移行）
+
+**目的**: effectHelpers/cardEffects/cardTriggersをdispatch対応に変更し、useState→engineState同期を削除
+
+**現状の問題**:
+```
+効果実行 → context.setP1Life() → useState更新
+         → syncGameStateToEngine() → engineState更新
+         → UI表示（engineStateを参照）
+```
+
+**目標**:
+```
+効果実行 → dispatch(gameActions.dealDamage()) → engineState更新 → UI表示
+```
+
+---
+
+##### Phase D-4-1: GameActions拡張
+
+**目的**: 効果実行に必要なアクションをGameActions.jsに追加
+
+**追加するアクション**:
+```javascript
+// 状態更新系（汎用）
+UPDATE_PLAYER_STATE: 'UPDATE_PLAYER_STATE',  // プレイヤー状態の部分更新
+
+// フィールド操作
+UPDATE_FIELD_SLOT: 'UPDATE_FIELD_SLOT',      // 特定スロットの更新
+REMOVE_FROM_FIELD: 'REMOVE_FROM_FIELD',      // フィールドから削除
+
+// 手札操作
+ADD_TO_HAND: 'ADD_TO_HAND',                  // 手札に追加
+REMOVE_FROM_HAND: 'REMOVE_FROM_HAND',        // 手札から削除
+
+// 墓地操作
+ADD_TO_GRAVEYARD: 'ADD_TO_GRAVEYARD',        // 墓地に追加
+REMOVE_FROM_GRAVEYARD: 'REMOVE_FROM_GRAVEYARD', // 墓地から削除
+
+// デッキ操作
+MILL_DECK: 'MILL_DECK',                      // デッキミル
+SHUFFLE_INTO_DECK: 'SHUFFLE_INTO_DECK',      // デッキに戻してシャッフル
+
+// モンスター操作
+MODIFY_MONSTER_STAT: 'MODIFY_MONSTER_STAT',  // ATK/HP修正
+ADD_MONSTER_CHARGE: 'ADD_MONSTER_CHARGE',    // チャージ追加
+SET_MONSTER_FLAG: 'SET_MONSTER_FLAG',        // フラグ設定
+
+// SP操作
+MODIFY_SP: 'MODIFY_SP',                      // SP増減
+
+// フィールド/フェイズカード
+UPDATE_FIELD_CARD: 'UPDATE_FIELD_CARD',
+UPDATE_PHASE_CARD: 'UPDATE_PHASE_CARD',
+```
+
+**作業内容**:
+1. ACTION_TYPESに上記を追加
+2. actionsオブジェクトにアクションクリエイター追加
+3. applyAction()に各ケース追加
+4. 個別のapply*関数を実装
+
+**見積もり**: ~200行追加
+
+---
+
+##### Phase D-4-2: コンテキストアダプター作成
+
+**目的**: 既存のeffectHelpers/cardEffects/cardTriggersを最小限の変更で移行可能にする
+
+**アダプター設計**:
+```javascript
+// magic-spirit.jsx に追加
+const createEffectContext = useCallback(() => {
+  // 読み取り専用データ（engineStateから）
+  const readonlyContext = {
+    currentPlayer,
+    p1Life, p2Life,
+    p1Field, p2Field,
+    p1Hand, p2Hand,
+    p1Deck, p2Deck,
+    p1Graveyard, p2Graveyard,
+    p1ActiveSP, p2ActiveSP,
+    p1RestedSP, p2RestedSP,
+    p1FieldCard, p2FieldCard,
+    p1PhaseCard, p2PhaseCard,
+  };
+
+  // dispatch経由のセッター（アダプター）
+  const dispatchSetters = {
+    setP1Life: (value) => dispatch(gameActions.updatePlayerState(1, { life: resolveValue(value, p1Life) })),
+    setP2Life: (value) => dispatch(gameActions.updatePlayerState(2, { life: resolveValue(value, p2Life) })),
+    setP1Field: (value) => dispatch(gameActions.updatePlayerState(1, { field: resolveValue(value, p1Field) })),
+    setP2Field: (value) => dispatch(gameActions.updatePlayerState(2, { field: resolveValue(value, p2Field) })),
+    // ... 他のセッターも同様
+    addLog,  // 既にdispatch経由
+  };
+
+  return { ...readonlyContext, ...dispatchSetters };
+}, [dispatch, currentPlayer, p1Life, p2Life, ...]);
+
+// ヘルパー: 関数または値を解決
+const resolveValue = (valueOrUpdater, currentValue) => {
+  return typeof valueOrUpdater === 'function'
+    ? valueOrUpdater(currentValue)
+    : valueOrUpdater;
+};
+```
+
+**利点**:
+- effectHelpers/cardEffects/cardTriggersは**変更不要**
+- context.setP1Life(prev => prev - 100) が自動的にdispatchに変換される
+- 段階的移行が可能
+
+**作業内容**:
+1. createEffectContext関数を作成
+2. resolveValue ヘルパーを作成
+3. 既存のcontext作成箇所（11箇所）をcreateEffectContext()に置換
+
+**見積もり**: ~100行追加、11箇所修正
+
+---
+
+##### Phase D-4-3: 同期処理削除
+
+**目的**: useState→engineState同期を削除
+
+**削除対象**:
+```javascript
+// 1. syncGameStateToEngine関数（~60行）
+const syncGameStateToEngine = useCallback(() => { ... }, [...]);
+
+// 2. 同期useEffect（~15行）
+useEffect(() => {
+  syncGameStateToEngine();
+}, [gameState, engineState, syncGameStateToEngine, ...]);
+```
+
+**前提条件**:
+- Phase D-4-1, D-4-2が完了していること
+- すべてのset*がdispatch経由で動作すること
+
+**見積もり**: ~75行削除
+
+---
+
+##### Phase D-4-4: useState削除（D-5統合）
+
+**目的**: 残り27個のuseStateを削除
+
+**削除対象**:
+```javascript
+// P1状態（13個）
+const [p1Life, setP1Life] = useState(INITIAL_LIFE);
+const [p1Deck, setP1Deck] = useState([]);
+const [p1Hand, setP1Hand] = useState([]);
+const [p1Field, setP1Field] = useState([null, null, null, null, null]);
+const [p1Graveyard, setP1Graveyard] = useState([]);
+const [p1ActiveSP, setP1ActiveSP] = useState(INITIAL_SP);
+const [p1RestedSP, setP1RestedSP] = useState(0);
+const [p1FieldCard, setP1FieldCard] = useState(null);
+const [p1PhaseCard, setP1PhaseCard] = useState(null);
+const [p1StatusEffects, setP1StatusEffects] = useState([]);
+const [p1NextTurnSPBonus, setP1NextTurnSPBonus] = useState(0);
+const [p1MagicBlocked, setP1MagicBlocked] = useState(false);
+const [p1SpReduction, setP1SpReduction] = useState(0);
+
+// P2状態（13個） - 同様
+
+// ターンフラグ（1個）
+const [chargeUsedThisTurn, setChargeUsedThisTurn] = useState(false);
+```
+
+**変換**:
+```javascript
+// Before
+const [p1Life, setP1Life] = useState(INITIAL_LIFE);
+
+// After
+const p1Life = engineState?.p1?.life ?? INITIAL_LIFE;
+// setP1Lifeは createEffectContext 内でdispatch経由に変換済み
+```
+
+**見積もり**: ~30行削除
+
+---
+
+##### 実施順序まとめ
+
+| Step | 内容 | 影響ファイル | 見積もり |
+|------|------|-------------|---------|
+| D-4-1 | GameActions拡張 | GameActions.js | +200行 |
+| D-4-2 | コンテキストアダプター | magic-spirit.jsx | +100行, 11箇所修正 |
+| D-4-3 | 同期処理削除 | magic-spirit.jsx | -75行 |
+| D-4-4 | useState削除 | magic-spirit.jsx | -30行 |
+| **合計** | | | +195行（一時的）、最終的に-105行 |
+
+**重要**: D-4-2のアダプター方式により、effectHelpers/cardEffects/cardTriggersの**150+箇所は変更不要**
+
+---
+
+##### テスト戦略
+
+1. **D-4-1完了後**: GameActions単体テスト追加
+2. **D-4-2完了後**: 手動テスト（召喚、攻撃、技発動、トリガー）
+3. **D-4-3完了後**: 全機能回帰テスト
+4. **D-4-4完了後**: 最終確認
+
+##### ロールバック計画
+
+各Stepはgit commitで区切り、問題発生時は即座にrevert可能
+
 #### Phase D リスク評価
 
 | Phase | リスク | 影響範囲 | ロールバック容易性 |
