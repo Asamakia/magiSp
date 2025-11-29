@@ -655,10 +655,14 @@ Phase D-2: legacyStateSync削除 ✅ 完了
 - [x] toLegacyState/fromLegacyStateインポートを削除
 - 結果: 64行削減（-440B gzip）
 
-Phase D-3: 読み取り専用useState削除（6個）
-- [ ] turn, currentPlayer, phase, isFirstTurn, winner, logsのuseState削除
-- [ ] *FromEngine変数をリネーム（任意）
-- [ ] addLog関数をdispatch経由に修正
+Phase D-3: 読み取り専用useState削除（6個） ✅ 完了
+- [x] turn, currentPlayer, phase, isFirstTurn, winner, logsのuseState削除
+- [x] *FromEngine変数をリネーム（turnFromEngine → turn 等）
+- [x] addLog関数をdispatch(gameActions.addLog())経由に修正
+- [x] initGameのsetter呼び出し削除（engineInitGameで設定済み）
+- [x] setPhase(3)/setWinner(N)をdispatch経由に変更
+- [x] GameActions.jsにADD_LOG, setWinnerアクション追加
+- 結果: useState 6個削減、-59B gzip
 
 Phase D-4: 効果コンテキスト移行（将来）
 - [ ] effectHelpersをdispatch対応に
