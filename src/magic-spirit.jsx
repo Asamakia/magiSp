@@ -268,120 +268,113 @@ export default function MagicSpiritGame() {
   // effectHelpers/cardEffects/cardTriggersからのset*呼び出しをdispatch経由に変換
   // ========================================
 
-  // ヘルパー: 関数または値を解決（setState(prev => prev + 1)形式をサポート）
-  const resolveValue = useCallback((valueOrUpdater, currentValue) => {
-    return typeof valueOrUpdater === 'function'
-      ? valueOrUpdater(currentValue)
-      : valueOrUpdater;
-  }, []);
-
   // Phase D-4: useState削除後のセッター（dispatch経由）
-  // これらは直接呼び出し（initGame等）とコンテキスト経由両方で使用
+  // 関数形式はreducer（applyUpdatePlayerState）で解決される
 
   // ライフ
   const setP1Life = useCallback((value) => {
-    dispatch(gameActions.updatePlayerState(1, { life: resolveValue(value, p1Life) }));
-  }, [dispatch, resolveValue, p1Life]);
+    dispatch(gameActions.updatePlayerState(1, { life: value }));
+  }, [dispatch]);
   const setP2Life = useCallback((value) => {
-    dispatch(gameActions.updatePlayerState(2, { life: resolveValue(value, p2Life) }));
-  }, [dispatch, resolveValue, p2Life]);
+    dispatch(gameActions.updatePlayerState(2, { life: value }));
+  }, [dispatch]);
 
   // デッキ
   const setP1Deck = useCallback((value) => {
-    dispatch(gameActions.updatePlayerState(1, { deck: resolveValue(value, p1Deck) }));
-  }, [dispatch, resolveValue, p1Deck]);
+    dispatch(gameActions.updatePlayerState(1, { deck: value }));
+  }, [dispatch]);
   const setP2Deck = useCallback((value) => {
-    dispatch(gameActions.updatePlayerState(2, { deck: resolveValue(value, p2Deck) }));
-  }, [dispatch, resolveValue, p2Deck]);
+    dispatch(gameActions.updatePlayerState(2, { deck: value }));
+  }, [dispatch]);
 
   // 手札
   const setP1Hand = useCallback((value) => {
-    dispatch(gameActions.updatePlayerState(1, { hand: resolveValue(value, p1Hand) }));
-  }, [dispatch, resolveValue, p1Hand]);
+    dispatch(gameActions.updatePlayerState(1, { hand: value }));
+  }, [dispatch]);
   const setP2Hand = useCallback((value) => {
-    dispatch(gameActions.updatePlayerState(2, { hand: resolveValue(value, p2Hand) }));
-  }, [dispatch, resolveValue, p2Hand]);
+    dispatch(gameActions.updatePlayerState(2, { hand: value }));
+  }, [dispatch]);
 
   // フィールド
   const setP1Field = useCallback((value) => {
-    dispatch(gameActions.updatePlayerState(1, { field: resolveValue(value, p1Field) }));
-  }, [dispatch, resolveValue, p1Field]);
+    dispatch(gameActions.updatePlayerState(1, { field: value }));
+  }, [dispatch]);
   const setP2Field = useCallback((value) => {
-    dispatch(gameActions.updatePlayerState(2, { field: resolveValue(value, p2Field) }));
-  }, [dispatch, resolveValue, p2Field]);
+    dispatch(gameActions.updatePlayerState(2, { field: value }));
+  }, [dispatch]);
 
   // 墓地
   const setP1Graveyard = useCallback((value) => {
-    dispatch(gameActions.updatePlayerState(1, { graveyard: resolveValue(value, p1Graveyard) }));
-  }, [dispatch, resolveValue, p1Graveyard]);
+    dispatch(gameActions.updatePlayerState(1, { graveyard: value }));
+  }, [dispatch]);
   const setP2Graveyard = useCallback((value) => {
-    dispatch(gameActions.updatePlayerState(2, { graveyard: resolveValue(value, p2Graveyard) }));
-  }, [dispatch, resolveValue, p2Graveyard]);
+    dispatch(gameActions.updatePlayerState(2, { graveyard: value }));
+  }, [dispatch]);
 
   // SP
   const setP1ActiveSP = useCallback((value) => {
-    dispatch(gameActions.updatePlayerState(1, { activeSP: resolveValue(value, p1ActiveSP) }));
-  }, [dispatch, resolveValue, p1ActiveSP]);
+    dispatch(gameActions.updatePlayerState(1, { activeSP: value }));
+  }, [dispatch]);
   const setP2ActiveSP = useCallback((value) => {
-    dispatch(gameActions.updatePlayerState(2, { activeSP: resolveValue(value, p2ActiveSP) }));
-  }, [dispatch, resolveValue, p2ActiveSP]);
+    dispatch(gameActions.updatePlayerState(2, { activeSP: value }));
+  }, [dispatch]);
   const setP1RestedSP = useCallback((value) => {
-    dispatch(gameActions.updatePlayerState(1, { restedSP: resolveValue(value, p1RestedSP) }));
-  }, [dispatch, resolveValue, p1RestedSP]);
+    dispatch(gameActions.updatePlayerState(1, { restedSP: value }));
+  }, [dispatch]);
   const setP2RestedSP = useCallback((value) => {
-    dispatch(gameActions.updatePlayerState(2, { restedSP: resolveValue(value, p2RestedSP) }));
-  }, [dispatch, resolveValue, p2RestedSP]);
+    dispatch(gameActions.updatePlayerState(2, { restedSP: value }));
+  }, [dispatch]);
 
   // フィールドカード・フェイズカード
   const setP1FieldCard = useCallback((value) => {
-    dispatch(gameActions.updatePlayerState(1, { fieldCard: resolveValue(value, p1FieldCard) }));
-  }, [dispatch, resolveValue, p1FieldCard]);
+    dispatch(gameActions.updatePlayerState(1, { fieldCard: value }));
+  }, [dispatch]);
   const setP2FieldCard = useCallback((value) => {
-    dispatch(gameActions.updatePlayerState(2, { fieldCard: resolveValue(value, p2FieldCard) }));
-  }, [dispatch, resolveValue, p2FieldCard]);
+    dispatch(gameActions.updatePlayerState(2, { fieldCard: value }));
+  }, [dispatch]);
   const setP1PhaseCard = useCallback((value) => {
-    dispatch(gameActions.updatePlayerState(1, { phaseCard: resolveValue(value, p1PhaseCard) }));
-  }, [dispatch, resolveValue, p1PhaseCard]);
+    dispatch(gameActions.updatePlayerState(1, { phaseCard: value }));
+  }, [dispatch]);
   const setP2PhaseCard = useCallback((value) => {
-    dispatch(gameActions.updatePlayerState(2, { phaseCard: resolveValue(value, p2PhaseCard) }));
-  }, [dispatch, resolveValue, p2PhaseCard]);
+    dispatch(gameActions.updatePlayerState(2, { phaseCard: value }));
+  }, [dispatch]);
 
   // 状態異常
   const setP1StatusEffects = useCallback((value) => {
-    dispatch(gameActions.updatePlayerState(1, { statusEffects: resolveValue(value, p1StatusEffects) }));
-  }, [dispatch, resolveValue, p1StatusEffects]);
+    dispatch(gameActions.updatePlayerState(1, { statusEffects: value }));
+  }, [dispatch]);
   const setP2StatusEffects = useCallback((value) => {
-    dispatch(gameActions.updatePlayerState(2, { statusEffects: resolveValue(value, p2StatusEffects) }));
-  }, [dispatch, resolveValue, p2StatusEffects]);
+    dispatch(gameActions.updatePlayerState(2, { statusEffects: value }));
+  }, [dispatch]);
 
   // SPボーナス
   const setP1NextTurnSPBonus = useCallback((value) => {
-    dispatch(gameActions.updatePlayerState(1, { nextTurnSPBonus: resolveValue(value, p1NextTurnSPBonus) }));
-  }, [dispatch, resolveValue, p1NextTurnSPBonus]);
+    dispatch(gameActions.updatePlayerState(1, { nextTurnSPBonus: value }));
+  }, [dispatch]);
   const setP2NextTurnSPBonus = useCallback((value) => {
-    dispatch(gameActions.updatePlayerState(2, { nextTurnSPBonus: resolveValue(value, p2NextTurnSPBonus) }));
-  }, [dispatch, resolveValue, p2NextTurnSPBonus]);
+    dispatch(gameActions.updatePlayerState(2, { nextTurnSPBonus: value }));
+  }, [dispatch]);
 
   // 魔法ブロック
   const setP1MagicBlocked = useCallback((value) => {
-    dispatch(gameActions.updatePlayerState(1, { magicBlocked: resolveValue(value, p1MagicBlocked) }));
-  }, [dispatch, resolveValue, p1MagicBlocked]);
+    dispatch(gameActions.updatePlayerState(1, { magicBlocked: value }));
+  }, [dispatch]);
   const setP2MagicBlocked = useCallback((value) => {
-    dispatch(gameActions.updatePlayerState(2, { magicBlocked: resolveValue(value, p2MagicBlocked) }));
-  }, [dispatch, resolveValue, p2MagicBlocked]);
+    dispatch(gameActions.updatePlayerState(2, { magicBlocked: value }));
+  }, [dispatch]);
 
   // SP減少
   const setP1SpReduction = useCallback((value) => {
-    dispatch(gameActions.updatePlayerState(1, { spReduction: resolveValue(value, p1SpReduction) }));
-  }, [dispatch, resolveValue, p1SpReduction]);
+    dispatch(gameActions.updatePlayerState(1, { spReduction: value }));
+  }, [dispatch]);
   const setP2SpReduction = useCallback((value) => {
-    dispatch(gameActions.updatePlayerState(2, { spReduction: resolveValue(value, p2SpReduction) }));
-  }, [dispatch, resolveValue, p2SpReduction]);
+    dispatch(gameActions.updatePlayerState(2, { spReduction: value }));
+  }, [dispatch]);
 
   // ターンフラグ
   const setChargeUsedThisTurn = useCallback((value) => {
-    dispatch(gameActions.setGameFlags({ chargeUsedThisTurn: resolveValue(value, chargeUsedThisTurn) }));
-  }, [dispatch, resolveValue, chargeUsedThisTurn]);
+    dispatch(gameActions.setGameFlags({ chargeUsedThisTurn: value }));
+  }, [dispatch]);
 
   // 効果コンテキスト作成（dispatch経由のセッターを含む）
   const createEffectContext = useCallback((overrides = {}) => {
