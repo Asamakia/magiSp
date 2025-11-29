@@ -649,3 +649,69 @@ export function hasMashouheki(card) {
  */
 export const MASHOUHEKI_CARD_IDS = ['C0000002', 'C0000234'];
 
+// =============================================================================
+// 【残魂】関連
+// =============================================================================
+
+/**
+ * 【残魂】を持つカードか判定
+ * @param {Object} card - カードオブジェクト
+ * @returns {boolean}
+ */
+export function hasZankon(card) {
+  return hasKeyword(card, KEYWORD_ABILITIES.ZANKON);
+}
+
+/**
+ * 【残魂】の対象カードID一覧
+ * C0000320: 雷帝ヴォルトロン
+ * C0000327: 雷嵐龍サンダーストーム・レックス
+ */
+export const ZANKON_CARD_IDS = ['C0000320', 'C0000327'];
+
+/**
+ * 【残魂】ダメージ倍率
+ * 破壊時に自身の攻撃力の30%を相手プレイヤーにダメージ
+ */
+export const ZANKON_DAMAGE_RATE = 0.3;
+
+/**
+ * 【残魂】ダメージを計算
+ * @param {Object} monster - 破壊されたモンスター
+ * @returns {number} 相手プレイヤーに与えるダメージ
+ */
+export function calculateZankonDamage(monster) {
+  if (!monster) return 0;
+  const attack = monster.currentAttack || monster.attack || 0;
+  return Math.floor(attack * ZANKON_DAMAGE_RATE);
+}
+
+/**
+ * 【残魂】効果を実行
+ * 破壊時に自身の攻撃力の30%を相手プレイヤーにダメージ
+ * @param {Object} context - 効果コンテキスト
+ * @param {Object} destroyedMonster - 破壊されたモンスター
+ * @returns {boolean} 効果を適用したかどうか
+ */
+export function executeZankonEffect(context, destroyedMonster) {
+  const { addLog, currentPlayer, setP1Life, setP2Life } = context;
+
+  if (!destroyedMonster || !hasZankon(destroyedMonster)) {
+    return false;
+  }
+
+  const damage = calculateZankonDamage(destroyedMonster);
+  if (damage <= 0) {
+    return false;
+  }
+
+  // 破壊されたモンスターのオーナーの相手にダメージ
+  // currentPlayerは破壊されたモンスターのオーナー（contextで渡される）
+  const setOpponentLife = currentPlayer === 1 ? setP2Life : setP1Life;
+
+  setOpponentLife(prev => Math.max(0, prev - damage));
+  addLog(`【残魂】${destroyedMonster.name}の魂が${damage}ダメージを与えた！`, 'damage');
+
+  return true;
+}
+
