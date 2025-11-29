@@ -1039,5 +1039,305 @@ export const fireCardEffects = {
     return selectAndApplyAwakening(context, dragonCondition, 700, '紅蓮の覚醒');
   },
 
+  // ========================================
+  // 魔法カード (ID 30番台)
+  // ========================================
+
+  /**
+   * C0000031: 炎の咆哮
+   * 場にいる［ドラゴン］と名の付いたモンスター1体の攻撃力をターン終了時まで500アップし、相手プレイヤーに300ダメージを与える。
+   */
+  C0000031: (skillText, context) => {
+    const { addLog, setPendingTargetSelection } = context;
+    const { myField, setMyField } = getPlayerContext(context);
+
+    // ドラゴンモンスターを探す
+    const dragonIndices = myField
+      .map((m, idx) => ({ monster: m, index: idx }))
+      .filter(({ monster }) => monster && hasCategory(monster, '【ドラゴン】'));
+
+    if (dragonIndices.length === 0) {
+      addLog('炎の咆哮: 場にドラゴンモンスターがいません', 'info');
+      return false;
+    }
+
+    // ドラゴンに攻撃力+500を付与する関数
+    const applyBuff = (targetIndex) => {
+      setMyField(prev => {
+        const newField = [...prev];
+        if (newField[targetIndex]) {
+          const monster = newField[targetIndex];
+          const newAttack = (monster.currentAttack || monster.attack) + 500;
+          newField[targetIndex] = {
+            ...monster,
+            attack: monster.attack + 500,
+            currentAttack: newAttack,
+          };
+          addLog(`炎の咆哮: ${monster.name}の攻撃力+500！`, 'heal');
+        }
+        return newField;
+      });
+    };
+
+    // 1体のみの場合は自動選択
+    if (dragonIndices.length === 1) {
+      applyBuff(dragonIndices[0].index);
+    } else if (setPendingTargetSelection) {
+      // 複数の場合はターゲット選択UI
+      setPendingTargetSelection({
+        message: '攻撃力+500するドラゴンを選択',
+        validTargets: dragonIndices.map(d => d.index),
+        isOpponent: false,
+        callback: (targetIndex) => {
+          applyBuff(targetIndex);
+        },
+      });
+    } else {
+      // フォールバック: 最初を選択
+      applyBuff(dragonIndices[0].index);
+    }
+
+    // 相手に300ダメージ
+    conditionalDamage(context, 300, 'opponent');
+
+    return true;
+  },
+
+  /**
+   * C0000032: ドラゴンの炎息
+   * 【刹那詠唱】相手モンスター1体に800ダメージを与えた後、相手モンスター全体に300ダメージを与える。
+   */
+  C0000032: (skillText, context) => {
+    const { addLog, setPendingTargetSelection } = context;
+    const { opponentField, setOpponentField, setOpponentGraveyard } = getPlayerContext(context);
+
+    // 相手フィールドのモンスターをチェック
+    const validTargets = opponentField
+      .map((m, idx) => ({ monster: m, index: idx }))
+      .filter(t => t.monster !== null);
+
+    if (validTargets.length === 0) {
+      addLog('ドラゴンの炎息: 相手フィールドにモンスターがいません', 'info');
+      return true; // 発動自体は成功
+    }
+
+    // 800ダメージを与える関数
+    const apply800Damage = (targetIndex) => {
+      let destroyedMonster = null;
+
+      setOpponentField(prev => {
+        const newField = [...prev];
+        const m = newField[targetIndex];
+        if (m) {
+          const newHp = m.currentHp - 800;
+          addLog(`ドラゴンの炎息: ${m.name}に800ダメージ！`, 'damage');
+          if (newHp <= 0) {
+            addLog(`${m.name}は破壊された！`, 'damage');
+            destroyedMonster = m;
+            newField[targetIndex] = null;
+          } else {
+            newField[targetIndex] = { ...m, currentHp: newHp };
+          }
+        }
+        return newField;
+      });
+
+      if (destroyedMonster) {
+        setOpponentGraveyard(prev => [...prev, destroyedMonster]);
+      }
+
+      // 全体に300ダメージ
+      applyAoeDamage();
+    };
+
+    // 全体300ダメージ
+    const applyAoeDamage = () => {
+      let destroyedMonsters = [];
+
+      setOpponentField(prev => {
+        return prev.map(m => {
+          if (m) {
+            const newHp = m.currentHp - 300;
+            if (newHp <= 0) {
+              addLog(`${m.name}が炎息の余波で破壊された！`, 'damage');
+              destroyedMonsters.push(m);
+              return null;
+            }
+            return { ...m, currentHp: newHp };
+          }
+          return m;
+        });
+      });
+
+      if (destroyedMonsters.length > 0) {
+        setOpponentGraveyard(prev => [...prev, ...destroyedMonsters]);
+        addLog(`ドラゴンの炎息: 全体に300ダメージ！${destroyedMonsters.length}体破壊`, 'damage');
+      } else if (validTargets.length > 0) {
+        addLog('ドラゴンの炎息: 全体に300ダメージ！', 'damage');
+      }
+    };
+
+    // 1体のみの場合は自動選択
+    if (validTargets.length === 1) {
+      apply800Damage(validTargets[0].index);
+    } else if (setPendingTargetSelection) {
+      setPendingTargetSelection({
+        message: '800ダメージを与える相手モンスターを選択',
+        validTargets: validTargets.map(t => t.index),
+        isOpponent: true,
+        callback: (targetIndex) => {
+          apply800Damage(targetIndex);
+        },
+      });
+    } else {
+      apply800Damage(validTargets[0].index);
+    }
+
+    return true;
+  },
+
+  /**
+   * C0000034: 炎の嵐
+   * 場にいる全ての［ドラゴン］モンスターの数×200ダメージを相手プレイヤーに与える。
+   */
+  C0000034: (skillText, context) => {
+    const { addLog, p1Field, p2Field } = context;
+
+    // 両プレイヤーのフィールドのドラゴンを数える
+    const allFields = [...(p1Field || []), ...(p2Field || [])];
+    const dragonCount = allFields.filter(m =>
+      m && hasCategory(m, '【ドラゴン】')
+    ).length;
+
+    if (dragonCount === 0) {
+      addLog('炎の嵐: 場にドラゴンがいないためダメージなし', 'info');
+      return true;
+    }
+
+    const damage = dragonCount * 200;
+    addLog(`炎の嵐: ドラゴン${dragonCount}体で${damage}ダメージ！`, 'damage');
+    conditionalDamage(context, damage, 'opponent');
+
+    return true;
+  },
+
+  /**
+   * C0000035: ドラゴンの血脈
+   * デッキから《レッドバーストドラゴン》または《炎竜母フレイマ》を場に直接召喚。
+   */
+  C0000035: (skillText, context) => {
+    const { addLog, currentPlayer } = context;
+    const { myDeck, setMyDeck, myField, setMyField } = getPlayerContext(context);
+
+    // デッキから対象カードを探す
+    const targetNames = ['レッドバーストドラゴン', '炎竜母フレイマ'];
+    const targetIndex = myDeck.findIndex(card =>
+      card.type === 'monster' && targetNames.includes(card.name)
+    );
+
+    if (targetIndex === -1) {
+      addLog('ドラゴンの血脈: デッキに対象カードがありません', 'info');
+      return false;
+    }
+
+    // 空きスロットを確認
+    const emptySlotIndex = myField.findIndex(slot => slot === null);
+    if (emptySlotIndex === -1) {
+      addLog('ドラゴンの血脈: フィールドに空きがありません', 'info');
+      return false;
+    }
+
+    const targetCard = myDeck[targetIndex];
+
+    // モンスターインスタンスを作成
+    const monsterInstance = {
+      ...targetCard,
+      uniqueId: `${targetCard.id}_${Date.now()}_${Math.random()}`,
+      currentHp: targetCard.hp,
+      currentAttack: targetCard.attack,
+      canAttack: false,
+      usedSkillThisTurn: false,
+      owner: currentPlayer,
+      charges: [],
+      statusEffects: [],
+    };
+
+    // デッキから除去
+    const newDeck = [...myDeck];
+    newDeck.splice(targetIndex, 1);
+    setMyDeck(newDeck);
+
+    // フィールドに召喚
+    setMyField(prev => {
+      const newField = [...prev];
+      newField[emptySlotIndex] = monsterInstance;
+      return newField;
+    });
+
+    addLog(`ドラゴンの血脈: デッキから「${targetCard.name}」を召喚！`, 'info');
+    return true;
+  },
+
+  /**
+   * C0000036: 燃え尽きる業火
+   * 自分の場にいる《ドラゴン》と名のついたモンスター1体を破壊し、その攻撃力分のダメージを相手プレイヤーに与える。
+   */
+  C0000036: (skillText, context) => {
+    const { addLog, setPendingTargetSelection } = context;
+    const { myField, setMyField, setMyGraveyard, setOpponentLife } = getPlayerContext(context);
+
+    // 自分フィールドのドラゴンを探す
+    const dragonIndices = myField
+      .map((m, idx) => ({ monster: m, index: idx }))
+      .filter(({ monster }) => monster && hasCategory(monster, '【ドラゴン】'));
+
+    if (dragonIndices.length === 0) {
+      addLog('燃え尽きる業火: 場にドラゴンモンスターがいません', 'info');
+      return false;
+    }
+
+    // ドラゴンを破壊してダメージを与える関数
+    const destroyAndDamage = (targetIndex) => {
+      const targetMonster = myField[targetIndex];
+      if (!targetMonster) return;
+
+      const damage = targetMonster.currentAttack || targetMonster.attack;
+
+      // モンスターを破壊
+      setMyField(prev => {
+        const newField = [...prev];
+        newField[targetIndex] = null;
+        return newField;
+      });
+
+      // 墓地に送る
+      setMyGraveyard(prev => [...prev, targetMonster]);
+
+      // 相手にダメージ
+      setOpponentLife(prev => prev - damage);
+
+      addLog(`燃え尽きる業火: ${targetMonster.name}を破壊！`, 'damage');
+      addLog(`燃え尽きる業火: 相手プレイヤーに${damage}ダメージ！`, 'damage');
+    };
+
+    // 1体のみの場合は自動選択
+    if (dragonIndices.length === 1) {
+      destroyAndDamage(dragonIndices[0].index);
+    } else if (setPendingTargetSelection) {
+      setPendingTargetSelection({
+        message: '破壊するドラゴンを選択',
+        validTargets: dragonIndices.map(d => d.index),
+        isOpponent: false,
+        callback: (targetIndex) => {
+          destroyAndDamage(targetIndex);
+        },
+      });
+    } else {
+      destroyAndDamage(dragonIndices[0].index);
+    }
+
+    return true;
+  },
+
   // 他の炎属性カードを追加...
 };

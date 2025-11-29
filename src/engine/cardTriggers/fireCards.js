@@ -188,6 +188,48 @@ export const fireCardTriggers = {
   // トリガーは不要
 
   /**
+   * C0000030: バースト・ドラゴン・ナイト
+   * 【自攻撃後】このカードが［ドラゴン］モンスターを破壊した場合、もう一度攻撃が可能。
+   */
+  C0000030: [
+    {
+      type: TRIGGER_TYPES.ON_ATTACK_SUCCESS,
+      activationType: ACTIVATION_TYPES.AUTOMATIC,
+      description: '攻撃成功時: ドラゴン破壊で追加攻撃',
+      effect: (context) => {
+        const { destroyedTarget, addLog, monsterIndex } = context;
+        const { myField, setMyField } = getPlayerContext(context);
+
+        // 相手モンスターを破壊した場合
+        if (destroyedTarget) {
+          // 破壊したモンスターが［ドラゴン］かチェック
+          const isDragon = hasCategory(destroyedTarget, '【ドラゴン】');
+
+          if (isDragon) {
+            addLog('バースト・ドラゴン・ナイトの効果: ドラゴンを破壊！もう一度攻撃可能！', 'info');
+
+            // このモンスターの攻撃フラグを再び有効にする
+            setMyField(prev => {
+              const newField = [...prev];
+              // monsterIndexがある場合はそれを使用、なければカード名で検索
+              const targetIndex = monsterIndex !== undefined ? monsterIndex :
+                newField.findIndex(m => m && m.id === 'C0000030');
+
+              if (targetIndex !== -1 && newField[targetIndex]) {
+                newField[targetIndex] = {
+                  ...newField[targetIndex],
+                  canAttack: true,
+                };
+              }
+              return newField;
+            });
+          }
+        }
+      },
+    },
+  ],
+
+  /**
    * C0000161: 灯魔龍ランプデビル
    * 【召喚時】場にいる全ての炎属性モンスターに3000ダメージを与え、破壊したモンスター×600のダメージを相手プレイヤーに与える。
    * 【自壊時】自分のSPトークンを3個破壊する。
@@ -912,6 +954,93 @@ export const fireCardTriggers = {
             addLog('岩狸の山里: 最終効果発動後、墓地へ送られた', 'info');
           }
         }
+      },
+    },
+  ],
+
+  /**
+   * C0000038: 紅の竜宮
+   * 【［ドラゴン］モンスターが破壊された時】手札からそのコスト以下の別の［ドラゴン］モンスター1体を効果無効で場に戻す（1ターンに1度）。
+   */
+  C0000038: [
+    {
+      type: TRIGGER_TYPES.ON_CATEGORY_MONSTER_DESTROYED,
+      activationType: ACTIVATION_TYPES.OPTIONAL,
+      description: 'ドラゴン破壊時: 手札からコスト以下のドラゴンを召喚（1ターン1度）',
+      usedThisTurn: false,
+      effect: (context, trigger) => {
+        const { destroyedCard, addLog, currentPlayer } = context;
+        const { myHand, setMyHand, myField, setMyField } = getPlayerContext(context);
+
+        // 1ターン1度のチェック
+        if (trigger && trigger.usedThisTurn) {
+          addLog('紅の竜宮: このターン既に効果を使用しています', 'info');
+          return;
+        }
+
+        // 破壊されたカードが［ドラゴン］かチェック
+        if (!destroyedCard || !hasCategory(destroyedCard, '【ドラゴン】')) {
+          return;
+        }
+
+        const destroyedCost = destroyedCard.cost || 0;
+
+        // 手札から対象のドラゴンを探す（破壊されたカードのコスト以下）
+        const eligibleDragons = myHand.filter(card =>
+          card.type === 'monster' &&
+          hasCategory(card, '【ドラゴン】') &&
+          card.cost <= destroyedCost
+        );
+
+        if (eligibleDragons.length === 0) {
+          addLog('紅の竜宮: 手札にコスト条件を満たすドラゴンがいません', 'info');
+          return;
+        }
+
+        // 空きスロットを確認
+        const emptySlotIndex = myField.findIndex(slot => slot === null);
+        if (emptySlotIndex === -1) {
+          addLog('紅の竜宮: フィールドに空きがありません', 'info');
+          return;
+        }
+
+        // 最初のドラゴンを召喚（UIで選択させるべきだが、簡略化）
+        const targetCard = eligibleDragons[0];
+
+        // 手札から除去
+        setMyHand(prev => prev.filter(c => c.uniqueId !== targetCard.uniqueId));
+
+        // モンスターインスタンスを作成（効果無効）
+        const monsterInstance = {
+          ...targetCard,
+          uniqueId: `${targetCard.id}_${Date.now()}_${Math.random()}`,
+          currentHp: targetCard.hp,
+          currentAttack: targetCard.attack,
+          canAttack: false,
+          usedSkillThisTurn: false,
+          owner: currentPlayer,
+          charges: [],
+          statusEffects: [],
+          effectNegated: true, // 効果無効
+        };
+
+        // フィールドに召喚
+        setMyField(prev => {
+          const newField = [...prev];
+          newField[emptySlotIndex] = monsterInstance;
+          return newField;
+        });
+
+        // 1ターン1度フラグを設定
+        if (trigger) {
+          trigger.usedThisTurn = true;
+        }
+
+        addLog(`紅の竜宮: 手札から「${targetCard.name}」を効果無効で召喚！`, 'info');
+      },
+      condition: (context) => {
+        // 破壊されたカードがドラゴンかチェック
+        return context.destroyedCard && hasCategory(context.destroyedCard, '【ドラゴン】');
       },
     },
   ],
