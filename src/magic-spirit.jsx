@@ -105,6 +105,10 @@ import {
   recordPriceHistory,
   calculateMarketModifier,
   recordAssetSnapshot,
+  // 大会システム
+  validateBet,
+  addBet,
+  removeBet,
 } from './collection';
 
 // ========================================
@@ -3932,6 +3936,34 @@ export default function MagicSpiritGame() {
           setGameState('merchantShop');
         }}
         onPlayerDataUpdate={updatePlayerData}
+        onPlaceBet={(bet) => {
+          const tournament = playerData?.tournamentData?.currentTournament;
+          const currentBets = playerData?.tournamentData?.currentBets || [];
+          const validation = validateBet(bet, tournament, currentBets, playerData?.gold || 0);
+          if (!validation.valid) {
+            alert(validation.error);
+            return false;
+          }
+          const result = addBet(playerData.tournamentData, bet);
+          updatePlayerData({
+            ...playerData,
+            gold: playerData.gold - bet.amount,
+            tournamentData: result.tournamentData,
+          });
+          return true;
+        }}
+        onCancelBet={(betIndex) => {
+          const currentBets = playerData?.tournamentData?.currentBets || [];
+          if (betIndex < 0 || betIndex >= currentBets.length) return false;
+          const bet = currentBets[betIndex];
+          const result = removeBet(playerData.tournamentData, betIndex);
+          updatePlayerData({
+            ...playerData,
+            gold: playerData.gold + bet.amount,
+            tournamentData: result.tournamentData,
+          });
+          return true;
+        }}
       />
     );
   }
