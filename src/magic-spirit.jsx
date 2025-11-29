@@ -612,9 +612,18 @@ export default function MagicSpiritGame() {
       const currentDay = newMarketState.currentDay;
       let existingTournament = updatedPlayerData.tournamentData?.currentTournament;
 
+      // デバッグログ
+      console.log(`[Tournament Debug] currentDay: ${currentDay}, existingTournament:`, existingTournament ? {
+        status: existingTournament.status,
+        deadline: existingTournament.deadline,
+        name: existingTournament.name,
+      } : null);
+
       // 1. 既存大会のステータス更新（締切チェック）
       if (existingTournament && existingTournament.status === TOURNAMENT_STATUS.BETTING) {
+        console.log(`[Tournament Debug] Updating status: currentDay ${currentDay} >= deadline ${existingTournament.deadline} ? ${currentDay >= existingTournament.deadline}`);
         existingTournament = updateTournamentStatus(existingTournament, currentDay);
+        console.log(`[Tournament Debug] After updateTournamentStatus: ${existingTournament.status}`);
         updatedPlayerData = {
           ...updatedPlayerData,
           tournamentData: {
@@ -624,11 +633,14 @@ export default function MagicSpiritGame() {
         };
       }
 
-      // 2. CLOSED状態の大会を実行
+      // 2. CLOSED状態の大会を実行、またはPENDING_REWARD状態の大会の報酬受け取り画面を表示
       if (existingTournament && existingTournament.status === TOURNAMENT_STATUS.CLOSED) {
+        console.log(`[Tournament Debug] Running tournament: ${existingTournament.name}`);
         runTournament(existingTournament).then((finishedTournament) => {
+          console.log(`[Tournament Debug] runTournament completed:`, finishedTournament ? 'success' : 'null');
           if (finishedTournament) {
             console.log(`[Tournament] ${finishedTournament.name} 終了: 優勝 ${finishedTournament.finalWinner}`);
+            console.log(`[Tournament Debug] Setting showTournamentViewer to true`);
 
             // 大会結果を保存（報酬受け取り待ち状態）
             updatePlayerData((prev) => ({
@@ -646,7 +658,13 @@ export default function MagicSpiritGame() {
         }).catch((err) => {
           console.error('[Tournament] 大会実行エラー:', err);
         });
+      } else if (existingTournament && existingTournament.status === TOURNAMENT_STATUS.PENDING_REWARD) {
+        // PENDING_REWARD状態の場合、報酬受け取り画面を表示（前回受け取らなかった場合）
+        console.log(`[Tournament Debug] Showing pending reward viewer for: ${existingTournament.name}`);
+        setPendingTournamentResult(existingTournament);
+        setShowTournamentViewer(true);
       } else {
+        console.log(`[Tournament Debug] Not running tournament. existingTournament:`, existingTournament ? existingTournament.status : 'null');
         // 既存大会がない or FINISHED の場合、新規大会チェック
         const triggerType = checkTournamentTrigger(currentDay, existingTournament);
         if (triggerType) {
