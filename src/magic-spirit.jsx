@@ -4959,19 +4959,19 @@ export default function MagicSpiritGame() {
               プレイヤー2
             </div>
             <div style={{ marginBottom: '8px' }}>
-              <div style={{ fontSize: '12px', marginBottom: '4px' }}>LP: {p2Life}</div>
+              <div style={{ fontSize: '12px', marginBottom: '4px' }}>LP: {p2LifeFromEngine}</div>
               <div style={styles.lifeBar}>
                 <div style={{
                   ...styles.lifeBarFill,
-                  width: `${(p2Life / INITIAL_LIFE) * 100}%`,
+                  width: `${(p2LifeFromEngine / INITIAL_LIFE) * 100}%`,
                   background: 'linear-gradient(90deg, #ff6b6b, #ff8533)',
                 }} />
               </div>
             </div>
-            <div style={{ fontSize: '12px', marginBottom: '4px' }}>SP: {p2ActiveSP}/{p2ActiveSP + p2RestedSP}</div>
-            <SPTokens active={p2ActiveSP} rested={p2RestedSP} max={MAX_SP} />
+            <div style={{ fontSize: '12px', marginBottom: '4px' }}>SP: {p2ActiveSPFromEngine}/{p2ActiveSPFromEngine + p2RestedSPFromEngine}</div>
+            <SPTokens active={p2ActiveSPFromEngine} rested={p2RestedSPFromEngine} max={MAX_SP} />
             <div style={{ fontSize: '11px', marginTop: '8px', color: '#888', display: 'flex', gap: '8px' }}>
-              <span>デッキ: {p2Deck.length}</span>
+              <span>デッキ: {p2DeckFromEngine.length}</span>
               <span
                 onClick={() => p2Graveyard.length > 0 && setShowGraveyardViewer({ player: 2 })}
                 style={{
@@ -4981,7 +4981,7 @@ export default function MagicSpiritGame() {
                 }}
                 title={p2Graveyard.length > 0 ? 'クリックして墓地を閲覧' : '墓地にカードがありません'}
               >
-                墓地: {p2Graveyard.length}
+                墓地: {p2GraveyardFromEngine.length}
               </span>
             </div>
           </div>
@@ -5071,7 +5071,7 @@ export default function MagicSpiritGame() {
             )}
             {/* 手札（プレイヤー2のターンなら表示、それ以外は裏向き） */}
             <div style={{ ...styles.handArea, minHeight: '80px' }}>
-              {p2Hand.map((card, i) => {
+              {p2HandFromEngine.map((card, i) => {
                 const costInfo = currentPlayer === 2 ? getModifiedCostInfo(card, 2) : {};
                 // P2が人間でP2のターンの場合のみ手札を表示、AIの場合は常に裏向き
                 return (currentPlayer === 2 && p2PlayerType === 'human') ? (
@@ -5095,7 +5095,7 @@ export default function MagicSpiritGame() {
             </div>
             {/* モンスターゾーン */}
             <div style={styles.monsterZone}>
-              {p2Field.map((monster, i) => {
+              {p2FieldFromEngine.map((monster, i) => {
                 // 常時効果による修正値を計算
                 const effectContext = {
                   currentPlayer,
@@ -5135,19 +5135,19 @@ export default function MagicSpiritGame() {
               {/* フィールドカード */}
               <div style={styles.cardZoneItem}>
                 <div style={{ fontSize: '12px', marginBottom: '8px' }}>フィールド</div>
-                {p2FieldCard ? (
+                {p2FieldCardFromEngine ? (
                   <div
                     style={{
                       cursor: currentPlayer === 2 && phase === 2 ? 'pointer' : 'default',
-                      border: selectedFieldCardInfo?.card === p2FieldCard ? '2px solid #ff6b6b' : 'none',
+                      border: selectedFieldCardInfo?.card === p2FieldCardFromEngine ? '2px solid #ff6b6b' : 'none',
                       borderRadius: '4px',
                       padding: '2px',
                     }}
                     onClick={currentPlayer === 2 ? handleFieldCardZoneClick : undefined}
-                    onMouseEnter={() => setSelectedFieldCardInfo({ card: p2FieldCard, type: 'field', player: 2 })}
+                    onMouseEnter={() => setSelectedFieldCardInfo({ card: p2FieldCardFromEngine, type: 'field', player: 2 })}
                     onMouseLeave={() => setSelectedFieldCardInfo(null)}
                   >
-                    <Card card={p2FieldCard} small />
+                    <Card card={p2FieldCardFromEngine} small />
                   </div>
                 ) : (
                   <div
@@ -5169,26 +5169,26 @@ export default function MagicSpiritGame() {
               {/* フェイズカード */}
               <div style={styles.cardZoneItem}>
                 <div style={{ fontSize: '12px', marginBottom: '8px' }}>フェイズ</div>
-                {p2PhaseCard ? (
+                {p2PhaseCardFromEngine ? (
                   <div
                     style={{
                       cursor: currentPlayer === 2 && phase === 2 ? 'pointer' : 'default',
-                      border: currentPlayer === 2 && phase === 2 && selectedHandCard && (selectedHandCard.type === 'monster' || selectedHandCard.type === 'magic' || selectedHandCard.type === 'field' || selectedHandCard.type === 'phasecard') ? '2px solid #ff6b6b' : selectedFieldCardInfo?.card === p2PhaseCard ? '2px solid #ff6b6b' : 'none',
+                      border: currentPlayer === 2 && phase === 2 && selectedHandCard && (selectedHandCard.type === 'monster' || selectedHandCard.type === 'magic' || selectedHandCard.type === 'field' || selectedHandCard.type === 'phasecard') ? '2px solid #ff6b6b' : selectedFieldCardInfo?.card === p2PhaseCardFromEngine ? '2px solid #ff6b6b' : 'none',
                       borderRadius: '4px',
                       padding: '2px',
                     }}
                     onClick={currentPlayer === 2 ? handlePhaseCardZoneClick : undefined}
-                    onMouseEnter={() => setSelectedFieldCardInfo({ card: p2PhaseCard, type: 'phasecard', player: 2 })}
+                    onMouseEnter={() => setSelectedFieldCardInfo({ card: p2PhaseCardFromEngine, type: 'phasecard', player: 2 })}
                     onMouseLeave={() => setSelectedFieldCardInfo(null)}
                   >
-                    <Card card={p2PhaseCard} small />
+                    <Card card={p2PhaseCardFromEngine} small />
                     <div style={{ fontSize: '10px', color: '#ffd700', textAlign: 'center', marginTop: '4px' }}>
-                      ⚡ {getStageShortName(p2PhaseCard.stage || 0)}段階 ({p2PhaseCard.charges?.length || 0}/3)
+                      ⚡ {getStageShortName(p2PhaseCardFromEngine.stage || 0)}段階 ({p2PhaseCardFromEngine.charges?.length || 0}/3)
                     </div>
                     {currentPlayer === 2 && phase === 2 && selectedHandCard &&
                       (selectedHandCard.type === 'monster' || selectedHandCard.type === 'magic' || selectedHandCard.type === 'field' || selectedHandCard.type === 'phasecard') &&
-                      (selectedHandCard.attribute === p2PhaseCard.attribute || selectedHandCard.attribute === 'なし' || p2PhaseCard.attribute === 'なし') &&
-                      (p2PhaseCard.stage || 0) < 3 && (
+                      (selectedHandCard.attribute === p2PhaseCardFromEngine.attribute || selectedHandCard.attribute === 'なし' || p2PhaseCardFromEngine.attribute === 'なし') &&
+                      (p2PhaseCardFromEngine.stage || 0) < 3 && (
                       <div style={{ fontSize: '9px', color: '#4da6ff', textAlign: 'center', marginTop: '2px' }}>
                         クリックでチャージ
                       </div>
@@ -5327,7 +5327,7 @@ export default function MagicSpiritGame() {
             {/* 技発動ボタン（メインフェイズ） */}
             {phase === 2 && selectedFieldMonster !== null && currentPlayer === 1 && (
               (() => {
-                const monster = p1Field[selectedFieldMonster];
+                const monster = p1FieldFromEngine[selectedFieldMonster];
                 if (!monster) return null;
                 // 技を持たないモンスターは技発動セクションを表示しない
                 if (!monster.basicSkill && !monster.advancedSkill) return null;
@@ -5382,7 +5382,7 @@ export default function MagicSpiritGame() {
                         }}
                         disabled={chargeUsedThisTurn || monster.charges?.length >= 2 || p1ActiveSP < 1}
                       >
-                        💠 SPチャージ (残SP: {p1ActiveSP})
+                        💠 SPチャージ (残SP: {p1ActiveSPFromEngine})
                       </button>
                     )}
                     {/* 【壮麗】ボタン（P1用） */}
@@ -5459,7 +5459,7 @@ export default function MagicSpiritGame() {
             )}
             {phase === 2 && selectedFieldMonster !== null && currentPlayer === 2 && (
               (() => {
-                const monster = p2Field[selectedFieldMonster];
+                const monster = p2FieldFromEngine[selectedFieldMonster];
                 if (!monster) return null;
                 // 技を持たないモンスターは技発動セクションを表示しない
                 if (!monster.basicSkill && !monster.advancedSkill) return null;
@@ -5514,7 +5514,7 @@ export default function MagicSpiritGame() {
                         }}
                         disabled={chargeUsedThisTurn || monster.charges?.length >= 2 || p2ActiveSP < 1}
                       >
-                        💠 SPチャージ (残SP: {p2ActiveSP})
+                        💠 SPチャージ (残SP: {p2ActiveSPFromEngine})
                       </button>
                     )}
                     {/* 【壮麗】ボタン（P2用） */}
@@ -5681,19 +5681,19 @@ export default function MagicSpiritGame() {
               プレイヤー1
             </div>
             <div style={{ marginBottom: '8px' }}>
-              <div style={{ fontSize: '12px', marginBottom: '4px' }}>LP: {p1Life}</div>
+              <div style={{ fontSize: '12px', marginBottom: '4px' }}>LP: {p1LifeFromEngine}</div>
               <div style={styles.lifeBar}>
                 <div style={{
                   ...styles.lifeBarFill,
-                  width: `${(p1Life / INITIAL_LIFE) * 100}%`,
+                  width: `${(p1LifeFromEngine / INITIAL_LIFE) * 100}%`,
                   background: 'linear-gradient(90deg, #4da6ff, #66d9ff)',
                 }} />
               </div>
             </div>
-            <div style={{ fontSize: '12px', marginBottom: '4px' }}>SP: {p1ActiveSP}/{p1ActiveSP + p1RestedSP}</div>
-            <SPTokens active={p1ActiveSP} rested={p1RestedSP} max={MAX_SP} />
+            <div style={{ fontSize: '12px', marginBottom: '4px' }}>SP: {p1ActiveSPFromEngine}/{p1ActiveSPFromEngine + p1RestedSPFromEngine}</div>
+            <SPTokens active={p1ActiveSPFromEngine} rested={p1RestedSPFromEngine} max={MAX_SP} />
             <div style={{ fontSize: '11px', marginTop: '8px', color: '#888', display: 'flex', gap: '8px' }}>
-              <span>デッキ: {p1Deck.length}</span>
+              <span>デッキ: {p1DeckFromEngine.length}</span>
               <span
                 onClick={() => p1Graveyard.length > 0 && setShowGraveyardViewer({ player: 1 })}
                 style={{
@@ -5703,7 +5703,7 @@ export default function MagicSpiritGame() {
                 }}
                 title={p1Graveyard.length > 0 ? 'クリックして墓地を閲覧' : '墓地にカードがありません'}
               >
-                墓地: {p1Graveyard.length}
+                墓地: {p1GraveyardFromEngine.length}
               </span>
             </div>
           </div>
@@ -5712,7 +5712,7 @@ export default function MagicSpiritGame() {
           <div style={styles.fieldArea}>
             {/* モンスターゾーン */}
             <div style={styles.monsterZone}>
-              {p1Field.map((monster, i) => {
+              {p1FieldFromEngine.map((monster, i) => {
                 // 常時効果による修正値を計算
                 const effectContext = {
                   currentPlayer,
@@ -5746,7 +5746,7 @@ export default function MagicSpiritGame() {
             </div>
             {/* 手札 */}
             <div style={styles.handArea}>
-              {p1Hand.map((card) => {
+              {p1HandFromEngine.map((card) => {
                 const costInfo = currentPlayer === 1 ? getModifiedCostInfo(card, 1) : {};
                 // P1がAIでP2が人間の場合は裏向き
                 const shouldHideP1Hand = p1PlayerType === 'ai' && p2PlayerType === 'human';
@@ -5857,19 +5857,19 @@ export default function MagicSpiritGame() {
               {/* フィールドカード */}
               <div style={styles.cardZoneItem}>
                 <div style={{ fontSize: '12px', marginBottom: '8px' }}>フィールド</div>
-                {p1FieldCard ? (
+                {p1FieldCardFromEngine ? (
                   <div
                     style={{
                       cursor: currentPlayer === 1 && phase === 2 ? 'pointer' : 'default',
-                      border: selectedFieldCardInfo?.card === p1FieldCard ? '2px solid #4da6ff' : 'none',
+                      border: selectedFieldCardInfo?.card === p1FieldCardFromEngine ? '2px solid #4da6ff' : 'none',
                       borderRadius: '4px',
                       padding: '2px',
                     }}
                     onClick={currentPlayer === 1 ? handleFieldCardZoneClick : undefined}
-                    onMouseEnter={() => setSelectedFieldCardInfo({ card: p1FieldCard, type: 'field', player: 1 })}
+                    onMouseEnter={() => setSelectedFieldCardInfo({ card: p1FieldCardFromEngine, type: 'field', player: 1 })}
                     onMouseLeave={() => setSelectedFieldCardInfo(null)}
                   >
-                    <Card card={p1FieldCard} small />
+                    <Card card={p1FieldCardFromEngine} small />
                   </div>
                 ) : (
                   <div
@@ -5891,26 +5891,26 @@ export default function MagicSpiritGame() {
               {/* フェイズカード */}
               <div style={styles.cardZoneItem}>
                 <div style={{ fontSize: '12px', marginBottom: '8px' }}>フェイズ</div>
-                {p1PhaseCard ? (
+                {p1PhaseCardFromEngine ? (
                   <div
                     style={{
                       cursor: currentPlayer === 1 && phase === 2 ? 'pointer' : 'default',
-                      border: currentPlayer === 1 && phase === 2 && selectedHandCard && (selectedHandCard.type === 'monster' || selectedHandCard.type === 'magic' || selectedHandCard.type === 'field' || selectedHandCard.type === 'phasecard') ? '2px solid #4da6ff' : selectedFieldCardInfo?.card === p1PhaseCard ? '2px solid #4da6ff' : 'none',
+                      border: currentPlayer === 1 && phase === 2 && selectedHandCard && (selectedHandCard.type === 'monster' || selectedHandCard.type === 'magic' || selectedHandCard.type === 'field' || selectedHandCard.type === 'phasecard') ? '2px solid #4da6ff' : selectedFieldCardInfo?.card === p1PhaseCardFromEngine ? '2px solid #4da6ff' : 'none',
                       borderRadius: '4px',
                       padding: '2px',
                     }}
                     onClick={currentPlayer === 1 ? handlePhaseCardZoneClick : undefined}
-                    onMouseEnter={() => setSelectedFieldCardInfo({ card: p1PhaseCard, type: 'phasecard', player: 1 })}
+                    onMouseEnter={() => setSelectedFieldCardInfo({ card: p1PhaseCardFromEngine, type: 'phasecard', player: 1 })}
                     onMouseLeave={() => setSelectedFieldCardInfo(null)}
                   >
-                    <Card card={p1PhaseCard} small />
+                    <Card card={p1PhaseCardFromEngine} small />
                     <div style={{ fontSize: '10px', color: '#ffd700', textAlign: 'center', marginTop: '4px' }}>
-                      ⚡ {getStageShortName(p1PhaseCard.stage || 0)}段階 ({p1PhaseCard.charges?.length || 0}/3)
+                      ⚡ {getStageShortName(p1PhaseCardFromEngine.stage || 0)}段階 ({p1PhaseCardFromEngine.charges?.length || 0}/3)
                     </div>
                     {currentPlayer === 1 && phase === 2 && selectedHandCard &&
                       (selectedHandCard.type === 'monster' || selectedHandCard.type === 'magic' || selectedHandCard.type === 'field' || selectedHandCard.type === 'phasecard') &&
-                      (selectedHandCard.attribute === p1PhaseCard.attribute || selectedHandCard.attribute === 'なし' || p1PhaseCard.attribute === 'なし') &&
-                      (p1PhaseCard.stage || 0) < 3 && (
+                      (selectedHandCard.attribute === p1PhaseCardFromEngine.attribute || selectedHandCard.attribute === 'なし' || p1PhaseCardFromEngine.attribute === 'なし') &&
+                      (p1PhaseCardFromEngine.stage || 0) < 3 && (
                       <div style={{ fontSize: '9px', color: '#4da6ff', textAlign: 'center', marginTop: '2px' }}>
                         クリックでチャージ
                       </div>

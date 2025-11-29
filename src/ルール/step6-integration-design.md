@@ -347,20 +347,29 @@ if (isFirstTurnFromEngine && currentPlayer === 1)
 
 **注意**: 依存配列（useCallback等）にはuseStateを維持（変更検出用）
 
-#### Phase C-3: 段階的置き換え
+#### Phase C-3: 段階的置き換え ✅ 完了
 
-**Step 1: UI表示のみに使用される状態**
-- `logs` → `engineState.logs`
-- `winner` → `engineState.winner`
-- `isFirstTurn` → `engineState.isFirstTurn`
+**Step 1: UI表示のみに使用される状態** ✅ (Phase C-2で完了)
+- `logs` → `logsFromEngine`
+- `winner` → `winnerFromEngine`
+- `isFirstTurn` → `isFirstTurnFromEngine`
 
-**Step 2: 数値表示状態**
-- `p1Life`, `p2Life` → `engineState.p1.life`, `engineState.p2.life`
-- `p1ActiveSP`, `p2ActiveSP` → `engineState.p1.activeSP`, `engineState.p2.activeSP`
+**Step 2: 数値表示状態** ✅ 完了
+- `p1Life`, `p2Life` → `p1LifeFromEngine`, `p2LifeFromEngine`（ライフバー表示）
+- `p1ActiveSP`, `p2ActiveSP` → `p1ActiveSPFromEngine`, `p2ActiveSPFromEngine`（SP表示・SPチャージボタン）
+- `p1RestedSP`, `p2RestedSP` → `p1RestedSPFromEngine`, `p2RestedSPFromEngine`（SP表示・SPTokensコンポーネント）
 
-**Step 3: 配列状態（影響範囲大）**
-- `p1Field`, `p2Field` → `engineState.p1.field`, `engineState.p2.field`
-- `p1Hand`, `p2Hand` → `engineState.p1.hand`, `engineState.p2.hand`
+**Step 3: 配列状態** ✅ 完了
+- `p1Field`, `p2Field` → `p1FieldFromEngine`, `p2FieldFromEngine`（モンスターゾーン表示、スキルパネル）
+- `p1Hand`, `p2Hand` → `p1HandFromEngine`, `p2HandFromEngine`（手札表示）
+- `p1Deck`, `p2Deck` → `p1DeckFromEngine`, `p2DeckFromEngine`（デッキ枚数表示）
+- `p1Graveyard`, `p2Graveyard` → `p1GraveyardFromEngine`, `p2GraveyardFromEngine`（墓地枚数表示）
+
+**Step 4: カード状態** ✅ 完了
+- `p1FieldCard`, `p2FieldCard` → `p1FieldCardFromEngine`, `p2FieldCardFromEngine`（フィールドカード表示）
+- `p1PhaseCard`, `p2PhaseCard` → `p1PhaseCardFromEngine`, `p2PhaseCardFromEngine`（フェイズカード表示）
+
+**注意**: 依存配列（useCallback等）およびロジック内の条件判定はuseStateを維持（変更検出・ロジック一貫性のため）
 
 #### Phase C リスクと対策
 
