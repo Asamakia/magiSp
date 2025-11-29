@@ -921,5 +921,162 @@ export const darkCardEffects = {
     return true;
   },
 
+  // ========================================
+  // ID90-99 追加カード
+  // ========================================
+
+  /**
+   * C0000092: シャドウ・レイヴン
+   * 基本技：相手の手札を1枚破棄させる。
+   */
+  C0000092: (skillText, context) => {
+    const { addLog } = context;
+    const { opponentHand, setOpponentHand, setOpponentGraveyard } = getPlayerContext(context);
+
+    if (context.skillType === 'basic') {
+      if (opponentHand.length === 0) {
+        addLog('相手の手札がありません', 'info');
+        return true; // 効果は成功（対象なし）
+      }
+
+      // ランダムに1枚選択して墓地に送る
+      const randomIndex = Math.floor(Math.random() * opponentHand.length);
+      const discardedCard = opponentHand[randomIndex];
+
+      setOpponentHand(prev => prev.filter((_, idx) => idx !== randomIndex));
+      setOpponentGraveyard(prev => [...prev, discardedCard]);
+
+      addLog(`シャドウ・レイヴンの基本技！相手の手札「${discardedCard.name}」を墓地に送った`, 'damage');
+      return true;
+    }
+
+    return false;
+  },
+
+  /**
+   * C0000093: ダーク・ヴォイド
+   * 場にいるモンスター1体に1600ダメージを与える。
+   */
+  C0000093: (skillText, context) => {
+    const { addLog, setPendingMonsterTarget } = context;
+    const { myField, setMyField, setMyGraveyard, opponentField, setOpponentField, setOpponentGraveyard } = getPlayerContext(context);
+
+    // 対象選択用のリスト作成（自分・相手両方のモンスター）
+    const allTargets = [];
+    myField.forEach((m, idx) => {
+      if (m) allTargets.push({ monster: m, index: idx, isOpponent: false });
+    });
+    opponentField.forEach((m, idx) => {
+      if (m) allTargets.push({ monster: m, index: idx, isOpponent: true });
+    });
+
+    if (allTargets.length === 0) {
+      addLog('場にモンスターがいません', 'info');
+      return false;
+    }
+
+    // ダメージ処理を行う関数
+    const applyDamage = (targetIndex, isOpponent) => {
+      const field = isOpponent ? opponentField : myField;
+      const setField = isOpponent ? setOpponentField : setMyField;
+      const setGraveyard = isOpponent ? setOpponentGraveyard : setMyGraveyard;
+      const monster = field[targetIndex];
+
+      if (!monster) return;
+
+      const newHp = monster.currentHp - 1600;
+      addLog(`ダーク・ヴォイド: ${monster.name}に1600ダメージ！`, 'damage');
+
+      if (newHp <= 0) {
+        // 破壊
+        setField(prev => {
+          const newField = [...prev];
+          newField[targetIndex] = null;
+          return newField;
+        });
+        setGraveyard(prev => [...prev, monster]);
+        addLog(`${monster.name}は破壊された！`, 'damage');
+      } else {
+        setField(prev => prev.map((m, idx) => {
+          if (idx === targetIndex && m) {
+            return { ...m, currentHp: newHp };
+          }
+          return m;
+        }));
+      }
+    };
+
+    // 相手モンスターを優先選択（1体だけの場合は自動選択）
+    const opponentTargets = allTargets.filter(t => t.isOpponent);
+    if (opponentTargets.length === 1 && opponentTargets.length === allTargets.length) {
+      applyDamage(opponentTargets[0].index, true);
+      return true;
+    }
+
+    // 複数ターゲットがある場合は選択UI
+    if (setPendingMonsterTarget) {
+      setPendingMonsterTarget({
+        message: '1600ダメージを与えるモンスターを選択',
+        targetPlayer: 'both',
+        callback: (selectedIndex, isOpponent) => {
+          applyDamage(selectedIndex, isOpponent);
+        },
+      });
+      return true;
+    }
+
+    // フォールバック: 相手の最初のモンスターを選択
+    if (opponentTargets.length > 0) {
+      applyDamage(opponentTargets[0].index, true);
+    } else if (allTargets.length > 0) {
+      applyDamage(allTargets[0].index, allTargets[0].isOpponent);
+    }
+    return true;
+  },
+
+  /**
+   * C0000097: 闇の女盗賊
+   * 基本技：相手は1枚ドローする、魔法カードなら墓地に送り、自分のライフをそのコスト*200回復。
+   * モンスターカードなら、相手のライフにそのコスト＊200ダメージを与える。
+   */
+  C0000097: (skillText, context) => {
+    const { addLog } = context;
+    const { setMyLife, setOpponentLife, opponentDeck, setOpponentDeck, opponentHand, setOpponentHand, setOpponentGraveyard } = getPlayerContext(context);
+
+    if (context.skillType === 'basic') {
+      if (opponentDeck.length === 0) {
+        addLog('相手のデッキがありません', 'info');
+        return false;
+      }
+
+      // 相手にドローさせる
+      const drawnCard = opponentDeck[0];
+      setOpponentDeck(prev => prev.slice(1));
+      addLog(`相手は${drawnCard.name}をドローした`, 'info');
+
+      if (drawnCard.type === 'magic') {
+        // 魔法カードの場合：墓地に送り、コスト*200回復
+        setOpponentGraveyard(prev => [...prev, drawnCard]);
+        const healAmount = (drawnCard.cost || 0) * 200;
+        setMyLife(prev => prev + healAmount);
+        addLog(`闇の女盗賊の基本技！魔法カード「${drawnCard.name}」を墓地に送り、ライフを${healAmount}回復！`, 'heal');
+      } else if (drawnCard.type === 'monster') {
+        // モンスターカードの場合：手札に加え、コスト*200ダメージ
+        setOpponentHand(prev => [...prev, drawnCard]);
+        const damage = (drawnCard.cost || 0) * 200;
+        setOpponentLife(prev => prev - damage);
+        addLog(`闇の女盗賊の基本技！モンスターカード「${drawnCard.name}」で相手に${damage}ダメージ！`, 'damage');
+      } else {
+        // その他のカード（フィールドカードなど）
+        setOpponentHand(prev => [...prev, drawnCard]);
+        addLog(`闇の女盗賊の基本技！${drawnCard.name}は魔法でもモンスターでもない`, 'info');
+      }
+
+      return true;
+    }
+
+    return false;
+  },
+
   // 他の闇属性カードを追加...
 };
