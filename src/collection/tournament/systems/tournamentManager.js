@@ -6,7 +6,7 @@
  * Created: 2025-11-29
  */
 
-import { getBaseCompetitorIds, getActiveCompetitorIds, COMPETITORS } from '../data/competitors';
+import { getBaseCompetitorIds, getActiveCompetitorIds, COMPETITORS, getCompetitorDeckNames } from '../data/competitors';
 import { calculateTournamentOdds, SIM_COUNTS } from './oddsCalculator';
 import { simulateTournament as simTournament, loadCardCache } from './matchSimulator';
 
@@ -154,6 +154,17 @@ export async function createTournament(type, currentBattle) {
   // 参加者選出
   const participants = selectParticipants(config.participants);
 
+  // 各参加者のデッキを決定
+  const participantDecks = {};
+  for (const competitorId of participants) {
+    const deckNames = getCompetitorDeckNames(competitorId);
+    if (deckNames.length > 0) {
+      const randomIndex = Math.floor(Math.random() * deckNames.length);
+      const deckKey = deckNames[randomIndex];
+      participantDecks[competitorId] = { deckKey };
+    }
+  }
+
   // トーナメント表生成
   const bracket = generateBracket(participants);
 
@@ -168,6 +179,7 @@ export async function createTournament(type, currentBattle) {
     type,
     name: config.name,
     participants,
+    participantDecks,
     bracket,
     odds: {
       win: odds.win,
