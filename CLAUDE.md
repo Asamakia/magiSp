@@ -260,6 +260,21 @@ Currently a **prototype version** with local 2-player gameplay and AI opponent s
     - 他の条件付きスキル（墓地条件、フィールド空き条件）も対応
   - **対応カード**: C0000056 (輝聖女ルミナス), C0000142 (ブリザードマスター), C0000044 (水晶のマーメイド), C0000028 (炎竜母フレイマ)
   - **拡張可能**: 新しいカードのチェッカーを追加可能な設計
+- **2025-11-29 (GameEngine Refactoring)**: ヘッドレス対戦エンジン実装 ⭐⭐⭐⭐⭐
+  - **目的**: ゲームロジックをReactから分離、AI高速シミュレーション対応
+  - **GameEngine** (`src/engine/gameEngine/`): ~4,300行の純粋JavaScript実装
+    - `GameState.js`: ゲーム状態の型定義と初期化
+    - `GameActions.js`: アクション関数（純粋関数）
+    - `Simulator.js`: ヘッドレス対戦実行
+    - `Tournament.js`: トーナメントシミュレーション
+    - `useGameEngine.js`: Reactアダプター（カスタムフック）
+    - `effectHelpersPure.js`: 純粋関数版エフェクトヘルパー
+    - `triggerEnginePure.js`: 純粋関数版トリガーエンジン
+  - **パフォーマンス**: 100戦シミュレーション40ms（目標5秒の125倍高速）
+  - **React統合**: Phase A-D段階的移行中
+    - Phase A-C: ✅ 完了（GameEngine導入、シャドウディスパッチ、UI参照移行）
+    - Phase D: 🔄 進行中（useState削減: 33個 → 目標6個）
+  - **Documentation**: `src/ルール/game-engine-refactoring-plan.md`, `step6-integration-design.md`
 
 ---
 
@@ -381,15 +396,24 @@ Currently a **prototype version** with local 2-player gameplay and AI opponent s
 │   │   │   ├── index.js          # Main exports
 │   │   │   ├── statusTypes.js    # Status type definitions and metadata
 │   │   │   └── statusEngine.js   # Main status effect engine
-│   │   └── ai/                 # AI player system (~1246 lines) ⭐⭐⭐⭐⭐
-│   │       ├── index.js          # Main exports (~35 lines)
-│   │       ├── aiController.js   # AI controller (~499 lines)
-│   │       └── strategies/       # Strategy implementations
-│   │           ├── index.js      # Strategy selector (~61 lines)
-│   │           ├── base.js       # Base strategy (random) (~209 lines)
-│   │           ├── easy.js       # Easy AI (~50 lines)
-│   │           ├── normal.js     # Normal AI (~157 lines)
-│   │           └── hard.js       # Hard AI (~235 lines)
+│   │   ├── ai/                 # AI player system (~1246 lines) ⭐⭐⭐⭐⭐
+│   │   │   ├── index.js          # Main exports (~35 lines)
+│   │   │   ├── aiController.js   # AI controller (~499 lines)
+│   │   │   └── strategies/       # Strategy implementations
+│   │   │       ├── index.js      # Strategy selector (~61 lines)
+│   │   │       ├── base.js       # Base strategy (random) (~209 lines)
+│   │   │       ├── easy.js       # Easy AI (~50 lines)
+│   │   │       ├── normal.js     # Normal AI (~157 lines)
+│   │   │       └── hard.js       # Hard AI (~235 lines)
+│   │   └── gameEngine/         # Headless game engine (~4300 lines) ⭐⭐⭐⭐⭐ NEW
+│   │       ├── index.js          # Main exports (90 lines)
+│   │       ├── GameState.js      # Game state type definitions (383 lines)
+│   │       ├── GameActions.js    # Pure function actions (920 lines)
+│   │       ├── Simulator.js      # Headless battle execution (240 lines)
+│   │       ├── Tournament.js     # Tournament simulation (514 lines)
+│   │       ├── useGameEngine.js  # React adapter hook (305 lines)
+│   │       ├── effectHelpersPure.js  # Pure effect helpers (423 lines)
+│   │       └── triggerEnginePure.js  # Pure trigger engine (397 lines)
 │   │
 │   ├── ルール/                  # Documentation (~12000 lines total)
 │   │   ├── Game Rules (日本語) - 3 files (~260 lines)
@@ -416,6 +440,9 @@ Currently a **prototype version** with local 2-player gameplay and AI opponent s
 │   │   │   └── status-effect-system-design.md (~1050 lines) - System design
 │   │   ├── AI Player System Documentation - 1 file (~1400 lines) ⭐⭐⭐⭐⭐
 │   │   │   └── ai-player-system-design.md (~1400 lines) - AI system design
+│   │   ├── GameEngine Refactoring Documentation - 2 files (~1500 lines) ⭐⭐⭐⭐⭐ NEW
+│   │   │   ├── game-engine-refactoring-plan.md (~700 lines) - Refactoring plan & progress
+│   │   │   └── step6-integration-design.md (~800 lines) - React integration design
 │   │   └── Card Value System Documentation - 5 files (~4,000 lines) ⭐⭐⭐⭐⭐
 │   │       ├── card_value_system_v2.1.md (~593 lines) - Value calculation spec
 │   │       ├── collection-system-design.md (~830 lines) - Collection system design
@@ -543,6 +570,38 @@ Currently a **prototype version** with local 2-player gameplay and AI opponent s
   - `hard.js`: Hard AI (field awareness, damage efficiency)
 - **index.js**: Exports all AI functions and strategies
 - Uses strategy pattern for extensible decision-making
+
+**`src/engine/gameEngine/`** (Headless game engine - ~4300 lines) ⭐⭐⭐⭐⭐ **NEW**
+- **GameState.js**: Game state type definitions and initialization (~383 lines)
+  - `createInitialState(config)`: Create initial game state
+  - `createPlayerState()`: Create player state structure
+  - Player state: life, deck, hand, field, graveyard, SP, fieldCard, phaseCard, statusEffects
+  - Game progress: turn, currentPlayer, phase, isFirstTurn, winner, logs
+- **GameActions.js**: Pure function action handlers (~920 lines)
+  - `applyAction(state, action)`: Main dispatcher for all actions
+  - `applySummonCard()`, `applyAttack()`, `applyExecuteSkill()`: Battle actions
+  - `applyNextPhase()`, `applyEndTurn()`: Phase progression
+  - `applyChargeCard()`, `applyChargeSP()`: Resource management
+  - All functions are pure: (state, params) => newState
+- **useGameEngine.js**: React adapter hook (~305 lines)
+  - `useGameEngine()`: Custom hook for React integration
+  - `dispatch(action)`: Apply action to engine state
+  - `actions`: Action creators (summonCard, attack, nextPhase, etc.)
+  - Bridge between pure engine and React UI
+- **Simulator.js**: Headless battle execution (~240 lines)
+  - `simulateBattle(p1Deck, p2Deck, config)`: Run single battle
+  - Random AI decision making for simulation
+  - Returns battle result with logs
+- **Tournament.js**: Tournament simulation (~514 lines)
+  - `simulateTournament(decks, options)`: Run tournament
+  - Swiss/round-robin formats
+  - Deck win rate analysis
+- **effectHelpersPure.js**: Pure effect helpers (~423 lines)
+  - State-returning versions of effectHelpers functions
+  - `millDeckPure()`, `drawCardsPure()`, `dealDamagePure()`, etc.
+- **triggerEnginePure.js**: Pure trigger engine (~397 lines)
+  - State-based trigger management
+  - `registerCardTriggersPure()`, `fireTriggerPure()`, etc.
 
 **`src/utils/cardManager.js`** (Card data manager - 253 lines)
 - CSV parser for 433 cards
