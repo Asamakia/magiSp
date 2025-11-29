@@ -421,8 +421,11 @@ export default function MagicSpiritGame() {
     return mismatches;
   }, [engineState, gameState, turn, currentPlayer, phase, p1Life, p2Life, p1ActiveSP, p2ActiveSP]);
 
-  // 開発用: ブラウザコンソールから状態確認可能にする
-  // 使い方: window.magicSpirit.verifySync(), window.magicSpirit.engineState
+  // 開発用: ブラウザコンソールから状態確認・テスト可能にする
+  // 使い方:
+  //   window.magicSpirit.verifySync()     - 状態同期検証
+  //   window.magicSpirit.engineState      - エンジン状態直接参照
+  //   window.magicSpirit.testDispatch()   - dispatchテスト（Phase B検証用）
   useEffect(() => {
     if (typeof window !== 'undefined') {
       window.magicSpirit = {
@@ -436,9 +439,25 @@ export default function MagicSpiritGame() {
           phase: engineState?.phase,
           currentPlayer: engineState?.currentPlayer,
         },
+        // Phase B検証用: dispatchテスト
+        // 注意: これはテスト用。実際のゲームロジックには影響しない
+        testDispatch: () => {
+          if (!engineState) {
+            console.log('[Dispatch Test] Engine not initialized');
+            return;
+          }
+          const beforePhase = engineState.phase;
+          console.log(`[Dispatch Test] Before: phase=${beforePhase}`);
+          // dispatchはuseGameEngineから取得しているので直接呼べる
+          // ただし、sync effectがuseStateからengineStateを上書きするので
+          // 結果はすぐに同期される
+          console.log('[Dispatch Test] dispatch は useGameEngine 経由で利用可能');
+          console.log('[Dispatch Test] 完全なPhase B移行には useState との同期制御が必要');
+        },
+        dispatch,  // Phase B用: 直接dispatch参照
       };
     }
-  }, [verifyStateSync, engineState]);
+  }, [verifyStateSync, engineState, dispatch]);
 
   // CSVファイルの読み込み & プレイヤーデータ初期化
   useEffect(() => {

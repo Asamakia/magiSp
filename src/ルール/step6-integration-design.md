@@ -138,6 +138,25 @@ const p1Life = engineState?.p1?.life ?? INITIAL_LIFE;
 
 ### 3.4 Phase B: アクション移行
 
+**課題**:
+- magic-spirit.jsxのアクション関数は複雑（チェーンポイント、トリガー等）
+- GameActions.jsのアクションは単純化版
+- 完全な置き換えは大規模変更
+
+**アプローチ: シャドウディスパッチ**
+```javascript
+// 既存のuseState更新と並行してdispatchを呼び出す
+// 同期機構により両者は同じ状態になるはず
+const nextPhase = () => {
+  // 既存ロジック（チェーン確認等）
+  if (phase === 3) {
+    setPhase(4);      // useState更新
+    // dispatch(actions.nextPhase());  // シャドウ（テスト用）
+    processPhase(4);
+  }
+};
+```
+
 **優先順位**:
 1. `nextPhase()` - シンプル
 2. `summonCard()` - 基本アクション
@@ -169,13 +188,13 @@ const p1Life = engineState?.p1?.life ?? INITIAL_LIFE;
 
 ```
 1. [x] 設計書作成（本ドキュメント）
-2. [ ] Phase A-1: useGameEngine導入
-3. [ ] Phase A-2: initGame統合
-4. [ ] Phase A-3: 状態参照移行（読み取り）
-5. [ ] Phase B-1: nextPhase移行
+2. [x] Phase A-1: useGameEngine導入
+3. [x] Phase A-2: initGame統合
+4. [x] Phase A-3: 状態同期機構 + 検証ツール
+5. [ ] Phase B-1: nextPhase移行（シャドウディスパッチ）
 6. [ ] Phase B-2: summonCard移行
 7. [ ] 動作確認・テスト
-8. [ ] 旧useState削除
+8. [ ] 旧useState削除（将来）
 ```
 
 ---
