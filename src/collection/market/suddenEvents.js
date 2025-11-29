@@ -406,10 +406,94 @@ const generateModifierDescription = (effects) => {
 // エクスポート
 // ========================================
 
+// ========================================
+// スポットライトイベント（単体カード高騰）
+// ========================================
+
+/**
+ * スポットライトイベント説明テンプレート
+ * {cardName}はカード名に置換される
+ */
+const SPOTLIGHT_TEMPLATES = [
+  {
+    title: '本日の注目カード',
+    descriptions: [
+      '「{cardName}」が市場で話題沸騰！',
+      '著名コレクターが「{cardName}」を指名買い！',
+      '「{cardName}」の希少性に注目が集まる！',
+    ],
+  },
+  {
+    title: '緊急買取強化',
+    descriptions: [
+      '「{cardName}」の緊急買取を実施中！',
+      '「{cardName}」を高額査定中！',
+      '限定: 「{cardName}」買取10倍キャンペーン！',
+    ],
+  },
+  {
+    title: '幻のカード出現',
+    descriptions: [
+      '「{cardName}」が闇市場で高値取引！',
+      '「{cardName}」を求めて商人が殺到！',
+      '「{cardName}」に謎の需要が発生！',
+    ],
+  },
+  {
+    title: '伝説の一枚',
+    descriptions: [
+      '古文書に記された「{cardName}」の価値が判明！',
+      '「{cardName}」が大会で大活躍の噂！',
+      '「{cardName}」のレアバージョンが発見された！',
+    ],
+  },
+];
+
+/**
+ * スポットライトイベントを生成
+ *
+ * @param {Object[]} allCards - 全カードリスト
+ * @param {string[]} [recentCardIds=[]] - 直近でスポットライトになったカードID
+ * @returns {Object|null} スポットライトイベント
+ */
+export const generateSpotlightEvent = (allCards, recentCardIds = []) => {
+  if (!allCards || allCards.length === 0) {
+    return null;
+  }
+
+  // 直近でスポットライトになったカードは除外
+  const availableCards = allCards.filter(card => !recentCardIds.includes(card.id));
+
+  if (availableCards.length === 0) {
+    return null;
+  }
+
+  // ランダムにカードを選択
+  const selectedCard = randomChoice(availableCards);
+
+  // テンプレートをランダムに選択
+  const template = randomChoice(SPOTLIGHT_TEMPLATES);
+  const description = randomChoice(template.descriptions).replace('{cardName}', selectedCard.name);
+
+  return {
+    cardId: selectedCard.id,
+    cardName: selectedCard.name,
+    cardAttribute: selectedCard.attribute,
+    title: template.title,
+    description,
+  };
+};
+
+// ========================================
+// エクスポート
+// ========================================
+
 export default {
   SURGE_EVENTS,
   CRASH_EVENTS,
   SPECIAL_EVENTS,
   ALL_SUDDEN_EVENTS,
   generateSuddenEvent,
+  generateSpotlightEvent,
+  SPOTLIGHT_TEMPLATES,
 };

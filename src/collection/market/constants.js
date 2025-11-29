@@ -48,6 +48,12 @@ export const REGRESSION_THRESHOLDS = [
 /** 突発イベント発生確率（10%） */
 export const SUDDEN_EVENT_CHANCE = 0.10;
 
+/** スポットライトイベント発生確率（20%） */
+export const SPOTLIGHT_EVENT_CHANCE = 0.20;
+
+/** スポットライトイベント価格倍率（10倍 = +900%） */
+export const SPOTLIGHT_MULTIPLIER = 900;
+
 // ========================================
 // 変動幅定義
 // ========================================
@@ -135,6 +141,8 @@ export default {
   PERSISTENT_ACCUMULATION_RATE,
   REGRESSION_THRESHOLDS,
   SUDDEN_EVENT_CHANCE,
+  SPOTLIGHT_EVENT_CHANCE,
+  SPOTLIGHT_MULTIPLIER,
   DIRECTIONS,
   UP_DIRECTIONS,
   DOWN_DIRECTIONS,

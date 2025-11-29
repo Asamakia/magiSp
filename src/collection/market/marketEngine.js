@@ -9,13 +9,15 @@ import {
   MAX_MODIFIER_DOWN,
   DAYS_PER_WEEK,
   SUDDEN_EVENT_CHANCE,
+  SPOTLIGHT_EVENT_CHANCE,
+  SPOTLIGHT_MULTIPLIER,
   PERSISTENT_ACCUMULATION_RATE,
   REGRESSION_THRESHOLDS,
   ATTRIBUTES,
 } from './constants';
 import { createWeeklyTrend } from './weeklyTrend';
 import { generateDailyNews } from './newsGenerator';
-import { generateSuddenEvent } from './suddenEvents';
+import { generateSuddenEvent, generateSpotlightEvent } from './suddenEvents';
 import { createInitialPriceHistory } from './priceHistory';
 import { CATEGORIES } from './data/categories';
 
@@ -162,6 +164,11 @@ export const calculatePersistentModifier = (card, persistentModifiers) => {
  * @returns {number} 変動率（%）例: 35 = +35%
  */
 export const calculateMarketModifier = (card, marketState, rarity = null, tier = null) => {
+  // スポットライト対象カードは特別扱い（10倍 = +900%）
+  if (marketState.spotlightEvent && marketState.spotlightEvent.cardId === card.id) {
+    return SPOTLIGHT_MULTIPLIER;
+  }
+
   let totalModifier = 0;
 
   // 0. 永続変動の効果（上限なしで適用）
@@ -254,6 +261,20 @@ export const getCardMarketPrice = (card, baseValue, marketState, rarity = null, 
 
   // 内訳を生成
   const breakdown = [];
+
+  // スポットライト対象カード
+  if (marketState.spotlightEvent && marketState.spotlightEvent.cardId === card.id) {
+    breakdown.push({
+      source: `🌟 ${marketState.spotlightEvent.title}`,
+      modifier: '+900%（10倍）',
+    });
+    return {
+      price,
+      modifier,
+      breakdown,
+      isSpotlight: true,
+    };
+  }
 
   // 永続変動の内訳
   const persistentMod = calculatePersistentModifier(card, marketState.persistentModifiers);
@@ -349,8 +370,10 @@ export const createInitialMarketState = () => {
     weeklyTrend,
     dailyNews,
     suddenEvent: null,
+    spotlightEvent: null,           // スポットライト（単体カード10倍）
     recentNews: [dailyNews],
     recentSuddenEvents: [],
+    recentSpotlightCardIds: [],     // 直近スポットライトカードID（重複回避用）
     priceHistory: createInitialPriceHistory(),
     persistentModifiers: createInitialPersistentModifiers(),
   };
@@ -452,9 +475,10 @@ const applyAllRegressionPressure = (persistentModifiers) => {
  * 1日進める（対戦終了時に呼び出し）
  *
  * @param {Object} marketState - 現在の市場状態
+ * @param {Object[]} [allCards=[]] - 全カードリスト（スポットライト生成用）
  * @returns {Object} 新しい市場状態
  */
-export const advanceDay = (marketState) => {
+export const advanceDay = (marketState, allCards = []) => {
   const newDay = marketState.currentDay + 1;
   const newState = { ...marketState, currentDay: newDay };
 
@@ -466,6 +490,11 @@ export const advanceDay = (marketState) => {
   // persistentModifiersがない場合は初期化（マイグレーション対応）
   if (!newState.persistentModifiers) {
     newState.persistentModifiers = createInitialPersistentModifiers();
+  }
+
+  // recentSpotlightCardIdsがない場合は初期化（マイグレーション対応）
+  if (!newState.recentSpotlightCardIds) {
+    newState.recentSpotlightCardIds = [];
   }
 
   // === 永続変動の更新（日をまたぐ前の処理） ===
@@ -502,6 +531,20 @@ export const advanceDay = (marketState) => {
   } else {
     newState.suddenEvent = null;
     newState.recentSuddenEvents = recentSuddenEvents;
+  }
+
+  // スポットライトイベントの判定（20%の確率）
+  const recentSpotlightCardIds = marketState.recentSpotlightCardIds || [];
+  if (allCards.length > 0 && Math.random() < SPOTLIGHT_EVENT_CHANCE) {
+    const spotlight = generateSpotlightEvent(allCards, recentSpotlightCardIds);
+    newState.spotlightEvent = spotlight;
+    if (spotlight) {
+      // 直近スポットライト履歴を更新（最大10件保持）
+      newState.recentSpotlightCardIds = [...recentSpotlightCardIds.slice(-9), spotlight.cardId];
+    }
+  } else {
+    newState.spotlightEvent = null;
+    newState.recentSpotlightCardIds = recentSpotlightCardIds;
   }
 
   return newState;
