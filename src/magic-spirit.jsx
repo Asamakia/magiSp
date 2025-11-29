@@ -4378,14 +4378,14 @@ export default function MagicSpiritGame() {
       <header style={styles.header}>
         <h1 style={styles.title}>✨ Magic Spirit</h1>
         <div style={{ display: 'flex', gap: '24px', alignItems: 'center' }}>
-          <span>ターン {turn}</span>
-          <span style={{ 
-            background: currentPlayer === 1 ? '#4da6ff' : '#ff6b6b',
+          <span>ターン {turnFromEngine}</span>
+          <span style={{
+            background: currentPlayerFromEngine === 1 ? '#4da6ff' : '#ff6b6b',
             padding: '4px 12px',
             borderRadius: '4px',
             fontWeight: 'bold',
           }}>
-            プレイヤー{currentPlayer}
+            プレイヤー{currentPlayerFromEngine}
           </span>
         </div>
       </header>
