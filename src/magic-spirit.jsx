@@ -391,6 +391,55 @@ export default function MagicSpiritGame() {
     p1ActiveSP, p2ActiveSP,
   ]);
 
+  // ========================================
+  // 状態同期検証（開発用）
+  // コンソールで engineState と useState の差分を確認
+  // ========================================
+  const verifyStateSync = useCallback(() => {
+    if (!engineState || gameState !== 'playing') {
+      console.log('[StateSync] Not in playing state or engine not initialized');
+      return;
+    }
+
+    const mismatches = [];
+
+    // 主要な状態の比較
+    if (engineState.turn !== turn) mismatches.push(`turn: engine=${engineState.turn}, useState=${turn}`);
+    if (engineState.currentPlayer !== currentPlayer) mismatches.push(`currentPlayer: engine=${engineState.currentPlayer}, useState=${currentPlayer}`);
+    if (engineState.phase !== phase) mismatches.push(`phase: engine=${engineState.phase}, useState=${phase}`);
+    if (engineState.p1?.life !== p1Life) mismatches.push(`p1Life: engine=${engineState.p1?.life}, useState=${p1Life}`);
+    if (engineState.p2?.life !== p2Life) mismatches.push(`p2Life: engine=${engineState.p2?.life}, useState=${p2Life}`);
+    if (engineState.p1?.activeSP !== p1ActiveSP) mismatches.push(`p1ActiveSP: engine=${engineState.p1?.activeSP}, useState=${p1ActiveSP}`);
+    if (engineState.p2?.activeSP !== p2ActiveSP) mismatches.push(`p2ActiveSP: engine=${engineState.p2?.activeSP}, useState=${p2ActiveSP}`);
+
+    if (mismatches.length > 0) {
+      console.warn('[StateSync] Mismatches detected:', mismatches);
+    } else {
+      console.log('[StateSync] ✓ All states in sync');
+    }
+
+    return mismatches;
+  }, [engineState, gameState, turn, currentPlayer, phase, p1Life, p2Life, p1ActiveSP, p2ActiveSP]);
+
+  // 開発用: ブラウザコンソールから状態確認可能にする
+  // 使い方: window.magicSpirit.verifySync(), window.magicSpirit.engineState
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      window.magicSpirit = {
+        verifySync: verifyStateSync,
+        engineState,
+        // 読み取り専用エイリアス（Phase A-3テスト用）
+        engine: {
+          p1Life: engineState?.p1?.life,
+          p2Life: engineState?.p2?.life,
+          turn: engineState?.turn,
+          phase: engineState?.phase,
+          currentPlayer: engineState?.currentPlayer,
+        },
+      };
+    }
+  }, [verifyStateSync, engineState]);
+
   // CSVファイルの読み込み & プレイヤーデータ初期化
   useEffect(() => {
     const loadCards = async () => {
