@@ -4058,23 +4058,29 @@ export default function MagicSpiritGame() {
             alert(validation.error);
             return false;
           }
-          const result = addBet(playerData.tournamentData, bet);
+          const newBets = addBet(currentBets, bet);
           updatePlayerData({
             ...playerData,
             gold: playerData.gold - bet.amount,
-            tournamentData: result.tournamentData,
+            tournamentData: {
+              ...playerData.tournamentData,
+              currentBets: newBets,
+            },
           });
           return true;
         }}
-        onCancelBet={(betIndex) => {
+        onCancelBet={(betId) => {
           const currentBets = playerData?.tournamentData?.currentBets || [];
-          if (betIndex < 0 || betIndex >= currentBets.length) return false;
-          const bet = currentBets[betIndex];
-          const result = removeBet(playerData.tournamentData, betIndex);
+          const bet = currentBets.find(b => b.id === betId);
+          if (!bet) return false;
+          const newBets = removeBet(currentBets, betId);
           updatePlayerData({
             ...playerData,
             gold: playerData.gold + bet.amount,
-            tournamentData: result.tournamentData,
+            tournamentData: {
+              ...playerData.tournamentData,
+              currentBets: newBets,
+            },
           });
           return true;
         }}
