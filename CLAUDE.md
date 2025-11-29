@@ -342,6 +342,11 @@ Currently a **prototype version** with local 2-player gameplay and AI opponent s
   - **investment_system.md**: 大会・投資システム設計書 v2.0
     - Phase 1-3実装完了状況
     - Phase 4-5（ファンド投資、デッキ情報購入）設計
+- **2025-11-29 (localStorage Save Fix)**: リロード時データ消失バグ修正 ⭐⭐
+  - **原因**: `updatePlayerData((prev) => newData)` 関数形式で呼ばれた時、`storage.save()` に関数が渡されJSON化に失敗
+  - **影響範囲**: トーナメント作成/実行結果、パック開封結果、大会報酬受け取りが保存されていなかった
+  - **修正**: `updatePlayerData` を関数形式・オブジェクト形式の両方に対応するよう改修
+  - 対戦終了後のリロードでデータが初期化される問題を解決
 
 ---
 
