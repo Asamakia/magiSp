@@ -989,18 +989,6 @@ const TournamentTab = ({
         {/* トーナメント表 */}
         <TournamentBracket tournament={tournament} />
 
-        {/* デッキ情報購入セクション */}
-        {canBet && (
-          <DeckInfoSection
-            tournament={tournament}
-            tournamentData={tournamentData}
-            playerGold={playerData?.gold || 0}
-            expandedCompetitor={expandedCompetitor}
-            setExpandedCompetitor={setExpandedCompetitor}
-            onPurchaseInfo={onPurchaseInfo}
-          />
-        )}
-
         {/* 賭け受付中の場合 */}
         {canBet && (
           <div style={styles.betSection}>
@@ -1101,6 +1089,18 @@ const TournamentTab = ({
               </>
             )}
           </div>
+        )}
+
+        {/* デッキ情報購入セクション */}
+        {canBet && (
+          <DeckInfoSection
+            tournament={tournament}
+            tournamentData={tournamentData}
+            playerGold={playerData?.gold || 0}
+            expandedCompetitor={expandedCompetitor}
+            setExpandedCompetitor={setExpandedCompetitor}
+            onPurchaseInfo={onPurchaseInfo}
+          />
         )}
       </div>
 
