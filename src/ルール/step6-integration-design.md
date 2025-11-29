@@ -285,17 +285,96 @@ if (success !== false) {
 - `applyPlaceFieldCard()`: フィールドカード配置
 - `applyPlacePhaseCard()`: フェイズカード配置
 
-### Phase C: UIの状態参照移行（将来）
+### Phase C: UIの状態参照移行
 
-1. UIコンポーネントが `engineState` を直接参照
-2. 互換レイヤー (`p1Life = engineState?.p1?.life ?? INITIAL_LIFE`) を活用
-3. 読み取り専用参照から段階的に移行
+**目標**: UIコンポーネントの読み取りをengineStateから行う
+
+**対応表（33個のuseState → engineState）**:
+
+| カテゴリ | useState | engineState |
+|---------|----------|-------------|
+| ゲーム進行 | turn, currentPlayer, phase, isFirstTurn, winner, logs | state.turn, state.currentPlayer, state.phase, state.isFirstTurn, state.winner, state.logs |
+| P1基本 | p1Life, p1Deck, p1Hand, p1Field, p1Graveyard | state.p1.life, state.p1.deck, state.p1.hand, state.p1.field, state.p1.graveyard |
+| P1リソース | p1ActiveSP, p1RestedSP, p1FieldCard, p1PhaseCard | state.p1.activeSP, state.p1.restedSP, state.p1.fieldCard, state.p1.phaseCard |
+| P1状態 | p1StatusEffects, p1NextTurnSPBonus, p1MagicBlocked, p1SpReduction | state.p1.statusEffects, state.p1.nextTurnSPBonus, state.p1.magicBlocked, state.p1.spReduction |
+| P2 | （P1と同様） | state.p2.* |
+| ターンフラグ | chargeUsedThisTurn | state.turnFlags.chargeUsedThisTurn |
+
+#### Phase C-1: 互換レイヤー変数の導入
+
+```javascript
+// 既存のuseState
+const [p1Life, setP1Life] = useState(INITIAL_LIFE);
+
+// engineStateからの読み取り（互換レイヤー）
+const p1LifeFromEngine = engineState?.p1?.life ?? INITIAL_LIFE;
+
+// 検証用（開発中）
+if (p1Life !== p1LifeFromEngine) {
+  console.warn('State mismatch: p1Life', { useState: p1Life, engineState: p1LifeFromEngine });
+}
+```
+
+**優先順位**:
+1. 読み取り専用状態（logs, winner, isFirstTurn）
+2. 表示用状態（life, SP, field）
+3. ロジック参照状態（hand, deck, graveyard）
+
+#### Phase C-2: 検証ツールの導入
+
+開発中に二重管理の不整合を検出するツールを追加:
+
+```javascript
+// useEffect で同期検証（開発モード）
+useEffect(() => {
+  if (process.env.NODE_ENV === 'development' && engineState) {
+    const mismatches = [];
+    if (p1Life !== engineState.p1?.life) mismatches.push('p1Life');
+    if (phase !== engineState.phase) mismatches.push('phase');
+    // ... 他の状態も
+    if (mismatches.length > 0) {
+      console.warn('State sync mismatch:', mismatches);
+    }
+  }
+}, [engineState, p1Life, phase, /* 他の依存 */]);
+```
+
+#### Phase C-3: 段階的置き換え
+
+**Step 1: UI表示のみに使用される状態**
+- `logs` → `engineState.logs`
+- `winner` → `engineState.winner`
+- `isFirstTurn` → `engineState.isFirstTurn`
+
+**Step 2: 数値表示状態**
+- `p1Life`, `p2Life` → `engineState.p1.life`, `engineState.p2.life`
+- `p1ActiveSP`, `p2ActiveSP` → `engineState.p1.activeSP`, `engineState.p2.activeSP`
+
+**Step 3: 配列状態（影響範囲大）**
+- `p1Field`, `p2Field` → `engineState.p1.field`, `engineState.p2.field`
+- `p1Hand`, `p2Hand` → `engineState.p1.hand`, `engineState.p2.hand`
+
+#### Phase C リスクと対策
+
+| リスク | 影響 | 対策 |
+|--------|------|------|
+| シャドウディスパッチ漏れ | 中 | 検証ツールで検出 |
+| 二重管理中の不整合 | 高 | 段階的移行、ロールバック可能に |
+| パフォーマンス劣化 | 低 | 必要に応じてuseMemo |
+| UIコンポーネント破壊 | 中 | コンポーネント単位でテスト |
 
 ### Phase D: useState削除（最終目標）
 
 1. `engineState` が唯一の状態源泉
 2. UIは `engineState` を参照、アクションは `dispatch` 経由
 3. magic-spirit.jsx のロジック行数を大幅削減
+4. 33個のuseState → 1個のengineState
+
+#### Phase D 実行条件
+
+- Phase C-3 完了（全UIがengineStateを参照）
+- 検証ツールで不整合ゼロを確認
+- 主要ゲームフローのE2Eテスト通過
 
 ---
 

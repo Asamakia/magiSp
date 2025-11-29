@@ -632,10 +632,19 @@ useEffect(() => {
 - [x] Phase B-4: executeSkill のシャドウディスパッチ化（効果実行はUI、結果同期のみ）
 - [x] Phase B-5: placeFieldCard/placePhaseCard のシャドウディスパッチ化
 
+**Phase C: UIの状態参照移行**
+- [ ] Phase C-1: 互換レイヤー変数の導入（検証付き）
+- [ ] Phase C-2: 検証ツールの導入（開発モード）
+- [ ] Phase C-3: 段階的置き換え（logs, life, field順）
+
+**Phase D: useState削除（最終目標）**
+- [ ] 全UIがengineState参照を確認
+- [ ] 33個のゲーム状態useStateを削除
+- [ ] magic-spirit.jsx 大幅行数削減
+
 **詳細**: `step6-integration-design.md` を参照
 
-**最終目標（magic-spirit.jsx 大幅改修）**
-- 約70個のuseStateを1つのGameStateに統合
-- UIがengineStateを直接参照
-- 大規模変更のためリスク評価が必要
-- 既存機能が多いため段階的移行を推奨
+**対象useState（33個）**
+- ゲーム進行: turn, currentPlayer, phase, isFirstTurn, winner, logs
+- P1/P2状態: life, deck, hand, field, graveyard, activeSP, restedSP, fieldCard, phaseCard, statusEffects, nextTurnSPBonus, magicBlocked, spReduction
+- ターンフラグ: chargeUsedThisTurn
