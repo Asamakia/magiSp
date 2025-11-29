@@ -56,12 +56,11 @@ export const INFO_PRICES = {
 
 /**
  * デッキ型を取得
- * @param {string} competitorId - NPC ID
- * @param {string} deckKey - デッキキー
+ * @param {string} deckKey - デッキキー（デッキ名）
  * @returns {string} デッキ型の説明
  */
-export function getDeckType(competitorId, deckKey) {
-  const deck = getDeck(competitorId, deckKey);
+export function getDeckType(deckKey) {
+  const deck = getDeck(deckKey);
   if (!deck) return '不明';
 
   // デッキ名からタイプを推測
@@ -70,12 +69,11 @@ export function getDeckType(competitorId, deckKey) {
 
 /**
  * キーカードを取得（2-3枚）
- * @param {string} competitorId - NPC ID
- * @param {string} deckKey - デッキキー
+ * @param {string} deckKey - デッキキー（デッキ名）
  * @returns {Array<Object>} キーカード配列 [{id, count}]
  */
-export function getKeyCards(competitorId, deckKey) {
-  const deck = getDeck(competitorId, deckKey);
+export function getKeyCards(deckKey) {
+  const deck = getDeck(deckKey);
   if (!deck || !deck.cards) return [];
 
   // コストが高い or 枚数が多いカードを優先
@@ -91,12 +89,11 @@ export function getKeyCards(competitorId, deckKey) {
 
 /**
  * フルリストを取得
- * @param {string} competitorId - NPC ID
- * @param {string} deckKey - デッキキー
+ * @param {string} deckKey - デッキキー（デッキ名）
  * @returns {Array<Object>} 全カード配列 [{id, count}]
  */
-export function getFullList(competitorId, deckKey) {
-  const deck = getDeck(competitorId, deckKey);
+export function getFullList(deckKey) {
+  const deck = getDeck(deckKey);
   if (!deck || !deck.cards) return [];
   return deck.cards;
 }
@@ -190,13 +187,13 @@ export function purchaseInfo(tournamentData, { competitorId, infoType, tournamen
   let info = {};
   switch (infoType) {
     case INFO_TYPES.DECK_TYPE:
-      info = { deckType: getDeckType(competitorId, deckKey) };
+      info = { deckType: getDeckType(deckKey) };
       break;
     case INFO_TYPES.KEY_CARDS:
-      info = { keyCards: getKeyCards(competitorId, deckKey) };
+      info = { keyCards: getKeyCards(deckKey) };
       break;
     case INFO_TYPES.FULL_LIST:
-      info = { fullList: getFullList(competitorId, deckKey) };
+      info = { fullList: getFullList(deckKey) };
       break;
     default:
       return { success: false, error: '不明な情報タイプ' };
@@ -284,28 +281,37 @@ export function getCompetitorName(competitorId) {
  */
 export function getAnalysisComment(competitorId, deckKey) {
   const competitor = COMPETITORS[competitorId];
-  const deck = getDeck(competitorId, deckKey);
+  const deck = getDeck(deckKey);
 
   if (!competitor || !deck) return '';
 
   const style = competitor.style || '';
-  const attribute = competitor.attribute || '';
+  const deckType = deck.type || '';
+  const deckAttribute = deck.attribute || competitor.attribute || '';
 
   // 簡易的な分析コメント
   const comments = [];
 
-  if (style === '速攻') {
+  if (style === '速攻' || deckType.includes('アグロ')) {
     comments.push('序盤の攻撃力に注意');
-  } else if (style === 'コントロール') {
+  } else if (style === 'コントロール' || deckType.includes('コントロール')) {
     comments.push('長期戦に備えた構成');
-  } else if (style === 'バーン') {
+  } else if (style === 'バーン' || deckType.includes('バーン')) {
     comments.push('削りダメージに警戒');
-  } else if (style === 'ビート') {
+  } else if (style === 'ビート' || deckType.includes('ビート')) {
     comments.push('高攻撃力のモンスターが中心');
   }
 
-  if (attribute) {
-    comments.push(`${attribute}属性が主力`);
+  if (deckAttribute) {
+    comments.push(`${deckAttribute}属性が主力`);
+  }
+
+  if (deck.concept) {
+    // コンセプトから短い説明を抽出
+    const shortConcept = deck.concept.split('。')[0];
+    if (shortConcept.length < 30) {
+      comments.push(shortConcept);
+    }
   }
 
   return comments.join('。');
