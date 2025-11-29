@@ -11,10 +11,12 @@ import {
   TOURNAMENT_CONFIG,
   TOURNAMENT_STATUS,
   TOURNAMENT_TYPES,
+  getRoundName,
+} from '../systems/tournamentManager';
+import {
   getCompetitorDisplayName,
   getCompetitorPortrait,
-  getRoundName,
-} from '../index';
+} from '../data/competitors';
 import {
   BET_TYPES,
   BET_TYPE_NAMES,

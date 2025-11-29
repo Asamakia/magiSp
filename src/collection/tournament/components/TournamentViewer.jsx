@@ -9,10 +9,12 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   TOURNAMENT_STATUS,
+  getRoundName,
+} from '../systems/tournamentManager';
+import {
   getCompetitorDisplayName,
   getCompetitorPortrait,
-  getRoundName,
-} from '../index';
+} from '../data/competitors';
 import { calculatePayouts } from '../systems/bettingSystem';
 
 // ========================================
