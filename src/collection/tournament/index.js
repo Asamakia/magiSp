@@ -63,3 +63,21 @@ export {
   getCompetitorInfo,
   getRoundName,
 } from './systems/tournamentManager';
+
+// 賭けシステム
+export {
+  BET_TYPES,
+  BET_TYPE_NAMES,
+  validateBet,
+  createBet,
+  addBet,
+  removeBet,
+  clearBets,
+  calculatePayouts,
+  createHistoryEntry,
+  updateTotalStats,
+  getTotalBetAmount,
+  getOdds,
+  getRemainingBetLimit,
+  getBetTypeDescription,
+} from './systems/bettingSystem';
