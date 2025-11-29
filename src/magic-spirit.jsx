@@ -4069,11 +4069,11 @@ export default function MagicSpiritGame() {
           });
           return true;
         }}
-        onCancelBet={(betIndex) => {
+        onCancelBet={(betId) => {
           const currentBets = playerData?.tournamentData?.currentBets || [];
-          if (betIndex < 0 || betIndex >= currentBets.length) return false;
-          const bet = currentBets[betIndex];
-          const newBets = removeBet(currentBets, bet.id);
+          const bet = currentBets.find(b => b.id === betId);
+          if (!bet) return false;
+          const newBets = removeBet(currentBets, betId);
           updatePlayerData({
             ...playerData,
             gold: playerData.gold + bet.amount,
