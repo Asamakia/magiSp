@@ -9,7 +9,7 @@
 
 | カテゴリ | 行数 | 割合 |
 |----------|------|------|
-| メインゲーム (magic-spirit.jsx) | 5,909行 | 12% |
+| メインゲーム (magic-spirit.jsx) | 6,114行 | 12% |
 | バトルエンジン (engine/) | 18,869行 | 38% |
 | コレクション (collection/) | 15,933行 | 32% |
 | UIコンポーネント (components/) | 1,080行 | 2% |
@@ -31,7 +31,7 @@
 │
 ├── src/
 │   ├── App.js                  # Reactアプリエントリーポイント (~10行)
-│   ├── magic-spirit.jsx        # メインゲームコンポーネント (5,909行) ⭐最重要
+│   ├── magic-spirit.jsx        # メインゲームコンポーネント (6,114行) ⭐最重要
 │   │
 │   ├── utils/                  # ユーティリティ関数群 (~405行)
 │   │   ├── constants.js        # ゲーム定数定義
@@ -202,18 +202,18 @@
 
 ### **メインファイル**
 
-#### `src/magic-spirit.jsx` (5,909行) ⭐最重要
+#### `src/magic-spirit.jsx` (6,114行) ⭐最重要
 - **役割**: ゲームのメインロジックと状態管理
 - **内容**:
-  - ゲーム状態管理（React hooks × 70個）
-  - プレイヤー状態（ライフ、デッキ、手札、フィールド、墓地）
+  - ゲーム状態管理（useGameEngine + UI用useState約6個）
+  - プレイヤー状態（ライフ、デッキ、手札、フィールド、墓地）- engineState経由
   - ゲームフロー制御（フェーズ進行、ターン管理）
   - カード召喚・戦闘・技発動処理
   - AIプレイヤー統合
   - トリガー・常時効果・状態異常システム統合
   - コレクションシステム統合
   - UI レンダリング（約2,000行）
-- **課題**: ロジックとUIが密結合、ヘッドレス実行不可
+- **アーキテクチャ**: useGameEngine + dispatch方式（Phase D-4完了）
 
 ---
 
@@ -382,21 +382,24 @@
 
 **詳細**: `game-engine-refactoring-plan.md` を参照
 
-### 現状
-- `magic-spirit.jsx` (5,909行) にゲームロジックとUIが密結合
-- React hooks (useState × 70個) に依存
-- ヘッドレス実行・ユニットテストが困難
+### 現状（Phase D-4完了）
+- `magic-spirit.jsx` (6,114行): useGameEngine + dispatch方式に移行完了
+- useState: 33個 → 6個に削減（82%削減）
+- ヘッドレスシミュレーション: 100戦40ms（目標5秒の125倍高速）
 
-### 進行中のリファクタリング
+### 完了済みリファクタリング
 - **GameEngine** (`src/engine/gameEngine/`): 純粋JavaScript版ゲームエンジン
-  - `GameState.js` (385行): 状態定義
-  - `GameActions.js` (805行): アクション処理
-  - `Simulator.js` (245行): ヘッドレス対戦（100戦40ms達成）
-  - `useGameEngine.js` (260行): Reactアダプター
-- **シャドウディスパッチ方式**: UI (useState) と GameEngine (engineState) の並行更新
-- **進捗**: Step 6 (React統合) 進行中、41テスト成功
+  - `GameState.js` (383行): 状態定義
+  - `GameActions.js` (~1,000行): アクション処理（純粋関数）
+  - `Simulator.js` (240行): ヘッドレス対戦
+  - `Tournament.js` (514行): トーナメントシミュレーション
+  - `useGameEngine.js` (305行): Reactアダプター
+  - `effectHelpersPure.js` (423行): 純粋エフェクトヘルパー
+  - `triggerEnginePure.js` (397行): 純粋トリガーエンジン
+- **Phase D-4完了**: 27個のuseState削除、dispatch統一、二重dispatch修正、resolveValue削除
+- **41テスト成功**
 
-**統合詳細**: `step6-integration-design.md` を参照
+**詳細**: `engine-separation-status.md`, `step6-integration-design.md` を参照
 
 ---
 

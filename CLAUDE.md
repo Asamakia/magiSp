@@ -17,7 +17,7 @@ Currently a **prototype version** with local 2-player gameplay and AI opponent s
 **Recent Major Updates**:
 - **2025-11-26 (Phase 1-4)**: Code refactoring completed
   - Modular architecture with separated concerns
-  - Note: magic-spirit.jsx has grown to ~4300 lines due to trigger system, AI, and deck selection integration
+  - Note: magic-spirit.jsx has grown to ~6100 lines due to trigger system, AI, deck selection, collection system, and GameEngine integration
 - **2025-11-26 (Phase 5 - Card Effects)**: Card-specific effects system implemented
   - 108+ individual card effects across all attributes
   - Hybrid approach: generic effects + card-specific implementations
@@ -262,7 +262,7 @@ Currently a **prototype version** with local 2-player gameplay and AI opponent s
   - **拡張可能**: 新しいカードのチェッカーを追加可能な設計
 - **2025-11-29 (GameEngine Refactoring)**: ヘッドレス対戦エンジン実装 ⭐⭐⭐⭐⭐
   - **目的**: ゲームロジックをReactから分離、AI高速シミュレーション対応
-  - **GameEngine** (`src/engine/gameEngine/`): ~4,300行の純粋JavaScript実装
+  - **GameEngine** (`src/engine/gameEngine/`): ~3,000行の純粋JavaScript実装
     - `GameState.js`: ゲーム状態の型定義と初期化
     - `GameActions.js`: アクション関数（純粋関数）
     - `Simulator.js`: ヘッドレス対戦実行
@@ -271,10 +271,23 @@ Currently a **prototype version** with local 2-player gameplay and AI opponent s
     - `effectHelpersPure.js`: 純粋関数版エフェクトヘルパー
     - `triggerEnginePure.js`: 純粋関数版トリガーエンジン
   - **パフォーマンス**: 100戦シミュレーション40ms（目標5秒の125倍高速）
-  - **React統合**: Phase A-D段階的移行中
+  - **React統合**: Phase A-D完了 ✅
     - Phase A-C: ✅ 完了（GameEngine導入、シャドウディスパッチ、UI参照移行）
-    - Phase D: 🔄 進行中（useState削減: 33個 → 目標6個）
-  - **Documentation**: `src/ルール/game-engine-refactoring-plan.md`, `step6-integration-design.md`
+    - Phase D-4: ✅ 完了（useState削減: 33個 → 6個、82%削減）
+  - **Documentation**: `src/ルール/game-engine-refactoring-plan.md`, `step6-integration-design.md`, `engine-separation-status.md`
+- **2025-11-29 (Phase D-4 Completion & Bug Fixes)**: Phase D-4完了とバグ修正 ⭐⭐
+  - **Phase D-4完了**: 27個のuseState削除、dispatch統一
+    - プレイヤー状態（Life, Deck, Hand, Field, Graveyard, ActiveSP, RestedSP等）をdispatch経由に移行
+    - createEffectContext()アダプター方式で既存cardEffects/cardTriggers変更不要
+  - **二重dispatch修正**: Phase B dispatch残存を削除
+    - chargeCard, chargeSP, executeSkill, summonCard, attack等8箇所
+    - 50行削減
+  - **SP増加バグ修正**: ターン開始時SPが増えない問題を修正
+    - 原因: `resolveValue()`がdispatch前に関数を解決し、古いクロージャ値を使用
+    - 修正: resolveValue削除、関数をreducerに直接渡してapplyUpdatePlayerStateで解決
+    - 7行削減
+  - **magic-spirit.jsx**: 6,171行 → 6,114行（57行削減）
+  - **41テスト全パス**
 
 ---
 
@@ -291,7 +304,7 @@ Currently a **prototype version** with local 2-player gameplay and AI opponent s
 │
 ├── src/
 │   ├── App.js                  # Main app component (renders MagicSpiritGame)
-│   ├── magic-spirit.jsx        # Main game logic (~4300 lines) ⭐
+│   ├── magic-spirit.jsx        # Main game logic (~6100 lines) ⭐
 │   │
 │   ├── collection/             # Card collection system (~9,600 lines) ⭐⭐⭐⭐⭐
 │   │   ├── index.js              # Main exports (138 lines)
@@ -405,7 +418,7 @@ Currently a **prototype version** with local 2-player gameplay and AI opponent s
 │   │   │       ├── easy.js       # Easy AI (~50 lines)
 │   │   │       ├── normal.js     # Normal AI (~157 lines)
 │   │   │       └── hard.js       # Hard AI (~235 lines)
-│   │   └── gameEngine/         # Headless game engine (~4300 lines) ⭐⭐⭐⭐⭐ NEW
+│   │   └── gameEngine/         # Headless game engine (~3000 lines) ⭐⭐⭐⭐⭐
 │   │       ├── index.js          # Main exports (90 lines)
 │   │       ├── GameState.js      # Game state type definitions (383 lines)
 │   │       ├── GameActions.js    # Pure function actions (920 lines)
@@ -464,7 +477,7 @@ Currently a **prototype version** with local 2-player gameplay and AI opponent s
 
 ### Key Files
 
-**`src/magic-spirit.jsx`** (Main game component - ~4300 lines)
+**`src/magic-spirit.jsx`** (Main game component - ~6100 lines)
 - Game state management (React hooks)
 - Game flow control (phase progression, turn management)
 - Card summoning logic
@@ -571,7 +584,7 @@ Currently a **prototype version** with local 2-player gameplay and AI opponent s
 - **index.js**: Exports all AI functions and strategies
 - Uses strategy pattern for extensible decision-making
 
-**`src/engine/gameEngine/`** (Headless game engine - ~4300 lines) ⭐⭐⭐⭐⭐ **NEW**
+**`src/engine/gameEngine/`** (Headless game engine - ~3000 lines) ⭐⭐⭐⭐⭐
 - **GameState.js**: Game state type definitions and initialization (~383 lines)
   - `createInitialState(config)`: Create initial game state
   - `createPlayerState()`: Create player state structure
@@ -741,7 +754,7 @@ The game uses React hooks with extensive state:
 
 ### Working with Game Logic
 
-**Main Game Logic**: Located in `src/magic-spirit.jsx` (~4300 lines)
+**Main Game Logic**: Located in `src/magic-spirit.jsx` (~6100 lines)
 **Generic Effect System**: Located in `src/engine/effectEngine.js` (563 lines)
 **Card-Specific Effects**: Located in `src/engine/cardEffects/` (~2850 lines, 120+ cards)
 **Effect Helpers**: Located in `src/engine/effectHelpers.js` (~920 lines)
@@ -2083,6 +2096,6 @@ This is suitable for expansion into a full game or as a learning project for Rea
 
 ---
 
-**Document Version**: 5.6
-**Last Updated**: 2025-11-28 (Collection System Documentation Update)
+**Document Version**: 5.7
+**Last Updated**: 2025-11-29 (Phase D-4完了、二重dispatch修正、SP増加バグ修正)
 **For**: Magic Spirit (magiSp) Repository
