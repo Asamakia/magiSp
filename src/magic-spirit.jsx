@@ -1543,6 +1543,9 @@ export default function MagicSpiritGame() {
       if (chargeResult.spUsedCount > 0) {
         addLog(`SPチャージ${chargeResult.spUsedCount}個を消費`, 'info');
       }
+
+      // Phase B-4: engineStateにも反映（usedSkillThisTurnフラグ同期）
+      dispatch(gameActions.executeSkill(monsterIndex, skillType));
     }
 
     return success;
@@ -1551,7 +1554,7 @@ export default function MagicSpiritGame() {
       addLog, setP1Life, setP2Life, setP1Field, setP2Field, setP1Hand, setP2Hand,
       setP1Deck, setP2Deck, setP1Graveyard, setP2Graveyard,
       setP1ActiveSP, setP2ActiveSP, setP1RestedSP, setP2RestedSP, setPendingMonsterTarget,
-      setPendingHandSelection, setP1MagicBlocked, setP2MagicBlocked]);
+      setPendingHandSelection, setP1MagicBlocked, setP2MagicBlocked, dispatch]);
 
   // 【壮麗】発動
   const activateSourei = useCallback((monsterIndex) => {

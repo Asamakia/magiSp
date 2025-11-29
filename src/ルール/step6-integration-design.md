@@ -248,13 +248,35 @@ const nextPhase = () => {
 
 ## 7. 次のステップ（Phase B-3以降）
 
-### Phase B-3: 補助アクションのシャドウディスパッチ化
+### Phase B-3: 補助アクションのシャドウディスパッチ化 ✅ 完了
+
+| アクション | 優先度 | 複雑度 | 状態 |
+|-----------|-------|-------|------|
+| chargeCard | 中 | 低 | ✅ 完了 |
+| chargeSP | 中 | 低 | ✅ 完了 |
+
+### Phase B-4: executeSkill のシャドウディスパッチ化 ✅ 完了
+
+**アプローチ**: 効果実行はUIに残し、結果（usedSkillThisTurn）のみをengineStateに同期
+
+```javascript
+// 技発動成功時にdispatch
+if (success !== false) {
+  // ... 既存のuseState更新 ...
+  dispatch(gameActions.executeSkill(monsterIndex, skillType));
+}
+```
+
+**依存関係（31個）**:
+- 状態読み取り: 12個（currentPlayer, p1/p2 Field/Hand/Deck/Graveyard, p1/p2 ActiveSP/RestedSP）
+- 状態更新: 16個（set系）
+- UI: 3個（addLog, setPendingMonsterTarget, setPendingHandSelection）
+- 外部エンジン: statusEffectEngine, executeSkillEffects
+
+### Phase B-5: 残りアクション（将来）
 
 | アクション | 優先度 | 複雑度 | 備考 |
 |-----------|-------|-------|------|
-| chargeCard | 中 | 低 | 単純なカード移動 |
-| chargeSP | 中 | 低 | SPトークン消費 |
-| executeSkill | 高 | 高 | effectEngine統合必要 |
 | placeFieldCard | 低 | 中 | フィールドカード配置 |
 | useMagicCard | 中 | 高 | effectEngine統合必要 |
 
