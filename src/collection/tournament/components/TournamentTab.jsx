@@ -26,6 +26,7 @@ import {
   getTotalBetAmount,
   getRemainingBetLimit,
   getBetTypeDescription,
+  calculatePayouts,
 } from '../systems/bettingSystem';
 import {
   INFO_TYPES,
@@ -585,6 +586,7 @@ const TournamentTab = ({
   onPlaceBet,
   onCancelBet,
   onPurchaseInfo,
+  onClaimReward,
 }) => {
   const [selectedBetType, setSelectedBetType] = useState(BET_TYPES.WIN);
   const [selectedTarget, setSelectedTarget] = useState(null);
@@ -684,6 +686,186 @@ const TournamentTab = ({
   const remainingLimit = tournament
     ? getRemainingBetLimit(tournament, currentBets)
     : 0;
+
+  // 払い戻し計算（PENDING_REWARD時に使用）
+  const payoutResults = tournament?.status === TOURNAMENT_STATUS.PENDING_REWARD
+    ? calculatePayouts(currentBets, tournament)
+    : null;
+
+  // 報酬受け取りハンドラ
+  const handleClaimReward = () => {
+    if (onClaimReward && payoutResults) {
+      onClaimReward(payoutResults);
+    }
+  };
+
+  // 報酬受け取り待ちの大会がある場合
+  if (tournament && tournament.status === TOURNAMENT_STATUS.PENDING_REWARD) {
+    return (
+      <div style={styles.container}>
+        {/* 結果表示 */}
+        <div style={styles.tournamentCard}>
+          <div style={styles.tournamentHeader}>
+            <span style={styles.tournamentName}>🏆 {tournament.name}</span>
+            <span style={{ ...styles.deadline, color: '#4caf50' }}>終了</span>
+          </div>
+
+          {/* 優勝者表示 */}
+          <div style={{
+            textAlign: 'center',
+            padding: '20px',
+            background: 'rgba(255,215,0,0.1)',
+            borderRadius: '12px',
+            marginBottom: '16px',
+          }}>
+            <div style={{ fontSize: '14px', color: '#a0a0a0', marginBottom: '8px' }}>
+              🏆 優勝
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '12px' }}>
+              <span style={{ fontSize: '48px' }}>
+                {getCompetitorPortrait(tournament.finalWinner)}
+              </span>
+              <span style={{ fontSize: '24px', fontWeight: 'bold', color: '#ffd700' }}>
+                {getCompetitorDisplayName(tournament.finalWinner)}
+              </span>
+            </div>
+            {tournament.finalSecond && (
+              <div style={{ marginTop: '12px', fontSize: '14px', color: '#a0a0a0' }}>
+                準優勝: {getCompetitorPortrait(tournament.finalSecond)} {getCompetitorDisplayName(tournament.finalSecond)}
+              </div>
+            )}
+          </div>
+
+          {/* 賭け結果 */}
+          <div style={{
+            background: 'rgba(107,76,230,0.2)',
+            borderRadius: '8px',
+            padding: '16px',
+          }}>
+            <div style={{ fontSize: '16px', fontWeight: 'bold', color: '#fff', marginBottom: '12px' }}>
+              📊 賭け結果
+            </div>
+
+            {payoutResults.bets.length === 0 ? (
+              <div style={{ textAlign: 'center', color: '#a0a0a0', padding: '12px' }}>
+                賭けはありませんでした
+              </div>
+            ) : (
+              <>
+                {payoutResults.bets.map((bet, idx) => (
+                  <div
+                    key={idx}
+                    style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      padding: '10px 12px',
+                      background: bet.won ? 'rgba(76,175,80,0.2)' : 'rgba(244,67,54,0.1)',
+                      borderRadius: '6px',
+                      marginBottom: '8px',
+                      border: bet.won ? '1px solid #4caf50' : '1px solid #f44336',
+                    }}
+                  >
+                    <span style={{ fontSize: '13px', color: '#e0e0e0' }}>
+                      {bet.type === 'win' && '単勝: '}
+                      {bet.type === 'place' && '複勝: '}
+                      {bet.type === 'exacta' && '2連単: '}
+                      {bet.type === 'exacta'
+                        ? bet.target.split('-').map(id => getCompetitorDisplayName(id)).join('→')
+                        : getCompetitorDisplayName(bet.target)
+                      }
+                      <span style={{ marginLeft: '8px', color: '#a0a0a0' }}>
+                        ({bet.amount.toLocaleString()}G × {bet.odds}倍)
+                      </span>
+                    </span>
+                    <span style={{
+                      fontSize: '14px',
+                      fontWeight: 'bold',
+                      color: bet.won ? '#4caf50' : '#f44336',
+                    }}>
+                      {bet.won ? `+${bet.payout.toLocaleString()}G` : `-${bet.amount.toLocaleString()}G`}
+                    </span>
+                  </div>
+                ))}
+
+                <div style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  marginTop: '12px',
+                  padding: '12px',
+                  background: 'rgba(255,215,0,0.1)',
+                  borderRadius: '8px',
+                  border: '1px solid #ffd700',
+                }}>
+                  <span style={{ fontSize: '16px', color: '#ffd700', fontWeight: 'bold' }}>
+                    {payoutResults.totalProfit >= 0 ? '📈 収支' : '📉 収支'}
+                  </span>
+                  <span style={{
+                    fontSize: '20px',
+                    fontWeight: 'bold',
+                    color: payoutResults.totalProfit >= 0 ? '#4caf50' : '#f44336',
+                  }}>
+                    {payoutResults.totalProfit >= 0 ? '+' : ''}
+                    {payoutResults.totalProfit.toLocaleString()}G
+                  </span>
+                </div>
+              </>
+            )}
+
+            {/* 報酬受け取りボタン */}
+            <button
+              style={{
+                width: '100%',
+                padding: '16px',
+                borderRadius: '8px',
+                border: 'none',
+                background: 'linear-gradient(90deg, #ffd700, #ffaa00)',
+                color: '#1a1a2e',
+                cursor: 'pointer',
+                fontSize: '18px',
+                fontWeight: 'bold',
+                marginTop: '16px',
+              }}
+              onClick={handleClaimReward}
+            >
+              💰 報酬を受け取る ({payoutResults.totalPayout.toLocaleString()}G)
+            </button>
+          </div>
+        </div>
+
+        {/* 通算成績 */}
+        {totalStats.totalBets > 0 && (
+          <div style={styles.section}>
+            <div style={styles.sectionTitle}>📊 通算成績</div>
+            <div style={styles.totalStats}>
+              <div>
+                <div style={styles.statItem}>賭け回数</div>
+                <div style={styles.statValue}>{totalStats.totalBets}回</div>
+              </div>
+              <div>
+                <div style={styles.statItem}>的中率</div>
+                <div style={styles.statValue}>
+                  {totalStats.totalBets > 0
+                    ? Math.round((totalStats.totalWins / totalStats.totalBets) * 100)
+                    : 0}%
+                </div>
+              </div>
+              <div>
+                <div style={styles.statItem}>収支</div>
+                <div style={{
+                  ...styles.statValue,
+                  color: totalStats.totalProfit >= 0 ? '#4caf50' : '#f44336',
+                }}>
+                  {totalStats.totalProfit >= 0 ? '+' : ''}{totalStats.totalProfit?.toLocaleString()}G
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  }
 
   // 大会がない場合
   if (!tournament) {

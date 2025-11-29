@@ -383,6 +383,7 @@ const MerchantGuild = ({
   onPlaceBet,
   onCancelBet,
   onPurchaseInfo,
+  onClaimTournamentReward,
 }) => {
   const [showTicketModal, setShowTicketModal] = useState(false);
   const [activeTab, setActiveTab] = useState('merchant'); // 'merchant' | 'tournament'
@@ -529,6 +530,7 @@ const MerchantGuild = ({
           onPlaceBet={onPlaceBet}
           onCancelBet={onCancelBet}
           onPurchaseInfo={onPurchaseInfo}
+          onClaimReward={onClaimTournamentReward}
         />
       ) : (
       <div style={styles.mainContent}>

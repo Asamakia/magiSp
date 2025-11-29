@@ -117,6 +117,7 @@ import {
   createHistoryEntry,
   updateTotalStats,
   TOURNAMENT_STATUS,
+  TournamentViewer,
 } from './collection';
 
 import {
@@ -182,6 +183,8 @@ export default function MagicSpiritGame() {
   const [editingDeck, setEditingDeck] = useState(null); // デッキ編集中のデッキ（nullなら新規）
   const [showMarketAnalysis, setShowMarketAnalysis] = useState(false); // 市場分析画面表示
   const [currentMerchant, setCurrentMerchant] = useState(null); // 現在訪問中の商人名
+  const [showTournamentViewer, setShowTournamentViewer] = useState(false); // 大会観戦ダイアログ表示
+  const [pendingTournamentResult, setPendingTournamentResult] = useState(null); // 報酬受け取り待ち大会結果
 
   // ========================================
   // Phase D-4: プレイヤー状態（engineStateから直接参照）
@@ -627,59 +630,18 @@ export default function MagicSpiritGame() {
           if (finishedTournament) {
             console.log(`[Tournament] ${finishedTournament.name} 終了: 優勝 ${finishedTournament.finalWinner}`);
 
-            // 賭け結果を計算
-            const currentBets = updatedPlayerData.tournamentData?.currentBets || [];
-            const payoutResults = calculatePayouts(currentBets, finishedTournament);
-
-            // 総払戻金（payoutResultsはオブジェクト）
-            const totalPayout = payoutResults.totalPayout;
-            const totalBetAmount = payoutResults.totalBet;
-
-            // 履歴エントリ作成
-            const historyEntry = createHistoryEntry(finishedTournament, currentBets, payoutResults);
-
-            // 統計更新
-            const newTotalStats = updateTotalStats(
-              updatedPlayerData.tournamentData?.totalStats || {},
-              payoutResults
-            );
-
-            // プレイヤーデータ更新
+            // 大会結果を保存（報酬受け取り待ち状態）
             updatePlayerData((prev) => ({
               ...prev,
-              gold: prev.gold + totalPayout,
               tournamentData: {
                 ...prev.tournamentData,
-                currentTournament: null, // 大会終了
-                currentBets: [], // 賭けクリア
-                purchasedInfo: {}, // 購入情報クリア
-                history: [historyEntry, ...(prev.tournamentData?.history || [])].slice(0, 30),
-                totalStats: newTotalStats,
+                currentTournament: finishedTournament, // PENDING_REWARD状態で保存
               },
             }));
 
-            if (totalPayout > 0) {
-              console.log(`[Tournament] 払戻: ${totalPayout.toLocaleString()}G (賭金: ${totalBetAmount.toLocaleString()}G)`);
-            }
-
-            // 3. 新規大会作成チェック
-            const triggerType = checkTournamentTrigger(currentDay, null);
-            if (triggerType) {
-              createTournament(triggerType, currentDay).then((newTournament) => {
-                if (newTournament) {
-                  updatePlayerData((prev) => ({
-                    ...prev,
-                    tournamentData: {
-                      ...prev.tournamentData,
-                      currentTournament: newTournament,
-                    },
-                  }));
-                  console.log(`[Tournament] ${newTournament.name} が開催されました`);
-                }
-              }).catch((err) => {
-                console.error('[Tournament] 大会作成エラー:', err);
-              });
-            }
+            // 観戦ダイアログを表示
+            setPendingTournamentResult(finishedTournament);
+            setShowTournamentViewer(true);
           }
         }).catch((err) => {
           console.error('[Tournament] 大会実行エラー:', err);
@@ -730,6 +692,66 @@ export default function MagicSpiritGame() {
       setGameState('shop');
     }
   }, [battleReward]);
+
+  // 大会報酬受け取り
+  const handleClaimTournamentReward = useCallback((payoutResults) => {
+    const tournament = pendingTournamentResult || playerData?.tournamentData?.currentTournament;
+    if (!tournament) return;
+
+    const currentBets = playerData?.tournamentData?.currentBets || [];
+    const totalPayout = payoutResults?.totalPayout || 0;
+
+    // 履歴エントリ作成
+    const historyEntry = createHistoryEntry(tournament, currentBets, payoutResults);
+
+    // 統計更新
+    const newTotalStats = updateTotalStats(
+      playerData?.tournamentData?.totalStats || {},
+      payoutResults
+    );
+
+    // プレイヤーデータ更新（報酬付与 + 大会終了）
+    updatePlayerData((prev) => ({
+      ...prev,
+      gold: prev.gold + totalPayout,
+      tournamentData: {
+        ...prev.tournamentData,
+        currentTournament: null, // 大会終了
+        currentBets: [], // 賭けクリア
+        purchasedInfo: {}, // 購入情報クリア
+        history: [historyEntry, ...(prev.tournamentData?.history || [])].slice(0, 30),
+        totalStats: newTotalStats,
+      },
+    }));
+
+    if (totalPayout > 0) {
+      console.log(`[Tournament] 払戻: ${totalPayout.toLocaleString()}G`);
+    }
+
+    // ダイアログを閉じる
+    setShowTournamentViewer(false);
+    setPendingTournamentResult(null);
+
+    // 新規大会作成チェック
+    const currentDay = playerData?.market?.currentDay || 1;
+    const triggerType = checkTournamentTrigger(currentDay, null);
+    if (triggerType) {
+      createTournament(triggerType, currentDay).then((newTournament) => {
+        if (newTournament) {
+          updatePlayerData((prev) => ({
+            ...prev,
+            tournamentData: {
+              ...prev.tournamentData,
+              currentTournament: newTournament,
+            },
+          }));
+          console.log(`[Tournament] ${newTournament.name} が開催されました`);
+        }
+      }).catch((err) => {
+        console.error('[Tournament] 大会作成エラー:', err);
+      });
+    }
+  }, [pendingTournamentResult, playerData, updatePlayerData]);
 
   // カード売却
   const handleSellCard = useCallback((cardId, rarity, quantity, card) => {
@@ -4114,6 +4136,7 @@ export default function MagicSpiritGame() {
             return false;
           }
         }}
+        onClaimTournamentReward={handleClaimTournamentReward}
       />
     );
   }
@@ -6290,6 +6313,19 @@ export default function MagicSpiritGame() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* 大会観戦ダイアログ */}
+      {showTournamentViewer && pendingTournamentResult && (
+        <TournamentViewer
+          tournament={pendingTournamentResult}
+          currentBets={playerData?.tournamentData?.currentBets || []}
+          onClaimReward={handleClaimTournamentReward}
+          onClose={() => {
+            setShowTournamentViewer(false);
+            setPendingTournamentResult(null);
+          }}
+        />
       )}
     </div>
   );

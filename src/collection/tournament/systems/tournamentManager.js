@@ -64,7 +64,8 @@ export const TOURNAMENT_STATUS = {
   BETTING: 'betting',        // 賭け受付中
   CLOSED: 'closed',          // 締切
   RUNNING: 'running',        // 大会実行中
-  FINISHED: 'finished',      // 終了
+  PENDING_REWARD: 'pending_reward', // 報酬受け取り待ち
+  FINISHED: 'finished',      // 終了（報酬受け取り済み）
 };
 
 // ========================================
@@ -253,7 +254,7 @@ export async function runTournament(tournament) {
     finalWinner: result.finalWinner,
     finalSecond: result.finalSecond,
     finalMatch: result.finalMatch,
-    status: TOURNAMENT_STATUS.FINISHED,
+    status: TOURNAMENT_STATUS.PENDING_REWARD,
     finishedAt: Date.now(),
   };
 }
