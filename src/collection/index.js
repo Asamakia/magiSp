@@ -173,6 +173,38 @@ export {
 } from './merchant';
 
 // ========================================
+// 大会システム
+// ========================================
+
+export {
+  // 賭けシステム
+  BET_TYPES,
+  BET_TYPE_NAMES,
+  validateBet,
+  createBet,
+  addBet,
+  removeBet,
+  clearBets,
+  calculatePayouts,
+  getTotalBetAmount,
+  getOdds,
+  getRemainingBetLimit,
+  // 大会管理
+  TOURNAMENT_TYPES,
+  TOURNAMENT_CONFIG,
+  TOURNAMENT_STATUS,
+  createTournament,
+  runTournament,
+  checkTournamentTrigger,
+  updateTournamentStatus,
+  calculateNextSchedule,
+  // NPC
+  COMPETITORS,
+  getCompetitorDisplayName,
+  getCompetitorPortrait,
+} from './tournament';
+
+// ========================================
 // フック
 // ========================================
 

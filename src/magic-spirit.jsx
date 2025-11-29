@@ -105,7 +105,20 @@ import {
   recordPriceHistory,
   calculateMarketModifier,
   recordAssetSnapshot,
+  // 大会システム
+  validateBet,
+  addBet,
+  removeBet,
+  checkTournamentTrigger,
+  createTournament,
+  TOURNAMENT_STATUS,
 } from './collection';
+
+import {
+  purchaseInfo,
+  validateInfoPurchase,
+  getInfoPrice,
+} from './collection/tournament';
 
 // ========================================
 // 効果テキストから基本技・上級技を除外するヘルパー関数
@@ -586,6 +599,29 @@ export default function MagicSpiritGame() {
         newMarketState,
         newMarketState.currentDay
       );
+
+      // 大会トリガーチェック（非同期で実行）
+      const currentDay = newMarketState.currentDay;
+      const existingTournament = updatedPlayerData.tournamentData?.currentTournament;
+      const triggerType = checkTournamentTrigger(currentDay, existingTournament);
+
+      if (triggerType) {
+        // 新規大会を作成（非同期）
+        createTournament(triggerType, currentDay).then((newTournament) => {
+          if (newTournament) {
+            updatePlayerData((prev) => ({
+              ...prev,
+              tournamentData: {
+                ...prev.tournamentData,
+                currentTournament: newTournament,
+              },
+            }));
+            console.log(`[Tournament] ${newTournament.name} が開催されました`);
+          }
+        }).catch((err) => {
+          console.error('[Tournament] 大会作成エラー:', err);
+        });
+      }
     }
 
     updatePlayerData(updatedPlayerData);
@@ -3932,6 +3968,64 @@ export default function MagicSpiritGame() {
           setGameState('merchantShop');
         }}
         onPlayerDataUpdate={updatePlayerData}
+        onPlaceBet={(bet) => {
+          const tournament = playerData?.tournamentData?.currentTournament;
+          const currentBets = playerData?.tournamentData?.currentBets || [];
+          const validation = validateBet(bet, tournament, currentBets, playerData?.gold || 0);
+          if (!validation.valid) {
+            alert(validation.error);
+            return false;
+          }
+          const result = addBet(playerData.tournamentData, bet);
+          updatePlayerData({
+            ...playerData,
+            gold: playerData.gold - bet.amount,
+            tournamentData: result.tournamentData,
+          });
+          return true;
+        }}
+        onCancelBet={(betIndex) => {
+          const currentBets = playerData?.tournamentData?.currentBets || [];
+          if (betIndex < 0 || betIndex >= currentBets.length) return false;
+          const bet = currentBets[betIndex];
+          const result = removeBet(playerData.tournamentData, betIndex);
+          updatePlayerData({
+            ...playerData,
+            gold: playerData.gold + bet.amount,
+            tournamentData: result.tournamentData,
+          });
+          return true;
+        }}
+        onPurchaseInfo={(competitorId, infoType, tournament) => {
+          const validation = validateInfoPurchase({
+            competitorId,
+            infoType,
+            tournament,
+            purchasedInfo: playerData?.tournamentData?.purchasedInfo,
+            playerGold: playerData?.gold || 0,
+          });
+          if (!validation.valid) {
+            alert(validation.error);
+            return false;
+          }
+          const price = getInfoPrice(tournament.type, infoType);
+          const result = purchaseInfo(playerData.tournamentData, {
+            competitorId,
+            infoType,
+            tournament,
+          });
+          if (result.success) {
+            updatePlayerData({
+              ...playerData,
+              gold: playerData.gold - price,
+              tournamentData: result.tournamentData,
+            });
+            return true;
+          } else {
+            alert(result.error);
+            return false;
+          }
+        }}
       />
     );
   }

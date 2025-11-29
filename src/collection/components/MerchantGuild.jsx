@@ -15,6 +15,7 @@ import {
   countForbiddenCards,
 } from '../merchant';
 import { calculateTotalAssets } from '../systems/assetCalculator';
+import TournamentTab from '../tournament/components/TournamentTab';
 
 // ========================================
 // スタイル定義
@@ -275,6 +276,33 @@ const styles = {
     color: '#fff',
     transition: 'all 0.3s ease',
   },
+  // タブナビゲーション
+  tabNavigation: {
+    display: 'flex',
+    gap: '4px',
+    padding: '8px 24px',
+    background: 'rgba(20,20,50,0.5)',
+    borderBottom: '1px solid #4a4a6a',
+  },
+  tab: {
+    padding: '10px 24px',
+    borderRadius: '8px 8px 0 0',
+    border: 'none',
+    cursor: 'pointer',
+    fontWeight: 'bold',
+    fontSize: '14px',
+    background: 'rgba(60,60,100,0.3)',
+    color: '#a0a0a0',
+    transition: 'all 0.3s ease',
+    display: 'flex',
+    alignItems: 'center',
+    gap: '8px',
+  },
+  tabActive: {
+    background: 'linear-gradient(90deg, #6b4ce6, #9d4ce6)',
+    color: '#fff',
+    boxShadow: '0 0 10px rgba(107,76,230,0.4)',
+  },
 };
 
 // ========================================
@@ -352,8 +380,12 @@ const MerchantGuild = ({
   onBack,
   onEnterShop,
   onPlayerDataUpdate,
+  onPlaceBet,
+  onCancelBet,
+  onPurchaseInfo,
 }) => {
   const [showTicketModal, setShowTicketModal] = useState(false);
+  const [activeTab, setActiveTab] = useState('merchant'); // 'merchant' | 'tournament'
 
   const dayId = playerData?.market?.currentDay || 0;
   const merchantData = playerData?.merchantData || {};
@@ -467,7 +499,38 @@ const MerchantGuild = ({
         </div>
       </div>
 
+      {/* タブナビゲーション */}
+      <div style={styles.tabNavigation}>
+        <button
+          style={{
+            ...styles.tab,
+            ...(activeTab === 'merchant' ? styles.tabActive : {}),
+          }}
+          onClick={() => setActiveTab('merchant')}
+        >
+          🛒 商人
+        </button>
+        <button
+          style={{
+            ...styles.tab,
+            ...(activeTab === 'tournament' ? styles.tabActive : {}),
+          }}
+          onClick={() => setActiveTab('tournament')}
+        >
+          🏆 大会
+        </button>
+      </div>
+
       {/* メインコンテンツ */}
+      {activeTab === 'tournament' ? (
+        <TournamentTab
+          playerData={playerData}
+          currentBattle={dayId}
+          onPlaceBet={onPlaceBet}
+          onCancelBet={onCancelBet}
+          onPurchaseInfo={onPurchaseInfo}
+        />
+      ) : (
       <div style={styles.mainContent}>
         {/* 本日の曜日 */}
         <div style={styles.noticeCard}>
@@ -576,6 +639,7 @@ const MerchantGuild = ({
           </div>
         </div>
       </div>
+      )}
 
       {/* 属性商人呼び出しモーダル */}
       {showTicketModal && (
