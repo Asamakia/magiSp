@@ -570,8 +570,9 @@ export const futureCardTriggers = {
               count: 1,
               filter: (card) => card.attribute === '未来' && card.type === 'monster',
             },
-            onSelect: (selectedCards, remainingCards) => {
-              const selectedMonster = selectedCards[0];
+            onSelect: (selectedCard, remainingCards) => {
+              // count === 1の場合、selectedCardは単一カード（配列ではない）
+              const selectedMonster = selectedCard;
               setMyHand((prev) => [...prev, selectedMonster]);
               addLog(`${selectedMonster.name}を手札に加えた`, 'info');
 
@@ -686,8 +687,9 @@ export const futureCardTriggers = {
             message: '手札に加えるカードを1枚選択してください（残りはデッキ下へ）',
             allowReorder: false,
             selectMode: { enabled: true, count: 1 },
-            onSelect: (selectedCards, remainingCards) => {
-              const cardToHand = selectedCards[0];
+            onSelect: (selectedCard, remainingCards) => {
+              // count === 1の場合、selectedCardは単一カード（配列ではない）
+              const cardToHand = selectedCard;
               const cardToBottom = remainingCards[0];
 
               setMyHand((prev) => [...prev, cardToHand]);

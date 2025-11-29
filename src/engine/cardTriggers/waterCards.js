@@ -463,9 +463,9 @@ export const waterCardTriggers = {
               enabled: true,
               count: 1,
             },
-            onSelect: (selectedCards, remainingCards) => {
-              if (selectedCards.length > 0) {
-                const selectedCard = selectedCards[0];
+            onSelect: (selectedCard, remainingCards) => {
+              // count === 1の場合、selectedCardは単一カード（配列ではない）
+              if (selectedCard) {
                 setMyDeck(prev => prev.filter(c => c.uniqueId !== selectedCard.uniqueId));
                 setMyHand(prev => [...prev, selectedCard]);
                 addLog(`ブリザードマスターの効果: ${selectedCard.name}を手札に加えた！`, 'heal');
