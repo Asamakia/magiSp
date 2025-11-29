@@ -1440,5 +1440,262 @@ export const darkCardEffects = {
     return true;
   },
 
+  // ========================================
+  // ID110-119 追加カード
+  // ========================================
+
+  /**
+   * C0000112: シャドウ・エンフォーサー
+   * 基本技：相手の墓地のカードを2枚除外し、その中にモンスターがあれば相手プレイヤーに600ダメージを与える。
+   */
+  C0000112: (skillText, context) => {
+    const { addLog } = context;
+    const { opponentGraveyard, setOpponentGraveyard, setOpponentLife } = getPlayerContext(context);
+
+    if (context.skillType === 'basic') {
+      if (opponentGraveyard.length < 2) {
+        addLog('相手の墓地にカードが2枚以上ありません', 'info');
+        return false;
+      }
+
+      // 2枚を除外（ランダムに選択）
+      const graveyardCopy = [...opponentGraveyard];
+      const exiledCards = [];
+      for (let i = 0; i < 2 && graveyardCopy.length > 0; i++) {
+        const randomIndex = Math.floor(Math.random() * graveyardCopy.length);
+        exiledCards.push(graveyardCopy.splice(randomIndex, 1)[0]);
+      }
+
+      setOpponentGraveyard(graveyardCopy);
+      addLog(`シャドウ・エンフォーサーの基本技！相手の墓地から${exiledCards.map(c => c.name).join('、')}を除外`, 'info');
+
+      // モンスターが含まれていれば600ダメージ
+      const hasMonster = exiledCards.some(c => c.type === 'monster');
+      if (hasMonster) {
+        setOpponentLife(prev => prev - 600);
+        addLog('除外したカードにモンスターが含まれていた！相手に600ダメージ！', 'damage');
+      }
+
+      return true;
+    }
+
+    return false;
+  },
+
+  /**
+   * C0000117: 禁忌の波動
+   * 場にいる全てのモンスターの効果をターン終了時まで無効化し、
+   * 相手モンスター全体に場の闇属性モンスター1体につき400ダメージを与える。
+   */
+  C0000117: (skillText, context) => {
+    const { addLog } = context;
+    const { myField, setMyField, opponentField, setOpponentField, setOpponentGraveyard } = getPlayerContext(context);
+
+    // 場にいる全てのモンスターの効果を無効化
+    setMyField(prev => prev.map(m => {
+      if (m) {
+        return { ...m, effectNegatedUntilEndOfTurn: true };
+      }
+      return m;
+    }));
+
+    setOpponentField(prev => prev.map(m => {
+      if (m) {
+        return { ...m, effectNegatedUntilEndOfTurn: true };
+      }
+      return m;
+    }));
+
+    addLog('禁忌の波動: 場の全モンスターの効果を無効化！', 'info');
+
+    // 場の闇属性モンスターをカウント（自分・相手両方）
+    const countDarkMonsters = (field) => field.filter(m => m && m.attribute === '闇').length;
+    const darkCount = countDarkMonsters(myField) + countDarkMonsters(opponentField);
+
+    const damage = darkCount * 400;
+
+    if (damage > 0) {
+      addLog(`場の闇属性モンスター${darkCount}体 × 400 = ${damage}ダメージ！`, 'damage');
+
+      // 相手モンスター全体にダメージ
+      const destroyedMonsters = [];
+      setOpponentField(prev => prev.map(monster => {
+        if (monster) {
+          const newHp = monster.currentHp - damage;
+          addLog(`${monster.name}に${damage}ダメージ！`, 'damage');
+
+          if (newHp <= 0) {
+            destroyedMonsters.push(monster);
+            return null;
+          }
+          return { ...monster, currentHp: newHp, effectNegatedUntilEndOfTurn: true };
+        }
+        return monster;
+      }));
+
+      // 破壊されたモンスターを墓地に送る
+      if (destroyedMonsters.length > 0) {
+        setOpponentGraveyard(prev => [...prev, ...destroyedMonsters]);
+        destroyedMonsters.forEach(m => addLog(`${m.name}は破壊された！`, 'damage'));
+      }
+    } else {
+      addLog('場に闇属性モンスターがいないためダメージなし', 'info');
+    }
+
+    return true;
+  },
+
+  /**
+   * C0000118: シャドウ・ドミニオン
+   * 手札からカード1枚と追加で闇属性カードを任意の枚数捨てる。
+   * 追加で捨てたカード1枚につき1体、禁忌カード以外の相手の場にいるモンスターのコントロールをターン終了時まで奪う。
+   * その後、奪ったモンスター1体につき、自分のライフを1000減らす。
+   */
+  C0000118: (skillText, context) => {
+    const { addLog, setPendingHandSelection } = context;
+    const { myHand, setMyHand, myField, setMyField, opponentField, setOpponentField, setMyLife, setMyGraveyard, currentPlayer } = getPlayerContext(context);
+
+    if (myHand.length === 0) {
+      addLog('手札がありません', 'info');
+      return false;
+    }
+
+    // 簡易実装: 手札の闇属性カードを全て捨てて、その数だけモンスターを奪う
+    // 複雑なUI選択が必要なため、自動選択で実装
+
+    // 手札から闘属性カードを検索
+    const darkCards = myHand.filter(c => c.attribute === '闇');
+    const nonDarkCards = myHand.filter(c => c.attribute !== '闇');
+
+    if (nonDarkCards.length === 0 && darkCards.length === 0) {
+      addLog('手札がありません', 'info');
+      return false;
+    }
+
+    // 最低1枚は捨てる必要がある
+    let discardCount = 0;
+    const discardedCards = [];
+
+    // 非闇属性カードから1枚捨てる（なければ闇属性）
+    if (nonDarkCards.length > 0) {
+      discardedCards.push(nonDarkCards[0]);
+      discardCount = 0; // 追加で捨てたカードは0
+    } else if (darkCards.length > 0) {
+      discardedCards.push(darkCards[0]);
+      discardCount = 0;
+    }
+
+    // 追加で闇属性カードを捨てる（コントロール奪取対象数を決定）
+    const remainingDarkCards = darkCards.filter(c => !discardedCards.includes(c));
+
+    // 相手フィールドの奪える対象
+    const stealableMonsters = opponentField
+      .map((m, idx) => ({ monster: m, index: idx }))
+      .filter(({ monster }) => monster && !monster.forbidden);
+
+    // 奪えるモンスターの数と捨てられる闇属性カードの数の少ない方
+    const maxSteal = Math.min(stealableMonsters.length, remainingDarkCards.length);
+
+    // 空きスロットの確認
+    const emptySlots = myField.map((m, idx) => m === null ? idx : -1).filter(idx => idx !== -1);
+    const actualSteal = Math.min(maxSteal, emptySlots.length);
+
+    // 追加で闇属性カードを捨てる
+    for (let i = 0; i < actualSteal; i++) {
+      discardedCards.push(remainingDarkCards[i]);
+      discardCount++;
+    }
+
+    // 手札からカードを捨てる
+    setMyHand(prev => prev.filter(c => !discardedCards.some(d => d.uniqueId === c.uniqueId)));
+    setMyGraveyard(prev => [...prev, ...discardedCards]);
+    addLog(`シャドウ・ドミニオン: ${discardedCards.map(c => c.name).join('、')}を捨てた`, 'info');
+
+    if (actualSteal === 0) {
+      addLog('コントロールを奪えるモンスターがいないか、空きスロットがありません', 'info');
+      return true;
+    }
+
+    // コントロールを奪う
+    let totalLifeLoss = 0;
+    for (let i = 0; i < actualSteal; i++) {
+      const { monster, index } = stealableMonsters[i];
+      const emptySlot = emptySlots[i];
+
+      // 相手の場から削除
+      setOpponentField(prev => {
+        const newField = [...prev];
+        newField[index] = null;
+        return newField;
+      });
+
+      // 自分の場に追加（ターン終了時に返す）
+      setMyField(prev => {
+        const newField = [...prev];
+        newField[emptySlot] = {
+          ...monster,
+          owner: currentPlayer,
+          canAttack: true,
+          returnToOpponentAtEndOfTurn: true,
+        };
+        return newField;
+      });
+
+      addLog(`${monster.name}のコントロールを奪った！（ターン終了時まで）`, 'info');
+      totalLifeLoss += 1000;
+    }
+
+    // ライフ減少
+    if (totalLifeLoss > 0) {
+      setMyLife(prev => prev - totalLifeLoss);
+      addLog(`コントロール奪取の代償: ライフを${totalLifeLoss}支払った`, 'damage');
+    }
+
+    return true;
+  },
+
+  /**
+   * C0000119: 闇の宣告
+   * 相手の手札を全て公開し、その中から1枚を選んで墓地に送る。
+   * このターン、自分の闇属性モンスターの攻撃力を400アップ。
+   */
+  C0000119: (skillText, context) => {
+    const { addLog, setPendingHandSelection } = context;
+    const { myField, setMyField, opponentHand, setOpponentHand, setOpponentGraveyard } = getPlayerContext(context);
+
+    // 相手の手札を公開
+    if (opponentHand.length === 0) {
+      addLog('相手の手札がありません', 'info');
+    } else {
+      addLog(`闇の宣告: 相手の手札を公開！ ${opponentHand.map(c => c.name).join('、')}`, 'info');
+
+      // ランダムに1枚選んで墓地に送る（簡易実装）
+      // 本来は選択UIが必要だが、自動選択で実装
+      const randomIndex = Math.floor(Math.random() * opponentHand.length);
+      const discardedCard = opponentHand[randomIndex];
+
+      setOpponentHand(prev => prev.filter((_, idx) => idx !== randomIndex));
+      setOpponentGraveyard(prev => [...prev, discardedCard]);
+      addLog(`${discardedCard.name}を墓地に送った！`, 'damage');
+    }
+
+    // 自分の闇属性モンスターの攻撃力を400アップ
+    let buffedCount = 0;
+    setMyField(prev => prev.map(monster => {
+      if (monster && monster.attribute === '闇') {
+        buffedCount++;
+        const newAttack = (monster.currentAttack || monster.attack) + 400;
+        return { ...monster, currentAttack: newAttack };
+      }
+      return monster;
+    }));
+
+    if (buffedCount > 0) {
+      addLog(`自分の闇属性モンスター${buffedCount}体の攻撃力が400アップ！`, 'info');
+    }
+
+    return true;
+  },
+
   // 他の闇属性カードを追加...
 };
