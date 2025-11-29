@@ -1115,10 +1115,6 @@ export default function MagicSpiritGame() {
         attribute: card.attribute,
       };
 
-      // Phase B-3: handCardIndexを取得（dispatch用）
-      const hand = currentPlayer === 1 ? p1Hand : p2Hand;
-      const handCardIndex = hand.findIndex(c => c.uniqueId === card.uniqueId);
-
       if (currentPlayer === 1) {
         setP1Field(prev => {
           const newField = [...prev];
@@ -1143,11 +1139,6 @@ export default function MagicSpiritGame() {
 
       setChargeUsedThisTurn(true);
       addLog(`${monster.name}に${card.name}をチャージしました`, 'info');
-
-      // Phase B-3: engineStateにも反映
-      if (handCardIndex !== -1) {
-        dispatch(gameActions.chargeCard(handCardIndex, monsterIndex));
-      }
 
       return true;
     }
@@ -1206,9 +1197,6 @@ export default function MagicSpiritGame() {
     setChargeUsedThisTurn(true);
 
     addLog(`${monster.name}にSPトークンをチャージ`, 'info');
-
-    // Phase B-3: engineStateにも反映
-    dispatch(gameActions.chargeSP(monsterIndex));
 
     return true;
   }, [currentPlayer, p1Field, p2Field, p1ActiveSP, p2ActiveSP, chargeUsedThisTurn, addLog, dispatch]);
@@ -1495,9 +1483,6 @@ export default function MagicSpiritGame() {
       if (chargeResult.spUsedCount > 0) {
         addLog(`SPチャージ${chargeResult.spUsedCount}個を消費`, 'info');
       }
-
-      // Phase B-4: engineStateにも反映（usedSkillThisTurnフラグ同期）
-      dispatch(gameActions.executeSkill(monsterIndex, skillType));
     }
 
     return success;
@@ -1771,10 +1756,6 @@ export default function MagicSpiritGame() {
 
   // カード召喚
   const summonCard = useCallback((card, slotIndex) => {
-    // Phase B: cardIndexを取得（dispatch用）
-    const hand = currentPlayer === 1 ? p1Hand : p2Hand;
-    const cardIndex = hand.findIndex(c => c.uniqueId === card.uniqueId);
-
     // 現在のプレイヤーのSPを直接取得
     const activeSP = currentPlayer === 1 ? p1ActiveSP : p2ActiveSP;
     const field = currentPlayer === 1 ? p1Field : p2Field;
@@ -1983,11 +1964,6 @@ export default function MagicSpiritGame() {
       };
       fireTrigger(TRIGGER_TYPES.ON_SUMMON, triggerContext);
 
-      // Phase B: engineStateにも反映
-      if (cardIndex !== -1) {
-        dispatch(gameActions.summonCard(cardIndex, slotIndex));
-      }
-
       return true;
     }
 
@@ -2089,21 +2065,12 @@ export default function MagicSpiritGame() {
       };
       fireTrigger(TRIGGER_TYPES.ON_OPPONENT_MAGIC_ACTIVATED, opponentMagicTriggerContext);
 
-      // Phase B: engineStateにも反映（魔法カード）
-      if (cardIndex !== -1) {
-        dispatch(gameActions.useMagic(cardIndex));
-      }
-
       return true;
     }
 
     if (card.type === 'field') {
       // フィールドカードにowner情報を追加
       const fieldCardInstance = { ...card, owner: currentPlayer };
-
-      // Phase B-5: cardIndexを取得（dispatch用）
-      const hand = currentPlayer === 1 ? p1Hand : p2Hand;
-      const cardIndex = hand.findIndex(c => c.uniqueId === card.uniqueId);
 
       if (currentPlayer === 1) {
         setP1FieldCard(fieldCardInstance);
@@ -2125,11 +2092,6 @@ export default function MagicSpiritGame() {
 
       addLog(`プレイヤー${currentPlayer}: ${card.name}を設置！`, 'info');
 
-      // Phase B-5: engineStateにも反映
-      if (cardIndex !== -1) {
-        dispatch(gameActions.placeFieldCard(cardIndex));
-      }
-
       return true;
     }
 
@@ -2141,10 +2103,6 @@ export default function MagicSpiritGame() {
         charges: [],        // チャージされたカード
         owner: currentPlayer, // 常時効果のターゲット判定用
       };
-
-      // Phase B-5: cardIndexを取得（dispatch用）
-      const hand = currentPlayer === 1 ? p1Hand : p2Hand;
-      const cardIndex = hand.findIndex(c => c.uniqueId === card.uniqueId);
 
       if (currentPlayer === 1) {
         setP1PhaseCard(initializedPhaseCard);
@@ -2159,11 +2117,6 @@ export default function MagicSpiritGame() {
       }
 
       addLog(`プレイヤー${currentPlayer}: フェイズカード【${card.name}】を設置！【初期段階】`, 'info');
-
-      // Phase B-5: engineStateにも反映
-      if (cardIndex !== -1) {
-        dispatch(gameActions.placePhaseCard(cardIndex));
-      }
 
       // フェイズカードの初期効果を実行
       const context = {
@@ -2711,12 +2664,9 @@ export default function MagicSpiritGame() {
       }
     }
 
-    // Phase B: engineStateにも反映
-    dispatch(gameActions.attack(attackerIndex, targetIndex));
-
     setAttackingMonster(null);
     setSelectedFieldMonster(null);
-  }, [currentPlayer, p1Field, p2Field, p1FieldCard, p2FieldCard, p1Life, p2Life, p1Hand, p2Hand, p1Deck, p2Deck, p1Graveyard, p2Graveyard, p1StatusEffects, p2StatusEffects, addLog, dispatch]);
+  }, [currentPlayer, p1Field, p2Field, p1FieldCard, p2FieldCard, p1Life, p2Life, p1Hand, p2Hand, p1Deck, p2Deck, p1Graveyard, p2Graveyard, p1StatusEffects, p2StatusEffects, addLog]);
 
   // チェーン確認をスキップ（発動しない）
   const skipChainConfirmation = useCallback(() => {
