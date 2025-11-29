@@ -191,15 +191,59 @@ const nextPhase = () => {
 2. [x] Phase A-1: useGameEngine導入
 3. [x] Phase A-2: initGame統合
 4. [x] Phase A-3: 状態同期機構 + 検証ツール
-5. [ ] Phase B-1: nextPhase移行（シャドウディスパッチ）
-6. [ ] Phase B-2: summonCard移行
-7. [ ] 動作確認・テスト
+5. [x] Phase B-1: nextPhase/processPhase移行（シャドウディスパッチ）
+   - SET_PHASEアクション追加
+   - nextPhase, processPhase, proceedToBattlePhase更新
+6. [ ] Phase B-2: summonCard/attack移行（将来）
+   - 複雑なトリガー・常時効果との統合が必要
+7. [x] 動作確認・テスト（41テスト成功）
 8. [ ] 旧useState削除（将来）
 ```
 
 ---
 
-## 6. 成功基準
+## 6. 現在の統合状態（2025-11-29）
+
+### 達成済み
+
+- **ヘッドレス対戦**: GameEngineを使ったAI同士の対戦シミュレーションが可能
+- **トーナメントシステム**: Tournament.jsで投資システム用のNPCトーナメント実行可能
+- **フェイズ遷移のdispatch化**: nextPhase, processPhaseがdispatch経由で状態更新
+
+### 統合アーキテクチャ
+
+```
+現在の状態（シャドウディスパッチ方式）:
+┌──────────────────┐    ┌──────────────────┐
+│   magic-spirit   │    │   GameEngine     │
+│   (useState)     │    │   (engineState)  │
+├──────────────────┤    ├──────────────────┤
+│ setPhase(3)      │◀──▶│ dispatch(SET_PHASE)│
+│ setP1Field(...)  │    │ applyAction(...) │
+└──────────────────┘    └──────────────────┘
+         │                       │
+         ▼                       ▼
+      UI表示                ヘッドレス対戦
+
+将来の目標（完全dispatch方式）:
+┌──────────────────┐
+│   GameEngine     │◀── dispatch(action)
+│   (single state) │
+├──────────────────┤
+│ UI: engineState  │───▶ React表示
+│ Sim: pure func   │───▶ ヘッドレス対戦
+└──────────────────┘
+```
+
+### 残課題
+
+1. **summonCard/attackの統合**: トリガー・常時効果の複雑さにより未着手
+2. **useStateの完全削除**: 段階的移行中のため現在は併用
+3. **状態同期の最適化**: 現在は手動同期、将来はuseEffect自動同期
+
+---
+
+## 7. 成功基準
 
 1. **既存機能維持**: 全ての現行機能が動作
 2. **useState削減**: 33個 → 1個（GameState）
