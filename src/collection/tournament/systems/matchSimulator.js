@@ -14,7 +14,10 @@ import {
   DECKS,
   getRandomDeckForCompetitor,
   expandDeckToCardIds,
+  isDoppelganger,
+  getActiveCompetitorIds,
 } from '../data/competitors';
+import { load as loadPlayerData } from '../../data/storage';
 
 // ========================================
 // カードキャッシュ
@@ -59,6 +62,106 @@ export function getCardById(cardId) {
 }
 
 // ========================================
+// プレイヤーデッキ取得
+// ========================================
+
+/**
+ * プレイヤーの保存デッキからランダムに1つ取得
+ * @returns {Object|null} ユーザーデッキ { id, name, cards: [{cardId, rarity}] }
+ */
+export function getRandomPlayerDeck() {
+  const playerData = loadPlayerData();
+  if (!playerData || !playerData.userDecks || playerData.userDecks.length === 0) {
+    return null;
+  }
+
+  const validDecks = playerData.userDecks.filter(deck =>
+    deck.cards && deck.cards.length >= 30  // 最低30枚以上のデッキ
+  );
+
+  if (validDecks.length === 0) return null;
+
+  const randomIndex = Math.floor(Math.random() * validDecks.length);
+  return validDecks[randomIndex];
+}
+
+/**
+ * プレイヤーデッキをカードオブジェクト配列に変換
+ * @param {Object} playerDeck - ユーザーデッキ { cards: [{cardId, rarity}] }
+ * @returns {Array<Object>} カードオブジェクトの配列
+ */
+export function convertPlayerDeckToCards(playerDeck) {
+  if (!playerDeck || !playerDeck.cards) return [];
+  if (!cardCache) {
+    console.warn('[MatchSimulator] カードキャッシュが未初期化です');
+    return [];
+  }
+
+  const cards = [];
+  for (const entry of playerDeck.cards) {
+    const card = cardCache.get(entry.cardId);
+    if (card) {
+      cards.push({
+        ...card,
+        rarity: entry.rarity,
+        uniqueId: `${card.id}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      });
+    } else {
+      console.warn(`[MatchSimulator] カードが見つかりません: ${entry.cardId}`);
+    }
+  }
+
+  return cards;
+}
+
+/**
+ * ドッペルゲンガー用にデッキを取得（プレイヤーデッキ優先、なければNPCランダム）
+ * @returns {Object} { cards: Array, deckName: string, isPlayerDeck: boolean }
+ */
+export function getDoppelgangerDeck() {
+  // プレイヤーデッキを試す
+  const playerDeck = getRandomPlayerDeck();
+  if (playerDeck) {
+    const cards = convertPlayerDeckToCards(playerDeck);
+    if (cards.length >= 30) {
+      console.log(`[MatchSimulator] ドッペルゲンガーがプレイヤーデッキ「${playerDeck.name}」を使用`);
+      return {
+        cards,
+        deckName: `コピー: ${playerDeck.name}`,
+        isPlayerDeck: true,
+      };
+    }
+  }
+
+  // フォールバック: NPCのランダムデッキを使用
+  const activeIds = getActiveCompetitorIds().filter(id => !isDoppelganger(id));
+  if (activeIds.length === 0) {
+    console.warn('[MatchSimulator] フォールバック用のNPCがいません');
+    return { cards: [], deckName: 'なし', isPlayerDeck: false };
+  }
+
+  const randomNpcId = activeIds[Math.floor(Math.random() * activeIds.length)];
+  const npcDeck = getRandomDeckForCompetitor(randomNpcId);
+
+  if (npcDeck) {
+    // nullチェック（ランダムデッキの場合）
+    if (npcDeck.cards === null) {
+      // ランダム生成デッキ → 再帰で別のNPCを選ぶ
+      return getDoppelgangerDeck();
+    }
+    const cards = convertDeckToCards(npcDeck);
+    console.log(`[MatchSimulator] ドッペルゲンガーがNPCデッキ「${npcDeck.name}」を使用（フォールバック）`);
+    return {
+      cards,
+      deckName: `借用: ${npcDeck.name}`,
+      isPlayerDeck: false,
+    };
+  }
+
+  return { cards: [], deckName: 'なし', isPlayerDeck: false };
+}
+
+// ========================================
 // デッキ変換
 // ========================================
 
@@ -68,7 +171,21 @@ export function getCardById(cardId) {
  * @returns {Array<Object>} カードオブジェクトの配列
  */
 export function convertDeckToCards(deck) {
-  if (!deck || !deck.cards) return [];
+  if (!deck) return [];
+
+  // プレイヤーコピーの場合は専用処理
+  if (deck.cards === 'player') {
+    const result = getDoppelgangerDeck();
+    return result.cards;
+  }
+
+  // ランダムデッキの場合（cards: null）
+  if (deck.cards === null) {
+    console.warn('[MatchSimulator] ランダムデッキは個別処理が必要です');
+    return [];
+  }
+
+  if (!Array.isArray(deck.cards)) return [];
   if (!cardCache) {
     console.warn('[MatchSimulator] カードキャッシュが未初期化です');
     return [];
