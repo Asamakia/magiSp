@@ -605,5 +605,321 @@ export const darkCardEffects = {
     return false;
   },
 
+  // ========================================
+  // ID80-89 魔法カード効果
+  // ========================================
+
+  /**
+   * C0000083: 闇の契約
+   * 自分のライフを500減らす。デッキからコスト4以下闇属性モンスター1体を手札に加える。
+   */
+  C0000083: (skillText, context) => {
+    const { addLog } = context;
+    const { setMyLife, myDeck, setMyDeck, setMyHand } = getPlayerContext(context);
+
+    // ライフコスト支払い
+    setMyLife(prev => prev - 500);
+    addLog('闇の契約: ライフを500支払った', 'damage');
+
+    // デッキからコスト4以下の闇属性モンスターを検索
+    const targetCards = myDeck.filter(card =>
+      card.type === 'monster' &&
+      card.attribute === '闇' &&
+      card.cost <= 4
+    );
+
+    if (targetCards.length === 0) {
+      addLog('デッキにコスト4以下の闇属性モンスターがありません', 'info');
+      return true; // ライフは支払ったので成功扱い
+    }
+
+    // ランダムに1体選択（または最初の1体）
+    const selectedCard = targetCards[0];
+
+    // デッキから除去して手札に加える
+    setMyDeck(prev => prev.filter(c => c.uniqueId !== selectedCard.uniqueId));
+    setMyHand(prev => [...prev, selectedCard]);
+    addLog(`闇の契約: ${selectedCard.name}を手札に加えた`, 'info');
+
+    return true;
+  },
+
+  /**
+   * C0000084: 腐食のコロード
+   * 場にいるモンスター1体の攻撃力を800ダウン、0になると破壊。
+   * このターン、自分の闇属性モンスターの攻撃力を300アップ。
+   */
+  C0000084: (skillText, context) => {
+    const { addLog, setPendingMonsterTarget } = context;
+    const { myField, setMyField, opponentField, setOpponentField, setOpponentGraveyard } = getPlayerContext(context);
+
+    // 対象選択用のリスト作成（自分・相手両方のモンスター）
+    const allTargets = [];
+    myField.forEach((m, idx) => {
+      if (m) allTargets.push({ monster: m, index: idx, isOpponent: false });
+    });
+    opponentField.forEach((m, idx) => {
+      if (m) allTargets.push({ monster: m, index: idx, isOpponent: true });
+    });
+
+    if (allTargets.length === 0) {
+      addLog('場にモンスターがいません', 'info');
+      return false;
+    }
+
+    // 攻撃力ダウン処理を行う関数
+    const applyAttackDown = (targetIndex, isOpponent) => {
+      const field = isOpponent ? opponentField : myField;
+      const setField = isOpponent ? setOpponentField : setMyField;
+      const monster = field[targetIndex];
+
+      if (!monster) return;
+
+      const newAtk = Math.max(0, (monster.currentAttack || monster.attack) - 800);
+      addLog(`腐食のコロード: ${monster.name}の攻撃力を800ダウン！（残り${newAtk}）`, 'damage');
+
+      if (newAtk <= 0) {
+        // 破壊
+        setField(prev => {
+          const newField = [...prev];
+          newField[targetIndex] = null;
+          return newField;
+        });
+        if (isOpponent) {
+          setOpponentGraveyard(prev => [...prev, monster]);
+        }
+        addLog(`${monster.name}は破壊された！`, 'damage');
+      } else {
+        setField(prev => prev.map((m, idx) => {
+          if (idx === targetIndex && m) {
+            return { ...m, currentAttack: newAtk };
+          }
+          return m;
+        }));
+      }
+
+      // 自分の闇属性モンスターの攻撃力を300アップ
+      setMyField(prev => prev.map(m => {
+        if (m && m.attribute === '闇') {
+          const boostedAtk = (m.currentAttack || m.attack) + 300;
+          addLog(`${m.name}の攻撃力が300アップ！`, 'info');
+          return { ...m, currentAttack: boostedAtk };
+        }
+        return m;
+      }));
+    };
+
+    // 相手モンスターを優先選択（1体だけの場合は自動選択）
+    const opponentTargets = allTargets.filter(t => t.isOpponent);
+    if (opponentTargets.length === 1) {
+      applyAttackDown(opponentTargets[0].index, true);
+      return true;
+    }
+
+    // 複数ターゲットがある場合は選択UI
+    if (setPendingMonsterTarget) {
+      setPendingMonsterTarget({
+        message: '攻撃力を800ダウンするモンスターを選択',
+        targetPlayer: 'both',
+        callback: (selectedIndex, isOpponent) => {
+          applyAttackDown(selectedIndex, isOpponent);
+        },
+      });
+      return true;
+    }
+
+    // フォールバック: 相手の最初のモンスターを選択
+    if (opponentTargets.length > 0) {
+      applyAttackDown(opponentTargets[0].index, true);
+    } else if (allTargets.length > 0) {
+      applyAttackDown(allTargets[0].index, allTargets[0].isOpponent);
+    }
+    return true;
+  },
+
+  /**
+   * C0000086: 闇の波動
+   * 相手プレイヤーに場にいる闇属性モンスターの数×400ダメージを与える。
+   * 自分のライフを300減らす。
+   */
+  C0000086: (skillText, context) => {
+    const { addLog } = context;
+    const { myField, opponentField, setOpponentLife, setMyLife } = getPlayerContext(context);
+
+    // 場にいる闘属性モンスターの数をカウント（自分・相手両方）
+    const countDarkMonsters = (field) => field.filter(m => m && m.attribute === '闇').length;
+    const darkCount = countDarkMonsters(myField) + countDarkMonsters(opponentField);
+
+    const damage = darkCount * 400;
+    addLog(`闇の波動: 場の闇属性モンスター${darkCount}体 × 400 = ${damage}ダメージ！`, 'damage');
+
+    // 相手にダメージ
+    if (damage > 0) {
+      setOpponentLife(prev => prev - damage);
+    }
+
+    // 自分のライフを300減らす
+    setMyLife(prev => prev - 300);
+    addLog('闇の波動: 代償としてライフを300支払った', 'damage');
+
+    return true;
+  },
+
+  /**
+   * C0000087: シャドウ・チェインズ
+   * 【刹那詠唱】相手モンスター1体の攻撃力をターン終了時まで0にし、
+   * 相手モンスター1体に400ダメージを与える。
+   */
+  C0000087: (skillText, context) => {
+    const { addLog, setPendingMonsterTarget } = context;
+    const { opponentField, setOpponentField, setOpponentGraveyard } = getPlayerContext(context);
+
+    // 相手モンスターがいるか確認
+    const validTargets = opponentField
+      .map((m, idx) => m ? idx : -1)
+      .filter(idx => idx !== -1);
+
+    if (validTargets.length === 0) {
+      addLog('相手の場にモンスターがいません', 'info');
+      return false;
+    }
+
+    // 効果適用関数
+    const applyEffect = (targetIndex) => {
+      const targetMonster = opponentField[targetIndex];
+      if (!targetMonster) return;
+
+      // 攻撃力を0に
+      addLog(`シャドウ・チェインズ: ${targetMonster.name}の攻撃力を0にした！（ターン終了時まで）`, 'damage');
+
+      // 400ダメージ
+      const newHp = targetMonster.currentHp - 400;
+      addLog(`シャドウ・チェインズ: ${targetMonster.name}に400ダメージ！`, 'damage');
+
+      if (newHp <= 0) {
+        // 破壊
+        setOpponentField(prev => {
+          const newField = [...prev];
+          newField[targetIndex] = null;
+          return newField;
+        });
+        setOpponentGraveyard(prev => [...prev, targetMonster]);
+        addLog(`${targetMonster.name}は破壊された！`, 'damage');
+      } else {
+        setOpponentField(prev => prev.map((m, idx) => {
+          if (idx === targetIndex && m) {
+            return {
+              ...m,
+              currentAttack: 0,
+              currentHp: newHp,
+              atkZeroUntilEndOfTurn: true, // ターン終了時に解除するフラグ
+            };
+          }
+          return m;
+        }));
+      }
+    };
+
+    // 1体だけの場合は自動選択
+    if (validTargets.length === 1) {
+      applyEffect(validTargets[0]);
+      return true;
+    }
+
+    // 複数いる場合は選択UI
+    if (setPendingMonsterTarget) {
+      setPendingMonsterTarget({
+        message: '攻撃力を0にし400ダメージを与えるモンスターを選択',
+        targetPlayer: 'opponent',
+        validIndices: validTargets,
+        callback: applyEffect,
+      });
+      return true;
+    }
+
+    // フォールバック
+    applyEffect(validTargets[0]);
+    return true;
+  },
+
+  /**
+   * C0000088: ネクロフィアの儀式
+   * 自分の場にいるモンスター1体をリリースし、
+   * デッキから《ダーク・ネクロフィア》を場に直接召喚（コスト不要）。
+   */
+  C0000088: (skillText, context) => {
+    const { addLog, setPendingMonsterTarget } = context;
+    const { myField, setMyField, myDeck, setMyDeck, setMyGraveyard, currentPlayer } = getPlayerContext(context);
+
+    // 自分のフィールドにモンスターがいるか確認
+    const myMonsters = myField
+      .map((m, idx) => m ? idx : -1)
+      .filter(idx => idx !== -1);
+
+    if (myMonsters.length === 0) {
+      addLog('リリースできるモンスターがいません', 'info');
+      return false;
+    }
+
+    // デッキに《ダーク・ネクロフィア》があるか確認
+    const necrophia = myDeck.find(card => card.name === 'ダーク・ネクロフィア');
+    if (!necrophia) {
+      addLog('デッキに《ダーク・ネクロフィア》がありません', 'info');
+      return false;
+    }
+
+    // リリース処理とネクロフィア召喚を行う関数
+    const performRitual = (releaseIndex) => {
+      const releasedMonster = myField[releaseIndex];
+      if (!releasedMonster) return;
+
+      addLog(`ネクロフィアの儀式: ${releasedMonster.name}をリリース！`, 'info');
+
+      // リリースしたモンスターを墓地に送る
+      setMyGraveyard(prev => [...prev, releasedMonster]);
+
+      // デッキからネクロフィアを除去
+      setMyDeck(prev => prev.filter(c => c.uniqueId !== necrophia.uniqueId));
+
+      // ネクロフィアを同じスロットに召喚
+      setMyField(prev => {
+        const newField = [...prev];
+        newField[releaseIndex] = {
+          ...necrophia,
+          currentAttack: necrophia.attack,
+          currentHp: necrophia.hp,
+          canAttack: false, // 召喚ターンは攻撃不可
+          owner: currentPlayer,
+          charges: [],
+          statusEffects: [],
+        };
+        return newField;
+      });
+
+      addLog(`ネクロフィアの儀式: 《ダーク・ネクロフィア》を特殊召喚！`, 'info');
+    };
+
+    // 1体だけの場合は自動選択
+    if (myMonsters.length === 1) {
+      performRitual(myMonsters[0]);
+      return true;
+    }
+
+    // 複数いる場合は選択UI
+    if (setPendingMonsterTarget) {
+      setPendingMonsterTarget({
+        message: 'リリースするモンスターを選択',
+        targetPlayer: 'self',
+        validIndices: myMonsters,
+        callback: performRitual,
+      });
+      return true;
+    }
+
+    // フォールバック
+    performRitual(myMonsters[0]);
+    return true;
+  },
+
   // 他の闇属性カードを追加...
 };
