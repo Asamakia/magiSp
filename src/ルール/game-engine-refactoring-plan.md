@@ -625,11 +625,12 @@ useEffect(() => {
 
 ### 次のステップ
 
-**Phase B進行中（シャドウディスパッチ方式）**
+**Phase B完了（シャドウディスパッチ方式）** ✅
 - [x] Phase B-1: nextPhase/processPhase のシャドウディスパッチ化
 - [x] Phase B-2: summonCard/attack のシャドウディスパッチ化
 - [x] Phase B-3: chargeCard/chargeSP のシャドウディスパッチ化
 - [x] Phase B-4: executeSkill のシャドウディスパッチ化（効果実行はUI、結果同期のみ）
+- [x] Phase B-5: placeFieldCard/placePhaseCard のシャドウディスパッチ化
 
 **詳細**: `step6-integration-design.md` を参照
 

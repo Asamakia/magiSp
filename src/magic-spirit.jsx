@@ -2149,6 +2149,10 @@ export default function MagicSpiritGame() {
       // フィールドカードにowner情報を追加
       const fieldCardInstance = { ...card, owner: currentPlayer };
 
+      // Phase B-5: cardIndexを取得（dispatch用）
+      const hand = currentPlayer === 1 ? p1Hand : p2Hand;
+      const cardIndex = hand.findIndex(c => c.uniqueId === card.uniqueId);
+
       if (currentPlayer === 1) {
         setP1FieldCard(fieldCardInstance);
         setP1Hand(prev => prev.filter(c => c.uniqueId !== card.uniqueId));
@@ -2168,6 +2172,12 @@ export default function MagicSpiritGame() {
       continuousEffectEngine.register(fieldCardInstance, currentPlayer);
 
       addLog(`プレイヤー${currentPlayer}: ${card.name}を設置！`, 'info');
+
+      // Phase B-5: engineStateにも反映
+      if (cardIndex !== -1) {
+        dispatch(gameActions.placeFieldCard(cardIndex));
+      }
+
       return true;
     }
 
@@ -2179,6 +2189,10 @@ export default function MagicSpiritGame() {
         charges: [],        // チャージされたカード
         owner: currentPlayer, // 常時効果のターゲット判定用
       };
+
+      // Phase B-5: cardIndexを取得（dispatch用）
+      const hand = currentPlayer === 1 ? p1Hand : p2Hand;
+      const cardIndex = hand.findIndex(c => c.uniqueId === card.uniqueId);
 
       if (currentPlayer === 1) {
         setP1PhaseCard(initializedPhaseCard);
@@ -2193,6 +2207,11 @@ export default function MagicSpiritGame() {
       }
 
       addLog(`プレイヤー${currentPlayer}: フェイズカード【${card.name}】を設置！【初期段階】`, 'info');
+
+      // Phase B-5: engineStateにも反映
+      if (cardIndex !== -1) {
+        dispatch(gameActions.placePhaseCard(cardIndex));
+      }
 
       // フェイズカードの初期効果を実行
       const context = {

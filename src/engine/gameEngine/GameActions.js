@@ -114,6 +114,13 @@ export const actions = {
     createAction(ACTION_TYPES.HEAL_LIFE, { target, amount }),
 
   checkWinner: () => createAction(ACTION_TYPES.CHECK_WINNER),
+
+  // Phase B-5: フィールドカード・フェイズカード配置
+  placeFieldCard: (cardIndex) =>
+    createAction(ACTION_TYPES.PLACE_FIELD_CARD, { cardIndex }),
+
+  placePhaseCard: (cardIndex) =>
+    createAction(ACTION_TYPES.CHARGE_PHASE_CARD, { cardIndex }),
 };
 
 // ========================================
@@ -180,6 +187,13 @@ export function applyAction(state, action) {
 
     case ACTION_TYPES.SET_WINNER:
       return applySetWinner(state, action.payload);
+
+    // Phase B-5: フィールドカード・フェイズカード配置
+    case ACTION_TYPES.PLACE_FIELD_CARD:
+      return applyPlaceFieldCard(state, action.payload);
+
+    case ACTION_TYPES.CHARGE_PHASE_CARD:
+      return applyPlacePhaseCard(state, action.payload);
 
     default:
       console.warn(`Unknown action type: ${action.type}`);
@@ -815,6 +829,89 @@ function applySetWinner(state, { winner }) {
   });
 
   newState = addLog(newState, `🏆 P${winner}の勝利！`, 'info');
+
+  return newState;
+}
+
+// ========================================
+// Phase B-5: フィールドカード・フェイズカード
+// ========================================
+
+/**
+ * フィールドカードを配置
+ */
+function applyPlaceFieldCard(state, { cardIndex }) {
+  const player = getCurrentPlayer(state);
+  const card = player.hand[cardIndex];
+
+  if (!card || card.type !== 'field') {
+    return addLog(state, 'フィールドカードが見つかりません', 'info');
+  }
+
+  if (card.cost > player.activeSP) {
+    return addLog(state, 'SPが足りません', 'info');
+  }
+
+  // 手札からカードを削除
+  const newHand = player.hand.filter((_, i) => i !== cardIndex);
+
+  // フィールドカードを設定（owner追加）
+  const fieldCardInstance = { ...card, owner: state.currentPlayer };
+
+  // SP消費
+  const newActiveSP = player.activeSP - card.cost;
+  const newRestedSP = player.restedSP + card.cost;
+
+  let newState = updatePlayer(state, state.currentPlayer, {
+    hand: newHand,
+    fieldCard: fieldCardInstance,
+    activeSP: newActiveSP,
+    restedSP: newRestedSP,
+  });
+
+  newState = addLog(newState, `P${state.currentPlayer}: ${card.name}を設置！`, 'info');
+
+  return newState;
+}
+
+/**
+ * フェイズカードを配置
+ */
+function applyPlacePhaseCard(state, { cardIndex }) {
+  const player = getCurrentPlayer(state);
+  const card = player.hand[cardIndex];
+
+  if (!card || card.type !== 'phasecard') {
+    return addLog(state, 'フェイズカードが見つかりません', 'info');
+  }
+
+  if (card.cost > player.activeSP) {
+    return addLog(state, 'SPが足りません', 'info');
+  }
+
+  // 手札からカードを削除
+  const newHand = player.hand.filter((_, i) => i !== cardIndex);
+
+  // フェイズカードを設定（stage, charges, owner追加）
+  const phaseCardInstance = {
+    ...card,
+    stage: 0,
+    charges: [],
+    owner: state.currentPlayer,
+  };
+
+  // SP消費
+  const newActiveSP = player.activeSP - card.cost;
+  const newRestedSP = player.restedSP + card.cost;
+
+  let newState = updatePlayer(state, state.currentPlayer, {
+    hand: newHand,
+    phaseCard: phaseCardInstance,
+    activeSP: newActiveSP,
+    restedSP: newRestedSP,
+  });
+
+  newState = addLog(newState, `P${state.currentPlayer}: フェイズカード【${card.name}】を設置！【初期段階】`, 'info');
 
   return newState;
 }

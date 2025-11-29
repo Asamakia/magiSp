@@ -273,12 +273,17 @@ if (success !== false) {
 - UI: 3個（addLog, setPendingMonsterTarget, setPendingHandSelection）
 - 外部エンジン: statusEffectEngine, executeSkillEffects
 
-### Phase B-5: 残りアクション（将来）
+### Phase B-5: placeFieldCard/placePhaseCard のシャドウディスパッチ化 ✅ 完了
 
-| アクション | 優先度 | 複雑度 | 備考 |
+| アクション | 優先度 | 複雑度 | 状態 |
 |-----------|-------|-------|------|
-| placeFieldCard | 低 | 中 | フィールドカード配置 |
-| useMagicCard | 中 | 高 | effectEngine統合必要 |
+| placeFieldCard | 低 | 中 | ✅ 完了 |
+| placePhaseCard | 低 | 中 | ✅ 完了 |
+| useMagicCard | - | - | summonCard経由で既に完了 |
+
+**GameActions.js に追加**:
+- `applyPlaceFieldCard()`: フィールドカード配置
+- `applyPlacePhaseCard()`: フェイズカード配置
 
 ### Phase C: UIの状態参照移行（将来）
 
