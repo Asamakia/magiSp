@@ -39,6 +39,7 @@ import {
   getPurchasedInfo,
   getAnalysisComment,
 } from '../systems/deckInfoSystem';
+import TournamentBracket from './TournamentBracket';
 
 // ========================================
 // スタイル定義
@@ -601,6 +602,22 @@ const TournamentTab = ({
   const history = tournamentData.history || [];
   const totalStats = tournamentData.totalStats || {};
 
+  // ブロック判定用: 同じブロック内の選手かどうか判定
+  const isInSameBlock = useMemo(() => {
+    if (!tournament?.participants) return () => false;
+
+    const participants = tournament.participants;
+    const half = participants.length / 2;
+    const leftBlock = new Set(participants.slice(0, half));
+    const rightBlock = new Set(participants.slice(half));
+
+    return (id1, id2) => {
+      // 両方が左ブロック or 両方が右ブロック = 同じブロック
+      return (leftBlock.has(id1) && leftBlock.has(id2)) ||
+             (rightBlock.has(id1) && rightBlock.has(id2));
+    };
+  }, [tournament?.participants]);
+
   // オッズリストを取得
   const oddsList = useMemo(() => {
     if (!tournament || !tournament.odds) return [];
@@ -623,7 +640,7 @@ const TournamentTab = ({
         odds: odds.place?.[id] || 0,
       }));
     } else if (selectedBetType === BET_TYPES.EXACTA) {
-      // 2連単: 人気順上位を表示
+      // 2連単: 同じブロック内の組み合わせを除外（決勝では当たらない）
       const exactaEntries = Object.entries(odds.exacta || {})
         .map(([key, oddsValue]) => {
           const [first, second] = key.split('-');
@@ -632,15 +649,19 @@ const TournamentTab = ({
             label: `${getCompetitorDisplayName(first)} → ${getCompetitorDisplayName(second)}`,
             portrait: `${getCompetitorPortrait(first)}→${getCompetitorPortrait(second)}`,
             odds: oddsValue,
+            first,
+            second,
           };
         })
+        // 同じブロック内の組み合わせを除外
+        .filter(item => !isInSameBlock(item.first, item.second))
         .sort((a, b) => a.odds - b.odds)
         .slice(0, 12); // 上位12件
       items = exactaEntries;
     }
 
     return items.sort((a, b) => a.odds - b.odds);
-  }, [tournament, selectedBetType]);
+  }, [tournament, selectedBetType, isInSameBlock]);
 
   // 賭け金額バリデーション
   const betValidation = useMemo(() => {
@@ -964,6 +985,9 @@ const TournamentTab = ({
             </div>
           ))}
         </div>
+
+        {/* トーナメント表 */}
+        <TournamentBracket tournament={tournament} />
 
         {/* デッキ情報購入セクション */}
         {canBet && (
