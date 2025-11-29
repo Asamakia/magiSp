@@ -3645,8 +3645,10 @@ export default function MagicSpiritGame() {
           flexDirection: 'column',
           alignItems: 'center',
           justifyContent: 'center',
-          height: '100vh',
+          minHeight: '100vh',
           gap: '32px',
+          padding: '32px 0',
+          boxSizing: 'border-box',
         }}>
           <h1 style={{
             ...styles.title,
