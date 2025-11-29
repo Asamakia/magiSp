@@ -642,11 +642,12 @@ useEffect(() => {
 
 **Phase D: useState削除（段階的移行）**
 
-Phase D-1: シャドウディスパッチ箇所整理
-- [ ] nextPhase(), processPhase()のset*呼び出し削除
-- [ ] summonCard(), executeAttack()のset*呼び出し削除
-- [ ] chargeCard(), chargeSP(), executeSkill()のset*呼び出し削除
-- [ ] placeFieldCard(), placePhaseCard()のset*呼び出し削除
+Phase D-1: シャドウディスパッチ箇所整理 ✅ 完了
+- [x] processPhase()のsetPhase呼び出し削除（3箇所）
+- [x] endTurn後のsetPhase/setCurrentPlayer/setTurn/setIsFirstTurn削除
+- [x] nextPhase()/proceedToBattlePhase()のsetPhase削除（3箇所）
+- [x] GameActions.js: applyEndTurnにisFirstTurn処理追加
+- 注: summonCard, attack等は「同期後dispatch」パターン（Phase D-4で対応）
 
 Phase D-2: legacyStateSync削除
 - [ ] initializeGameFromEngine()関数を削除
