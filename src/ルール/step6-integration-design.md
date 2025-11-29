@@ -194,8 +194,10 @@ const nextPhase = () => {
 5. [x] Phase B-1: nextPhase/processPhase移行（シャドウディスパッチ）
    - SET_PHASEアクション追加
    - nextPhase, processPhase, proceedToBattlePhase更新
-6. [ ] Phase B-2: summonCard/attack移行（将来）
-   - 複雑なトリガー・常時効果との統合が必要
+6. [x] Phase B-2: summonCard/attack移行（シャドウディスパッチ）
+   - summonCard: cardIndexを取得してモンスター・魔法カード発動時にdispatch
+   - executeAttack: 攻撃完了時にgameActions.attackをdispatch
+   - 複雑なロジックはUIに残し、結果をengineStateに同期
 7. [x] 動作確認・テスト（41テスト成功）
 8. [ ] 旧useState削除（将来）
 ```
@@ -209,6 +211,7 @@ const nextPhase = () => {
 - **ヘッドレス対戦**: GameEngineを使ったAI同士の対戦シミュレーションが可能
 - **トーナメントシステム**: Tournament.jsで投資システム用のNPCトーナメント実行可能
 - **フェイズ遷移のdispatch化**: nextPhase, processPhaseがdispatch経由で状態更新
+- **summonCard/attackのdispatch化**: 召喚・攻撃もengineStateに同期
 
 ### 統合アーキテクチャ
 
@@ -237,9 +240,9 @@ const nextPhase = () => {
 
 ### 残課題
 
-1. **summonCard/attackの統合**: トリガー・常時効果の複雑さにより未着手
-2. **useStateの完全削除**: 段階的移行中のため現在は併用
-3. **状態同期の最適化**: 現在は手動同期、将来はuseEffect自動同期
+1. **useStateの完全削除**: シャドウディスパッチ方式で両方更新中、将来的にはengineStateのみに
+2. **状態同期の最適化**: 現在は手動同期、将来はuseEffect自動同期
+3. **トリガー/常時効果のengineState統合**: triggerEnginePure/effectHelpersPureは実装済み、統合は将来
 
 ---
 
