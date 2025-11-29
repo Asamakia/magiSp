@@ -204,6 +204,9 @@ export {
   COMPETITORS,
   getCompetitorDisplayName,
   getCompetitorPortrait,
+  // コンポーネント
+  TournamentViewer,
+  TournamentTab,
 } from './tournament';
 
 // ========================================

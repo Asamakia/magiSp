@@ -98,3 +98,7 @@ export {
   getCompetitorName,
   getAnalysisComment,
 } from './systems/deckInfoSystem';
+
+// コンポーネント
+export { default as TournamentViewer } from './components/TournamentViewer';
+export { default as TournamentTab } from './components/TournamentTab';
