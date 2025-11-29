@@ -304,6 +304,44 @@ Currently a **prototype version** with local 2-player gameplay and AI opponent s
     - 収支表示 + 報酬受け取りボタン
   - **magic-spirit.jsx**: 6,171行 → 6,114行（57行削減）
   - **41テスト全パス**
+- **2025-11-29 (Card Effects/Triggers ID50-119)**: 大量のカード技・トリガー実装 ⭐⭐⭐
+  - **ID50-59, 60-69, 70-79, 80-89, 90-99, 100-109, 110-119**: 各範囲のカード技・トリガー確認・追加
+  - **cardEffects合計**: ~8,069行（dark.js 1701行, water.js 2063行, fire.js 1339行, future.js 1257行など）
+  - **cardTriggers合計**: ~8,563行（waterCards.js 1789行, darkCards.js 1533行など）
+  - 属性ごとに網羅的なカード実装を追加
+- **2025-11-29 (Tournament Bracket Display)**: トーナメント表表示機能 ⭐⭐
+  - **TournamentBracket.jsx** (606行): トーナメントブラケット可視化コンポーネント
+  - トーナメント組み合わせの視覚的表示
+  - ブロックレイアウト横並び・2x2グリッド改善
+  - 賭け時の組み合わせ確認UI
+- **2025-11-29 (Tournament Spoiler Prevention)**: 大会観戦時のネタバレ防止 ⭐
+  - 観戦スキップ時に結果が事前に見えないよう修正
+  - TournamentViewer.jsxでの表示制御
+- **2025-11-29 (Persistent Market Changes)**: 永続市場変動システム ⭐⭐
+  - **永続トレンド**: デイリーニュースの10%が永続的に蓄積
+  - **回帰圧力**: ±50%超で10%確率、±80%超で30%確率、±100%超で50%確率で回帰
+  - **属性・カテゴリごとの独立管理**: 各対象の変動を個別に追跡
+  - marketEngine.js拡張（329行→523行）
+  - **Documentation**: `src/ルール/CardValueSystem/market_system.md` に永続トレンド追記
+- **2025-11-29 (Rest System)**: 休息システム（「休む」ボタン）⭐⭐
+  - **「休む」ボタン**: 対戦せずに日を進める機能
+  - **休息完了ダイアログ**: ゲーム内ダイアログで休息完了を表示
+  - **曜日表示**: タイトル画面と休息ダイアログに曜日を表示
+  - **processDayAdvancement()**: 日付進行処理を共通関数に抽出
+  - ※ 休息では対戦報酬は得られない
+- **2025-11-29 (Title Screen Fix)**: タイトル画面修正 ⭐
+  - タイトル画面でタイトルが切れる問題を修正
+  - コンパクト化して画面内に収まるよう調整
+  - overflow: hidden上書きでスクロール可能に
+- **2025-11-29 (setPendingMonsterTarget Fix)**: 変数名統一 ⭐
+  - setPendingTargetSelectionをsetPendingMonsterTargetに全て統一
+  - 複数ファイルでの変数名不一致を修正
+- **2025-11-29 (NPC Deck Documentation)**: NPCデッキリストドキュメント作成 ⭐
+  - **npc_decklist.md**: 9NPC × 2デッキの詳細リスト
+  - 各デッキの40枚構成とコンセプト記載
+  - **investment_system.md**: 大会・投資システム設計書 v2.0
+    - Phase 1-3実装完了状況
+    - Phase 4-5（ファンド投資、デッキ情報購入）設計
 
 ---
 
@@ -320,9 +358,9 @@ Currently a **prototype version** with local 2-player gameplay and AI opponent s
 │
 ├── src/
 │   ├── App.js                  # Main app component (renders MagicSpiritGame)
-│   ├── magic-spirit.jsx        # Main game logic (~6100 lines) ⭐
+│   ├── magic-spirit.jsx        # Main game logic (~6473 lines) ⭐
 │   │
-│   ├── collection/             # Card collection system (~9,600 lines) ⭐⭐⭐⭐⭐
+│   ├── collection/             # Card collection system (~15,080 lines) ⭐⭐⭐⭐⭐
 │   │   ├── index.js              # Main exports (138 lines)
 │   │   ├── data/                 # Data management (~545 lines)
 │   │   │   ├── storage.js        # Persistence layer (localStorage abstraction, 139 lines)
@@ -337,10 +375,10 @@ Currently a **prototype version** with local 2-player gameplay and AI opponent s
 │   │   │   ├── packSystem.js         # Pack opening logic (238 lines)
 │   │   │   ├── shopSystem.js         # Buy/sell operations (164 lines)
 │   │   │   └── assetCalculator.js    # Asset value calculation & history (245 lines)
-│   │   ├── market/               # Dynamic market system (~2,078 lines)
+│   │   ├── market/               # Dynamic market system (~2,291 lines)
 │   │   │   ├── index.js          # Market module exports (40 lines)
-│   │   │   ├── constants.js      # Market constants (125 lines)
-│   │   │   ├── marketEngine.js   # Price calculation & state management (329 lines)
+│   │   │   ├── constants.js      # Market constants (144 lines)
+│   │   │   ├── marketEngine.js   # Price calculation & state management (523 lines)
 │   │   │   ├── weeklyTrend.js    # 15 weekly trend definitions (190 lines)
 │   │   │   ├── newsGenerator.js  # 8-pattern news generation (569 lines)
 │   │   │   ├── suddenEvents.js   # Sudden events - 25 types (415 lines)
@@ -358,19 +396,20 @@ Currently a **prototype version** with local 2-player gameplay and AI opponent s
 │   │   ├── hooks/                # Custom hooks
 │   │   │   ├── index.js          # Hook exports (10 lines)
 │   │   │   └── useMediaQuery.js  # Responsive design hooks (73 lines)
-│   │   ├── tournament/           # Tournament betting system ⭐⭐ NEW
+│   │   ├── tournament/           # Tournament betting system (~4,016 lines) ⭐⭐
 │   │   │   ├── index.js          # Tournament module exports
 │   │   │   ├── data/
 │   │   │   │   └── competitors.js    # NPC competitors data
 │   │   │   ├── systems/
-│   │   │   │   ├── tournamentManager.js  # Tournament lifecycle & status
-│   │   │   │   ├── bettingSystem.js      # Bet validation & payout
-│   │   │   │   ├── oddsCalculator.js     # Odds calculation via simulation
-│   │   │   │   ├── matchSimulator.js     # Match simulation engine
-│   │   │   │   └── deckInfoSystem.js     # Competitor deck info purchase
+│   │   │   │   ├── tournamentManager.js  # Tournament lifecycle & status (423 lines)
+│   │   │   │   ├── bettingSystem.js      # Bet validation & payout (296 lines)
+│   │   │   │   ├── oddsCalculator.js     # Odds calculation via simulation (265 lines)
+│   │   │   │   ├── matchSimulator.js     # Match simulation engine (337 lines)
+│   │   │   │   └── deckInfoSystem.js     # Competitor deck info purchase (318 lines)
 │   │   │   └── components/
-│   │   │       ├── TournamentTab.jsx     # Tournament betting UI (~970 lines)
-│   │   │       └── TournamentViewer.jsx  # Tournament viewer dialog (~580 lines) ⭐ NEW
+│   │   │       ├── TournamentTab.jsx     # Tournament betting UI (~1,176 lines)
+│   │   │       ├── TournamentBracket.jsx # Tournament bracket display (606 lines) ⭐ NEW
+│   │   │       └── TournamentViewer.jsx  # Tournament viewer dialog (~595 lines)
 │   │   └── components/           # Collection UI (~4,313 lines)
 │   │       ├── CollectionScreen.jsx  # Collection view (380 lines)
 │   │       ├── ShopScreen.jsx        # Shop view with market info (576 lines)
@@ -402,24 +441,24 @@ Currently a **prototype version** with local 2-player gameplay and AI opponent s
 │   │   ├── phaseCardEffects.js # Phase card stage effect parser (200 lines) ⭐ NEW
 │   │   ├── triggerTypes.js     # Trigger type definitions (372 lines) ⭐ NEW
 │   │   ├── triggerEngine.js    # Trigger lifecycle management (716 lines) ⭐ NEW
-│   │   ├── cardEffects/        # Card-specific effect implementations (~2850 lines)
-│   │   │   ├── index.js        # Effect registry and exports
-│   │   │   ├── _template.js    # Template for new card effects
-│   │   │   ├── fire.js         # 炎属性 card effects
-│   │   │   ├── water.js        # 水属性 card effects
-│   │   │   ├── light.js        # 光属性 card effects
-│   │   │   ├── dark.js         # 闇属性 card effects
-│   │   │   ├── primitive.js    # 原始属性 card effects
-│   │   │   ├── future.js       # 未来属性 card effects
-│   │   │   └── neutral.js      # なし属性 card effects
-│   │   ├── cardTriggers/       # Card-specific trigger implementations (~7955 lines)
-│   │   │   ├── fireCards.js      # 炎属性 trigger implementations (~883 lines)
-│   │   │   ├── waterCards.js     # 水属性 trigger implementations (~1411 lines)
-│   │   │   ├── lightCards.js     # 光属性 trigger implementations (~1070 lines)
-│   │   │   ├── darkCards.js      # 闇属性 trigger implementations (~1658 lines)
-│   │   │   ├── futureCards.js    # 未来属性 trigger implementations (~868 lines)
-│   │   │   ├── primitiveCards.js # 原始属性 trigger implementations (~1306 lines)
-│   │   │   └── neutralCards.js   # なし属性 trigger implementations (~759 lines)
+│   │   ├── cardEffects/        # Card-specific effect implementations (~8,069 lines) ⭐ EXPANDED
+│   │   │   ├── index.js        # Effect registry and exports (53 lines)
+│   │   │   ├── _template.js    # Template for new card effects (196 lines)
+│   │   │   ├── fire.js         # 炎属性 card effects (1,339 lines)
+│   │   │   ├── water.js        # 水属性 card effects (2,063 lines)
+│   │   │   ├── light.js        # 光属性 card effects (776 lines)
+│   │   │   ├── dark.js         # 闇属性 card effects (1,701 lines)
+│   │   │   ├── primitive.js    # 原始属性 card effects (657 lines)
+│   │   │   ├── future.js       # 未来属性 card effects (1,257 lines)
+│   │   │   └── neutral.js      # なし属性 card effects (27 lines)
+│   │   ├── cardTriggers/       # Card-specific trigger implementations (~8,563 lines) ⭐ EXPANDED
+│   │   │   ├── fireCards.js      # 炎属性 trigger implementations (~1,193 lines)
+│   │   │   ├── waterCards.js     # 水属性 trigger implementations (~1,789 lines)
+│   │   │   ├── lightCards.js     # 光属性 trigger implementations (~1,153 lines)
+│   │   │   ├── darkCards.js      # 闇属性 trigger implementations (~1,533 lines)
+│   │   │   ├── futureCards.js    # 未来属性 trigger implementations (~913 lines)
+│   │   │   ├── primitiveCards.js # 原始属性 trigger implementations (~1,280 lines)
+│   │   │   └── neutralCards.js   # なし属性 trigger implementations (~702 lines)
 │   │   ├── continuousEffects/  # Continuous effect system (~2736 lines) ⭐⭐⭐⭐
 │   │   │   ├── index.js          # Main exports (106 lines)
 │   │   │   ├── effectTypes.js    # Effect type definitions (224 lines)
@@ -487,12 +526,14 @@ Currently a **prototype version** with local 2-player gameplay and AI opponent s
 │   │   ├── GameEngine Refactoring Documentation - 2 files (~1500 lines) ⭐⭐⭐⭐⭐ NEW
 │   │   │   ├── game-engine-refactoring-plan.md (~700 lines) - Refactoring plan & progress
 │   │   │   └── step6-integration-design.md (~800 lines) - React integration design
-│   │   └── Card Value System Documentation - 5 files (~4,000 lines) ⭐⭐⭐⭐⭐
+│   │   └── Card Value System Documentation - 7 files (~5,500 lines) ⭐⭐⭐⭐⭐
 │   │       ├── card_value_system_v2.1.md (~593 lines) - Value calculation spec
 │   │       ├── collection-system-design.md (~830 lines) - Collection system design
-│   │       ├── market_system.md (~867 lines) - Market mechanics spec + 市場分析画面使い方
+│   │       ├── market_system.md (~900 lines) - Market mechanics spec + 永続トレンド + 市場分析画面使い方
 │   │       ├── news-binding-tables-design.md (~975 lines) - News pattern definitions
-│   │       └── merchant_system.md (~520 lines) - Merchant NPC system spec (未実装)
+│   │       ├── merchant_system.md (~520 lines) - Merchant NPC system spec (未実装)
+│   │       ├── investment_system.md (~700 lines) - 大会・投資システム設計 v2.0 ⭐ NEW
+│   │       └── npc_decklist.md (~800 lines) - 9NPC × 2デッキの詳細リスト ⭐ NEW
 │   │
 │   ├── index.js                # React entry point
 │   ├── App.css                 # App styling
@@ -508,7 +549,7 @@ Currently a **prototype version** with local 2-player gameplay and AI opponent s
 
 ### Key Files
 
-**`src/magic-spirit.jsx`** (Main game component - ~6100 lines)
+**`src/magic-spirit.jsx`** (Main game component - ~6473 lines)
 - Game state management (React hooks)
 - Game flow control (phase progression, turn management)
 - Card summoning logic
@@ -536,11 +577,12 @@ Currently a **prototype version** with local 2-player gameplay and AI opponent s
 - `getStageName()` / `getStageShortName()` - 段階名ヘルパー
 - `getCurrentStageDescription()` / `getNextStageDescription()` - UI表示用
 
-**`src/engine/cardEffects/`** (Card-specific effects - ~2850 lines) ⭐⭐ **Most Important**
-- 120+ individual card implementations
+**`src/engine/cardEffects/`** (Card-specific effects - ~8,069 lines) ⭐⭐ **Most Important**
+- 200+ individual card implementations (大幅拡張)
 - Organized by attribute (fire, water, light, dark, primitive, future, neutral)
 - Central registry in `index.js`
 - Template file for new card effects
+- Major files: dark.js (1,701), water.js (2,063), fire.js (1,339), future.js (1,257)
 
 **`src/engine/triggerTypes.js`** (Trigger type definitions - 380 lines) ⭐ **NEW**
 - 27 generic trigger types (召喚時, 破壊時, 場を離れる時, フェイズ, etc.)
@@ -561,16 +603,16 @@ Currently a **prototype version** with local 2-player gameplay and AI opponent s
   - `_SELF` triggers (ON_END_PHASE_SELF, etc.): fire only when `trigger.owner === currentPlayer`
   - `_OPPONENT` triggers (ON_OPPONENT_END_PHASE): fire only when `trigger.owner !== currentPlayer`
 
-**`src/engine/cardTriggers/`** (Card-specific trigger implementations - ~7955 lines, 220+ cards)
-- **fireCards.js**: 炎属性 triggers (34 cards, ~850 lines) - includes field card ドラゴンの火山
-- **waterCards.js**: 水属性 triggers (37 cards, 1122 lines) - includes 3 graveyard triggers
-- **lightCards.js**: 光属性 triggers (37 cards, 1069 lines)
-- **darkCards.js**: 闇属性 triggers (45 cards, 1591 lines)
-- **futureCards.js**: 未来属性 triggers (12 cards, 504 lines)
-- **primitiveCards.js**: 原始属性 triggers (28 cards, 1306 lines)
-- **neutralCards.js**: なし属性 triggers (18 cards, 758 lines) - includes field/phase card triggers
+**`src/engine/cardTriggers/`** (Card-specific trigger implementations - ~8,563 lines, 250+ cards)
+- **fireCards.js**: 炎属性 triggers (~1,193 lines) - includes field card ドラゴンの火山
+- **waterCards.js**: 水属性 triggers (~1,789 lines) - includes 3 graveyard triggers
+- **lightCards.js**: 光属性 triggers (~1,153 lines)
+- **darkCards.js**: 闘属性 triggers (~1,533 lines)
+- **futureCards.js**: 未来属性 triggers (~913 lines)
+- **primitiveCards.js**: 原始属性 triggers (~1,280 lines)
+- **neutralCards.js**: なし属性 triggers (~702 lines) - includes field/phase card triggers
 - Uses effect helpers for common patterns
-- Comprehensive trigger system covering 220 cards across all attributes
+- Comprehensive trigger system covering 250+ cards across all attributes
 
 **`src/engine/continuousEffects/`** (Continuous effect system - ~2736 lines, 45 cards) ⭐⭐⭐⭐
 - **effectTypes.js**: 12 continuous effect types (ATK_MODIFIER, DAMAGE_REDUCTION, etc.)
@@ -2139,6 +2181,6 @@ This is suitable for expansion into a full game or as a learning project for Rea
 
 ---
 
-**Document Version**: 5.7
-**Last Updated**: 2025-11-29 (Phase D-4完了、二重dispatch修正、SP増加バグ修正)
+**Document Version**: 5.8
+**Last Updated**: 2025-11-29 (休息システム、永続市場変動、トーナメント表表示、大量カード実装ID50-119)
 **For**: Magic Spirit (magiSp) Repository
