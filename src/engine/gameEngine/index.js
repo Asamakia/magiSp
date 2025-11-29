@@ -65,3 +65,47 @@ export {
   simulateMultiple,
   calculateOdds,
 } from './Simulator';
+
+// Tournament - トーナメントシステム
+export {
+  TOURNAMENT_TYPES,
+  NPC_PARTICIPANTS,
+  winRateToOdds,
+  calculateNPCOdds,
+  selectParticipants,
+  generateBracket,
+  simulateMatch,
+  simulateTournament,
+  createTournament,
+  runTournament,
+  calculatePayout,
+  precalculateOdds,
+} from './Tournament';
+
+// Pure Effect Helpers - 状態ベース版効果ヘルパー
+export {
+  getPlayerContextPure,
+  millDeckPure,
+  drawCardsPure,
+  dealDamagePure,
+  healLifePure,
+  modifyAttackPure,
+  modifyHPPure,
+  destroyMonsterPure,
+  searchCardPure,
+  reviveFromGraveyardPure,
+  addSPPure,
+  reduceSPPure,
+} from './effectHelpersPure';
+
+// Pure Trigger Engine - 状態ベース版トリガーエンジン
+export {
+  parseCardTriggers,
+  registerCardTriggersPure,
+  unregisterCardTriggersPure,
+  clearAllTriggersPure,
+  fireTriggerPure,
+  resetTurnFlagsPure,
+  getCardTriggersPure,
+  getTriggerStatsPure,
+} from './triggerEnginePure';

@@ -107,6 +107,10 @@ export function createInitialState(config) {
     // ターン内フラグ
     turnFlags: createTurnFlags(),
 
+    // トリガーレジストリ（純粋関数版）
+    // Map<triggerType, Array<TriggerEntry>>をオブジェクトで表現
+    triggers: {},
+
     // ログ
     logs: [{ message: `🎲 P${first} が先行！`, type: 'info' }],
   };
