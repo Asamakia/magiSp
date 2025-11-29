@@ -183,20 +183,22 @@
 
 ### 10. 【残魂】
 - **対象**: モンスターカード
-- **件数**: 3枚
-- **効果**: このモンスターが破壊された時、自身の攻撃力の30%を相手プレイヤーにダメージとして与える
+- **件数**: 2枚
+- **効果**: このモンスターが破壊された時、攻撃力-1000で場に戻る（1回のみ）
 - **実装状況**: [x] 実装完了 (2025-11-29)
 - **実装優先度**: Phase 2（戦闘系）
 - **対象カード例**:
   - C0000320: 雷帝ヴォルトロン
   - C0000327: 雷嵐龍サンダーストーム・レックス
 - **実装ファイル**:
-  - `src/engine/keywordAbilities/index.js` - hasZankon(), calculateZankonDamage(), ZANKON_CARD_IDS
+  - `src/engine/keywordAbilities/index.js` - hasZankon(), executeZankonEffect(), ZANKON_CARD_IDS, ZANKON_ATK_REDUCTION
   - `src/engine/cardTriggers/lightCards.js` - ON_DESTROY_SELF トリガー
 - **実装メモ**:
   - 破壊時トリガーとして実装
-  - 【壮麗】で付与される場合もある（C0000346）
-  - 具体的な効果内容の調査が必要
+  - 攻撃力-1000で場に戻る（元の攻撃力から減算）
+  - 攻撃力が0以下になる場合は戻れない
+  - zankonUsedフラグで1回のみ発動に制限
+  - 場が満杯の場合は戻れない
 
 ### 11. 【犠現】
 - **対象**: モンスターカード

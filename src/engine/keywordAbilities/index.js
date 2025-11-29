@@ -670,48 +670,74 @@ export function hasZankon(card) {
 export const ZANKON_CARD_IDS = ['C0000320', 'C0000327'];
 
 /**
- * 【残魂】ダメージ倍率
- * 破壊時に自身の攻撃力の30%を相手プレイヤーにダメージ
+ * 【残魂】攻撃力減少値
+ * 破壊時に攻撃力-1000で場に戻る
  */
-export const ZANKON_DAMAGE_RATE = 0.3;
-
-/**
- * 【残魂】ダメージを計算
- * @param {Object} monster - 破壊されたモンスター
- * @returns {number} 相手プレイヤーに与えるダメージ
- */
-export function calculateZankonDamage(monster) {
-  if (!monster) return 0;
-  const attack = monster.currentAttack || monster.attack || 0;
-  return Math.floor(attack * ZANKON_DAMAGE_RATE);
-}
+export const ZANKON_ATK_REDUCTION = 1000;
 
 /**
  * 【残魂】効果を実行
- * 破壊時に自身の攻撃力の30%を相手プレイヤーにダメージ
+ * 破壊時に攻撃力-1000で場に戻る
  * @param {Object} context - 効果コンテキスト
  * @param {Object} destroyedMonster - 破壊されたモンスター
  * @returns {boolean} 効果を適用したかどうか
  */
 export function executeZankonEffect(context, destroyedMonster) {
-  const { addLog, currentPlayer, setP1Life, setP2Life } = context;
+  const { addLog, currentPlayer, p1Field, p2Field, setP1Field, setP2Field, p1Graveyard, p2Graveyard, setP1Graveyard, setP2Graveyard } = context;
 
   if (!destroyedMonster || !hasZankon(destroyedMonster)) {
     return false;
   }
 
-  const damage = calculateZankonDamage(destroyedMonster);
-  if (damage <= 0) {
+  // 破壊されたモンスターのオーナーを確認
+  const monsterOwner = destroyedMonster.owner || currentPlayer;
+  const myField = monsterOwner === 1 ? p1Field : p2Field;
+  const setMyField = monsterOwner === 1 ? setP1Field : setP2Field;
+  const myGraveyard = monsterOwner === 1 ? p1Graveyard : p2Graveyard;
+  const setMyGraveyard = monsterOwner === 1 ? setP1Graveyard : setP2Graveyard;
+
+  // 空きスロットを探す
+  const emptySlot = myField.findIndex(slot => slot === null);
+  if (emptySlot === -1) {
+    addLog(`【残魂】${destroyedMonster.name}は場が満杯のため戻れなかった`, 'info');
     return false;
   }
 
-  // 破壊されたモンスターのオーナーの相手にダメージ
-  // currentPlayerは破壊されたモンスターのオーナー（contextで渡される）
-  const setOpponentLife = currentPlayer === 1 ? setP2Life : setP1Life;
+  // 新しい攻撃力を計算（元の攻撃力から-1000）
+  const baseAttack = destroyedMonster.attack || 0;
+  const newAttack = Math.max(0, baseAttack - ZANKON_ATK_REDUCTION);
 
-  setOpponentLife(prev => Math.max(0, prev - damage));
-  addLog(`【残魂】${destroyedMonster.name}の魂が${damage}ダメージを与えた！`, 'damage');
+  // 攻撃力が0以下になる場合は戻れない
+  if (newAttack <= 0) {
+    addLog(`【残魂】${destroyedMonster.name}は攻撃力が0になるため戻れなかった`, 'info');
+    return false;
+  }
 
+  // 墓地からカードを取り除く
+  setMyGraveyard(prev => prev.filter(c => c.uniqueId !== destroyedMonster.uniqueId));
+
+  // 復活したモンスターを作成
+  const revivedMonster = {
+    ...destroyedMonster,
+    attack: newAttack,
+    currentAttack: newAttack,
+    currentHp: destroyedMonster.hp,
+    maxHp: destroyedMonster.hp,
+    canAttack: false,
+    usedSkillThisTurn: false,
+    charges: [],
+    statusEffects: [],
+    zankonUsed: true, // 残魂は1回のみ
+  };
+
+  // フィールドに戻す
+  setMyField(prev => {
+    const newField = [...prev];
+    newField[emptySlot] = revivedMonster;
+    return newField;
+  });
+
+  addLog(`【残魂】${destroyedMonster.name}が攻撃力${newAttack}で場に戻った！`, 'info');
   return true;
 }
 
