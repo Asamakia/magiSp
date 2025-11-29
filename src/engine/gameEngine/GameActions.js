@@ -366,11 +366,14 @@ function applySetPhase(state, { phase }) {
 function applyEndTurn(state) {
   const nextPlayer = getOpponentNumber(state.currentPlayer);
   const nextTurn = nextPlayer === 1 ? state.turn + 1 : state.turn;
+  // isFirstTurnはプレイヤー2のターン終了時（次がプレイヤー1）に解除
+  const nextIsFirstTurn = nextPlayer === 1 ? false : state.isFirstTurn;
 
   return updateGameProgress(state, {
     currentPlayer: nextPlayer,
     turn: nextTurn,
     phase: PHASES.TURN_START,
+    isFirstTurn: nextIsFirstTurn,
   });
 }
 

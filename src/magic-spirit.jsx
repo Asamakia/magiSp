@@ -1107,9 +1107,8 @@ export default function MagicSpiritGame() {
         // ターン開始時トリガーを発火
         fireTrigger(TRIGGER_TYPES.ON_TURN_START_SELF, triggerContext);
 
-        // Phase B: dispatch経由でphaseを更新
+        // Phase D-1: dispatchのみで状態更新
         dispatch(gameActions.setPhase(1));
-        setPhase(1); // 下位互換性
         break;
 
       case 1: // ドローフェイズ
@@ -1125,9 +1124,8 @@ export default function MagicSpiritGame() {
         // ドローフェイズトリガーを発火
         fireTrigger(TRIGGER_TYPES.ON_DRAW_PHASE_SELF, triggerContext);
 
-        // Phase B: dispatch経由でphaseを更新
+        // Phase D-1: dispatchのみで状態更新
         dispatch(gameActions.setPhase(2));
-        setPhase(2); // 下位互換性
         break;
 
       case 2: // メインフェイズ
@@ -1140,9 +1138,8 @@ export default function MagicSpiritGame() {
         // 先攻1ターン目は攻撃不可（Phase C-2: engineState参照）
         if (isFirstTurnFromEngine && currentPlayer === 1) {
           addLog('先攻1ターン目は攻撃できません', 'info');
-          // Phase B: dispatch経由でphaseを更新
+          // Phase D-1: dispatchのみで状態更新
           dispatch(gameActions.setPhase(4));
-          setPhase(4); // 下位互換性
         }
 
         // バトルフェイズ開始時トリガーを発火
@@ -1277,17 +1274,8 @@ export default function MagicSpiritGame() {
         setP1Hand(prev => clearTempCostModifier(prev));
         setP2Hand(prev => clearTempCostModifier(prev));
 
-        // Phase B: dispatch経由でターン終了アクション
+        // Phase D-1: dispatchのみでターン終了（phase, currentPlayer, turn, isFirstTurnを更新）
         dispatch(gameActions.endTurn());
-        setPhase(0); // 下位互換性
-        // ターン終了、相手に切り替え
-        if (currentPlayer === 1) {
-          setCurrentPlayer(2);
-        } else {
-          setCurrentPlayer(1);
-          setTurn(prev => prev + 1);
-          if (isFirstTurnFromEngine) setIsFirstTurn(false); // Phase C-2: 読み取りはengineState
-        }
         addLog(`プレイヤー${currentPlayer}のターン終了`, 'info');
         break;
     }
@@ -3511,25 +3499,22 @@ export default function MagicSpiritGame() {
 
       if (!needsConfirmation) {
         // チェーン確認不要 → 直接バトルフェイズへ
-        // Phase B: dispatch経由でphaseを更新
+        // Phase D-1: dispatchのみで状態更新
         dispatch(gameActions.setPhase(3));
-        setPhase(3); // 下位互換性: useStateも更新
         setSelectedHandCard(null);
       }
       // needsConfirmation === true の場合、確認後にproceedToBattlePhaseが呼ばれる
     } else if (phase === 3) {
-      // Phase B: dispatch経由でphaseを更新
+      // Phase D-1: dispatchのみで状態更新
       dispatch(gameActions.setPhase(4));
-      setPhase(4); // 下位互換性: useStateも更新
       processPhase(4);
     }
   };
 
   // バトルフェイズへ進行（チェーン確認完了後に呼ばれる）
   const proceedToBattlePhase = useCallback(() => {
-    // Phase B: dispatch経由でphaseを更新
+    // Phase D-1: dispatchのみで状態更新
     dispatch(gameActions.setPhase(3));
-    setPhase(3); // 下位互換性
     setSelectedHandCard(null);
   }, [dispatch]);
 
