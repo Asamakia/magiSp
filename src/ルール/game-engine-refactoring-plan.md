@@ -649,9 +649,11 @@ Phase D-1: シャドウディスパッチ箇所整理 ✅ 完了
 - [x] GameActions.js: applyEndTurnにisFirstTurn処理追加
 - 注: summonCard, attack等は「同期後dispatch」パターン（Phase D-4で対応）
 
-Phase D-2: legacyStateSync削除
-- [ ] initializeGameFromEngine()関数を削除
-- [ ] useEffectからの呼び出しを削除
+Phase D-2: legacyStateSync削除 ✅ 完了
+- [x] syncEngineToLegacy()関数を削除（未使用デッドコード）
+- [x] engineState → useState同期useEffectを削除
+- [x] toLegacyState/fromLegacyStateインポートを削除
+- 結果: 64行削減（-440B gzip）
 
 Phase D-3: 読み取り専用useState削除（6個）
 - [ ] turn, currentPlayer, phase, isFirstTurn, winner, logsのuseState削除
